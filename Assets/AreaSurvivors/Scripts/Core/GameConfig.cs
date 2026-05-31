@@ -18,6 +18,8 @@ namespace AreaSurvivors
         public float ballistaRange = 7.5f;
         public float ballistaCooldown = 1.15f;
         public int ballistaDamage = 5;
+        public float fenceBuildSeconds = 1.8f;
+        public int fenceMaxHp = 70;
 
         [Header("Combat")]
         public int baseAttackPower = 6;

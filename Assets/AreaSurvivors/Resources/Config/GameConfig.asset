@@ -22,6 +22,8 @@ MonoBehaviour:
   ballistaRange: 7.5
   ballistaCooldown: 1.15
   ballistaDamage: 5
+  fenceBuildSeconds: 1.8
+  fenceMaxHp: 70
   baseAttackPower: 6
   knightCooldown: 1.05
   archerCooldown: 0.75

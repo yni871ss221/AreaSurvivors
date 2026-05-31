@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -43,7 +44,7 @@ namespace AreaSurvivors
             if (grid != null) grid.Build();
             var tower = Instantiate(towerPrefab, Vector3.zero, Quaternion.identity);
             tower.Configure(config.towerMaxHp + ProgressionStore.GetLevel(UpgradeType.TowerMaxHp) * 12);
-            Player = Instantiate(playerPrefab, new Vector3(0f, -1.8f, 0f), Quaternion.identity);
+            Player = Instantiate(playerPrefab, new Vector3(0f, -2.8f, 0f), Quaternion.identity);
             Player.Configure(config, grid, RunState.SelectedCharacter);
             Camera.main.GetComponent<CameraFollow>().target = Player.transform;
             spawner.Begin(config, grid, tower.transform);
@@ -92,6 +93,20 @@ namespace AreaSurvivors
                 upgradeButtons[i].onClick.RemoveAllListeners();
                 upgradeButtons[i].onClick.AddListener(() => ApplyRunUpgrade(choices[index]));
             }
+
+            SelectFirstUpgrade();
+        }
+
+        void SelectFirstUpgrade()
+        {
+            if (upgradeButtons.Length == 0 || upgradeButtons[0] == null) return;
+
+            if (EventSystem.current != null)
+            {
+                EventSystem.current.SetSelectedGameObject(null);
+                EventSystem.current.SetSelectedGameObject(upgradeButtons[0].gameObject);
+            }
+            upgradeButtons[0].Select();
         }
 
         List<RunUpgradeChoice> RollUpgrades()
@@ -120,6 +135,7 @@ namespace AreaSurvivors
             runUpgrades.Add(choice.label);
             Player.Configure(config, grid, Player.characterType);
             levelUpPanel.SetActive(false);
+            if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(null);
             Time.timeScale = 1f;
         }
 

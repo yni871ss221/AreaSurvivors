@@ -94,9 +94,12 @@ namespace AreaSurvivors
             if (contactTimer > 0f) return;
             var otherHealth = collision.collider.GetComponent<Health>();
             if (otherHealth == null) return;
-            if (collision.collider.GetComponent<PlayerController>() == null && collision.collider.GetComponent<TowerController>() == null) return;
+            var fence = collision.collider.GetComponent<DefensiveFence>();
+            if (collision.collider.GetComponent<PlayerController>() == null &&
+                collision.collider.GetComponent<TowerController>() == null &&
+                (fence == null || !fence.IsBuilt)) return;
             int dealt = otherHealth.Damage(config.enemyDamage);
-            float height = collision.collider.GetComponent<TowerController>() != null ? 1.05f : 0.58f;
+            float height = collision.collider.GetComponent<TowerController>() != null ? 1.05f : fence != null ? 0.82f : 0.58f;
             DamagePopup.Show(damagePopupPrefab, collision.transform.position + Vector3.up * height, dealt, Color.red);
             contactTimer = 0.75f;
         }

@@ -68,11 +68,15 @@ namespace AreaSurvivors.Editor
             var arrow = SavePrefab(CreateProjectile("Arrow", LoadSprite("Arrow"), new Color(0.85f, 0.72f, 0.35f)), Prefabs + "/Arrow.prefab");
             var fireball = SavePrefab(CreateProjectile("Fireball", LoadSprite("Fireball"), new Color(1f, 0.35f, 0.16f)), Prefabs + "/Fireball.prefab");
             var ballista = SavePrefab(CreateBallista(arrow), Prefabs + "/BallistaTower.prefab");
+            var horizontalFence = SavePrefab(CreateFence(false), Prefabs + "/DefensiveFenceHorizontal.prefab");
+            var verticalFence = SavePrefab(CreateFence(true), Prefabs + "/DefensiveFenceVertical.prefab");
             var set = new PrefabSet
             {
                 arrow = arrow,
                 fireball = fireball,
                 ballista = ballista,
+                horizontalFence = horizontalFence,
+                verticalFence = verticalFence,
                 player = SavePrefab(CreatePlayer(arrow, fireball), Prefabs + "/Player.prefab").GetComponent<PlayerController>(),
                 enemy = SavePrefab(CreateEnemy(), Prefabs + "/Enemy.prefab"),
                 tower = SavePrefab(CreateTower(), Prefabs + "/Tower.prefab").GetComponent<TowerController>(),
@@ -150,6 +154,44 @@ namespace AreaSurvivors.Editor
             SetObjectReference(ballista, "hammerRenderer", hammer);
             SetObjectReference(ballista, "sparkleRenderer", sparkle);
             SetObjectReference(ballista, "buildGauge", AddWorldBuildGauge(go.transform, new Vector3(0f, -0.75f, 0f)));
+            return go;
+        }
+
+        static GameObject CreateFence(bool vertical)
+        {
+            var go = new GameObject(vertical ? "DefensiveFenceVertical" : "DefensiveFenceHorizontal");
+            var rb = go.AddComponent<Rigidbody2D>();
+            rb.bodyType = RigidbodyType2D.Static;
+            go.AddComponent<Health>();
+
+            var buildTrigger = go.AddComponent<BoxCollider2D>();
+            buildTrigger.isTrigger = true;
+            buildTrigger.size = vertical ? new Vector2(0.34f, 3.9f) : new Vector2(3.9f, 0.68f);
+            var blocker = go.AddComponent<BoxCollider2D>();
+            blocker.size = buildTrigger.size;
+
+            var sprite = LoadSprite(vertical ? "FenceVertical" : "FenceHorizontal");
+            var ghost = SpriteChild(go.transform, "Ghost", sprite, new Color(1f, 1f, 1f, 0.22f), 1000);
+            var build = SpriteChild(go.transform, "Build Fill", sprite, Color.white, 1001);
+            var complete = SpriteChild(go.transform, "Complete", sprite, Color.white, 1002);
+            var hammer = SpriteChild(go.transform, "Hammer", LoadSprite("Hammer"), Color.white, 2200);
+            hammer.transform.localPosition = vertical ? new Vector3(0.32f, -0.12f, 0f) : new Vector3(0.54f, -0.12f, 0f);
+            var sparkle = SpriteChild(go.transform, "Completion Sparkle", LoadSprite("Sparkle"), new Color(1f, 1f, 1f, 0f), 2400);
+            sparkle.enabled = false;
+
+            var ySort = go.AddComponent<YSort>();
+            ySort.baseOrder = 1000;
+            ySort.renderers = new[] { ghost, build, complete };
+
+            var fence = go.AddComponent(GetRuntimeType("AreaSurvivors.DefensiveFence"));
+            SetBool(fence, "vertical", vertical);
+            SetObjectReference(fence, "blockingCollider", blocker);
+            SetObjectReference(fence, "ghostRenderer", ghost);
+            SetObjectReference(fence, "buildRenderer", build);
+            SetObjectReference(fence, "completeRenderer", complete);
+            SetObjectReference(fence, "hammerRenderer", hammer);
+            SetObjectReference(fence, "sparkleRenderer", sparkle);
+            SetObjectReference(fence, "buildGauge", AddWorldBuildGauge(go.transform, vertical ? new Vector3(0.62f, 0f, 0f) : new Vector3(2.82f, -0.08f, 0f)));
             return go;
         }
 
@@ -392,6 +434,7 @@ namespace AreaSurvivors.Editor
             manager.towerPrefab = prefabs.tower;
             manager.spawner = spawner;
             AddBallistas(prefabs.ballista, config);
+            AddFences(prefabs.horizontalFence, prefabs.verticalFence, config);
             BuildHud(manager);
 
             EditorSceneManager.SaveScene(scene, $"{Scenes}/{SceneNames.Game}.unity");
@@ -415,6 +458,28 @@ namespace AreaSurvivors.Editor
                 instance.transform.position = position;
                 var ballista = instance.GetComponent(GetRuntimeType("AreaSurvivors.BallistaTower"));
                 if (ballista != null) SetObjectReference(ballista, "config", config);
+            }
+        }
+
+        static void AddFences(GameObject horizontalPrefab, GameObject verticalPrefab, GameConfig config)
+        {
+            if (horizontalPrefab == null || verticalPrefab == null) return;
+            var placements = new[]
+            {
+                new FencePlacement(new Vector3(0f, 2.7f, 0f), false),
+                new FencePlacement(new Vector3(0f, -4.1f, 0f), false),
+                new FencePlacement(new Vector3(-4.2f, -0.7f, 0f), true),
+                new FencePlacement(new Vector3(4.2f, -0.7f, 0f), true)
+            };
+
+            foreach (var placement in placements)
+            {
+                var fencePrefab = placement.vertical ? verticalPrefab : horizontalPrefab;
+                var instance = PrefabUtility.InstantiatePrefab(fencePrefab) as GameObject;
+                if (instance == null) continue;
+                instance.transform.position = placement.position;
+                var fence = instance.GetComponent(GetRuntimeType("AreaSurvivors.DefensiveFence"));
+                if (fence != null) SetObjectReference(fence, "config", config);
             }
         }
 
@@ -716,6 +781,16 @@ namespace AreaSurvivors.Editor
             serialized.ApplyModifiedPropertiesWithoutUndo();
         }
 
+        static void SetBool(Component component, string propertyName, bool value)
+        {
+            if (component == null) return;
+            var serialized = new SerializedObject(component);
+            var property = serialized.FindProperty(propertyName);
+            if (property == null) return;
+            property.boolValue = value;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
         struct PrefabSet
         {
             public PlayerController player;
@@ -725,7 +800,21 @@ namespace AreaSurvivors.Editor
             public GameObject arrow;
             public GameObject fireball;
             public GameObject ballista;
+            public GameObject horizontalFence;
+            public GameObject verticalFence;
             public GameObject damagePopup;
+        }
+
+        readonly struct FencePlacement
+        {
+            public readonly Vector3 position;
+            public readonly bool vertical;
+
+            public FencePlacement(Vector3 position, bool vertical)
+            {
+                this.position = position;
+                this.vertical = vertical;
+            }
         }
 
         readonly struct ObstacleSpec
