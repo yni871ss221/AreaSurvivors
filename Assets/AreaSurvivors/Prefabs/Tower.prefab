@@ -246,7 +246,7 @@ Canvas:
   m_AdditionalShaderChannelsFlag: 0
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
-  m_SortingOrder: 50
+  m_SortingOrder: 3000
   m_TargetDisplay: 0
 --- !u!114 &7864144631416923078
 MonoBehaviour:
@@ -309,6 +309,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5770742443751906250}
   - component: {fileID: 3603950525530361624}
+  - component: {fileID: 5813501603732726551}
   - component: {fileID: 8099501676726690897}
   - component: {fileID: 484506857668372139}
   - component: {fileID: 5733199355585533183}
@@ -376,7 +377,7 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 10
+  m_SortingOrder: 1000
   m_Sprite: {fileID: 21300000, guid: decc27b120ff1094380b26e6ef66fa96, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
@@ -388,6 +389,22 @@ SpriteRenderer:
   m_WasSpriteAssigned: 1
   m_MaskInteraction: 0
   m_SpriteSortPoint: 0
+--- !u!114 &5813501603732726551
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3625782560731970138}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d373fe48ec0e33b449b93419fd0f6277, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  baseOrder: 1000
+  orderOffset: 0
+  renderers:
+  - {fileID: 3603950525530361624}
 --- !u!50 &8099501676726690897
 Rigidbody2D:
   serializedVersion: 4

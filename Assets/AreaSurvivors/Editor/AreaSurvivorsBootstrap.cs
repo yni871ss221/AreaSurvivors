@@ -30,6 +30,7 @@ namespace AreaSurvivors.Editor
             CreateMenuScene(SceneNames.Lobby, typeof(LobbyScreen));
             CreateMenuScene(SceneNames.Upgrades, typeof(UpgradeScreen));
             CreateGameScene(config, prefabs);
+            CreateMenuScene(SceneNames.GameOver, typeof(GameOverScreen));
             SetBuildScenes();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -66,10 +67,12 @@ namespace AreaSurvivors.Editor
             ImportGeneratedSprites();
             var arrow = SavePrefab(CreateProjectile("Arrow", LoadSprite("Arrow"), new Color(0.85f, 0.72f, 0.35f)), Prefabs + "/Arrow.prefab");
             var fireball = SavePrefab(CreateProjectile("Fireball", LoadSprite("Fireball"), new Color(1f, 0.35f, 0.16f)), Prefabs + "/Fireball.prefab");
+            var ballista = SavePrefab(CreateBallista(arrow), Prefabs + "/BallistaTower.prefab");
             var set = new PrefabSet
             {
                 arrow = arrow,
                 fireball = fireball,
+                ballista = ballista,
                 player = SavePrefab(CreatePlayer(arrow, fireball), Prefabs + "/Player.prefab").GetComponent<PlayerController>(),
                 enemy = SavePrefab(CreateEnemy(), Prefabs + "/Enemy.prefab"),
                 tower = SavePrefab(CreateTower(), Prefabs + "/Tower.prefab").GetComponent<TowerController>(),
@@ -117,6 +120,39 @@ namespace AreaSurvivors.Editor
             return go;
         }
 
+        static GameObject CreateBallista(GameObject arrowPrefab)
+        {
+            var go = new GameObject("BallistaTower");
+            var rb = go.AddComponent<Rigidbody2D>();
+            rb.bodyType = RigidbodyType2D.Static;
+            var trigger = go.AddComponent<CircleCollider2D>();
+            trigger.isTrigger = true;
+            trigger.radius = 0.82f;
+
+            var sprite = LoadSprite("Ballista");
+            var ghost = SpriteChild(go.transform, "Ghost", sprite, new Color(1f, 1f, 1f, 0.22f), 1000);
+            var build = SpriteChild(go.transform, "Build Fill", sprite, Color.white, 1001);
+            var complete = SpriteChild(go.transform, "Complete", sprite, Color.white, 1002);
+            var hammer = SpriteChild(go.transform, "Hammer", LoadSprite("Hammer"), Color.white, 2200);
+            hammer.transform.localPosition = new Vector3(0.28f, -0.12f, 0f);
+            var sparkle = SpriteChild(go.transform, "Completion Sparkle", LoadSprite("Sparkle"), new Color(1f, 1f, 1f, 0f), 2400);
+            sparkle.enabled = false;
+
+            var ySort = go.AddComponent<YSort>();
+            ySort.baseOrder = 1000;
+            ySort.renderers = new[] { ghost, build, complete };
+
+            var ballista = go.AddComponent(GetRuntimeType("AreaSurvivors.BallistaTower"));
+            SetObjectReference(ballista, "arrowPrefab", arrowPrefab);
+            SetObjectReference(ballista, "ghostRenderer", ghost);
+            SetObjectReference(ballista, "buildRenderer", build);
+            SetObjectReference(ballista, "completeRenderer", complete);
+            SetObjectReference(ballista, "hammerRenderer", hammer);
+            SetObjectReference(ballista, "sparkleRenderer", sparkle);
+            SetObjectReference(ballista, "buildGauge", AddWorldBuildGauge(go.transform, new Vector3(0f, -0.75f, 0f)));
+            return go;
+        }
+
         static GameObject CreateEnemy()
         {
             var go = Actor("Enemy", LoadWalkFrame("EnemyBoar", "Down", 1) ?? LoadSprite("EnemyBoar"), Color.white, 0.34f);
@@ -125,7 +161,6 @@ namespace AreaSurvivors.Editor
             animator.SetFrames(LoadWalkFrames("EnemyBoar", "Down"), LoadWalkFrames("EnemyBoar", "Left"), LoadWalkFrames("EnemyBoar", "Right"), LoadWalkFrames("EnemyBoar", "Up"));
             var enemy = go.AddComponent<EnemyController>();
             enemy.directionalAnimator = animator;
-            enemy.hpBar = AddWorldHpBar(go.transform, new Vector3(0, -0.48f, 0));
             return go;
         }
 
@@ -145,7 +180,10 @@ namespace AreaSurvivors.Editor
             var sr = go.AddComponent<SpriteRenderer>();
             sr.sprite = sprite;
             sr.color = HasGeneratedSprite(name) ? Color.white : color;
-            sr.sortingOrder = 10;
+            sr.sortingOrder = 1000;
+            var ySort = go.AddComponent<YSort>();
+            ySort.baseOrder = 1000;
+            ySort.renderers = new[] { sr };
             var rb = go.AddComponent<Rigidbody2D>();
             rb.gravityScale = 0f;
             rb.freezeRotation = true;
@@ -160,7 +198,7 @@ namespace AreaSurvivors.Editor
             canvas.transform.SetParent(parent, false);
             canvas.transform.localPosition = localPos;
             canvas.renderMode = RenderMode.WorldSpace;
-            canvas.sortingOrder = 50;
+            canvas.sortingOrder = 3000;
             canvas.GetComponent<RectTransform>().sizeDelta = new Vector2(width, 0.14f);
             var slider = canvas.gameObject.AddComponent<Slider>();
             slider.transition = Selectable.Transition.None;
@@ -206,6 +244,46 @@ namespace AreaSurvivors.Editor
             return image;
         }
 
+        static Slider AddWorldBuildGauge(Transform parent, Vector3 localPos)
+        {
+            var canvas = new GameObject("Build Gauge").AddComponent<Canvas>();
+            canvas.transform.SetParent(parent, false);
+            canvas.transform.localPosition = localPos;
+            canvas.renderMode = RenderMode.WorldSpace;
+            canvas.sortingOrder = 3100;
+            canvas.GetComponent<RectTransform>().sizeDelta = new Vector2(0.18f, 0.78f);
+            var slider = canvas.gameObject.AddComponent<Slider>();
+            slider.transition = Selectable.Transition.None;
+            slider.minValue = 0f;
+            slider.maxValue = 1f;
+            slider.value = 0f;
+            slider.direction = Slider.Direction.BottomToTop;
+            var bg = StretchImageChild(canvas.transform, "Background", new Color(0.02f, 0.03f, 0.03f, 0.84f), Vector2.zero, Vector2.one);
+            var fillArea = new GameObject("Fill Area").AddComponent<RectTransform>();
+            fillArea.SetParent(canvas.transform, false);
+            fillArea.anchorMin = Vector2.zero;
+            fillArea.anchorMax = Vector2.one;
+            fillArea.offsetMin = Vector2.zero;
+            fillArea.offsetMax = Vector2.zero;
+            var fill = StretchImageChild(fillArea, "Fill", new Color(0.35f, 0.72f, 1f, 0.9f), Vector2.zero, Vector2.one);
+            fill.rectTransform.pivot = new Vector2(0.5f, 0f);
+            slider.targetGraphic = bg;
+            slider.fillRect = fill.rectTransform;
+            canvas.gameObject.SetActive(false);
+            return slider;
+        }
+
+        static SpriteRenderer SpriteChild(Transform parent, string name, Sprite sprite, Color color, int sortingOrder)
+        {
+            var child = new GameObject(name);
+            child.transform.SetParent(parent, false);
+            var sr = child.AddComponent<SpriteRenderer>();
+            sr.sprite = sprite;
+            sr.color = color;
+            sr.sortingOrder = sortingOrder;
+            return sr;
+        }
+
         static GameObject CreateProjectile(string name, Sprite sprite, Color color)
         {
             var go = new GameObject(name);
@@ -240,19 +318,42 @@ namespace AreaSurvivors.Editor
         static GameObject CreateDamagePopup()
         {
             var go = new GameObject("DamagePopup");
-            var canvas = go.AddComponent<Canvas>();
-            canvas.renderMode = RenderMode.WorldSpace;
-            canvas.sortingOrder = 100;
-            canvas.GetComponent<RectTransform>().sizeDelta = new Vector2(1.2f, 0.45f);
-            var text = new GameObject("Text").AddComponent<Text>();
-            text.transform.SetParent(go.transform, false);
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            text.alignment = TextAnchor.MiddleCenter;
-            text.fontSize = 22;
-            text.rectTransform.sizeDelta = new Vector2(1.2f, 0.45f);
+            var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            var outlines = new TextMesh[4];
+            var offsets = new[]
+            {
+                new Vector3(0.025f, 0f, 0f),
+                new Vector3(-0.025f, 0f, 0f),
+                new Vector3(0f, 0.025f, 0f),
+                new Vector3(0f, -0.025f, 0f)
+            };
+            for (int i = 0; i < outlines.Length; i++)
+            {
+                outlines[i] = AddDamageText(go.transform, "Outline", font, Color.black, 3999);
+                outlines[i].transform.localPosition = offsets[i];
+            }
+            var text = AddDamageText(go.transform, "Text", font, Color.white, 4000);
             var popup = go.AddComponent<DamagePopup>();
             popup.text = text;
+            popup.outlines = outlines;
             return go;
+        }
+
+        static TextMesh AddDamageText(Transform parent, string name, Font font, Color color, int sortingOrder)
+        {
+            var child = new GameObject(name);
+            child.transform.SetParent(parent, false);
+            var text = child.AddComponent<TextMesh>();
+            text.font = font;
+            text.anchor = TextAnchor.MiddleCenter;
+            text.alignment = TextAlignment.Center;
+            text.fontSize = 64;
+            text.characterSize = 0.08f;
+            text.color = color;
+            var renderer = child.GetComponent<MeshRenderer>();
+            renderer.sortingOrder = sortingOrder;
+            if (font != null) renderer.sharedMaterial = font.material;
+            return text;
         }
 
         static void CreateMenuScene(string sceneName, System.Type screenType)
@@ -290,24 +391,101 @@ namespace AreaSurvivors.Editor
             manager.playerPrefab = prefabs.player;
             manager.towerPrefab = prefabs.tower;
             manager.spawner = spawner;
+            AddBallistas(prefabs.ballista, config);
             BuildHud(manager);
 
             EditorSceneManager.SaveScene(scene, $"{Scenes}/{SceneNames.Game}.unity");
         }
 
+        static void AddBallistas(GameObject ballistaPrefab, GameConfig config)
+        {
+            if (ballistaPrefab == null) return;
+            var positions = new[]
+            {
+                new Vector3(4.2f, 2.7f, 0f),
+                new Vector3(4.2f, -4.1f, 0f),
+                new Vector3(-4.2f, 2.7f, 0f),
+                new Vector3(-4.2f, -4.1f, 0f)
+            };
+
+            foreach (var position in positions)
+            {
+                var instance = PrefabUtility.InstantiatePrefab(ballistaPrefab) as GameObject;
+                if (instance == null) continue;
+                instance.transform.position = position;
+                var ballista = instance.GetComponent(GetRuntimeType("AreaSurvivors.BallistaTower"));
+                if (ballista != null) SetObjectReference(ballista, "config", config);
+            }
+        }
+
         static void AddObstacles()
         {
-            for (int i = 0; i < 20; i++)
+            var specs = new[]
             {
-                var go = new GameObject(i % 3 == 0 ? "Pond" : i % 3 == 1 ? "Rock" : "Tree");
-                go.transform.position = new Vector3(Random.Range(-14f, 14f), Random.Range(-7f, 7f), 0f);
-                if (Vector3.Distance(go.transform.position, Vector3.zero) < 3f) go.transform.position += Vector3.right * 5f;
-                var sr = go.AddComponent<SpriteRenderer>();
-                sr.sprite = LoadSprite(go.name);
-                sr.sortingOrder = 5;
-                var col = go.AddComponent<CircleCollider2D>();
-                col.radius = go.name == "Pond" ? 0.75f : 0.45f;
+                new ObstacleSpec("Tree", 18, 1.45f, 0.34f, new Vector2(0f, 0.8f), new Vector2(0f, -0.06f)),
+                new ObstacleSpec("Rock", 16, 1.15f, 0.42f, new Vector2(0f, 0.33f), new Vector2(0f, 0f)),
+                new ObstacleSpec("Pond", 10, 1.65f, 0.82f, new Vector2(0f, 0.22f), new Vector2(0f, 0f))
+            };
+
+            var placed = new List<PlacedObstacle>();
+            foreach (var spec in specs)
+            {
+                for (int i = 0; i < spec.count; i++)
+                {
+                    if (TryFindObstaclePosition(spec, placed, out var position))
+                    {
+                        placed.Add(new PlacedObstacle(position, spec.spacingRadius));
+                        CreateObstacle(spec, position);
+                    }
+                }
             }
+        }
+
+        static bool TryFindObstaclePosition(ObstacleSpec spec, List<PlacedObstacle> placed, out Vector3 position)
+        {
+            for (int attempt = 0; attempt < 120; attempt++)
+            {
+                position = new Vector3(Random.Range(-29f, 29f), Random.Range(-15f, 15f), 0f);
+                if (Vector3.Distance(position, Vector3.zero) < 4.2f) continue;
+
+                bool overlaps = false;
+                foreach (var other in placed)
+                {
+                    if (Vector2.Distance(position, other.position) < spec.spacingRadius + other.radius)
+                    {
+                        overlaps = true;
+                        break;
+                    }
+                }
+
+                if (!overlaps) return true;
+            }
+
+            position = Vector3.zero;
+            return false;
+        }
+
+        static void CreateObstacle(ObstacleSpec spec, Vector3 position)
+        {
+            var root = new GameObject(spec.name);
+            root.transform.position = position;
+            root.AddComponent<Obstacle>();
+
+            var visual = new GameObject("Visual");
+            visual.transform.SetParent(root.transform, false);
+            visual.transform.localPosition = spec.visualOffset;
+            var sr = visual.AddComponent<SpriteRenderer>();
+            sr.sprite = LoadSprite(spec.name);
+            sr.color = HasGeneratedSprite(spec.name) ? Color.white : Color.gray;
+
+            var ySort = root.AddComponent<YSort>();
+            ySort.baseOrder = 1000;
+            ySort.renderers = new[] { sr };
+            ySort.Apply();
+
+            var col = root.AddComponent<CircleCollider2D>();
+            col.radius = spec.colliderRadius;
+            col.offset = spec.colliderOffset;
         }
 
         static void BuildHud(GameManager manager)
@@ -374,7 +552,7 @@ namespace AreaSurvivors.Editor
         static void SetBuildScenes()
         {
             var entries = new List<EditorBuildSettingsScene>();
-            foreach (var sceneName in new[] { SceneNames.Title, SceneNames.Options, SceneNames.Lobby, SceneNames.Upgrades, SceneNames.Game })
+            foreach (var sceneName in new[] { SceneNames.Title, SceneNames.Options, SceneNames.Lobby, SceneNames.Upgrades, SceneNames.Game, SceneNames.GameOver })
             {
                 entries.Add(new EditorBuildSettingsScene($"{Scenes}/{sceneName}.unity", true));
             }
@@ -391,6 +569,8 @@ namespace AreaSurvivors.Editor
             Pixel("Mage", 16, 16, new[] { "......AAAA......", ".....AaaaaA.....", "....AaaaaaaA....", "......hhhh......", ".....OooooO.....", "....OooooooO....", "...YOOOOOOOO....", "..YY..OOOO......", ".YY...O..O......", "......O..O......", ".....FF..FF.....", "....FF....FF....", "................", "................", "................", "................" }, Palette(), ResourcesPath + "/Mage.png");
             Pixel("EnemyBoar", 16, 16, new[] { "................", "................", "....rrrrrr......", "...rRRRRRRr.....", "..rRRRrrRRRr....", ".rRRRoRRoRRr....", ".rRRRRRRRRRr....", "..rRRRRRRRr.....", "...tt....tt.....", "..tt......tt....", "................", "................", "................", "................", "................", "................" }, Palette());
             Pixel("Tower", 24, 24, new[] { ".........CCCCCC.........", "........CccccccC........", "........CccccccC........", ".......CccccccccC.......", ".......CccWWWWccC.......", ".......CccW..WccC.......", ".......CccWWWWccC.......", ".......CccccccccC.......", ".......CccccccccC.......", "......CccccccccccC......", "......CccccccccccC......", "......CcccWWWWcccC......", "......CcccW..WcccC......", "......CcccWWWWcccC......", ".....CccccccccccccC.....", ".....CccccccccccccC.....", "....CccccccccccccccC....", "....CccccccccccccccC....", "...CccccccccccccccccC...", "...CCCCCCCCCCCCCCCCCC...", "....BBBBBBBBBBBBBBBB....", "....BBBBBBBBBBBBBBBB....", ".........................", "........................." }, Palette());
+            Pixel("Ballista", 24, 24, new[] { "........................", "........................", "..........kkkk..........", ".........kKKKKk.........", "........kKKKKKKk........", ".......kkKyyyyKkk.......", "......kk..yyyy..kk......", ".....kk....yy....kk.....", "....kk.....yy.....kk....", "...kk......yy......kk...", ".........CCCCCC.........", "........CccccccC........", ".......CccccccccC.......", ".......CCcWWcCC........", ".........cWWc..........", ".........cWWc..........", "........ccWWcc.........", ".......ccWWWWcc........", "......ccWWWWWWcc.......", "......CCCCCCCCCC.......", ".......BBBBBBBB........", ".......BbbbbbbB........", "........................", "........................" }, Palette());
+            Pixel("Hammer", 16, 16, new[] { "................", "....kkkkkk......", "...kKKKKKKk.....", "....kkkkkk......", "......WW........", ".....WW.........", ".....WW.........", "....WW..........", "....WW..........", "...WW...........", "...WW...........", "..WW............", "................", "................", "................", "................" }, Palette());
             Pixel("Arrow", 12, 4, new[] { "....yyyyYYYY", "yyyyYYYY>>>>", "yyyyYYYY>>>>", "....yyyyYYYY" }, Palette());
             Pixel("Fireball", 12, 12, new[] { "....oooo....", "...oOOOOo...", "..oOOYYOOo..", ".oOOYYYYOOo.", ".oOYYYYYYOo.", ".oOYYYYYYOo.", ".oOOYYYYOOo.", "..oOOYYOOo..", "...oOOOOo...", "....oooo....", "............", "............" }, Palette());
             Pixel("Orb", 8, 8, new[] { "..AAAA..", ".AaaaaA.", "AaaWWaaA", "AaaWWaaA", ".AaaaaA.", "..AAAA..", "........", "........" }, Palette());
@@ -480,6 +660,9 @@ namespace AreaSurvivors.Editor
         {
             if (assetPath.EndsWith("/Arrow.png")) return 256;
             if (assetPath.EndsWith("/Fireball.png")) return 96;
+            if (assetPath.EndsWith("/Tree.png")) return 256;
+            if (assetPath.EndsWith("/Rock.png")) return 256;
+            if (assetPath.EndsWith("/Pond.png")) return 256;
             if (assetPath.Contains("/Walk/")) return 256;
             if (assetPath.Contains("/Slash_")) return 256;
             return 128;
@@ -516,6 +699,23 @@ namespace AreaSurvivors.Editor
             importer.SaveAndReimport();
         }
 
+        static System.Type GetRuntimeType(string typeName)
+        {
+            var type = System.Type.GetType(typeName + ", Assembly-CSharp");
+            if (type == null) throw new System.InvalidOperationException($"Runtime type not found: {typeName}");
+            return type;
+        }
+
+        static void SetObjectReference(Component component, string propertyName, Object value)
+        {
+            if (component == null) return;
+            var serialized = new SerializedObject(component);
+            var property = serialized.FindProperty(propertyName);
+            if (property == null) return;
+            property.objectReferenceValue = value;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+        }
+
         struct PrefabSet
         {
             public PlayerController player;
@@ -524,7 +724,40 @@ namespace AreaSurvivors.Editor
             public GameObject xpOrb;
             public GameObject arrow;
             public GameObject fireball;
+            public GameObject ballista;
             public GameObject damagePopup;
+        }
+
+        readonly struct ObstacleSpec
+        {
+            public readonly string name;
+            public readonly int count;
+            public readonly float spacingRadius;
+            public readonly float colliderRadius;
+            public readonly Vector2 visualOffset;
+            public readonly Vector2 colliderOffset;
+
+            public ObstacleSpec(string name, int count, float spacingRadius, float colliderRadius, Vector2 visualOffset, Vector2 colliderOffset)
+            {
+                this.name = name;
+                this.count = count;
+                this.spacingRadius = spacingRadius;
+                this.colliderRadius = colliderRadius;
+                this.visualOffset = visualOffset;
+                this.colliderOffset = colliderOffset;
+            }
+        }
+
+        readonly struct PlacedObstacle
+        {
+            public readonly Vector2 position;
+            public readonly float radius;
+
+            public PlacedObstacle(Vector2 position, float radius)
+            {
+                this.position = position;
+                this.radius = radius;
+            }
         }
     }
 }

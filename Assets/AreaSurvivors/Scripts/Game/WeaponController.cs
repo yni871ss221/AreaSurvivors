@@ -54,7 +54,8 @@ namespace AreaSurvivors
             {
                 var enemy = hits[i].GetComponent<EnemyController>();
                 if (enemy == null) continue;
-                hits[i].GetComponent<Health>()?.Damage(attackPower + 2);
+                var dealt = hits[i].GetComponent<Health>()?.Damage(attackPower + 2) ?? 0;
+                GameManager.Instance?.RegisterDamageDealt(dealt);
             }
             SlashView.Flash(transform.position, direction);
         }

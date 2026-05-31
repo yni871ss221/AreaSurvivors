@@ -19,13 +19,16 @@ namespace AreaSurvivors
             currentHp = maxHp;
         }
 
-        public void Damage(int value)
+        public int Damage(int value)
         {
-            if (IsDead) return;
+            if (IsDead) return 0;
             int amount = Mathf.Max(1, value);
+            int before = currentHp;
             currentHp = Mathf.Max(0, currentHp - amount);
-            Damaged?.Invoke(this, amount);
+            int dealt = before - currentHp;
+            Damaged?.Invoke(this, dealt);
             if (currentHp <= 0) Died?.Invoke(this);
+            return dealt;
         }
 
         public void FullHeal()

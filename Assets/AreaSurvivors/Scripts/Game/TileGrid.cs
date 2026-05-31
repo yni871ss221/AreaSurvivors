@@ -11,8 +11,8 @@ namespace AreaSurvivors
 
     public sealed class TileGrid : MonoBehaviour
     {
-        public int width = 48;
-        public int height = 48;
+        public int width = 96;
+        public int height = 96;
         public float cellSize = 0.7f;
         public Sprite tileSprite;
         public Sprite paintSprite;

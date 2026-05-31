@@ -7,5 +7,6 @@ namespace AreaSurvivors
         public const string Lobby = "03_Lobby";
         public const string Upgrades = "04_Upgrades";
         public const string Game = "05_Game";
+        public const string GameOver = "06_GameOver";
     }
 }

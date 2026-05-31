@@ -32,6 +32,7 @@ namespace AreaSurvivors
 
         Rigidbody2D body;
         Health health;
+        Collider2D hitCollider;
         Vector2 facing = Vector2.down;
         float moveSpeed;
         int paintRadius;
@@ -40,6 +41,7 @@ namespace AreaSurvivors
         {
             body = GetComponent<Rigidbody2D>();
             health = GetComponent<Health>();
+            hitCollider = GetComponent<Collider2D>();
             health.Died += OnDied;
         }
 
@@ -104,12 +106,42 @@ namespace AreaSurvivors
         {
             IsReviving = true;
             body.velocity = Vector2.zero;
-            var renderers = GetComponentsInChildren<SpriteRenderer>();
-            foreach (var sr in renderers) sr.enabled = false;
+            if (hitCollider != null) hitCollider.enabled = false;
+            if (directionalAnimator != null) directionalAnimator.enabled = false;
+
+            var mainRenderer = GetComponent<SpriteRenderer>();
+            var deathPose = new GameObject("Revive Pose");
+            deathPose.transform.SetParent(transform, false);
+            deathPose.transform.localPosition = new Vector3(0f, -0.24f, 0f);
+            deathPose.transform.localScale = new Vector3(0.82f, 0.52f, 1f);
+            var deathRenderer = deathPose.AddComponent<SpriteRenderer>();
+            if (mainRenderer != null)
+            {
+                deathRenderer.sprite = mainRenderer.sprite;
+                deathRenderer.sortingOrder = mainRenderer.sortingOrder + 1;
+                mainRenderer.enabled = false;
+            }
+
             float revive = Mathf.Max(1f, config.playerReviveSeconds - ProgressionStore.GetLevel(UpgradeType.ReviveSpeed) * 0.35f);
-            yield return new WaitForSeconds(revive);
+            float elapsed = 0f;
+            while (elapsed < revive)
+            {
+                elapsed += Time.deltaTime;
+                float pulse = Mathf.PingPong(elapsed * 7f, 1f);
+                deathRenderer.color = new Color(1f, 1f, 1f, Mathf.Lerp(0.28f, 0.95f, pulse));
+                deathPose.transform.localScale = new Vector3(0.82f + pulse * 0.04f, 0.52f, 1f);
+                yield return null;
+            }
+
             health.FullHeal();
-            foreach (var sr in renderers) sr.enabled = true;
+            Destroy(deathPose);
+            if (mainRenderer != null)
+            {
+                mainRenderer.color = Color.white;
+                mainRenderer.enabled = true;
+            }
+            if (directionalAnimator != null) directionalAnimator.enabled = true;
+            if (hitCollider != null) hitCollider.enabled = true;
             IsReviving = false;
         }
     }

@@ -20,4 +20,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/AreaSurvivors/Scenes/05_Game.unity
     guid: 202a0668d507e9e42b4887b39f9d614d
+  - enabled: 1
+    path: Assets/AreaSurvivors/Scenes/06_GameOver.unity
+    guid: 86fef9145185cdd47b6cdfc356f8704c
   m_configObjects: {}

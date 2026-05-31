@@ -12,18 +12,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1de54e140f75de4418cc2a53ffedbf69, type: 3}
   m_Name: GameConfig
   m_EditorClassIdentifier: 
-  playerMoveSpeed: 4.2
+  playerMoveSpeed: 2.1
   playerMaxHp: 40
   playerReviveSeconds: 6
   enemyTerritorySlow: 0.35
   paintRadius: 1
   towerMaxHp: 160
+  ballistaBuildSeconds: 2.2
+  ballistaRange: 7.5
+  ballistaCooldown: 1.15
+  ballistaDamage: 5
   baseAttackPower: 6
   knightCooldown: 1.05
   archerCooldown: 0.75
   mageCooldown: 1.45
   projectileSpeed: 9
-  enemyBaseSpeed: 1.65
+  enemyBaseSpeed: 0.82
   enemyBaseHp: 14
   enemyDamage: 4
   spawnInterval: 1.35

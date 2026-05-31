@@ -6,7 +6,7 @@ namespace AreaSurvivors
     public sealed class GameConfig : ScriptableObject
     {
         [Header("Player")]
-        public float playerMoveSpeed = 4.2f;
+        public float playerMoveSpeed = 2.1f;
         public int playerMaxHp = 40;
         public float playerReviveSeconds = 6f;
         public float enemyTerritorySlow = 0.35f;
@@ -14,6 +14,10 @@ namespace AreaSurvivors
 
         [Header("Tower")]
         public int towerMaxHp = 160;
+        public float ballistaBuildSeconds = 2.2f;
+        public float ballistaRange = 7.5f;
+        public float ballistaCooldown = 1.15f;
+        public int ballistaDamage = 5;
 
         [Header("Combat")]
         public int baseAttackPower = 6;
@@ -23,7 +27,7 @@ namespace AreaSurvivors
         public float projectileSpeed = 9f;
 
         [Header("Enemies")]
-        public float enemyBaseSpeed = 1.65f;
+        public float enemyBaseSpeed = 0.82f;
         public int enemyBaseHp = 14;
         public int enemyDamage = 4;
         public float spawnInterval = 1.35f;

@@ -11,7 +11,7 @@ namespace AreaSurvivors
         public Transform target;
         public GameObject xpOrbPrefab;
         public GameObject damagePopupPrefab;
-        public float radius = 20f;
+        public float radius = 34f;
         float elapsed;
 
         public void Begin(GameConfig gameConfig, TileGrid tileGrid, Transform chaseTarget)

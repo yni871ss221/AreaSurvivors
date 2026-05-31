@@ -27,12 +27,17 @@ namespace AreaSurvivors
                 var hits = Physics2D.OverlapCircleAll(transform.position, 1.1f);
                 foreach (var hit in hits)
                 {
-                    if (hit.GetComponent<EnemyController>() != null) hit.GetComponent<Health>()?.Damage(damage);
+                    if (hit.GetComponent<EnemyController>() != null)
+                    {
+                        var dealt = hit.GetComponent<Health>()?.Damage(damage) ?? 0;
+                        GameManager.Instance?.RegisterDamageDealt(dealt);
+                    }
                 }
             }
             else
             {
-                other.GetComponent<Health>()?.Damage(damage);
+                var dealt = other.GetComponent<Health>()?.Damage(damage) ?? 0;
+                GameManager.Instance?.RegisterDamageDealt(dealt);
             }
             Destroy(gameObject);
         }

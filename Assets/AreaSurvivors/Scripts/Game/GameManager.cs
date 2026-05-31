@@ -27,6 +27,7 @@ namespace AreaSurvivors
         int level = 1;
         int xp;
         int xpToNext = 5;
+        int damageDealt;
         float elapsed;
         readonly List<string> runUpgrades = new List<string>();
 
@@ -58,6 +59,11 @@ namespace AreaSurvivors
         public void RegisterKill()
         {
             kills++;
+        }
+
+        public void RegisterDamageDealt(int amount)
+        {
+            damageDealt += Mathf.Max(0, amount);
         }
 
         public void AddExperience(int amount)
@@ -92,11 +98,11 @@ namespace AreaSurvivors
         {
             var pool = new List<RunUpgradeChoice>
             {
-                new RunUpgradeChoice("攻撃力 +2", () => config.baseAttackPower += 2),
-                new RunUpgradeChoice("攻撃間隔 -8%", () => { config.knightCooldown *= .92f; config.archerCooldown *= .92f; config.mageCooldown *= .92f; }),
-                new RunUpgradeChoice("移動速度 +8%", () => config.playerMoveSpeed *= 1.08f),
-                new RunUpgradeChoice("塗り範囲 +1", () => config.paintRadius += 1),
-                new RunUpgradeChoice("最大HP +8", () => Player.Health.SetMax(Player.Health.maxHp + 8))
+                new RunUpgradeChoice("\u653b\u6483\u529b +2", () => config.baseAttackPower += 2),
+                new RunUpgradeChoice("\u653b\u6483\u9593\u9694 -8%", () => { config.knightCooldown *= .92f; config.archerCooldown *= .92f; config.mageCooldown *= .92f; }),
+                new RunUpgradeChoice("\u79fb\u52d5\u901f\u5ea6 +8%", () => config.playerMoveSpeed *= 1.08f),
+                new RunUpgradeChoice("\u5857\u308a\u7bc4\u56f2 +1", () => config.paintRadius += 1),
+                new RunUpgradeChoice("\u6700\u5927HP +8", () => Player.Health.SetMax(Player.Health.maxHp + 8))
             };
             var result = new List<RunUpgradeChoice>();
             while (result.Count < 3 && pool.Count > 0)
@@ -120,8 +126,18 @@ namespace AreaSurvivors
         public void GameOver()
         {
             Time.timeScale = 1f;
+            int tokensEarned = Mathf.Max(0, kills / Mathf.Max(1, config.tokenKillsDivisor));
+            RunResult.Last = new RunResult
+            {
+                kills = kills,
+                damageDealt = damageDealt,
+                level = level,
+                tokensEarned = tokensEarned,
+                survivedSeconds = elapsed,
+                upgrades = new List<string>(runUpgrades)
+            };
             ProgressionStore.AddRunRewards(kills, config.tokenKillsDivisor);
-            SceneManager.LoadScene(SceneNames.Lobby);
+            SceneManager.LoadScene(SceneNames.GameOver);
         }
 
         void UpdateHud()
@@ -131,7 +147,7 @@ namespace AreaSurvivors
                 var span = TimeSpan.FromSeconds(elapsed);
                 timerText.text = $"{span.Minutes:00}:{span.Seconds:00}";
             }
-            if (killText != null) killText.text = $"撃破 {kills}";
+            if (killText != null) killText.text = $"\u6483\u7834 {kills}";
             if (levelText != null) levelText.text = $"Lv {level}";
             if (xpBar != null) xpBar.value = xpToNext <= 0 ? 0f : (float)xp / xpToNext;
         }
