@@ -223,7 +223,7 @@ namespace AreaSurvivors.Editor
         static GameObject CreateFence(bool vertical)
         {
             var go = new GameObject(vertical ? "DefensiveFenceVertical" : "DefensiveFenceHorizontal");
-            GroundShadow(go.transform, vertical ? new Vector2(0.42f, 0.78f) : new Vector2(1.44f, 0.26f));
+            GroundShadow(go.transform, vertical ? new Vector2(0.42f, 1.95f) : new Vector2(3.55f, 0.26f));
             var rb = go.AddComponent<Rigidbody2D>();
             rb.bodyType = RigidbodyType2D.Static;
             go.AddComponent<Health>();
@@ -231,14 +231,14 @@ namespace AreaSurvivors.Editor
             var buildTrigger = go.AddComponent<BoxCollider2D>();
             buildTrigger.isTrigger = true;
             buildTrigger.size = vertical
-                ? new Vector2(TileCellWidth * 0.72f, TileCellHeight * 1.96f)
-                : new Vector2(TileCellWidth * 1.96f, TileCellHeight * 0.72f);
+                ? new Vector2(TileCellWidth * 0.72f, TileCellHeight * 4.96f)
+                : new Vector2(TileCellWidth * 4.96f, TileCellHeight * 0.72f);
             buildTrigger.offset = Vector2.zero;
             var blocker = go.AddComponent<BoxCollider2D>();
             blocker.size = buildTrigger.size;
             blocker.offset = buildTrigger.offset;
 
-            var sprite = LoadSprite(vertical ? "FenceDoubleVertical" : "FenceDoubleHorizontal");
+            var sprite = LoadSprite(vertical ? "FenceFiveVertical" : "FenceFiveHorizontal");
             var ghost = MeshChild(go.transform, "Ghost", sprite, new Color(1f, 1f, 1f, 0.22f), 1000);
             var build = MeshChild(go.transform, "Build Fill", sprite, Color.white, 1001);
             var complete = MeshChild(go.transform, "Complete", sprite, Color.white, 1002);
@@ -260,7 +260,7 @@ namespace AreaSurvivors.Editor
             SetObjectReference(fence, "completeRenderer", complete);
             SetObjectReference(fence, "hammerRenderer", hammer);
             SetObjectReference(fence, "sparkleRenderer", sparkle);
-            SetObjectReference(fence, "buildGauge", AddWorldBuildGauge(go.transform, new Vector3(vertical ? 0.46f : 0.82f, 0f, 0f)));
+            SetObjectReference(fence, "buildGauge", AddWorldBuildGauge(go.transform, new Vector3(vertical ? 0.46f : 1.86f, 0f, 0f)));
             return go;
         }
 
@@ -534,10 +534,10 @@ namespace AreaSurvivors.Editor
             if (ballistaPrefab == null) return;
             var cells = new[]
             {
-                new Vector2Int(6, 8),
-                new Vector2Int(6, -8),
-                new Vector2Int(-6, 8),
-                new Vector2Int(-6, -8)
+                new Vector2Int(10, 10),
+                new Vector2Int(10, -10),
+                new Vector2Int(-10, 10),
+                new Vector2Int(-10, -10)
             };
 
             foreach (var cell in cells)
@@ -554,15 +554,15 @@ namespace AreaSurvivors.Editor
         {
             if (horizontalPrefab == null || verticalPrefab == null) return;
             var placements = new List<FencePlacement>();
-            for (int x = -5; x <= 5; x += 2)
+            for (float x = -7.5f; x <= 7.5f; x += 5f)
             {
-                placements.Add(new FencePlacement(new Vector2Int(x, 8), false));
-                placements.Add(new FencePlacement(new Vector2Int(x, -8), false));
+                placements.Add(new FencePlacement(new Vector2(x, 10f), false));
+                placements.Add(new FencePlacement(new Vector2(x, -10f), false));
             }
-            for (int y = -7; y <= 7; y += 2)
+            for (float y = -7.5f; y <= 7.5f; y += 5f)
             {
-                placements.Add(new FencePlacement(new Vector2Int(-6, y), true));
-                placements.Add(new FencePlacement(new Vector2Int(6, y), true));
+                placements.Add(new FencePlacement(new Vector2(-10f, y), true));
+                placements.Add(new FencePlacement(new Vector2(10f, y), true));
             }
 
             foreach (var placement in placements)
@@ -607,6 +607,7 @@ namespace AreaSurvivors.Editor
                 {
                     var cell = new Vector2Int(x * 5, y * 8);
                     if (new Vector2(cell.x * TileCellWidth, cell.y * TileCellHeight).magnitude < ObstacleCenterClearance) continue;
+                    if (Mathf.Abs(cell.x) <= 12 && Mathf.Abs(cell.y) <= 12) continue;
                     cells.Add(cell);
                 }
             }
@@ -643,6 +644,11 @@ namespace AreaSurvivors.Editor
         static Vector3 CellToWorld(TileGrid grid, Vector2Int cell)
         {
             return grid.groundTilemap.GetCellCenterWorld(new Vector3Int(cell.x, cell.y, 0));
+        }
+
+        static Vector3 CellToWorld(TileGrid grid, Vector2 cell)
+        {
+            return CellToWorld(grid, Vector2Int.zero) + new Vector3(cell.x * TileCellWidth, cell.y * TileCellHeight, 0f);
         }
 
         static void BuildHud(GameManager manager)
@@ -719,8 +725,8 @@ namespace AreaSurvivors.Editor
         static void CreateSprites()
         {
             ImportGeneratedSprites();
-            ConfigureSpriteImporter($"{Sprites}/FenceDoubleHorizontal.png", 128);
-            ConfigureSpriteImporter($"{Sprites}/FenceDoubleVertical.png", 128);
+            ConfigureSpriteImporter($"{Sprites}/FenceFiveHorizontal.png", 128);
+            ConfigureSpriteImporter($"{Sprites}/FenceFiveVertical.png", 128);
             Pixel("Tile", 16, 16, new[] { "................", "..,,,,,,,,,,,,..", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", "..,,,,,,,,,,,,..", "................" }, Palette());
             Pixel("Shadow", 16, 8, new[] { "................", "....ssssssss....", "..ssssssssssss..", ".ssssssssssssss.", ".ssssssssssssss.", "..ssssssssssss..", "....ssssssss....", "................" }, Palette());
             Pixel("Knight", 16, 16, new[] { "......HHHH......", ".....HhhhhH.....", ".....HhhhhH.....", "......BBBB......", ".....BbbbbB.....", "....BbbbbbbB....", "...SBBBBBBBB....", "..SS..BBBB......", ".SS...B..B......", "......B..B......", ".....FF..FF.....", "....FF....FF....", "................", "................", "................", "................" }, Palette());
@@ -911,10 +917,10 @@ namespace AreaSurvivors.Editor
 
         readonly struct FencePlacement
         {
-            public readonly Vector2Int cell;
+            public readonly Vector2 cell;
             public readonly bool vertical;
 
-            public FencePlacement(Vector2Int cell, bool vertical)
+            public FencePlacement(Vector2 cell, bool vertical)
             {
                 this.cell = cell;
                 this.vertical = vertical;
