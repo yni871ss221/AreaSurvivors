@@ -21,9 +21,6 @@ namespace AreaSurvivors.Editor
         const string TilePalette = Root + "/TilePalette";
         const float TileCellWidth = 0.7f;
         const float TileCellHeight = TileCellWidth * 0.55f;
-        const int HorizontalFenceCellLength = 12;
-        const int VerticalFenceCellLength = 16;
-        const float VerticalFenceVisualScale = 0.62f;
         const float ObstacleCenterClearance = 5.8f;
 
         [MenuItem("Area Survivors/Build Initial Project")]
@@ -226,7 +223,7 @@ namespace AreaSurvivors.Editor
         static GameObject CreateFence(bool vertical)
         {
             var go = new GameObject(vertical ? "DefensiveFenceVertical" : "DefensiveFenceHorizontal");
-            GroundShadow(go.transform, vertical ? new Vector2(0.7f, 5.4f) : new Vector2(8.1f, 0.45f));
+            GroundShadow(go.transform, vertical ? new Vector2(0.42f, 0.58f) : new Vector2(0.72f, 0.26f));
             var rb = go.AddComponent<Rigidbody2D>();
             rb.bodyType = RigidbodyType2D.Static;
             go.AddComponent<Health>();
@@ -234,22 +231,19 @@ namespace AreaSurvivors.Editor
             var buildTrigger = go.AddComponent<BoxCollider2D>();
             buildTrigger.isTrigger = true;
             buildTrigger.size = vertical
-                ? new Vector2(TileCellWidth, TileCellHeight * VerticalFenceCellLength)
-                : new Vector2(TileCellWidth * HorizontalFenceCellLength, TileCellHeight);
+                ? new Vector2(TileCellWidth * 0.72f, TileCellHeight * 0.96f)
+                : new Vector2(TileCellWidth * 0.96f, TileCellHeight * 0.72f);
             buildTrigger.offset = Vector2.zero;
             var blocker = go.AddComponent<BoxCollider2D>();
             blocker.size = buildTrigger.size;
             blocker.offset = buildTrigger.offset;
 
-            var sprite = LoadSprite(vertical ? "FenceVertical" : "FenceHorizontal");
-            var visualRoot = new GameObject("Fence Visuals").transform;
-            visualRoot.SetParent(go.transform, false);
-            if (vertical) visualRoot.localScale = new Vector3(1f, VerticalFenceVisualScale, 1f);
-            var ghost = MeshChild(visualRoot, "Ghost", sprite, new Color(1f, 1f, 1f, 0.22f), 1000);
-            var build = MeshChild(visualRoot, "Build Fill", sprite, Color.white, 1001);
-            var complete = MeshChild(visualRoot, "Complete", sprite, Color.white, 1002);
+            var sprite = LoadSprite(vertical ? "FenceCellVertical" : "FenceCellHorizontal");
+            var ghost = MeshChild(go.transform, "Ghost", sprite, new Color(1f, 1f, 1f, 0.22f), 1000);
+            var build = MeshChild(go.transform, "Build Fill", sprite, Color.white, 1001);
+            var complete = MeshChild(go.transform, "Complete", sprite, Color.white, 1002);
             var hammer = MeshChild(go.transform, "Hammer", LoadSprite("Hammer"), Color.white, 2200);
-            hammer.transform.localPosition = vertical ? new Vector3(0.32f, 0f, 0f) : new Vector3(0.54f, -0.12f, 0f);
+            hammer.transform.localPosition = new Vector3(0.24f, -0.06f, 0f);
             var sparkle = MeshChild(go.transform, "Completion Sparkle", LoadSprite("Sparkle"), new Color(1f, 1f, 1f, 0f), 2400);
             sparkle.transform.localPosition = Vector3.zero;
             sparkle.visible = false;
@@ -266,7 +260,7 @@ namespace AreaSurvivors.Editor
             SetObjectReference(fence, "completeRenderer", complete);
             SetObjectReference(fence, "hammerRenderer", hammer);
             SetObjectReference(fence, "sparkleRenderer", sparkle);
-            SetObjectReference(fence, "buildGauge", AddWorldBuildGauge(go.transform, vertical ? new Vector3(0.62f, 0f, 0f) : new Vector3(TileCellWidth * HorizontalFenceCellLength * 0.5f + 0.2f, -0.08f, 0f)));
+            SetObjectReference(fence, "buildGauge", AddWorldBuildGauge(go.transform, new Vector3(0.46f, 0f, 0f)));
             return go;
         }
 
@@ -490,8 +484,8 @@ namespace AreaSurvivors.Editor
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             var camera = new GameObject("Main Camera").AddComponent<Camera>();
             camera.tag = "MainCamera";
-            camera.orthographic = false;
-            camera.fieldOfView = 50f;
+            camera.orthographic = true;
+            camera.orthographicSize = 8.2f;
             camera.transform.position = new Vector3(0f, -12f, -14f);
             camera.transform.rotation = Quaternion.Euler(-40f, 0f, 0f);
             camera.backgroundColor = new Color(0.19f, 0.31f, 0.19f);
@@ -559,13 +553,17 @@ namespace AreaSurvivors.Editor
         static void AddFences(GameObject horizontalPrefab, GameObject verticalPrefab, GameConfig config, TileGrid grid)
         {
             if (horizontalPrefab == null || verticalPrefab == null) return;
-            var placements = new[]
+            var placements = new List<FencePlacement>();
+            for (int x = -5; x <= 5; x++)
             {
-                new FencePlacement(new Vector2Int(0, 8), false),
-                new FencePlacement(new Vector2Int(0, -8), false),
-                new FencePlacement(new Vector2Int(-6, 0), true),
-                new FencePlacement(new Vector2Int(6, 0), true)
-            };
+                placements.Add(new FencePlacement(new Vector2Int(x, 8), false));
+                placements.Add(new FencePlacement(new Vector2Int(x, -8), false));
+            }
+            for (int y = -7; y <= 7; y++)
+            {
+                placements.Add(new FencePlacement(new Vector2Int(-6, y), true));
+                placements.Add(new FencePlacement(new Vector2Int(6, y), true));
+            }
 
             foreach (var placement in placements)
             {
@@ -735,6 +733,8 @@ namespace AreaSurvivors.Editor
             Pixel("Fireball", 12, 12, new[] { "....oooo....", "...oOOOOo...", "..oOOYYOOo..", ".oOOYYYYOOo.", ".oOYYYYYYOo.", ".oOYYYYYYOo.", ".oOOYYYYOOo.", "..oOOYYOOo..", "...oOOOOo...", "....oooo....", "............", "............" }, Palette());
             Pixel("Orb", 8, 8, new[] { "..AAAA..", ".AaaaaA.", "AaaWWaaA", "AaaWWaaA", ".AaaaaA.", "..AAAA..", "........", "........" }, Palette());
             Pixel("Slash", 18, 12, new[] { ".............YY...", "..........YYYYY...", ".......YYYYYY.....", ".....YYYYY........", "...YYYY...........", "..YYY.............", ".YY...............", "..................", "..................", "..................", "..................", ".................." }, Palette(), ResourcesPath + "/Slash.png");
+            Pixel("FenceCellHorizontal", 16, 12, new[] { "................", "..yy........yy..", ".yYYy......yYYy.", ".yYYy......yYYy.", "..yy........yy..", "..KKKKKKKKKKKK..", "..yyyyyyyyyyyy..", "..KKKKKKKKKKKK..", "..yyyyyyyyyyyy..", "................", "................", "................" }, Palette());
+            Pixel("FenceCellVertical", 12, 16, new[] { "............", "....yyyy....", "...yYYYYy...", "...yYYYYy...", "....yyyy....", "...KKKKKK...", "...yyyyyy...", "...KKKKKK...", "...yyyyyy...", "...KKKKKK...", "...yyyyyy...", "....yyyy....", "...yYYYYy...", "...yYYYYy...", "....yyyy....", "............" }, Palette());
             Pixel("Tree", 16, 16, new[] { "......gggg......", "....ggGGGGgg....", "...gGGGGGGGGg...", "...gGGGGGGGGg...", "....ggGGGGgg....", "......bbbb......", "......bbbb......", ".....bbbbbb.....", "................", "................", "................", "................", "................", "................", "................", "................" }, Palette());
             Pixel("Rock", 16, 16, new[] { "................", ".....kkkkkk.....", "...kkKKKKKKk....", "..kKKKKKKKKKk...", "..kKKKKKKKKKk...", "...kKKKKKKKk....", "....kkkkkk......", "................", "................", "................", "................", "................", "................", "................", "................", "................" }, Palette());
             Pixel("Pond", 16, 16, new[] { "................", "....aaaaaaaa....", "..aaAAAAAAAAaa..", ".aAAAAAAAAAAAAa.", ".aAAAAAAAAAAAAa.", "..aaAAAAAAAAaa..", "....aaaaaaaa....", "................", "................", "................", "................", "................", "................", "................", "................", "................" }, Palette());

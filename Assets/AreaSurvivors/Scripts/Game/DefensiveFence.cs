@@ -139,7 +139,7 @@ namespace AreaSurvivors
             if (hammerRenderer == null || !hammerRenderer.visible) return;
             float swing = Mathf.Sin(Time.time * 16f);
             hammerRenderer.transform.localRotation = Quaternion.Euler(0f, 0f, -35f + swing * 32f);
-            hammerRenderer.transform.localPosition = new Vector3(0.54f, -0.12f + Mathf.Abs(swing) * 0.08f, 0f);
+            hammerRenderer.transform.localPosition = new Vector3(0.24f, -0.06f + Mathf.Abs(swing) * 0.05f, 0f);
         }
 
         void AnimateCompletionSparkle()
