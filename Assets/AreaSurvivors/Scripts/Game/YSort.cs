@@ -6,13 +6,13 @@ namespace AreaSurvivors
     {
         public int baseOrder = 1000;
         public int orderOffset;
-        public SpriteRenderer[] renderers;
+        public Renderer[] renderers;
 
         void Awake()
         {
             if (renderers == null || renderers.Length == 0)
             {
-                renderers = GetComponentsInChildren<SpriteRenderer>();
+                renderers = GetComponentsInChildren<Renderer>();
             }
         }
 
@@ -25,9 +25,9 @@ namespace AreaSurvivors
         {
             if (renderers == null || renderers.Length == 0) return;
             int order = baseOrder + Mathf.RoundToInt(-transform.position.y * 100f) + orderOffset;
-            foreach (var spriteRenderer in renderers)
+            foreach (var renderer in renderers)
             {
-                if (spriteRenderer != null) spriteRenderer.sortingOrder = order;
+                if (renderer != null) renderer.sortingOrder = order;
             }
         }
     }

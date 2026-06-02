@@ -10,14 +10,14 @@ namespace AreaSurvivors
         public Slider hpBar;
         Health health;
         Collider2D[] colliders;
-        SpriteRenderer spriteRenderer;
+        PaperMeshVisual visual;
         bool collapsing;
 
         void Awake()
         {
             health = GetComponent<Health>();
             colliders = GetComponents<Collider2D>();
-            spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+            visual = GetComponentInChildren<PaperMeshVisual>();
             health.Died += _ => StartCollapse();
         }
 
@@ -45,7 +45,7 @@ namespace AreaSurvivors
 
             var startPosition = transform.position;
             var startScale = transform.localScale;
-            var billboard = spriteRenderer != null ? spriteRenderer.GetComponent<PaperBillboard>() : null;
+            var billboard = visual != null ? visual.GetComponent<PaperBillboard>() : null;
             float elapsed = 0f;
             const float duration = 1.15f;
             while (elapsed < duration)
@@ -56,11 +56,11 @@ namespace AreaSurvivors
                 transform.position = startPosition + new Vector3(shake, -0.35f * t, 0f);
                 if (billboard != null) billboard.rollDegrees = Mathf.Sin(elapsed * 30f) * Mathf.Lerp(5f, 14f, t);
                 transform.localScale = new Vector3(startScale.x * Mathf.Lerp(1f, 1.08f, t), startScale.y * Mathf.Lerp(1f, 0.35f, t), startScale.z);
-                if (spriteRenderer != null)
+                if (visual != null)
                 {
-                    var color = spriteRenderer.color;
+                    var color = visual.color;
                     color.a = Mathf.Lerp(1f, 0.18f, t);
-                    spriteRenderer.color = color;
+                    visual.color = color;
                 }
                 yield return null;
             }

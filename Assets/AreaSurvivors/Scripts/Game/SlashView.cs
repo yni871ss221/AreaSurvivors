@@ -15,12 +15,10 @@ namespace AreaSurvivors
             go.transform.localScale = Vector3.one;
             var billboard = go.AddComponent<PaperBillboard>();
             billboard.rollDegrees = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
-            var sr = go.AddComponent<SpriteRenderer>();
             EnsureFrames();
-            sr.sprite = frames.Length > 0 ? frames[0] : Resources.Load<Sprite>("Slash");
-            sr.color = Color.white;
-            sr.sortingOrder = 30;
-            go.AddComponent<SlashView>().StartCoroutine(go.GetComponent<SlashView>().Life(sr, dir));
+            var visual = go.AddComponent<PaperMeshVisual>();
+            visual.Configure(frames.Length > 0 ? frames[0] : Resources.Load<Sprite>("Slash"), Color.white, 30);
+            go.AddComponent<SlashView>().StartCoroutine(go.GetComponent<SlashView>().Life(visual, dir));
         }
 
         static void EnsureFrames()
@@ -34,13 +32,13 @@ namespace AreaSurvivors
             };
         }
 
-        IEnumerator Life(SpriteRenderer sr, Vector2 direction)
+        IEnumerator Life(PaperMeshVisual visual, Vector2 direction)
         {
             EnsureFrames();
             float frameSeconds = 0.055f;
             for (int i = 0; i < frames.Length; i++)
             {
-                if (frames[i] != null) sr.sprite = frames[i];
+                if (frames[i] != null) visual.sprite = frames[i];
                 transform.position += (Vector3)direction * 0.035f;
                 yield return new WaitForSeconds(frameSeconds);
             }

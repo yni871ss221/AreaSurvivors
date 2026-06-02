@@ -10,7 +10,7 @@ namespace AreaSurvivors
         public Sprite[] upFrames;
         public float framesPerSecond = 8f;
 
-        SpriteRenderer spriteRenderer;
+        PaperMeshVisual visual;
         Sprite[] currentFrames;
         Vector2 currentDirection = Vector2.down;
         float timer;
@@ -18,7 +18,7 @@ namespace AreaSurvivors
 
         void Awake()
         {
-            spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+            visual = GetComponentInChildren<PaperMeshVisual>();
             currentFrames = downFrames;
             ApplyFrame(false);
         }
@@ -79,12 +79,12 @@ namespace AreaSurvivors
 
         void ApplyFrame(bool animate)
         {
-            if (spriteRenderer == null) spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+            if (visual == null) visual = GetComponentInChildren<PaperMeshVisual>();
             if (!HasFrames(currentFrames)) return;
 
             var index = animate ? frameIndex % currentFrames.Length : Mathf.Clamp(frameIndex, 0, currentFrames.Length - 1);
             var sprite = currentFrames[index];
-            if (sprite != null) spriteRenderer.sprite = sprite;
+            if (sprite != null && visual != null) visual.sprite = sprite;
         }
 
         static bool HasFrames(Sprite[] frames)

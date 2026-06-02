@@ -19,7 +19,7 @@ namespace AreaSurvivors
         Rigidbody2D body;
         Health health;
         Collider2D[] colliders;
-        SpriteRenderer spriteRenderer;
+        PaperMeshVisual visual;
         float contactTimer;
         bool dying;
 
@@ -28,7 +28,7 @@ namespace AreaSurvivors
             body = GetComponent<Rigidbody2D>();
             health = GetComponent<Health>();
             colliders = GetComponents<Collider2D>();
-            spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+            visual = GetComponentInChildren<PaperMeshVisual>();
             health.Damaged += OnDamaged;
             health.Died += OnDied;
         }
@@ -124,7 +124,7 @@ namespace AreaSurvivors
 
             var startScale = transform.localScale;
             float direction = transform.position.x < 0f ? -1f : 1f;
-            var billboard = spriteRenderer != null ? spriteRenderer.GetComponent<PaperBillboard>() : null;
+            var billboard = visual != null ? visual.GetComponent<PaperBillboard>() : null;
             float elapsed = 0f;
             const float duration = 0.48f;
             while (elapsed < duration)
@@ -133,11 +133,11 @@ namespace AreaSurvivors
                 float t = Mathf.Clamp01(elapsed / duration);
                 if (billboard != null) billboard.rollDegrees = Mathf.Lerp(0f, 82f * direction, t);
                 transform.localScale = new Vector3(startScale.x * Mathf.Lerp(1f, 1.08f, t), startScale.y * Mathf.Lerp(1f, 0.36f, t), startScale.z);
-                if (spriteRenderer != null)
+                if (visual != null)
                 {
-                    var color = spriteRenderer.color;
+                    var color = visual.color;
                     color.a = Mathf.Lerp(1f, 0f, Mathf.SmoothStep(0f, 1f, t));
-                    spriteRenderer.color = color;
+                    visual.color = color;
                 }
                 yield return null;
             }

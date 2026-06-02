@@ -199,17 +199,17 @@ namespace AreaSurvivors.Editor
             trigger.radius = TileCellWidth;
 
             var sprite = LoadSprite("Ballista");
-            var ghost = SpriteChild(go.transform, "Ghost", sprite, new Color(1f, 1f, 1f, 0.22f), 1000);
-            var build = SpriteChild(go.transform, "Build Fill", sprite, Color.white, 1001);
-            var complete = SpriteChild(go.transform, "Complete", sprite, Color.white, 1002);
-            var hammer = SpriteChild(go.transform, "Hammer", LoadSprite("Hammer"), Color.white, 2200);
+            var ghost = MeshChild(go.transform, "Ghost", sprite, new Color(1f, 1f, 1f, 0.22f), 1000);
+            var build = MeshChild(go.transform, "Build Fill", sprite, Color.white, 1001);
+            var complete = MeshChild(go.transform, "Complete", sprite, Color.white, 1002);
+            var hammer = MeshChild(go.transform, "Hammer", LoadSprite("Hammer"), Color.white, 2200);
             hammer.transform.localPosition = new Vector3(0.28f, -0.12f, 0f);
-            var sparkle = SpriteChild(go.transform, "Completion Sparkle", LoadSprite("Sparkle"), new Color(1f, 1f, 1f, 0f), 2400);
-            sparkle.enabled = false;
+            var sparkle = MeshChild(go.transform, "Completion Sparkle", LoadSprite("Sparkle"), new Color(1f, 1f, 1f, 0f), 2400);
+            sparkle.visible = false;
 
             var ySort = go.AddComponent<YSort>();
             ySort.baseOrder = 1000;
-            ySort.renderers = new[] { ghost, build, complete };
+            ySort.renderers = new[] { ghost.Renderer, build.Renderer, complete.Renderer };
 
             var ballista = go.AddComponent(GetRuntimeType("AreaSurvivors.BallistaTower"));
             SetObjectReference(ballista, "arrowPrefab", arrowPrefab);
@@ -241,18 +241,18 @@ namespace AreaSurvivors.Editor
             blocker.offset = buildTrigger.offset;
 
             var sprite = LoadSprite(vertical ? "FenceVertical" : "FenceHorizontal");
-            var ghost = SpriteChild(go.transform, "Ghost", sprite, new Color(1f, 1f, 1f, 0.22f), 1000);
-            var build = SpriteChild(go.transform, "Build Fill", sprite, Color.white, 1001);
-            var complete = SpriteChild(go.transform, "Complete", sprite, Color.white, 1002);
-            var hammer = SpriteChild(go.transform, "Hammer", LoadSprite("Hammer"), Color.white, 2200);
+            var ghost = MeshChild(go.transform, "Ghost", sprite, new Color(1f, 1f, 1f, 0.22f), 1000);
+            var build = MeshChild(go.transform, "Build Fill", sprite, Color.white, 1001);
+            var complete = MeshChild(go.transform, "Complete", sprite, Color.white, 1002);
+            var hammer = MeshChild(go.transform, "Hammer", LoadSprite("Hammer"), Color.white, 2200);
             hammer.transform.localPosition = vertical ? new Vector3(0.32f, TileCellHeight * VerticalFenceCellLength * 0.5f, 0f) : new Vector3(0.54f, -0.12f, 0f);
-            var sparkle = SpriteChild(go.transform, "Completion Sparkle", LoadSprite("Sparkle"), new Color(1f, 1f, 1f, 0f), 2400);
+            var sparkle = MeshChild(go.transform, "Completion Sparkle", LoadSprite("Sparkle"), new Color(1f, 1f, 1f, 0f), 2400);
             sparkle.transform.localPosition = vertical ? new Vector3(0f, TileCellHeight * VerticalFenceCellLength * 0.5f, 0f) : Vector3.zero;
-            sparkle.enabled = false;
+            sparkle.visible = false;
 
             var ySort = go.AddComponent<YSort>();
             ySort.baseOrder = 1000;
-            ySort.renderers = new[] { ghost, build, complete };
+            ySort.renderers = new[] { ghost.Renderer, build.Renderer, complete.Renderer };
 
             var fence = go.AddComponent(GetRuntimeType("AreaSurvivors.DefensiveFence"));
             SetBool(fence, "vertical", vertical);
@@ -290,11 +290,11 @@ namespace AreaSurvivors.Editor
         static GameObject Actor(string name, Sprite sprite, Color color, float colliderRadius)
         {
             var go = new GameObject(name);
-            var sr = SpriteChild(go.transform, "Paper Visual", sprite, HasGeneratedSprite(name) ? Color.white : color, 1000);
+            var visual = MeshChild(go.transform, "Paper Visual", sprite, HasGeneratedSprite(name) ? Color.white : color, 1000);
             GroundShadow(go.transform, new Vector2(colliderRadius * 2.2f, colliderRadius * 1.2f));
             var ySort = go.AddComponent<YSort>();
             ySort.baseOrder = 1000;
-            ySort.renderers = new[] { sr };
+            ySort.renderers = new[] { visual.Renderer };
             var rb = go.AddComponent<Rigidbody2D>();
             rb.gravityScale = 0f;
             rb.freezeRotation = true;
@@ -386,35 +386,31 @@ namespace AreaSurvivors.Editor
             return slider;
         }
 
-        static SpriteRenderer SpriteChild(Transform parent, string name, Sprite sprite, Color color, int sortingOrder)
+        static PaperMeshVisual MeshChild(Transform parent, string name, Sprite sprite, Color color, int sortingOrder)
         {
             var child = new GameObject(name);
             child.transform.SetParent(parent, false);
-            var sr = child.AddComponent<SpriteRenderer>();
-            sr.sprite = sprite;
-            sr.color = color;
-            sr.sortingOrder = sortingOrder;
+            var visual = child.AddComponent<PaperMeshVisual>();
+            visual.Configure(sprite, color, sortingOrder);
             child.AddComponent<PaperBillboard>();
-            return sr;
+            return visual;
         }
 
-        static SpriteRenderer GroundShadow(Transform parent, Vector2 scale)
+        static PaperMeshVisual GroundShadow(Transform parent, Vector2 scale)
         {
             var child = new GameObject("Ground Shadow");
             child.transform.SetParent(parent, false);
             child.transform.localPosition = new Vector3(0f, 0f, 0.01f);
             child.transform.localScale = new Vector3(scale.x, scale.y, 1f);
-            var sr = child.AddComponent<SpriteRenderer>();
-            sr.sprite = LoadSprite("Shadow");
-            sr.color = new Color(0f, 0f, 0f, 0.2f);
-            sr.sortingOrder = -10;
-            return sr;
+            var visual = child.AddComponent<PaperMeshVisual>();
+            visual.Configure(LoadSprite("Shadow"), new Color(0f, 0f, 0f, 0.2f), -10);
+            return visual;
         }
 
         static GameObject CreateProjectile(string name, Sprite sprite, Color color)
         {
             var go = new GameObject(name);
-            SpriteChild(go.transform, "Paper Visual", sprite, color, 20);
+            MeshChild(go.transform, "Paper Visual", sprite, color, 20);
             var rb = go.AddComponent<Rigidbody2D>();
             rb.gravityScale = 0f;
             var col = go.AddComponent<CircleCollider2D>();
@@ -428,7 +424,7 @@ namespace AreaSurvivors.Editor
         {
             var go = new GameObject("ExperienceOrb");
             go.transform.localScale = Vector3.one * 0.34f;
-            SpriteChild(go.transform, "Paper Visual", LoadSprite("Orb"), HasGeneratedSprite("Orb") ? Color.white : new Color(0.35f, 0.95f, 1f), 15);
+            MeshChild(go.transform, "Paper Visual", LoadSprite("Orb"), HasGeneratedSprite("Orb") ? Color.white : new Color(0.35f, 0.95f, 1f), 15);
             var col = go.AddComponent<CircleCollider2D>();
             col.isTrigger = true;
             col.radius = 0.28f;
@@ -632,10 +628,10 @@ namespace AreaSurvivors.Editor
             root.AddComponent<Obstacle>();
             grid.objectTilemap.SetTile(new Vector3Int(cell.x, cell.y, 0), LoadTile(spec.name));
             GroundShadow(root.transform, new Vector2(spec.colliderRadius * 2.4f, spec.colliderRadius * 1.4f));
-            var sr = SpriteChild(root.transform, "Paper Visual", LoadSprite(spec.name), Color.white, 1000);
+            var visual = MeshChild(root.transform, "Paper Visual", LoadSprite(spec.name), Color.white, 1000);
             var ySort = root.AddComponent<YSort>();
             ySort.baseOrder = 1000;
-            ySort.renderers = new[] { sr };
+            ySort.renderers = new[] { visual.Renderer };
 
             var col = root.AddComponent<CircleCollider2D>();
             col.radius = spec.colliderRadius;

@@ -60,8 +60,8 @@ namespace AreaSurvivors
         void ApplyCharacterSprite(CharacterType type)
         {
             var sprite = type == CharacterType.Archer ? archerSprite : type == CharacterType.Mage ? mageSprite : knightSprite;
-            var renderer = GetComponentInChildren<SpriteRenderer>();
-            if (sprite != null && renderer != null) renderer.sprite = sprite;
+            var visual = GetComponentInChildren<PaperMeshVisual>();
+            if (sprite != null && visual != null) visual.sprite = sprite;
 
             if (directionalAnimator != null)
             {
@@ -109,18 +109,17 @@ namespace AreaSurvivors
             if (hitCollider != null) hitCollider.enabled = false;
             if (directionalAnimator != null) directionalAnimator.enabled = false;
 
-            var mainRenderer = GetComponentInChildren<SpriteRenderer>();
+            var mainVisual = GetComponentInChildren<PaperMeshVisual>();
             var deathPose = new GameObject("Revive Pose");
             deathPose.transform.SetParent(transform, false);
             deathPose.transform.localPosition = new Vector3(0f, -0.24f, 0f);
             deathPose.transform.localScale = new Vector3(0.82f, 0.52f, 1f);
             deathPose.AddComponent<PaperBillboard>();
-            var deathRenderer = deathPose.AddComponent<SpriteRenderer>();
-            if (mainRenderer != null)
+            var deathVisual = deathPose.AddComponent<PaperMeshVisual>();
+            if (mainVisual != null)
             {
-                deathRenderer.sprite = mainRenderer.sprite;
-                deathRenderer.sortingOrder = mainRenderer.sortingOrder + 1;
-                mainRenderer.enabled = false;
+                deathVisual.Configure(mainVisual.sprite, mainVisual.color, mainVisual.order + 1);
+                mainVisual.visible = false;
             }
 
             float revive = Mathf.Max(1f, config.playerReviveSeconds - ProgressionStore.GetLevel(UpgradeType.ReviveSpeed) * 0.35f);
@@ -129,17 +128,17 @@ namespace AreaSurvivors
             {
                 elapsed += Time.deltaTime;
                 float pulse = Mathf.PingPong(elapsed * 7f, 1f);
-                deathRenderer.color = new Color(1f, 1f, 1f, Mathf.Lerp(0.28f, 0.95f, pulse));
+                deathVisual.color = new Color(1f, 1f, 1f, Mathf.Lerp(0.28f, 0.95f, pulse));
                 deathPose.transform.localScale = new Vector3(0.82f + pulse * 0.04f, 0.52f, 1f);
                 yield return null;
             }
 
             health.FullHeal();
             Destroy(deathPose);
-            if (mainRenderer != null)
+            if (mainVisual != null)
             {
-                mainRenderer.color = Color.white;
-                mainRenderer.enabled = true;
+                mainVisual.color = Color.white;
+                mainVisual.visible = true;
             }
             if (directionalAnimator != null) directionalAnimator.enabled = true;
             if (hitCollider != null) hitCollider.enabled = true;

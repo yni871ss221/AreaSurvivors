@@ -7,11 +7,11 @@ namespace AreaSurvivors
     {
         public GameConfig config;
         public GameObject arrowPrefab;
-        public SpriteRenderer ghostRenderer;
-        public SpriteRenderer buildRenderer;
-        public SpriteRenderer completeRenderer;
-        public SpriteRenderer hammerRenderer;
-        public SpriteRenderer sparkleRenderer;
+        public PaperMeshVisual ghostRenderer;
+        public PaperMeshVisual buildRenderer;
+        public PaperMeshVisual completeRenderer;
+        public PaperMeshVisual hammerRenderer;
+        public PaperMeshVisual sparkleRenderer;
         public Slider buildGauge;
         public float buildSeconds = 2.2f;
         public float attackRange = 7.5f;
@@ -79,26 +79,26 @@ namespace AreaSurvivors
 
         void ApplyBuildVisuals()
         {
-            if (ghostRenderer != null) ghostRenderer.enabled = !completed;
+            if (ghostRenderer != null) ghostRenderer.visible = !completed;
             if (buildRenderer != null)
             {
-                buildRenderer.enabled = !completed && buildProgress > 0f;
+                buildRenderer.visible = !completed && buildProgress > 0f;
                 buildRenderer.transform.localScale = new Vector3(1f, Mathf.Max(0.02f, buildProgress), 1f);
                 buildRenderer.transform.localPosition = new Vector3(0f, -visualHeight * (1f - buildProgress) * 0.5f, 0f);
             }
-            if (completeRenderer != null) completeRenderer.enabled = completed;
-            if (sparkleRenderer != null && !completed) sparkleRenderer.enabled = false;
+            if (completeRenderer != null) completeRenderer.visible = completed;
+            if (sparkleRenderer != null && !completed) sparkleRenderer.visible = false;
             if (buildGauge != null)
             {
                 buildGauge.gameObject.SetActive(!completed && touchingPlayers > 0);
                 buildGauge.value = buildProgress;
             }
-            if (hammerRenderer != null) hammerRenderer.enabled = !completed && touchingPlayers > 0;
+            if (hammerRenderer != null) hammerRenderer.visible = !completed && touchingPlayers > 0;
         }
 
         void AnimateHammer()
         {
-            if (hammerRenderer == null || !hammerRenderer.enabled) return;
+            if (hammerRenderer == null || !hammerRenderer.visible) return;
             float swing = Mathf.Sin(Time.time * 16f);
             hammerRenderer.transform.localRotation = Quaternion.Euler(0f, 0f, -35f + swing * 32f);
             hammerRenderer.transform.localPosition = new Vector3(0.28f, -0.12f + Mathf.Abs(swing) * 0.08f, 0f);
@@ -118,7 +118,7 @@ namespace AreaSurvivors
         {
             if (sparkleTimer <= 0f)
             {
-                if (sparkleRenderer != null) sparkleRenderer.enabled = false;
+                if (sparkleRenderer != null) sparkleRenderer.visible = false;
                 if (completeRenderer != null)
                 {
                     completeRenderer.color = Color.white;
@@ -137,7 +137,7 @@ namespace AreaSurvivors
             }
             if (sparkleRenderer != null)
             {
-                sparkleRenderer.enabled = true;
+                sparkleRenderer.visible = true;
                 sparkleRenderer.color = new Color(1f, 1f, 1f, pulse);
                 sparkleRenderer.transform.localScale = Vector3.one * (0.35f + pulse * 1.1f);
                 sparkleRenderer.transform.localRotation = Quaternion.Euler(0f, 0f, t * 210f);
