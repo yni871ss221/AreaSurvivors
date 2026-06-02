@@ -13,8 +13,14 @@ namespace AreaSurvivors
         {
             damage = amount;
             explosive = isExplosive;
-            GetComponent<Rigidbody2D>().velocity = direction.normalized * speed;
-            transform.right = direction;
+            var normalizedDirection = direction.normalized;
+            GetComponent<Rigidbody2D>().velocity = normalizedDirection * speed;
+            transform.right = normalizedDirection;
+            var billboard = GetComponentInChildren<PaperBillboard>();
+            if (billboard != null)
+            {
+                billboard.rollDegrees = Mathf.Atan2(normalizedDirection.y, normalizedDirection.x) * Mathf.Rad2Deg;
+            }
             Destroy(gameObject, lifetime);
         }
 

@@ -2,7 +2,6 @@ using UnityEngine;
 
 namespace AreaSurvivors
 {
-    [RequireComponent(typeof(SpriteRenderer))]
     public sealed class DirectionalSpriteAnimator : MonoBehaviour
     {
         public Sprite[] downFrames;
@@ -19,7 +18,7 @@ namespace AreaSurvivors
 
         void Awake()
         {
-            spriteRenderer = GetComponent<SpriteRenderer>();
+            spriteRenderer = GetComponentInChildren<SpriteRenderer>();
             currentFrames = downFrames;
             ApplyFrame(false);
         }
@@ -80,7 +79,7 @@ namespace AreaSurvivors
 
         void ApplyFrame(bool animate)
         {
-            if (spriteRenderer == null) spriteRenderer = GetComponent<SpriteRenderer>();
+            if (spriteRenderer == null) spriteRenderer = GetComponentInChildren<SpriteRenderer>();
             if (!HasFrames(currentFrames)) return;
 
             var index = animate ? frameIndex % currentFrames.Length : Mathf.Clamp(frameIndex, 0, currentFrames.Length - 1);

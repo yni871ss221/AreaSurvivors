@@ -60,7 +60,7 @@ namespace AreaSurvivors
         void ApplyCharacterSprite(CharacterType type)
         {
             var sprite = type == CharacterType.Archer ? archerSprite : type == CharacterType.Mage ? mageSprite : knightSprite;
-            var renderer = GetComponent<SpriteRenderer>();
+            var renderer = GetComponentInChildren<SpriteRenderer>();
             if (sprite != null && renderer != null) renderer.sprite = sprite;
 
             if (directionalAnimator != null)
@@ -109,11 +109,12 @@ namespace AreaSurvivors
             if (hitCollider != null) hitCollider.enabled = false;
             if (directionalAnimator != null) directionalAnimator.enabled = false;
 
-            var mainRenderer = GetComponent<SpriteRenderer>();
+            var mainRenderer = GetComponentInChildren<SpriteRenderer>();
             var deathPose = new GameObject("Revive Pose");
             deathPose.transform.SetParent(transform, false);
             deathPose.transform.localPosition = new Vector3(0f, -0.24f, 0f);
             deathPose.transform.localScale = new Vector3(0.82f, 0.52f, 1f);
+            deathPose.AddComponent<PaperBillboard>();
             var deathRenderer = deathPose.AddComponent<SpriteRenderer>();
             if (mainRenderer != null)
             {

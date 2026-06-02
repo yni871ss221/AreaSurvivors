@@ -39,6 +39,7 @@ namespace AreaSurvivors
                 {
                     var cell = GridToCell(x, y);
                     groundTilemap.SetTile(cell, groundTile);
+                    groundTilemap.SetTileFlags(cell, TileFlags.None);
                     groundTilemap.SetColor(cell, Color.white);
                 }
             }
@@ -82,6 +83,7 @@ namespace AreaSurvivors
                     owners[x, y] = owner;
                     var cell = GridToCell(x, y);
                     paintTilemap.SetTile(cell, owner == TileOwner.Neutral ? null : paintTile);
+                    paintTilemap.SetTileFlags(cell, TileFlags.None);
                     paintTilemap.SetColor(cell, owner == TileOwner.Player ? player : enemy);
                 }
             }

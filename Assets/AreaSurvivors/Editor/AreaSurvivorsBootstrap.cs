@@ -191,6 +191,7 @@ namespace AreaSurvivors.Editor
         static GameObject CreateBallista(GameObject arrowPrefab)
         {
             var go = new GameObject("BallistaTower");
+            GroundShadow(go.transform, new Vector2(1.4f, 0.72f));
             var rb = go.AddComponent<Rigidbody2D>();
             rb.bodyType = RigidbodyType2D.Static;
             var trigger = go.AddComponent<CircleCollider2D>();
@@ -224,6 +225,7 @@ namespace AreaSurvivors.Editor
         static GameObject CreateFence(bool vertical)
         {
             var go = new GameObject(vertical ? "DefensiveFenceVertical" : "DefensiveFenceHorizontal");
+            GroundShadow(go.transform, vertical ? new Vector2(0.7f, 5.4f) : new Vector2(8.1f, 0.45f));
             var rb = go.AddComponent<Rigidbody2D>();
             rb.bodyType = RigidbodyType2D.Static;
             go.AddComponent<Health>();
@@ -288,10 +290,8 @@ namespace AreaSurvivors.Editor
         static GameObject Actor(string name, Sprite sprite, Color color, float colliderRadius)
         {
             var go = new GameObject(name);
-            var sr = go.AddComponent<SpriteRenderer>();
-            sr.sprite = sprite;
-            sr.color = HasGeneratedSprite(name) ? Color.white : color;
-            sr.sortingOrder = 1000;
+            var sr = SpriteChild(go.transform, "Paper Visual", sprite, HasGeneratedSprite(name) ? Color.white : color, 1000);
+            GroundShadow(go.transform, new Vector2(colliderRadius * 2.2f, colliderRadius * 1.2f));
             var ySort = go.AddComponent<YSort>();
             ySort.baseOrder = 1000;
             ySort.renderers = new[] { sr };
@@ -310,6 +310,7 @@ namespace AreaSurvivors.Editor
             canvas.transform.localPosition = localPos;
             canvas.renderMode = RenderMode.WorldSpace;
             canvas.sortingOrder = 3000;
+            canvas.gameObject.AddComponent<PaperBillboard>();
             canvas.GetComponent<RectTransform>().sizeDelta = new Vector2(width, 0.14f);
             var slider = canvas.gameObject.AddComponent<Slider>();
             slider.transition = Selectable.Transition.None;
@@ -362,6 +363,7 @@ namespace AreaSurvivors.Editor
             canvas.transform.localPosition = localPos;
             canvas.renderMode = RenderMode.WorldSpace;
             canvas.sortingOrder = 3100;
+            canvas.gameObject.AddComponent<PaperBillboard>();
             canvas.GetComponent<RectTransform>().sizeDelta = new Vector2(0.18f, 0.78f);
             var slider = canvas.gameObject.AddComponent<Slider>();
             slider.transition = Selectable.Transition.None;
@@ -392,16 +394,27 @@ namespace AreaSurvivors.Editor
             sr.sprite = sprite;
             sr.color = color;
             sr.sortingOrder = sortingOrder;
+            child.AddComponent<PaperBillboard>();
+            return sr;
+        }
+
+        static SpriteRenderer GroundShadow(Transform parent, Vector2 scale)
+        {
+            var child = new GameObject("Ground Shadow");
+            child.transform.SetParent(parent, false);
+            child.transform.localPosition = new Vector3(0f, 0f, 0.01f);
+            child.transform.localScale = new Vector3(scale.x, scale.y, 1f);
+            var sr = child.AddComponent<SpriteRenderer>();
+            sr.sprite = LoadSprite("Shadow");
+            sr.color = new Color(0f, 0f, 0f, 0.2f);
+            sr.sortingOrder = -10;
             return sr;
         }
 
         static GameObject CreateProjectile(string name, Sprite sprite, Color color)
         {
             var go = new GameObject(name);
-            var sr = go.AddComponent<SpriteRenderer>();
-            sr.sprite = sprite;
-            sr.color = color;
-            sr.sortingOrder = 20;
+            SpriteChild(go.transform, "Paper Visual", sprite, color, 20);
             var rb = go.AddComponent<Rigidbody2D>();
             rb.gravityScale = 0f;
             var col = go.AddComponent<CircleCollider2D>();
@@ -415,10 +428,7 @@ namespace AreaSurvivors.Editor
         {
             var go = new GameObject("ExperienceOrb");
             go.transform.localScale = Vector3.one * 0.34f;
-            var sr = go.AddComponent<SpriteRenderer>();
-            sr.sprite = LoadSprite("Orb");
-            sr.color = HasGeneratedSprite("Orb") ? Color.white : new Color(0.35f, 0.95f, 1f);
-            sr.sortingOrder = 15;
+            SpriteChild(go.transform, "Paper Visual", LoadSprite("Orb"), HasGeneratedSprite("Orb") ? Color.white : new Color(0.35f, 0.95f, 1f), 15);
             var col = go.AddComponent<CircleCollider2D>();
             col.isTrigger = true;
             col.radius = 0.28f;
@@ -429,6 +439,7 @@ namespace AreaSurvivors.Editor
         static GameObject CreateDamagePopup()
         {
             var go = new GameObject("DamagePopup");
+            go.AddComponent<PaperBillboard>();
             var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             var outlines = new TextMesh[4];
             var offsets = new[]
@@ -479,9 +490,10 @@ namespace AreaSurvivors.Editor
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             var camera = new GameObject("Main Camera").AddComponent<Camera>();
             camera.tag = "MainCamera";
-            camera.orthographic = true;
-            camera.orthographicSize = 7f;
-            camera.transform.position = new Vector3(0, 0, -10);
+            camera.orthographic = false;
+            camera.fieldOfView = 50f;
+            camera.transform.position = new Vector3(0f, -12f, -14f);
+            camera.transform.rotation = Quaternion.Euler(-40f, 0f, 0f);
             camera.backgroundColor = new Color(0.19f, 0.31f, 0.19f);
             camera.gameObject.AddComponent<AudioListener>();
             camera.gameObject.AddComponent<CameraFollow>();
@@ -493,6 +505,7 @@ namespace AreaSurvivors.Editor
             var paintTilemap = CreateTilemap(environment.transform, "Paint Tilemap", -19);
             var objectTilemap = CreateTilemap(environment.transform, "Object Tilemap", 1000);
             objectTilemap.tileAnchor = new Vector3(0.5f, 0f, 0f);
+            objectTilemap.GetComponent<TilemapRenderer>().enabled = false;
             var grid = environment.AddComponent<TileGrid>();
             grid.tileSprite = LoadSprite("Tile");
             grid.paintSprite = LoadSprite("PaintTile");
@@ -618,6 +631,11 @@ namespace AreaSurvivors.Editor
             root.transform.position = CellToWorld(grid, cell);
             root.AddComponent<Obstacle>();
             grid.objectTilemap.SetTile(new Vector3Int(cell.x, cell.y, 0), LoadTile(spec.name));
+            GroundShadow(root.transform, new Vector2(spec.colliderRadius * 2.4f, spec.colliderRadius * 1.4f));
+            var sr = SpriteChild(root.transform, "Paper Visual", LoadSprite(spec.name), Color.white, 1000);
+            var ySort = root.AddComponent<YSort>();
+            ySort.baseOrder = 1000;
+            ySort.renderers = new[] { sr };
 
             var col = root.AddComponent<CircleCollider2D>();
             col.radius = spec.colliderRadius;
@@ -704,6 +722,7 @@ namespace AreaSurvivors.Editor
         {
             ImportGeneratedSprites();
             Pixel("Tile", 16, 16, new[] { "................", "..,,,,,,,,,,,,..", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", "..,,,,,,,,,,,,..", "................" }, Palette());
+            Pixel("Shadow", 16, 8, new[] { "................", "....ssssssss....", "..ssssssssssss..", ".ssssssssssssss.", ".ssssssssssssss.", "..ssssssssssss..", "....ssssssss....", "................" }, Palette());
             Pixel("Knight", 16, 16, new[] { "......HHHH......", ".....HhhhhH.....", ".....HhhhhH.....", "......BBBB......", ".....BbbbbB.....", "....BbbbbbbB....", "...SBBBBBBBB....", "..SS..BBBB......", ".SS...B..B......", "......B..B......", ".....FF..FF.....", "....FF....FF....", "................", "................", "................", "................" }, Palette());
             Pixel("Knight", 16, 16, new[] { "......HHHH......", ".....HhhhhH.....", ".....HhhhhH.....", "......BBBB......", ".....BbbbbB.....", "....BbbbbbbB....", "...SBBBBBBBB....", "..SS..BBBB......", ".SS...B..B......", "......B..B......", ".....FF..FF.....", "....FF....FF....", "................", "................", "................", "................" }, Palette(), ResourcesPath + "/Knight.png");
             Pixel("Archer", 16, 16, new[] { "......HHHH......", ".....HhhhhH.....", ".....HhhhhH.....", "......GGGG......", ".....GggggG.....", "....GggggggG....", "...yGggggggG....", "..yy..GGGG......", ".yy...G..G......", "......G..G......", ".....FF..FF.....", "....FF....FF....", "................", "................", "................", "................" }, Palette(), ResourcesPath + "/Archer.png");
@@ -737,7 +756,8 @@ namespace AreaSurvivors.Editor
                 ['O'] = new Color32(255, 118, 35, 255), ['A'] = new Color32(65, 225, 255, 255),
                 ['a'] = new Color32(36, 134, 205, 255), ['g'] = new Color32(30, 95, 40, 255),
                 ['G'] = new Color32(54, 150, 58, 255), ['k'] = new Color32(82, 82, 88, 255),
-                ['K'] = new Color32(132, 132, 140, 255)
+            ['K'] = new Color32(132, 132, 140, 255),
+            ['s'] = new Color32(255, 255, 255, 255)
             };
         }
 

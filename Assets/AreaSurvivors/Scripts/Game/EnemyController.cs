@@ -28,7 +28,7 @@ namespace AreaSurvivors
             body = GetComponent<Rigidbody2D>();
             health = GetComponent<Health>();
             colliders = GetComponents<Collider2D>();
-            spriteRenderer = GetComponent<SpriteRenderer>();
+            spriteRenderer = GetComponentInChildren<SpriteRenderer>();
             health.Damaged += OnDamaged;
             health.Died += OnDied;
         }
@@ -124,13 +124,14 @@ namespace AreaSurvivors
 
             var startScale = transform.localScale;
             float direction = transform.position.x < 0f ? -1f : 1f;
+            var billboard = spriteRenderer != null ? spriteRenderer.GetComponent<PaperBillboard>() : null;
             float elapsed = 0f;
             const float duration = 0.48f;
             while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
                 float t = Mathf.Clamp01(elapsed / duration);
-                transform.localRotation = Quaternion.Euler(0f, 0f, Mathf.Lerp(0f, 82f * direction, t));
+                if (billboard != null) billboard.rollDegrees = Mathf.Lerp(0f, 82f * direction, t);
                 transform.localScale = new Vector3(startScale.x * Mathf.Lerp(1f, 1.08f, t), startScale.y * Mathf.Lerp(1f, 0.36f, t), startScale.z);
                 if (spriteRenderer != null)
                 {

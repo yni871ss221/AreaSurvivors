@@ -12,8 +12,9 @@ namespace AreaSurvivors
             var go = new GameObject("Knight Slash");
             var dir = direction.sqrMagnitude > 0.01f ? direction.normalized : Vector2.down;
             go.transform.position = position + (Vector3)(dir * 1.02f);
-            go.transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg);
             go.transform.localScale = Vector3.one;
+            var billboard = go.AddComponent<PaperBillboard>();
+            billboard.rollDegrees = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
             var sr = go.AddComponent<SpriteRenderer>();
             EnsureFrames();
             sr.sprite = frames.Length > 0 ? frames[0] : Resources.Load<Sprite>("Slash");
