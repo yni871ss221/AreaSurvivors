@@ -239,9 +239,13 @@ namespace AreaSurvivors.Editor
             blocker.offset = buildTrigger.offset;
 
             var sprite = LoadSprite(vertical ? "FenceTwentyVertical" : "FenceTwentyHorizontal");
-            var ghost = MeshChild(go.transform, "Ghost", sprite, new Color(1f, 1f, 1f, 0.22f), 1000);
-            var build = MeshChild(go.transform, "Build Fill", sprite, Color.white, 1001);
-            var complete = MeshChild(go.transform, "Complete", sprite, Color.white, 1002);
+            var visualScale = new Vector3(buildTrigger.size.x / sprite.bounds.size.x, buildTrigger.size.y / sprite.bounds.size.y, 1f);
+            var ghost = MeshChild(go.transform, "Ghost", sprite, new Color(1f, 1f, 1f, 0.22f), 1000, false);
+            var build = MeshChild(go.transform, "Build Fill", sprite, Color.white, 1001, false);
+            var complete = MeshChild(go.transform, "Complete", sprite, Color.white, 1002, false);
+            ghost.transform.localScale = visualScale;
+            build.transform.localScale = visualScale;
+            complete.transform.localScale = visualScale;
             var hammer = MeshChild(go.transform, "Hammer", LoadSprite("Hammer"), Color.white, 2200);
             hammer.transform.localPosition = new Vector3(0.24f, -0.06f, 0f);
             var sparkle = MeshChild(go.transform, "Completion Sparkle", LoadSprite("Sparkle"), new Color(1f, 1f, 1f, 0f), 2400);
@@ -384,13 +388,13 @@ namespace AreaSurvivors.Editor
             return slider;
         }
 
-        static PaperMeshVisual MeshChild(Transform parent, string name, Sprite sprite, Color color, int sortingOrder)
+        static PaperMeshVisual MeshChild(Transform parent, string name, Sprite sprite, Color color, int sortingOrder, bool faceCamera = true)
         {
             var child = new GameObject(name);
             child.transform.SetParent(parent, false);
             var visual = child.AddComponent<PaperMeshVisual>();
             visual.Configure(sprite, color, sortingOrder);
-            child.AddComponent<PaperBillboard>();
+            child.AddComponent<PaperBillboard>().faceCamera = faceCamera;
             return visual;
         }
 

@@ -22,6 +22,8 @@ namespace AreaSurvivors
         float buildProgress;
         float visualHeight = 1f;
         float sparkleTimer;
+        Vector3 buildVisualScale = Vector3.one;
+        Vector3 completeVisualScale = Vector3.one;
         int touchingPlayers;
         bool completed;
         const float SparkleDuration = 0.75f;
@@ -44,8 +46,10 @@ namespace AreaSurvivors
 
             if (completeRenderer != null && completeRenderer.sprite != null)
             {
-                visualHeight = completeRenderer.sprite.bounds.size.y;
+                completeVisualScale = completeRenderer.transform.localScale;
+                visualHeight = completeRenderer.sprite.bounds.size.y * completeVisualScale.y;
             }
+            if (buildRenderer != null) buildVisualScale = buildRenderer.transform.localScale;
 
             ApplyVisuals();
         }
@@ -121,7 +125,7 @@ namespace AreaSurvivors
             if (buildRenderer != null)
             {
                 buildRenderer.visible = !completed && buildProgress > 0f;
-                buildRenderer.transform.localScale = new Vector3(1f, Mathf.Max(0.02f, buildProgress), 1f);
+                buildRenderer.transform.localScale = new Vector3(buildVisualScale.x, buildVisualScale.y * Mathf.Max(0.02f, buildProgress), buildVisualScale.z);
                 buildRenderer.transform.localPosition = new Vector3(0f, -visualHeight * (1f - buildProgress) * 0.5f, 0f);
             }
             if (completeRenderer != null) completeRenderer.visible = completed;
@@ -150,7 +154,7 @@ namespace AreaSurvivors
                 if (completeRenderer != null)
                 {
                     completeRenderer.color = Color.white;
-                    completeRenderer.transform.localScale = Vector3.one;
+                    completeRenderer.transform.localScale = completeVisualScale;
                 }
                 return;
             }
@@ -161,7 +165,7 @@ namespace AreaSurvivors
             if (completeRenderer != null)
             {
                 completeRenderer.color = Color.Lerp(Color.white, new Color(1f, 0.96f, 0.52f, 1f), pulse);
-                completeRenderer.transform.localScale = Vector3.one * (1f + pulse * 0.1f);
+                completeRenderer.transform.localScale = completeVisualScale * (1f + pulse * 0.1f);
             }
             if (sparkleRenderer != null)
             {
