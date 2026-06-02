@@ -223,7 +223,7 @@ namespace AreaSurvivors.Editor
         static GameObject CreateFence(bool vertical)
         {
             var go = new GameObject(vertical ? "DefensiveFenceVertical" : "DefensiveFenceHorizontal");
-            GroundShadow(go.transform, vertical ? new Vector2(0.42f, 0.58f) : new Vector2(0.72f, 0.26f));
+            GroundShadow(go.transform, vertical ? new Vector2(0.42f, 1.16f) : new Vector2(1.44f, 0.26f));
             var rb = go.AddComponent<Rigidbody2D>();
             rb.bodyType = RigidbodyType2D.Static;
             go.AddComponent<Health>();
@@ -231,14 +231,14 @@ namespace AreaSurvivors.Editor
             var buildTrigger = go.AddComponent<BoxCollider2D>();
             buildTrigger.isTrigger = true;
             buildTrigger.size = vertical
-                ? new Vector2(TileCellWidth * 0.72f, TileCellHeight * 0.96f)
-                : new Vector2(TileCellWidth * 0.96f, TileCellHeight * 0.72f);
+                ? new Vector2(TileCellWidth * 0.72f, TileCellHeight * 1.96f)
+                : new Vector2(TileCellWidth * 1.96f, TileCellHeight * 0.72f);
             buildTrigger.offset = Vector2.zero;
             var blocker = go.AddComponent<BoxCollider2D>();
             blocker.size = buildTrigger.size;
             blocker.offset = buildTrigger.offset;
 
-            var sprite = LoadSprite(vertical ? "FenceCellVertical" : "FenceCellHorizontal");
+            var sprite = LoadSprite(vertical ? "FenceDoubleVertical" : "FenceDoubleHorizontal");
             var ghost = MeshChild(go.transform, "Ghost", sprite, new Color(1f, 1f, 1f, 0.22f), 1000);
             var build = MeshChild(go.transform, "Build Fill", sprite, Color.white, 1001);
             var complete = MeshChild(go.transform, "Complete", sprite, Color.white, 1002);
@@ -260,7 +260,7 @@ namespace AreaSurvivors.Editor
             SetObjectReference(fence, "completeRenderer", complete);
             SetObjectReference(fence, "hammerRenderer", hammer);
             SetObjectReference(fence, "sparkleRenderer", sparkle);
-            SetObjectReference(fence, "buildGauge", AddWorldBuildGauge(go.transform, new Vector3(0.46f, 0f, 0f)));
+            SetObjectReference(fence, "buildGauge", AddWorldBuildGauge(go.transform, new Vector3(vertical ? 0.46f : 0.82f, 0f, 0f)));
             return go;
         }
 
@@ -554,12 +554,12 @@ namespace AreaSurvivors.Editor
         {
             if (horizontalPrefab == null || verticalPrefab == null) return;
             var placements = new List<FencePlacement>();
-            for (int x = -5; x <= 5; x++)
+            for (int x = -5; x <= 5; x += 2)
             {
                 placements.Add(new FencePlacement(new Vector2Int(x, 8), false));
                 placements.Add(new FencePlacement(new Vector2Int(x, -8), false));
             }
-            for (int y = -7; y <= 7; y++)
+            for (int y = -7; y <= 7; y += 2)
             {
                 placements.Add(new FencePlacement(new Vector2Int(-6, y), true));
                 placements.Add(new FencePlacement(new Vector2Int(6, y), true));
@@ -719,8 +719,8 @@ namespace AreaSurvivors.Editor
         static void CreateSprites()
         {
             ImportGeneratedSprites();
-            ConfigureSpriteImporter($"{Sprites}/FenceCellHorizontal.png", 128);
-            ConfigureSpriteImporter($"{Sprites}/FenceCellVertical.png", 128);
+            ConfigureSpriteImporter($"{Sprites}/FenceDoubleHorizontal.png", 128);
+            ConfigureSpriteImporter($"{Sprites}/FenceDoubleVertical.png", 128);
             Pixel("Tile", 16, 16, new[] { "................", "..,,,,,,,,,,,,..", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", "..,,,,,,,,,,,,..", "................" }, Palette());
             Pixel("Shadow", 16, 8, new[] { "................", "....ssssssss....", "..ssssssssssss..", ".ssssssssssssss.", ".ssssssssssssss.", "..ssssssssssss..", "....ssssssss....", "................" }, Palette());
             Pixel("Knight", 16, 16, new[] { "......HHHH......", ".....HhhhhH.....", ".....HhhhhH.....", "......BBBB......", ".....BbbbbB.....", "....BbbbbbbB....", "...SBBBBBBBB....", "..SS..BBBB......", ".SS...B..B......", "......B..B......", ".....FF..FF.....", "....FF....FF....", "................", "................", "................", "................" }, Palette());
