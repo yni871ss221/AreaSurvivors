@@ -5,6 +5,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.Tilemaps;
 using UnityEngine.UI;
 
 namespace AreaSurvivors.Editor
@@ -17,12 +18,19 @@ namespace AreaSurvivors.Editor
         const string Sprites = Root + "/Sprites";
         const string GeneratedSprites = Root + "/Sprites/Generated";
         const string ResourcesPath = Root + "/Resources";
+        const string TilePalette = Root + "/TilePalette";
+        const float TileCellWidth = 0.7f;
+        const float TileCellHeight = TileCellWidth * 0.55f;
+        const int HorizontalFenceCellLength = 12;
+        const int VerticalFenceCellLength = 16;
+        const float ObstacleCenterClearance = 5.8f;
 
         [MenuItem("Area Survivors/Build Initial Project")]
         public static void BuildAll()
         {
             EnsureFolders();
             CreateSprites();
+            CreateTilePalette();
             var config = CreateConfig();
             var prefabs = CreatePrefabs();
             CreateMenuScene(SceneNames.Title, typeof(TitleScreen));
@@ -39,7 +47,7 @@ namespace AreaSurvivors.Editor
 
         static void EnsureFolders()
         {
-            foreach (var path in new[] { Root, Scenes, Prefabs, Sprites, GeneratedSprites, ResourcesPath, Root + "/Resources/Config", Root + "/Resources/Generated" })
+            foreach (var path in new[] { Root, Scenes, Prefabs, Sprites, GeneratedSprites, ResourcesPath, TilePalette, Root + "/Resources/Config", Root + "/Resources/Generated" })
             {
                 if (!AssetDatabase.IsValidFolder(path))
                 {
@@ -60,6 +68,62 @@ namespace AreaSurvivors.Editor
                 AssetDatabase.CreateAsset(config, path);
             }
             return config;
+        }
+
+        static void CreateTilePalette()
+        {
+            ImportGeneratedSprites();
+            foreach (var name in new[] { "Ground", "Paint", "Tree", "Rock", "Pond", "Tower", "Ballista", "FenceHorizontal", "FenceVertical" })
+            {
+                CreateTileAsset(name);
+            }
+
+            var palette = new GameObject("Environment Palette");
+            var grid = palette.AddComponent<Grid>();
+            grid.cellSize = new Vector3(TileCellWidth, TileCellHeight, 0f);
+            var tilemap = CreateTilemap(palette.transform, "Palette Tiles", 0);
+            var tiles = new[] { "Ground", "Paint", "Tree", "Rock", "Pond", "Tower", "Ballista", "FenceHorizontal", "FenceVertical" };
+            for (int i = 0; i < tiles.Length; i++)
+            {
+                tilemap.SetTile(new Vector3Int(i, 0, 0), LoadTile(tiles[i]));
+            }
+
+            PrefabUtility.SaveAsPrefabAsset(palette, TilePalette + "/EnvironmentPalette.prefab");
+            Object.DestroyImmediate(palette);
+        }
+
+        static Tile CreateTileAsset(string name)
+        {
+            var path = TilePalette + "/" + name + ".asset";
+            var tile = AssetDatabase.LoadAssetAtPath<Tile>(path);
+            if (tile == null)
+            {
+                tile = ScriptableObject.CreateInstance<Tile>();
+                AssetDatabase.CreateAsset(tile, path);
+            }
+
+            tile.name = name;
+            tile.sprite = LoadSprite(name == "Ground" ? "Tile" : name == "Paint" ? "PaintTile" : name);
+            tile.color = Color.white;
+            tile.colliderType = Tile.ColliderType.None;
+            EditorUtility.SetDirty(tile);
+            return tile;
+        }
+
+        static Tile LoadTile(string name)
+        {
+            return AssetDatabase.LoadAssetAtPath<Tile>(TilePalette + "/" + name + ".asset");
+        }
+
+        static Tilemap CreateTilemap(Transform parent, string name, int sortingOrder)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            var tilemap = go.AddComponent<Tilemap>();
+            var renderer = go.AddComponent<TilemapRenderer>();
+            renderer.sortingOrder = sortingOrder;
+            renderer.mode = TilemapRenderer.Mode.Individual;
+            return tilemap;
         }
 
         static PrefabSet CreatePrefabs()
@@ -131,7 +195,7 @@ namespace AreaSurvivors.Editor
             rb.bodyType = RigidbodyType2D.Static;
             var trigger = go.AddComponent<CircleCollider2D>();
             trigger.isTrigger = true;
-            trigger.radius = 0.82f;
+            trigger.radius = TileCellWidth;
 
             var sprite = LoadSprite("Ballista");
             var ghost = SpriteChild(go.transform, "Ghost", sprite, new Color(1f, 1f, 1f, 0.22f), 1000);
@@ -166,17 +230,22 @@ namespace AreaSurvivors.Editor
 
             var buildTrigger = go.AddComponent<BoxCollider2D>();
             buildTrigger.isTrigger = true;
-            buildTrigger.size = vertical ? new Vector2(0.34f, 3.9f) : new Vector2(3.9f, 0.68f);
+            buildTrigger.size = vertical
+                ? new Vector2(TileCellWidth, TileCellHeight * VerticalFenceCellLength)
+                : new Vector2(TileCellWidth * HorizontalFenceCellLength, TileCellHeight);
+            buildTrigger.offset = vertical ? new Vector2(0f, TileCellHeight * VerticalFenceCellLength * 0.5f) : Vector2.zero;
             var blocker = go.AddComponent<BoxCollider2D>();
             blocker.size = buildTrigger.size;
+            blocker.offset = buildTrigger.offset;
 
             var sprite = LoadSprite(vertical ? "FenceVertical" : "FenceHorizontal");
             var ghost = SpriteChild(go.transform, "Ghost", sprite, new Color(1f, 1f, 1f, 0.22f), 1000);
             var build = SpriteChild(go.transform, "Build Fill", sprite, Color.white, 1001);
             var complete = SpriteChild(go.transform, "Complete", sprite, Color.white, 1002);
             var hammer = SpriteChild(go.transform, "Hammer", LoadSprite("Hammer"), Color.white, 2200);
-            hammer.transform.localPosition = vertical ? new Vector3(0.32f, -0.12f, 0f) : new Vector3(0.54f, -0.12f, 0f);
+            hammer.transform.localPosition = vertical ? new Vector3(0.32f, TileCellHeight * VerticalFenceCellLength * 0.5f, 0f) : new Vector3(0.54f, -0.12f, 0f);
             var sparkle = SpriteChild(go.transform, "Completion Sparkle", LoadSprite("Sparkle"), new Color(1f, 1f, 1f, 0f), 2400);
+            sparkle.transform.localPosition = vertical ? new Vector3(0f, TileCellHeight * VerticalFenceCellLength * 0.5f, 0f) : Vector3.zero;
             sparkle.enabled = false;
 
             var ySort = go.AddComponent<YSort>();
@@ -191,7 +260,7 @@ namespace AreaSurvivors.Editor
             SetObjectReference(fence, "completeRenderer", complete);
             SetObjectReference(fence, "hammerRenderer", hammer);
             SetObjectReference(fence, "sparkleRenderer", sparkle);
-            SetObjectReference(fence, "buildGauge", AddWorldBuildGauge(go.transform, vertical ? new Vector3(0.62f, 0f, 0f) : new Vector3(2.82f, -0.08f, 0f)));
+            SetObjectReference(fence, "buildGauge", AddWorldBuildGauge(go.transform, vertical ? new Vector3(0.62f, TileCellHeight * VerticalFenceCellLength * 0.5f, 0f) : new Vector3(TileCellWidth * HorizontalFenceCellLength * 0.5f + 0.2f, -0.08f, 0f)));
             return go;
         }
 
@@ -417,11 +486,24 @@ namespace AreaSurvivors.Editor
             camera.gameObject.AddComponent<AudioListener>();
             camera.gameObject.AddComponent<CameraFollow>();
 
-            var grid = new GameObject("Paint Tile Grid").AddComponent<TileGrid>();
+            var environment = new GameObject("Environment Grid");
+            var unityGrid = environment.AddComponent<Grid>();
+            unityGrid.cellSize = new Vector3(TileCellWidth, TileCellHeight, 0f);
+            var groundTilemap = CreateTilemap(environment.transform, "Ground Tilemap", -20);
+            var paintTilemap = CreateTilemap(environment.transform, "Paint Tilemap", -19);
+            var objectTilemap = CreateTilemap(environment.transform, "Object Tilemap", 1000);
+            objectTilemap.tileAnchor = new Vector3(0.5f, 0f, 0f);
+            var grid = environment.AddComponent<TileGrid>();
             grid.tileSprite = LoadSprite("Tile");
             grid.paintSprite = LoadSprite("PaintTile");
+            grid.groundTilemap = groundTilemap;
+            grid.paintTilemap = paintTilemap;
+            grid.objectTilemap = objectTilemap;
+            grid.groundTile = LoadTile("Ground");
+            grid.paintTile = LoadTile("Paint");
+            grid.Build();
 
-            AddObstacles();
+            AddObstacles(grid);
             var spawner = new GameObject("Enemy Spawner").AddComponent<EnemySpawner>();
             spawner.enemyPrefab = prefabs.enemy;
             spawner.xpOrbPrefab = prefabs.xpOrb;
@@ -433,43 +515,43 @@ namespace AreaSurvivors.Editor
             manager.playerPrefab = prefabs.player;
             manager.towerPrefab = prefabs.tower;
             manager.spawner = spawner;
-            AddBallistas(prefabs.ballista, config);
-            AddFences(prefabs.horizontalFence, prefabs.verticalFence, config);
+            AddBallistas(prefabs.ballista, config, grid);
+            AddFences(prefabs.horizontalFence, prefabs.verticalFence, config, grid);
             BuildHud(manager);
 
             EditorSceneManager.SaveScene(scene, $"{Scenes}/{SceneNames.Game}.unity");
         }
 
-        static void AddBallistas(GameObject ballistaPrefab, GameConfig config)
+        static void AddBallistas(GameObject ballistaPrefab, GameConfig config, TileGrid grid)
         {
             if (ballistaPrefab == null) return;
-            var positions = new[]
+            var cells = new[]
             {
-                new Vector3(4.2f, 2.7f, 0f),
-                new Vector3(4.2f, -4.1f, 0f),
-                new Vector3(-4.2f, 2.7f, 0f),
-                new Vector3(-4.2f, -4.1f, 0f)
+                new Vector2Int(6, 8),
+                new Vector2Int(6, -8),
+                new Vector2Int(-6, 8),
+                new Vector2Int(-6, -8)
             };
 
-            foreach (var position in positions)
+            foreach (var cell in cells)
             {
                 var instance = PrefabUtility.InstantiatePrefab(ballistaPrefab) as GameObject;
                 if (instance == null) continue;
-                instance.transform.position = position;
+                instance.transform.position = CellToWorld(grid, cell);
                 var ballista = instance.GetComponent(GetRuntimeType("AreaSurvivors.BallistaTower"));
                 if (ballista != null) SetObjectReference(ballista, "config", config);
             }
         }
 
-        static void AddFences(GameObject horizontalPrefab, GameObject verticalPrefab, GameConfig config)
+        static void AddFences(GameObject horizontalPrefab, GameObject verticalPrefab, GameConfig config, TileGrid grid)
         {
             if (horizontalPrefab == null || verticalPrefab == null) return;
             var placements = new[]
             {
-                new FencePlacement(new Vector3(0f, 2.7f, 0f), false),
-                new FencePlacement(new Vector3(0f, -4.1f, 0f), false),
-                new FencePlacement(new Vector3(-4.2f, -0.7f, 0f), true),
-                new FencePlacement(new Vector3(4.2f, -0.7f, 0f), true)
+                new FencePlacement(new Vector2Int(0, 8), false),
+                new FencePlacement(new Vector2Int(0, -8), false),
+                new FencePlacement(new Vector2Int(-6, -8), true),
+                new FencePlacement(new Vector2Int(6, -8), true)
             };
 
             foreach (var placement in placements)
@@ -477,80 +559,74 @@ namespace AreaSurvivors.Editor
                 var fencePrefab = placement.vertical ? verticalPrefab : horizontalPrefab;
                 var instance = PrefabUtility.InstantiatePrefab(fencePrefab) as GameObject;
                 if (instance == null) continue;
-                instance.transform.position = placement.position;
+                instance.transform.position = CellToWorld(grid, placement.cell);
                 var fence = instance.GetComponent(GetRuntimeType("AreaSurvivors.DefensiveFence"));
                 if (fence != null) SetObjectReference(fence, "config", config);
             }
         }
 
-        static void AddObstacles()
+        static void AddObstacles(TileGrid grid)
         {
             var specs = new[]
             {
-                new ObstacleSpec("Tree", 18, 1.45f, 0.34f, new Vector2(0f, 0.8f), new Vector2(0f, -0.06f)),
-                new ObstacleSpec("Rock", 16, 1.15f, 0.42f, new Vector2(0f, 0.33f), new Vector2(0f, 0f)),
-                new ObstacleSpec("Pond", 10, 1.65f, 0.82f, new Vector2(0f, 0.22f), new Vector2(0f, 0f))
+                new ObstacleSpec("Tree", 18, 0.34f, new Vector2(0f, -0.06f)),
+                new ObstacleSpec("Rock", 16, 0.42f, Vector2.zero),
+                new ObstacleSpec("Pond", 10, 0.82f, Vector2.zero)
             };
 
-            var placed = new List<PlacedObstacle>();
+            var availableCells = CreateObstacleGridCells();
+            Shuffle(availableCells);
+            int nextCell = 0;
             foreach (var spec in specs)
             {
                 for (int i = 0; i < spec.count; i++)
                 {
-                    if (TryFindObstaclePosition(spec, placed, out var position))
-                    {
-                        placed.Add(new PlacedObstacle(position, spec.spacingRadius));
-                        CreateObstacle(spec, position);
-                    }
+                    if (nextCell >= availableCells.Count) return;
+                    CreateObstacle(grid, spec, availableCells[nextCell++]);
                 }
             }
         }
 
-        static bool TryFindObstaclePosition(ObstacleSpec spec, List<PlacedObstacle> placed, out Vector3 position)
+        static List<Vector2Int> CreateObstacleGridCells()
         {
-            for (int attempt = 0; attempt < 120; attempt++)
+            var cells = new List<Vector2Int>();
+            for (int x = -8; x <= 8; x++)
             {
-                position = new Vector3(Random.Range(-29f, 29f), Random.Range(-15f, 15f), 0f);
-                if (Vector3.Distance(position, Vector3.zero) < 4.2f) continue;
-
-                bool overlaps = false;
-                foreach (var other in placed)
+                for (int y = -4; y <= 4; y++)
                 {
-                    if (Vector2.Distance(position, other.position) < spec.spacingRadius + other.radius)
-                    {
-                        overlaps = true;
-                        break;
-                    }
+                    var cell = new Vector2Int(x * 5, y * 8);
+                    if (new Vector2(cell.x * TileCellWidth, cell.y * TileCellHeight).magnitude < ObstacleCenterClearance) continue;
+                    cells.Add(cell);
                 }
-
-                if (!overlaps) return true;
             }
 
-            position = Vector3.zero;
-            return false;
+            return cells;
         }
 
-        static void CreateObstacle(ObstacleSpec spec, Vector3 position)
+        static void Shuffle<T>(IList<T> items)
+        {
+            for (int i = items.Count - 1; i > 0; i--)
+            {
+                int swapIndex = Random.Range(0, i + 1);
+                (items[i], items[swapIndex]) = (items[swapIndex], items[i]);
+            }
+        }
+
+        static void CreateObstacle(TileGrid grid, ObstacleSpec spec, Vector2Int cell)
         {
             var root = new GameObject(spec.name);
-            root.transform.position = position;
+            root.transform.position = CellToWorld(grid, cell);
             root.AddComponent<Obstacle>();
-
-            var visual = new GameObject("Visual");
-            visual.transform.SetParent(root.transform, false);
-            visual.transform.localPosition = spec.visualOffset;
-            var sr = visual.AddComponent<SpriteRenderer>();
-            sr.sprite = LoadSprite(spec.name);
-            sr.color = HasGeneratedSprite(spec.name) ? Color.white : Color.gray;
-
-            var ySort = root.AddComponent<YSort>();
-            ySort.baseOrder = 1000;
-            ySort.renderers = new[] { sr };
-            ySort.Apply();
+            grid.objectTilemap.SetTile(new Vector3Int(cell.x, cell.y, 0), LoadTile(spec.name));
 
             var col = root.AddComponent<CircleCollider2D>();
             col.radius = spec.colliderRadius;
             col.offset = spec.colliderOffset;
+        }
+
+        static Vector3 CellToWorld(TileGrid grid, Vector2Int cell)
+        {
+            return grid.groundTilemap.GetCellCenterWorld(new Vector3Int(cell.x, cell.y, 0));
         }
 
         static void BuildHud(GameManager manager)
@@ -757,6 +833,14 @@ namespace AreaSurvivors.Editor
             importer.textureType = TextureImporterType.Sprite;
             importer.spriteImportMode = SpriteImportMode.Single;
             importer.spritePixelsPerUnit = pixelsPerUnit;
+            if (assetPath.EndsWith("/FenceHorizontal.png"))
+            {
+                importer.spritePivot = new Vector2(0.5f, 0.5f);
+            }
+            else if (assetPath.EndsWith("/FenceVertical.png"))
+            {
+                importer.spritePivot = new Vector2(0.5f, 0f);
+            }
             importer.filterMode = FilterMode.Point;
             importer.mipmapEnabled = false;
             importer.alphaIsTransparency = true;
@@ -807,12 +891,12 @@ namespace AreaSurvivors.Editor
 
         readonly struct FencePlacement
         {
-            public readonly Vector3 position;
+            public readonly Vector2Int cell;
             public readonly bool vertical;
 
-            public FencePlacement(Vector3 position, bool vertical)
+            public FencePlacement(Vector2Int cell, bool vertical)
             {
-                this.position = position;
+                this.cell = cell;
                 this.vertical = vertical;
             }
         }
@@ -821,32 +905,17 @@ namespace AreaSurvivors.Editor
         {
             public readonly string name;
             public readonly int count;
-            public readonly float spacingRadius;
             public readonly float colliderRadius;
-            public readonly Vector2 visualOffset;
             public readonly Vector2 colliderOffset;
 
-            public ObstacleSpec(string name, int count, float spacingRadius, float colliderRadius, Vector2 visualOffset, Vector2 colliderOffset)
+            public ObstacleSpec(string name, int count, float colliderRadius, Vector2 colliderOffset)
             {
                 this.name = name;
                 this.count = count;
-                this.spacingRadius = spacingRadius;
                 this.colliderRadius = colliderRadius;
-                this.visualOffset = visualOffset;
                 this.colliderOffset = colliderOffset;
             }
         }
 
-        readonly struct PlacedObstacle
-        {
-            public readonly Vector2 position;
-            public readonly float radius;
-
-            public PlacedObstacle(Vector2 position, float radius)
-            {
-                this.position = position;
-                this.radius = radius;
-            }
-        }
     }
 }

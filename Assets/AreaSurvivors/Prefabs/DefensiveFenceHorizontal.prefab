@@ -78,7 +78,7 @@ SpriteRenderer:
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
-  m_Size: {x: 4, y: 1.5}
+  m_Size: {x: 9, y: 1.75}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
@@ -286,7 +286,7 @@ BoxCollider2D:
     adaptiveTiling: 0
   m_AutoTiling: 0
   serializedVersion: 2
-  m_Size: {x: 3.9, y: 0.68}
+  m_Size: {x: 8.4, y: 0.385}
   m_EdgeRadius: 0
 --- !u!61 &2765861639198658013
 BoxCollider2D:
@@ -331,7 +331,7 @@ BoxCollider2D:
     adaptiveTiling: 0
   m_AutoTiling: 0
   serializedVersion: 2
-  m_Size: {x: 3.9, y: 0.68}
+  m_Size: {x: 8.4, y: 0.385}
   m_EdgeRadius: 0
 --- !u!114 &7658521808281034293
 MonoBehaviour:
@@ -452,7 +452,7 @@ SpriteRenderer:
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
-  m_Size: {x: 4, y: 1.5}
+  m_Size: {x: 9, y: 1.75}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
@@ -494,7 +494,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 2.82, y: -0.08}
+  m_AnchoredPosition: {x: 4.3999996, y: -0.08}
   m_SizeDelta: {x: 0.18, y: 0.78}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!223 &6449970636225175653
@@ -808,7 +808,7 @@ SpriteRenderer:
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
-  m_Size: {x: 4, y: 1.5}
+  m_Size: {x: 9, y: 1.75}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1

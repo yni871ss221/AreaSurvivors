@@ -42,9 +42,9 @@ namespace AreaSurvivors
             Time.timeScale = 1f;
             config = Instantiate(config);
             if (grid != null) grid.Build();
-            var tower = Instantiate(towerPrefab, Vector3.zero, Quaternion.identity);
+            var tower = Instantiate(towerPrefab, grid.GridToWorld(grid.width / 2, grid.height / 2), Quaternion.identity);
             tower.Configure(config.towerMaxHp + ProgressionStore.GetLevel(UpgradeType.TowerMaxHp) * 12);
-            Player = Instantiate(playerPrefab, new Vector3(0f, -2.8f, 0f), Quaternion.identity);
+            Player = Instantiate(playerPrefab, grid.GridToWorld(grid.width / 2, grid.height / 2 - 3), Quaternion.identity);
             Player.Configure(config, grid, RunState.SelectedCharacter);
             Camera.main.GetComponent<CameraFollow>().target = Player.transform;
             spawner.Begin(config, grid, tower.transform);
