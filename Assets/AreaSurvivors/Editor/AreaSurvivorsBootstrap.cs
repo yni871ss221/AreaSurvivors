@@ -23,6 +23,7 @@ namespace AreaSurvivors.Editor
         const float TileCellHeight = TileCellWidth * 0.55f;
         const int HorizontalFenceCellLength = 12;
         const int VerticalFenceCellLength = 16;
+        const float VerticalFenceVisualScale = 0.62f;
         const float ObstacleCenterClearance = 5.8f;
 
         [MenuItem("Area Survivors/Build Initial Project")]
@@ -235,19 +236,22 @@ namespace AreaSurvivors.Editor
             buildTrigger.size = vertical
                 ? new Vector2(TileCellWidth, TileCellHeight * VerticalFenceCellLength)
                 : new Vector2(TileCellWidth * HorizontalFenceCellLength, TileCellHeight);
-            buildTrigger.offset = vertical ? new Vector2(0f, TileCellHeight * VerticalFenceCellLength * 0.5f) : Vector2.zero;
+            buildTrigger.offset = Vector2.zero;
             var blocker = go.AddComponent<BoxCollider2D>();
             blocker.size = buildTrigger.size;
             blocker.offset = buildTrigger.offset;
 
             var sprite = LoadSprite(vertical ? "FenceVertical" : "FenceHorizontal");
-            var ghost = MeshChild(go.transform, "Ghost", sprite, new Color(1f, 1f, 1f, 0.22f), 1000);
-            var build = MeshChild(go.transform, "Build Fill", sprite, Color.white, 1001);
-            var complete = MeshChild(go.transform, "Complete", sprite, Color.white, 1002);
+            var visualRoot = new GameObject("Fence Visuals").transform;
+            visualRoot.SetParent(go.transform, false);
+            if (vertical) visualRoot.localScale = new Vector3(1f, VerticalFenceVisualScale, 1f);
+            var ghost = MeshChild(visualRoot, "Ghost", sprite, new Color(1f, 1f, 1f, 0.22f), 1000);
+            var build = MeshChild(visualRoot, "Build Fill", sprite, Color.white, 1001);
+            var complete = MeshChild(visualRoot, "Complete", sprite, Color.white, 1002);
             var hammer = MeshChild(go.transform, "Hammer", LoadSprite("Hammer"), Color.white, 2200);
-            hammer.transform.localPosition = vertical ? new Vector3(0.32f, TileCellHeight * VerticalFenceCellLength * 0.5f, 0f) : new Vector3(0.54f, -0.12f, 0f);
+            hammer.transform.localPosition = vertical ? new Vector3(0.32f, 0f, 0f) : new Vector3(0.54f, -0.12f, 0f);
             var sparkle = MeshChild(go.transform, "Completion Sparkle", LoadSprite("Sparkle"), new Color(1f, 1f, 1f, 0f), 2400);
-            sparkle.transform.localPosition = vertical ? new Vector3(0f, TileCellHeight * VerticalFenceCellLength * 0.5f, 0f) : Vector3.zero;
+            sparkle.transform.localPosition = Vector3.zero;
             sparkle.visible = false;
 
             var ySort = go.AddComponent<YSort>();
@@ -262,7 +266,7 @@ namespace AreaSurvivors.Editor
             SetObjectReference(fence, "completeRenderer", complete);
             SetObjectReference(fence, "hammerRenderer", hammer);
             SetObjectReference(fence, "sparkleRenderer", sparkle);
-            SetObjectReference(fence, "buildGauge", AddWorldBuildGauge(go.transform, vertical ? new Vector3(0.62f, TileCellHeight * VerticalFenceCellLength * 0.5f, 0f) : new Vector3(TileCellWidth * HorizontalFenceCellLength * 0.5f + 0.2f, -0.08f, 0f)));
+            SetObjectReference(fence, "buildGauge", AddWorldBuildGauge(go.transform, vertical ? new Vector3(0.62f, 0f, 0f) : new Vector3(TileCellWidth * HorizontalFenceCellLength * 0.5f + 0.2f, -0.08f, 0f)));
             return go;
         }
 
@@ -559,8 +563,8 @@ namespace AreaSurvivors.Editor
             {
                 new FencePlacement(new Vector2Int(0, 8), false),
                 new FencePlacement(new Vector2Int(0, -8), false),
-                new FencePlacement(new Vector2Int(-6, -8), true),
-                new FencePlacement(new Vector2Int(6, -8), true)
+                new FencePlacement(new Vector2Int(-6, 0), true),
+                new FencePlacement(new Vector2Int(6, 0), true)
             };
 
             foreach (var placement in placements)
@@ -855,7 +859,7 @@ namespace AreaSurvivors.Editor
             }
             else if (assetPath.EndsWith("/FenceVertical.png"))
             {
-                importer.spritePivot = new Vector2(0.5f, 0f);
+                importer.spritePivot = new Vector2(0.5f, 0.5f);
             }
             importer.filterMode = FilterMode.Point;
             importer.mipmapEnabled = false;
