@@ -223,7 +223,7 @@ namespace AreaSurvivors.Editor
         static GameObject CreateFence(bool vertical)
         {
             var go = new GameObject(vertical ? "DefensiveFenceVertical" : "DefensiveFenceHorizontal");
-            GroundShadow(go.transform, vertical ? new Vector2(0.42f, 1.16f) : new Vector2(1.44f, 0.26f));
+            GroundShadow(go.transform, vertical ? new Vector2(0.42f, 0.78f) : new Vector2(1.44f, 0.26f));
             var rb = go.AddComponent<Rigidbody2D>();
             rb.bodyType = RigidbodyType2D.Static;
             go.AddComponent<Health>();
