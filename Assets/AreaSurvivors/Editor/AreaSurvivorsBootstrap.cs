@@ -284,11 +284,11 @@ namespace AreaSurvivors.Editor
                 float along = Mathf.Lerp(-length * 0.5f, length * 0.5f, t);
                 var position = vertical ? new Vector3(0f, along, height * 0.5f) : new Vector3(along, 0f, height * 0.5f);
                 var scale = vertical ? new Vector3(postDepth, postWidth, height) : new Vector3(postWidth, postDepth, height);
-                Cube(root.transform, "Post", position, scale, palette.Post);
-                Cube(root.transform, "Post Cap", position + new Vector3(0f, 0f, height * 0.55f), new Vector3(scale.x * 1.35f, scale.y * 1.35f, 0.12f), palette.Cap);
+                Box(root.transform, "Post", position, scale, palette.Post);
+                Box(root.transform, "Post Cap", position + new Vector3(0f, 0f, height * 0.55f), new Vector3(scale.x * 1.35f, scale.y * 1.35f, 0.12f), palette.Cap);
                 var bracePosition = vertical ? new Vector3(0f, along, 0.52f) : new Vector3(along, 0f, 0.52f);
                 var braceScale = vertical ? new Vector3(thickness * 1.1f, 0.07f, 0.1f) : new Vector3(0.07f, thickness * 1.1f, 0.1f);
-                Cube(root.transform, "Post Brace", bracePosition, braceScale, palette.Brace);
+                Box(root.transform, "Post Brace", bracePosition, braceScale, palette.Brace);
             }
 
             for (int i = 0; i < 2; i++)
@@ -297,7 +297,7 @@ namespace AreaSurvivors.Editor
                 float offset = i == 0 ? -thickness * 0.52f : thickness * 0.52f;
                 var position = vertical ? new Vector3(offset, 0f, z) : new Vector3(0f, offset, z);
                 var scale = vertical ? new Vector3(0.06f, length, 0.1f) : new Vector3(length, 0.06f, 0.1f);
-                Cube(root.transform, "Rail", position, scale, palette.Rail);
+                Box(root.transform, "Rail", position, scale, palette.Rail);
             }
 
             for (int i = 0; i < 4; i++)
@@ -307,31 +307,49 @@ namespace AreaSurvivors.Editor
                 var position = vertical ? new Vector3(0f, along, 0.52f) : new Vector3(along, 0f, 0.52f);
                 var scale = vertical ? new Vector3(0.07f, length * 0.13f, 0.1f) : new Vector3(length * 0.13f, 0.07f, 0.1f);
                 var rotation = vertical ? Quaternion.Euler(tilt, 0f, 0f) : Quaternion.Euler(0f, -tilt, 0f);
-                Cube(root.transform, "Diagonal Brace", position, scale, palette.Brace, rotation);
+                Box(root.transform, "Diagonal Brace", position, scale, palette.Brace, rotation);
             }
 
             return root;
         }
 
-        static GameObject Cube(Transform parent, string name, Vector3 localPosition, Vector3 localScale, Material material)
+        static GameObject Box(Transform parent, string name, Vector3 localPosition, Vector3 localScale, FencePartMaterials materials)
         {
-            return Cube(parent, name, localPosition, localScale, material, Quaternion.identity);
+            return Box(parent, name, localPosition, localScale, materials, Quaternion.identity);
         }
 
-        static GameObject Cube(Transform parent, string name, Vector3 localPosition, Vector3 localScale, Material material, Quaternion localRotation)
+        static GameObject Box(Transform parent, string name, Vector3 localPosition, Vector3 localScale, FencePartMaterials materials, Quaternion localRotation)
         {
-            var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            cube.name = name;
-            cube.transform.SetParent(parent, false);
-            cube.transform.localPosition = localPosition;
-            cube.transform.localRotation = localRotation;
-            cube.transform.localScale = localScale;
-            Object.DestroyImmediate(cube.GetComponent<BoxCollider>());
-            var renderer = cube.GetComponent<MeshRenderer>();
-            renderer.sharedMaterial = material;
+            var box = new GameObject(name);
+            box.transform.SetParent(parent, false);
+            box.transform.localPosition = localPosition;
+            box.transform.localRotation = localRotation;
+            box.transform.localScale = localScale;
+
+            var filter = box.AddComponent<MeshFilter>();
+            filter.sharedMesh = CreateBoxMesh();
+            var renderer = box.AddComponent<MeshRenderer>();
+            renderer.sharedMaterials = new[] { materials.Top, materials.Side, materials.Bottom };
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             renderer.receiveShadows = false;
-            return cube;
+            return box;
+        }
+
+        static Mesh CreateBoxMesh()
+        {
+            var mesh = new Mesh { name = "Fence Box" };
+            mesh.vertices = new[]
+            {
+                new Vector3(-0.5f, -0.5f, -0.5f), new Vector3(0.5f, -0.5f, -0.5f), new Vector3(0.5f, 0.5f, -0.5f), new Vector3(-0.5f, 0.5f, -0.5f),
+                new Vector3(-0.5f, -0.5f, 0.5f), new Vector3(0.5f, -0.5f, 0.5f), new Vector3(0.5f, 0.5f, 0.5f), new Vector3(-0.5f, 0.5f, 0.5f)
+            };
+            mesh.subMeshCount = 3;
+            mesh.SetTriangles(new[] { 4, 6, 5, 4, 7, 6 }, 0);
+            mesh.SetTriangles(new[] { 0, 1, 2, 0, 2, 3, 0, 4, 5, 0, 5, 1, 1, 5, 6, 1, 6, 2, 2, 6, 7, 2, 7, 3, 3, 7, 4, 3, 4, 0 }, 1);
+            mesh.SetTriangles(new[] { 0, 2, 1, 0, 3, 2 }, 2);
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
         }
 
         static Material FenceMaterial(string name, Color color, bool transparent)
@@ -351,19 +369,50 @@ namespace AreaSurvivors.Editor
             return material;
         }
 
+        static FencePartMaterials FencePart(string name, Color baseColor, bool transparent)
+        {
+            return new FencePartMaterials(
+                FenceMaterial($"{name} Top", Shade(baseColor, 1.18f), transparent),
+                FenceMaterial($"{name} Side", Shade(baseColor, 0.86f), transparent),
+                FenceMaterial($"{name} Bottom", Shade(baseColor, 0.62f), transparent));
+        }
+
+        static Color Shade(Color color, float multiplier)
+        {
+            return new Color(
+                Mathf.Clamp01(color.r * multiplier),
+                Mathf.Clamp01(color.g * multiplier),
+                Mathf.Clamp01(color.b * multiplier),
+                color.a);
+        }
+
+        readonly struct FencePartMaterials
+        {
+            public readonly Material Top;
+            public readonly Material Side;
+            public readonly Material Bottom;
+
+            public FencePartMaterials(Material top, Material side, Material bottom)
+            {
+                Top = top;
+                Side = side;
+                Bottom = bottom;
+            }
+        }
+
         readonly struct FencePalette
         {
-            public readonly Material Post;
-            public readonly Material Rail;
-            public readonly Material Brace;
-            public readonly Material Cap;
+            public readonly FencePartMaterials Post;
+            public readonly FencePartMaterials Rail;
+            public readonly FencePartMaterials Brace;
+            public readonly FencePartMaterials Cap;
 
             FencePalette(string prefix, Color post, Color rail, Color brace, Color cap, bool transparent)
             {
-                Post = FenceMaterial($"{prefix} Post", post, transparent);
-                Rail = FenceMaterial($"{prefix} Rail", rail, transparent);
-                Brace = FenceMaterial($"{prefix} Brace", brace, transparent);
-                Cap = FenceMaterial($"{prefix} Cap", cap, transparent);
+                Post = FencePart($"{prefix} Post", post, transparent);
+                Rail = FencePart($"{prefix} Rail", rail, transparent);
+                Brace = FencePart($"{prefix} Brace", brace, transparent);
+                Cap = FencePart($"{prefix} Cap", cap, transparent);
             }
 
             public static FencePalette Ghost()
