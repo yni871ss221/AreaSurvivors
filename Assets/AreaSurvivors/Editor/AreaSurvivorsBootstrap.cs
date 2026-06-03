@@ -274,24 +274,40 @@ namespace AreaSurvivors.Editor
             root.transform.SetParent(parent, false);
             float length = vertical ? footprint.y : footprint.x;
             float thickness = Mathf.Max(0.18f, (vertical ? footprint.x : footprint.y) * 0.58f);
-            const float height = 0.82f;
-            const int postCount = 11;
+            const float height = 0.88f;
+            const float postWidth = 0.16f;
+            const float postDepth = 0.16f;
+            const int postCount = 10;
             for (int i = 0; i < postCount; i++)
             {
                 float t = postCount == 1 ? 0f : i / (float)(postCount - 1);
                 float along = Mathf.Lerp(-length * 0.5f, length * 0.5f, t);
                 var position = vertical ? new Vector3(0f, along, height * 0.5f) : new Vector3(along, 0f, height * 0.5f);
-                var scale = vertical ? new Vector3(thickness, 0.14f, height) : new Vector3(0.14f, thickness, height);
+                var scale = vertical ? new Vector3(postDepth, postWidth, height) : new Vector3(postWidth, postDepth, height);
                 Cube(root.transform, "Post", position, scale, material);
-                Cube(root.transform, "Post Cap", position + new Vector3(0f, 0f, height * 0.56f), scale + new Vector3(0.04f, 0.04f, -height + 0.12f), material);
+                Cube(root.transform, "Post Cap", position + new Vector3(0f, 0f, height * 0.55f), new Vector3(scale.x * 1.35f, scale.y * 1.35f, 0.12f), material);
+                var bracePosition = vertical ? new Vector3(0f, along, 0.52f) : new Vector3(along, 0f, 0.52f);
+                var braceScale = vertical ? new Vector3(thickness * 1.1f, 0.07f, 0.1f) : new Vector3(0.07f, thickness * 1.1f, 0.1f);
+                Cube(root.transform, "Post Brace", bracePosition, braceScale, material);
             }
 
             for (int i = 0; i < 2; i++)
             {
-                float z = i == 0 ? 0.34f : 0.62f;
-                var position = vertical ? new Vector3(0f, 0f, z) : new Vector3(0f, 0f, z);
-                var scale = vertical ? new Vector3(thickness * 0.58f, length, 0.12f) : new Vector3(length, thickness * 0.58f, 0.12f);
+                float z = i == 0 ? 0.36f : 0.64f;
+                float offset = i == 0 ? -thickness * 0.52f : thickness * 0.52f;
+                var position = vertical ? new Vector3(offset, 0f, z) : new Vector3(0f, offset, z);
+                var scale = vertical ? new Vector3(0.06f, length, 0.1f) : new Vector3(length, 0.06f, 0.1f);
                 Cube(root.transform, "Rail", position, scale, material);
+            }
+
+            for (int i = 0; i < 4; i++)
+            {
+                float along = Mathf.Lerp(-length * 0.36f, length * 0.36f, i / 3f);
+                float tilt = i % 2 == 0 ? 22f : -22f;
+                var position = vertical ? new Vector3(0f, along, 0.52f) : new Vector3(along, 0f, 0.52f);
+                var scale = vertical ? new Vector3(0.07f, length * 0.13f, 0.1f) : new Vector3(length * 0.13f, 0.07f, 0.1f);
+                var rotation = vertical ? Quaternion.Euler(tilt, 0f, 0f) : Quaternion.Euler(0f, -tilt, 0f);
+                Cube(root.transform, "Diagonal Brace", position, scale, material, rotation);
             }
 
             return root;
@@ -299,10 +315,16 @@ namespace AreaSurvivors.Editor
 
         static GameObject Cube(Transform parent, string name, Vector3 localPosition, Vector3 localScale, Material material)
         {
+            return Cube(parent, name, localPosition, localScale, material, Quaternion.identity);
+        }
+
+        static GameObject Cube(Transform parent, string name, Vector3 localPosition, Vector3 localScale, Material material, Quaternion localRotation)
+        {
             var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
             cube.name = name;
             cube.transform.SetParent(parent, false);
             cube.transform.localPosition = localPosition;
+            cube.transform.localRotation = localRotation;
             cube.transform.localScale = localScale;
             Object.DestroyImmediate(cube.GetComponent<BoxCollider>());
             var renderer = cube.GetComponent<MeshRenderer>();
