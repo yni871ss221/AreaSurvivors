@@ -239,9 +239,9 @@ namespace AreaSurvivors.Editor
             blocker.size = buildTrigger.size;
             blocker.offset = buildTrigger.offset;
 
-            var ghost = CreateFenceModel(go.transform, "Ghost", vertical, buildTrigger.size, FenceMaterial("Fence Ghost", new Color(0.74f, 0.56f, 0.25f, 0.22f), true));
-            var build = CreateFenceModel(go.transform, "Build Fill", vertical, buildTrigger.size, FenceMaterial("Fence Build", new Color(0.86f, 0.58f, 0.26f, 1f), false));
-            var complete = CreateFenceModel(go.transform, "Complete", vertical, buildTrigger.size, FenceMaterial("Fence Wood", new Color(0.64f, 0.39f, 0.18f, 1f), false));
+            var ghost = CreateFenceModel(go.transform, "Ghost", vertical, buildTrigger.size, FencePalette.Ghost());
+            var build = CreateFenceModel(go.transform, "Build Fill", vertical, buildTrigger.size, FencePalette.Build());
+            var complete = CreateFenceModel(go.transform, "Complete", vertical, buildTrigger.size, FencePalette.Complete());
             var hammer = MeshChild(go.transform, "Hammer", LoadSprite("Hammer"), Color.white, 2200);
             hammer.transform.localPosition = new Vector3(0.24f, -0.06f, 0f);
             var sparkle = MeshChild(go.transform, "Completion Sparkle", LoadSprite("Sparkle"), new Color(1f, 1f, 1f, 0f), 2400);
@@ -268,7 +268,7 @@ namespace AreaSurvivors.Editor
             return go;
         }
 
-        static GameObject CreateFenceModel(Transform parent, string name, bool vertical, Vector2 footprint, Material material)
+        static GameObject CreateFenceModel(Transform parent, string name, bool vertical, Vector2 footprint, FencePalette palette)
         {
             var root = new GameObject(name);
             root.transform.SetParent(parent, false);
@@ -284,11 +284,11 @@ namespace AreaSurvivors.Editor
                 float along = Mathf.Lerp(-length * 0.5f, length * 0.5f, t);
                 var position = vertical ? new Vector3(0f, along, height * 0.5f) : new Vector3(along, 0f, height * 0.5f);
                 var scale = vertical ? new Vector3(postDepth, postWidth, height) : new Vector3(postWidth, postDepth, height);
-                Cube(root.transform, "Post", position, scale, material);
-                Cube(root.transform, "Post Cap", position + new Vector3(0f, 0f, height * 0.55f), new Vector3(scale.x * 1.35f, scale.y * 1.35f, 0.12f), material);
+                Cube(root.transform, "Post", position, scale, palette.Post);
+                Cube(root.transform, "Post Cap", position + new Vector3(0f, 0f, height * 0.55f), new Vector3(scale.x * 1.35f, scale.y * 1.35f, 0.12f), palette.Cap);
                 var bracePosition = vertical ? new Vector3(0f, along, 0.52f) : new Vector3(along, 0f, 0.52f);
                 var braceScale = vertical ? new Vector3(thickness * 1.1f, 0.07f, 0.1f) : new Vector3(0.07f, thickness * 1.1f, 0.1f);
-                Cube(root.transform, "Post Brace", bracePosition, braceScale, material);
+                Cube(root.transform, "Post Brace", bracePosition, braceScale, palette.Brace);
             }
 
             for (int i = 0; i < 2; i++)
@@ -297,7 +297,7 @@ namespace AreaSurvivors.Editor
                 float offset = i == 0 ? -thickness * 0.52f : thickness * 0.52f;
                 var position = vertical ? new Vector3(offset, 0f, z) : new Vector3(0f, offset, z);
                 var scale = vertical ? new Vector3(0.06f, length, 0.1f) : new Vector3(length, 0.06f, 0.1f);
-                Cube(root.transform, "Rail", position, scale, material);
+                Cube(root.transform, "Rail", position, scale, palette.Rail);
             }
 
             for (int i = 0; i < 4; i++)
@@ -307,7 +307,7 @@ namespace AreaSurvivors.Editor
                 var position = vertical ? new Vector3(0f, along, 0.52f) : new Vector3(along, 0f, 0.52f);
                 var scale = vertical ? new Vector3(0.07f, length * 0.13f, 0.1f) : new Vector3(length * 0.13f, 0.07f, 0.1f);
                 var rotation = vertical ? Quaternion.Euler(tilt, 0f, 0f) : Quaternion.Euler(0f, -tilt, 0f);
-                Cube(root.transform, "Diagonal Brace", position, scale, material, rotation);
+                Cube(root.transform, "Diagonal Brace", position, scale, palette.Brace, rotation);
             }
 
             return root;
@@ -349,6 +349,55 @@ namespace AreaSurvivors.Editor
             material.renderQueue = 3000;
             EditorUtility.SetDirty(material);
             return material;
+        }
+
+        readonly struct FencePalette
+        {
+            public readonly Material Post;
+            public readonly Material Rail;
+            public readonly Material Brace;
+            public readonly Material Cap;
+
+            FencePalette(string prefix, Color post, Color rail, Color brace, Color cap, bool transparent)
+            {
+                Post = FenceMaterial($"{prefix} Post", post, transparent);
+                Rail = FenceMaterial($"{prefix} Rail", rail, transparent);
+                Brace = FenceMaterial($"{prefix} Brace", brace, transparent);
+                Cap = FenceMaterial($"{prefix} Cap", cap, transparent);
+            }
+
+            public static FencePalette Ghost()
+            {
+                return new FencePalette(
+                    "Fence Ghost",
+                    new Color(0.68f, 0.50f, 0.22f, 0.22f),
+                    new Color(0.78f, 0.58f, 0.26f, 0.22f),
+                    new Color(0.58f, 0.40f, 0.18f, 0.22f),
+                    new Color(0.88f, 0.70f, 0.34f, 0.24f),
+                    true);
+            }
+
+            public static FencePalette Build()
+            {
+                return new FencePalette(
+                    "Fence Build",
+                    new Color(0.78f, 0.48f, 0.20f, 1f),
+                    new Color(0.92f, 0.62f, 0.28f, 1f),
+                    new Color(0.62f, 0.35f, 0.16f, 1f),
+                    new Color(1.0f, 0.74f, 0.36f, 1f),
+                    false);
+            }
+
+            public static FencePalette Complete()
+            {
+                return new FencePalette(
+                    "Fence Wood",
+                    new Color(0.58f, 0.34f, 0.15f, 1f),
+                    new Color(0.72f, 0.43f, 0.18f, 1f),
+                    new Color(0.43f, 0.25f, 0.12f, 1f),
+                    new Color(0.83f, 0.55f, 0.25f, 1f),
+                    false);
+            }
         }
 
         static GameObject CreateEnemy()
