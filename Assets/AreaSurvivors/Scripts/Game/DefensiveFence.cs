@@ -28,7 +28,7 @@ namespace AreaSurvivors
         Vector3 buildVisualScale = Vector3.one;
         Vector3 completeVisualScale = Vector3.one;
         Renderer[] completeObjectRenderers;
-        Color[][] completeObjectColors;
+        Color[] completeObjectColors;
         int touchingPlayers;
         bool completed;
         const float SparkleDuration = 0.75f;
@@ -208,44 +208,27 @@ namespace AreaSurvivors
             if (target != null) target.SetActive(active);
         }
 
-        static Color[][] CaptureColors(Renderer[] renderers)
+        static Color[] CaptureColors(Renderer[] renderers)
         {
             if (renderers == null) return null;
-            var colors = new Color[renderers.Length][];
+            var colors = new Color[renderers.Length];
             for (int i = 0; i < renderers.Length; i++)
             {
-                if (renderers[i] == null)
-                {
-                    colors[i] = new[] { Color.white };
-                    continue;
-                }
-
-                var materials = renderers[i].materials;
-                colors[i] = new Color[materials.Length];
-                for (int j = 0; j < materials.Length; j++)
-                {
-                    colors[i][j] = materials[j] != null ? materials[j].color : Color.white;
-                }
+                colors[i] = renderers[i] != null ? renderers[i].material.color : Color.white;
             }
 
             return colors;
         }
 
-        static void SetColor(Renderer[] renderers, Color[][] baseColors, Color tint)
+        static void SetColor(Renderer[] renderers, Color[] baseColors, Color tint)
         {
             if (renderers == null) return;
             for (int i = 0; i < renderers.Length; i++)
             {
                 var target = renderers[i];
                 if (target == null) continue;
-                var materials = target.materials;
-                for (int j = 0; j < materials.Length; j++)
-                {
-                    var baseColor = baseColors != null && i < baseColors.Length && baseColors[i] != null && j < baseColors[i].Length ? baseColors[i][j] : Color.white;
-                    materials[j].color = new Color(baseColor.r * tint.r, baseColor.g * tint.g, baseColor.b * tint.b, baseColor.a * tint.a);
-                }
-
-                target.materials = materials;
+                var baseColor = baseColors != null && i < baseColors.Length ? baseColors[i] : Color.white;
+                target.material.color = new Color(baseColor.r * tint.r, baseColor.g * tint.g, baseColor.b * tint.b, baseColor.a * tint.a);
             }
         }
     }
