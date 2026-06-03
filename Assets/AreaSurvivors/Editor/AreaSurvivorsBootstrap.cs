@@ -16,6 +16,7 @@ namespace AreaSurvivors.Editor
         const string Scenes = Root + "/Scenes";
         const string Prefabs = Root + "/Prefabs";
         const string Materials = Root + "/Materials";
+        const string Meshes = Root + "/Meshes";
         const string Sprites = Root + "/Sprites";
         const string GeneratedSprites = Root + "/Sprites/Generated";
         const string ResourcesPath = Root + "/Resources";
@@ -46,7 +47,7 @@ namespace AreaSurvivors.Editor
 
         static void EnsureFolders()
         {
-            foreach (var path in new[] { Root, Scenes, Prefabs, Materials, Sprites, GeneratedSprites, ResourcesPath, TilePalette, Root + "/Resources/Config", Root + "/Resources/Generated" })
+            foreach (var path in new[] { Root, Scenes, Prefabs, Materials, Meshes, Sprites, GeneratedSprites, ResourcesPath, TilePalette, Root + "/Resources/Config", Root + "/Resources/Generated" })
             {
                 if (!AssetDatabase.IsValidFolder(path))
                 {
@@ -320,18 +321,46 @@ namespace AreaSurvivors.Editor
 
         static GameObject Cube(Transform parent, string name, Vector3 localPosition, Vector3 localScale, Material material, Quaternion localRotation)
         {
-            var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            var cube = new GameObject(name);
             cube.name = name;
             cube.transform.SetParent(parent, false);
             cube.transform.localPosition = localPosition;
             cube.transform.localRotation = localRotation;
             cube.transform.localScale = localScale;
-            Object.DestroyImmediate(cube.GetComponent<BoxCollider>());
-            var renderer = cube.GetComponent<MeshRenderer>();
+            var filter = cube.AddComponent<MeshFilter>();
+            filter.sharedMesh = FenceCubeMesh();
+            var renderer = cube.AddComponent<MeshRenderer>();
             renderer.sharedMaterial = material;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             renderer.receiveShadows = false;
             return cube;
+        }
+
+        static Mesh FenceCubeMesh()
+        {
+            const string path = Meshes + "/FenceCube.asset";
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            if (mesh != null) return mesh;
+
+            mesh = new Mesh { name = "FenceCube" };
+            mesh.vertices = new[]
+            {
+                new Vector3(-0.5f, -0.5f, -0.5f), new Vector3(0.5f, -0.5f, -0.5f), new Vector3(0.5f, 0.5f, -0.5f), new Vector3(-0.5f, 0.5f, -0.5f),
+                new Vector3(-0.5f, -0.5f, 0.5f), new Vector3(0.5f, -0.5f, 0.5f), new Vector3(0.5f, 0.5f, 0.5f), new Vector3(-0.5f, 0.5f, 0.5f)
+            };
+            mesh.triangles = new[]
+            {
+                0, 2, 1, 0, 3, 2,
+                4, 5, 6, 4, 6, 7,
+                0, 1, 5, 0, 5, 4,
+                1, 2, 6, 1, 6, 5,
+                2, 3, 7, 2, 7, 6,
+                3, 0, 4, 3, 4, 7
+            };
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            AssetDatabase.CreateAsset(mesh, path);
+            return mesh;
         }
 
         static Material FenceMaterial(string name, Color color, bool transparent)
