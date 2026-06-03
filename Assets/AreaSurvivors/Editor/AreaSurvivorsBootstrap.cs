@@ -15,6 +15,7 @@ namespace AreaSurvivors.Editor
         const string Root = "Assets/AreaSurvivors";
         const string Scenes = Root + "/Scenes";
         const string Prefabs = Root + "/Prefabs";
+        const string Materials = Root + "/Materials";
         const string Sprites = Root + "/Sprites";
         const string GeneratedSprites = Root + "/Sprites/Generated";
         const string ResourcesPath = Root + "/Resources";
@@ -45,7 +46,7 @@ namespace AreaSurvivors.Editor
 
         static void EnsureFolders()
         {
-            foreach (var path in new[] { Root, Scenes, Prefabs, Sprites, GeneratedSprites, ResourcesPath, TilePalette, Root + "/Resources/Config", Root + "/Resources/Generated" })
+            foreach (var path in new[] { Root, Scenes, Prefabs, Materials, Sprites, GeneratedSprites, ResourcesPath, TilePalette, Root + "/Resources/Config", Root + "/Resources/Generated" })
             {
                 if (!AssetDatabase.IsValidFolder(path))
                 {
@@ -238,14 +239,9 @@ namespace AreaSurvivors.Editor
             blocker.size = buildTrigger.size;
             blocker.offset = buildTrigger.offset;
 
-            var sprite = LoadSprite(vertical ? "FenceTwentyVertical" : "FenceTwentyHorizontal");
-            var visualScale = new Vector3(buildTrigger.size.x / sprite.bounds.size.x, buildTrigger.size.y / sprite.bounds.size.y, 1f);
-            var ghost = MeshChild(go.transform, "Ghost", sprite, new Color(1f, 1f, 1f, 0.22f), 1000, false);
-            var build = MeshChild(go.transform, "Build Fill", sprite, Color.white, 1001, false);
-            var complete = MeshChild(go.transform, "Complete", sprite, Color.white, 1002, false);
-            ghost.transform.localScale = visualScale;
-            build.transform.localScale = visualScale;
-            complete.transform.localScale = visualScale;
+            var ghost = CreateFenceModel(go.transform, "Ghost", vertical, buildTrigger.size, FenceMaterial("Fence Ghost", new Color(0.74f, 0.56f, 0.25f, 0.22f), true));
+            var build = CreateFenceModel(go.transform, "Build Fill", vertical, buildTrigger.size, FenceMaterial("Fence Build", new Color(0.86f, 0.58f, 0.26f, 1f), false));
+            var complete = CreateFenceModel(go.transform, "Complete", vertical, buildTrigger.size, FenceMaterial("Fence Wood", new Color(0.64f, 0.39f, 0.18f, 1f), false));
             var hammer = MeshChild(go.transform, "Hammer", LoadSprite("Hammer"), Color.white, 2200);
             hammer.transform.localPosition = new Vector3(0.24f, -0.06f, 0f);
             var sparkle = MeshChild(go.transform, "Completion Sparkle", LoadSprite("Sparkle"), new Color(1f, 1f, 1f, 0f), 2400);
@@ -254,18 +250,83 @@ namespace AreaSurvivors.Editor
 
             var ySort = go.AddComponent<YSort>();
             ySort.baseOrder = 1000;
-            ySort.renderers = new[] { ghost.Renderer, build.Renderer, complete.Renderer };
+            var renderers = new List<Renderer>();
+            renderers.AddRange(ghost.GetComponentsInChildren<Renderer>(true));
+            renderers.AddRange(build.GetComponentsInChildren<Renderer>(true));
+            renderers.AddRange(complete.GetComponentsInChildren<Renderer>(true));
+            ySort.renderers = renderers.ToArray();
 
             var fence = go.AddComponent(GetRuntimeType("AreaSurvivors.DefensiveFence"));
             SetBool(fence, "vertical", vertical);
             SetObjectReference(fence, "blockingCollider", blocker);
-            SetObjectReference(fence, "ghostRenderer", ghost);
-            SetObjectReference(fence, "buildRenderer", build);
-            SetObjectReference(fence, "completeRenderer", complete);
+            SetObjectReference(fence, "ghostObject", ghost);
+            SetObjectReference(fence, "buildObject", build);
+            SetObjectReference(fence, "completeObject", complete);
             SetObjectReference(fence, "hammerRenderer", hammer);
             SetObjectReference(fence, "sparkleRenderer", sparkle);
             SetObjectReference(fence, "buildGauge", AddWorldBuildGauge(go.transform, new Vector3(vertical ? 0.46f : 7.14f, 0f, 0f)));
             return go;
+        }
+
+        static GameObject CreateFenceModel(Transform parent, string name, bool vertical, Vector2 footprint, Material material)
+        {
+            var root = new GameObject(name);
+            root.transform.SetParent(parent, false);
+            float length = vertical ? footprint.y : footprint.x;
+            float thickness = Mathf.Max(0.18f, (vertical ? footprint.x : footprint.y) * 0.58f);
+            const float height = 0.82f;
+            const int postCount = 11;
+            for (int i = 0; i < postCount; i++)
+            {
+                float t = postCount == 1 ? 0f : i / (float)(postCount - 1);
+                float along = Mathf.Lerp(-length * 0.5f, length * 0.5f, t);
+                var position = vertical ? new Vector3(0f, along, height * 0.5f) : new Vector3(along, 0f, height * 0.5f);
+                var scale = vertical ? new Vector3(thickness, 0.14f, height) : new Vector3(0.14f, thickness, height);
+                Cube(root.transform, "Post", position, scale, material);
+                Cube(root.transform, "Post Cap", position + new Vector3(0f, 0f, height * 0.56f), scale + new Vector3(0.04f, 0.04f, -height + 0.12f), material);
+            }
+
+            for (int i = 0; i < 2; i++)
+            {
+                float z = i == 0 ? 0.34f : 0.62f;
+                var position = vertical ? new Vector3(0f, 0f, z) : new Vector3(0f, 0f, z);
+                var scale = vertical ? new Vector3(thickness * 0.58f, length, 0.12f) : new Vector3(length, thickness * 0.58f, 0.12f);
+                Cube(root.transform, "Rail", position, scale, material);
+            }
+
+            return root;
+        }
+
+        static GameObject Cube(Transform parent, string name, Vector3 localPosition, Vector3 localScale, Material material)
+        {
+            var cube = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            cube.name = name;
+            cube.transform.SetParent(parent, false);
+            cube.transform.localPosition = localPosition;
+            cube.transform.localScale = localScale;
+            Object.DestroyImmediate(cube.GetComponent<BoxCollider>());
+            var renderer = cube.GetComponent<MeshRenderer>();
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            return cube;
+        }
+
+        static Material FenceMaterial(string name, Color color, bool transparent)
+        {
+            var path = $"{Materials}/{name}.mat";
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                material = new Material(Shader.Find("Sprites/Default"));
+                AssetDatabase.CreateAsset(material, path);
+            }
+
+            material.shader = Shader.Find("Sprites/Default");
+            material.color = color;
+            material.renderQueue = 3000;
+            EditorUtility.SetDirty(material);
+            return material;
         }
 
         static GameObject CreateEnemy()
