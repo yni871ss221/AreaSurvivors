@@ -286,10 +286,20 @@ namespace AreaSurvivors.Editor
                 var position = vertical ? new Vector3(0f, along, height * 0.5f) : new Vector3(along, 0f, height * 0.5f);
                 var scale = vertical ? new Vector3(postDepth, postWidth, height) : new Vector3(postWidth, postDepth, height);
                 Cube(root.transform, "Post", position, scale, palette.Post);
+                var postEdgeScale = vertical ? new Vector3(0.03f, postWidth * 1.12f, height * 0.72f) : new Vector3(postWidth * 1.12f, 0.03f, height * 0.72f);
+                var postEdgeOffset = vertical ? new Vector3(-postDepth * 0.58f, 0f, 0.02f) : new Vector3(0f, -postDepth * 0.58f, 0.02f);
+                Cube(root.transform, "Post Edge", position + postEdgeOffset, postEdgeScale, palette.Edge);
+                if (i % 2 == 0)
+                {
+                    var grainOffset = vertical ? new Vector3(postDepth * 0.58f, 0f, 0.06f) : new Vector3(0f, postDepth * 0.58f, 0.06f);
+                    var grainScale = vertical ? new Vector3(0.018f, postWidth * 0.72f, height * 0.36f) : new Vector3(postWidth * 0.72f, 0.018f, height * 0.36f);
+                    Cube(root.transform, "Post Grain", position + grainOffset, grainScale, palette.Grain);
+                }
                 Cube(root.transform, "Post Cap", position + new Vector3(0f, 0f, height * 0.55f), new Vector3(scale.x * 1.35f, scale.y * 1.35f, 0.12f), palette.Cap);
                 var bracePosition = vertical ? new Vector3(0f, along, 0.52f) : new Vector3(along, 0f, 0.52f);
                 var braceScale = vertical ? new Vector3(thickness * 1.1f, 0.07f, 0.1f) : new Vector3(0.07f, thickness * 1.1f, 0.1f);
                 Cube(root.transform, "Post Brace", bracePosition, braceScale, palette.Brace);
+                Cube(root.transform, "Nail", bracePosition + new Vector3(0f, 0f, 0.075f), new Vector3(0.055f, 0.055f, 0.035f), palette.Metal);
             }
 
             for (int i = 0; i < 2; i++)
@@ -299,6 +309,17 @@ namespace AreaSurvivors.Editor
                 var position = vertical ? new Vector3(offset, 0f, z) : new Vector3(0f, offset, z);
                 var scale = vertical ? new Vector3(0.06f, length, 0.1f) : new Vector3(length, 0.06f, 0.1f);
                 Cube(root.transform, "Rail", position, scale, palette.Rail);
+                var edgeScale = vertical ? new Vector3(0.075f, length, 0.025f) : new Vector3(length, 0.075f, 0.025f);
+                Cube(root.transform, "Rail Top Edge", position + new Vector3(0f, 0f, 0.064f), edgeScale, palette.Edge);
+                Cube(root.transform, "Rail Bottom Edge", position + new Vector3(0f, 0f, -0.064f), edgeScale, palette.Edge);
+                for (int g = 0; g < 4; g++)
+                {
+                    float t = (g + 0.5f) / 4f;
+                    float along = Mathf.Lerp(-length * 0.38f, length * 0.38f, t);
+                    var grainPosition = vertical ? new Vector3(offset, along, z + 0.075f) : new Vector3(along, offset, z + 0.075f);
+                    var grainScale = vertical ? new Vector3(0.082f, length * 0.055f, 0.018f) : new Vector3(length * 0.055f, 0.082f, 0.018f);
+                    Cube(root.transform, "Rail Grain", grainPosition, grainScale, palette.Grain);
+                }
             }
 
             for (int i = 0; i < 4; i++)
@@ -386,13 +407,19 @@ namespace AreaSurvivors.Editor
             public readonly Material Rail;
             public readonly Material Brace;
             public readonly Material Cap;
+            public readonly Material Edge;
+            public readonly Material Grain;
+            public readonly Material Metal;
 
-            FencePalette(string prefix, Color post, Color rail, Color brace, Color cap, bool transparent)
+            FencePalette(string prefix, Color post, Color rail, Color brace, Color cap, Color edge, Color grain, Color metal, bool transparent)
             {
                 Post = FenceMaterial($"{prefix} Post", post, transparent);
                 Rail = FenceMaterial($"{prefix} Rail", rail, transparent);
                 Brace = FenceMaterial($"{prefix} Brace", brace, transparent);
                 Cap = FenceMaterial($"{prefix} Cap", cap, transparent);
+                Edge = FenceMaterial($"{prefix} Edge", edge, transparent);
+                Grain = FenceMaterial($"{prefix} Grain", grain, transparent);
+                Metal = FenceMaterial($"{prefix} Nail", metal, transparent);
             }
 
             public static FencePalette Ghost()
@@ -403,6 +430,9 @@ namespace AreaSurvivors.Editor
                     new Color(0.78f, 0.58f, 0.26f, 0.22f),
                     new Color(0.58f, 0.40f, 0.18f, 0.22f),
                     new Color(0.88f, 0.70f, 0.34f, 0.24f),
+                    new Color(0.34f, 0.25f, 0.12f, 0.20f),
+                    new Color(0.25f, 0.18f, 0.09f, 0.18f),
+                    new Color(0.16f, 0.13f, 0.10f, 0.18f),
                     true);
             }
 
@@ -414,6 +444,9 @@ namespace AreaSurvivors.Editor
                     new Color(0.92f, 0.62f, 0.28f, 1f),
                     new Color(0.62f, 0.35f, 0.16f, 1f),
                     new Color(1.0f, 0.74f, 0.36f, 1f),
+                    new Color(0.36f, 0.20f, 0.10f, 1f),
+                    new Color(0.46f, 0.26f, 0.12f, 1f),
+                    new Color(0.13f, 0.11f, 0.09f, 1f),
                     false);
             }
 
@@ -425,6 +458,9 @@ namespace AreaSurvivors.Editor
                     new Color(0.72f, 0.43f, 0.18f, 1f),
                     new Color(0.43f, 0.25f, 0.12f, 1f),
                     new Color(0.83f, 0.55f, 0.25f, 1f),
+                    new Color(0.24f, 0.13f, 0.07f, 1f),
+                    new Color(0.34f, 0.19f, 0.09f, 1f),
+                    new Color(0.08f, 0.07f, 0.06f, 1f),
                     false);
             }
         }
