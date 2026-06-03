@@ -12,6 +12,9 @@ namespace AreaSurvivors
         public PaperMeshVisual completeRenderer;
         public PaperMeshVisual hammerRenderer;
         public PaperMeshVisual sparkleRenderer;
+        public GameObject ghostObject;
+        public GameObject buildObject;
+        public GameObject completeObject;
         public Slider buildGauge;
         public float buildSeconds = 2.2f;
         public float attackRange = 7.5f;
@@ -22,6 +25,10 @@ namespace AreaSurvivors
         float attackTimer;
         float visualHeight = 1f;
         float sparkleTimer;
+        Vector3 buildObjectScale = Vector3.one;
+        Vector3 completeObjectScale = Vector3.one;
+        Renderer[] completeObjectRenderers;
+        Color[][] completeObjectColors;
         int touchingPlayers;
         bool completed;
         readonly float sparkleDuration = 0.75f;
@@ -39,6 +46,13 @@ namespace AreaSurvivors
             if (completeRenderer != null && completeRenderer.sprite != null)
             {
                 visualHeight = completeRenderer.sprite.bounds.size.y;
+            }
+            if (buildObject != null) buildObjectScale = buildObject.transform.localScale;
+            if (completeObject != null)
+            {
+                completeObjectScale = completeObject.transform.localScale;
+                completeObjectRenderers = completeObject.GetComponentsInChildren<Renderer>(true);
+                completeObjectColors = CaptureColors(completeObjectRenderers);
             }
             ApplyBuildVisuals();
         }
@@ -80,13 +94,20 @@ namespace AreaSurvivors
         void ApplyBuildVisuals()
         {
             if (ghostRenderer != null) ghostRenderer.visible = !completed;
+            SetActive(ghostObject, !completed);
             if (buildRenderer != null)
             {
                 buildRenderer.visible = !completed && buildProgress > 0f;
                 buildRenderer.transform.localScale = new Vector3(1f, Mathf.Max(0.02f, buildProgress), 1f);
                 buildRenderer.transform.localPosition = new Vector3(0f, -visualHeight * (1f - buildProgress) * 0.5f, 0f);
             }
+            if (buildObject != null)
+            {
+                buildObject.SetActive(!completed && buildProgress > 0f);
+                buildObject.transform.localScale = new Vector3(buildObjectScale.x, buildObjectScale.y, buildObjectScale.z * Mathf.Max(0.02f, buildProgress));
+            }
             if (completeRenderer != null) completeRenderer.visible = completed;
+            SetActive(completeObject, completed);
             if (sparkleRenderer != null && !completed) sparkleRenderer.visible = false;
             if (buildGauge != null)
             {
@@ -124,6 +145,8 @@ namespace AreaSurvivors
                     completeRenderer.color = Color.white;
                     completeRenderer.transform.localScale = Vector3.one;
                 }
+                SetColor(completeObjectRenderers, completeObjectColors, Color.white);
+                if (completeObject != null) completeObject.transform.localScale = completeObjectScale;
                 return;
             }
 
@@ -135,6 +158,8 @@ namespace AreaSurvivors
                 completeRenderer.color = Color.Lerp(Color.white, new Color(1f, 0.96f, 0.52f, 1f), pulse);
                 completeRenderer.transform.localScale = Vector3.one * (1f + pulse * 0.14f);
             }
+            SetColor(completeObjectRenderers, completeObjectColors, Color.Lerp(Color.white, new Color(1f, 0.96f, 0.52f, 1f), pulse));
+            if (completeObject != null) completeObject.transform.localScale = completeObjectScale * (1f + pulse * 0.1f);
             if (sparkleRenderer != null)
             {
                 sparkleRenderer.visible = true;
@@ -167,6 +192,52 @@ namespace AreaSurvivors
             go.transform.localScale *= 0.5f;
             float speed = config != null ? config.projectileSpeed * 1.15f : 10f;
             go.GetComponent<Projectile>().Launch(direction.normalized, damage, speed, false);
+        }
+
+        static void SetActive(GameObject target, bool active)
+        {
+            if (target != null) target.SetActive(active);
+        }
+
+        static Color[][] CaptureColors(Renderer[] renderers)
+        {
+            if (renderers == null) return null;
+            var colors = new Color[renderers.Length][];
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i] == null)
+                {
+                    colors[i] = new[] { Color.white };
+                    continue;
+                }
+
+                var materials = renderers[i].materials;
+                colors[i] = new Color[materials.Length];
+                for (int j = 0; j < materials.Length; j++)
+                {
+                    colors[i][j] = materials[j] != null ? materials[j].color : Color.white;
+                }
+            }
+
+            return colors;
+        }
+
+        static void SetColor(Renderer[] renderers, Color[][] baseColors, Color tint)
+        {
+            if (renderers == null) return;
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                var target = renderers[i];
+                if (target == null) continue;
+                var materials = target.materials;
+                for (int j = 0; j < materials.Length; j++)
+                {
+                    var baseColor = baseColors != null && i < baseColors.Length && baseColors[i] != null && j < baseColors[i].Length ? baseColors[i][j] : Color.white;
+                    materials[j].color = new Color(baseColor.r * tint.r, baseColor.g * tint.g, baseColor.b * tint.b, baseColor.a * tint.a);
+                }
+
+                target.materials = materials;
+            }
         }
     }
 }

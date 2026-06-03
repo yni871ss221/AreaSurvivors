@@ -199,9 +199,9 @@ namespace AreaSurvivors.Editor
             trigger.radius = TileCellWidth;
 
             var sprite = LoadSprite("Ballista");
-            var ghost = MeshChild(go.transform, "Ghost", sprite, new Color(1f, 1f, 1f, 0.22f), 1000);
-            var build = MeshChild(go.transform, "Build Fill", sprite, Color.white, 1001);
-            var complete = MeshChild(go.transform, "Complete", sprite, Color.white, 1002);
+            var ghost = CreateTexturedTowerModel(go.transform, "Ghost", sprite, 1.25f, 0.46f, 1.0f, new Color(1f, 1f, 1f, 0.22f), 1000);
+            var build = CreateTexturedTowerModel(go.transform, "Build Fill", sprite, 1.25f, 0.46f, 1.0f, Color.white, 1001);
+            var complete = CreateTexturedTowerModel(go.transform, "Complete", sprite, 1.25f, 0.46f, 1.0f, Color.white, 1002);
             var hammer = MeshChild(go.transform, "Hammer", LoadSprite("Hammer"), Color.white, 2200);
             hammer.transform.localPosition = new Vector3(0.28f, -0.12f, 0f);
             var sparkle = MeshChild(go.transform, "Completion Sparkle", LoadSprite("Sparkle"), new Color(1f, 1f, 1f, 0f), 2400);
@@ -209,13 +209,17 @@ namespace AreaSurvivors.Editor
 
             var ySort = go.AddComponent<YSort>();
             ySort.baseOrder = 1000;
-            ySort.renderers = new[] { ghost.Renderer, build.Renderer, complete.Renderer };
+            var sortRenderers = new List<Renderer>();
+            sortRenderers.AddRange(ghost.GetComponentsInChildren<Renderer>(true));
+            sortRenderers.AddRange(build.GetComponentsInChildren<Renderer>(true));
+            sortRenderers.AddRange(complete.GetComponentsInChildren<Renderer>(true));
+            ySort.renderers = sortRenderers.ToArray();
 
             var ballista = go.AddComponent(GetRuntimeType("AreaSurvivors.BallistaTower"));
             SetObjectReference(ballista, "arrowPrefab", arrowPrefab);
-            SetObjectReference(ballista, "ghostRenderer", ghost);
-            SetObjectReference(ballista, "buildRenderer", build);
-            SetObjectReference(ballista, "completeRenderer", complete);
+            SetObjectReference(ballista, "ghostObject", ghost);
+            SetObjectReference(ballista, "buildObject", build);
+            SetObjectReference(ballista, "completeObject", complete);
             SetObjectReference(ballista, "hammerRenderer", hammer);
             SetObjectReference(ballista, "sparkleRenderer", sparkle);
             SetObjectReference(ballista, "buildGauge", AddWorldBuildGauge(go.transform, new Vector3(0f, -0.75f, 0f)));
@@ -427,6 +431,53 @@ namespace AreaSurvivors.Editor
             return mesh;
         }
 
+        static Mesh TexturedQuadMesh()
+        {
+            const string path = Meshes + "/TexturedQuad.asset";
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
+            if (mesh != null) return mesh;
+
+            mesh = new Mesh { name = "TexturedQuad" };
+            mesh.vertices = new[]
+            {
+                new Vector3(-0.5f, -0.5f, 0f),
+                new Vector3(0.5f, -0.5f, 0f),
+                new Vector3(0.5f, 0.5f, 0f),
+                new Vector3(-0.5f, 0.5f, 0f)
+            };
+            mesh.uv = new[]
+            {
+                new Vector2(0f, 0f),
+                new Vector2(1f, 0f),
+                new Vector2(1f, 1f),
+                new Vector2(0f, 1f)
+            };
+            mesh.triangles = new[] { 0, 1, 2, 0, 2, 3 };
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            AssetDatabase.CreateAsset(mesh, path);
+            return mesh;
+        }
+
+        static Material TexturedMaterial(string name, Sprite sprite, Color color)
+        {
+            var safeName = name.Replace("/", "_").Replace("\\", "_");
+            var path = $"{Materials}/{safeName}.mat";
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                material = new Material(Shader.Find("Sprites/Default"));
+                AssetDatabase.CreateAsset(material, path);
+            }
+
+            material.shader = Shader.Find("Sprites/Default");
+            material.mainTexture = sprite != null ? sprite.texture : null;
+            material.color = color;
+            material.renderQueue = 3000;
+            EditorUtility.SetDirty(material);
+            return material;
+        }
+
         static Material FenceMaterial(string name, Color color, bool transparent)
         {
             var path = $"{Materials}/{name}.mat";
@@ -552,12 +603,54 @@ namespace AreaSurvivors.Editor
 
         static GameObject CreateTower()
         {
-            var go = Actor("Tower", LoadSprite("Tower"), Color.white, 0.85f);
-            go.GetComponent<Rigidbody2D>().bodyType = RigidbodyType2D.Static;
+            var go = new GameObject("Tower");
+            var visual = CreateTexturedTowerModel(go.transform, "Textured Model", LoadSprite("Tower"), 1.35f, 0.62f, 1.85f, Color.white, 1000);
+            GroundShadow(go.transform, new Vector2(1.85f, 0.95f));
+            var ySort = go.AddComponent<YSort>();
+            ySort.baseOrder = 1000;
+            ySort.renderers = visual.GetComponentsInChildren<Renderer>(true);
+            var rb = go.AddComponent<Rigidbody2D>();
+            rb.gravityScale = 0f;
+            rb.freezeRotation = true;
+            rb.bodyType = RigidbodyType2D.Static;
+            var col = go.AddComponent<CircleCollider2D>();
+            col.radius = 0.85f;
             go.AddComponent<Health>();
             var tower = go.AddComponent<TowerController>();
             tower.hpBar = AddWorldHpBar(go.transform, new Vector3(0, -0.9f, 0), 1.3f);
             return go;
+        }
+
+        static GameObject CreateTexturedTowerModel(Transform parent, string name, Sprite sprite, float width, float depth, float height, Color color, int sortingOrder)
+        {
+            var root = new GameObject(name);
+            root.transform.SetParent(parent, false);
+            var material = TexturedMaterial($"{name} {sprite.name}", sprite, color);
+            var sideMaterial = TexturedMaterial($"{name} {sprite.name} Side", sprite, Shade(color, 0.72f));
+            float z = height * 0.5f;
+            AddTexturedPanel(root.transform, "Front", material, new Vector3(0f, -depth * 0.5f, z), new Vector2(width, height), Quaternion.identity, sortingOrder + 2, true);
+            AddTexturedPanel(root.transform, "Back", sideMaterial, new Vector3(0f, depth * 0.5f, z), new Vector2(width * 0.92f, height * 0.94f), Quaternion.Euler(90f, 180f, 0f), sortingOrder - 2);
+            AddTexturedPanel(root.transform, "Left", sideMaterial, new Vector3(-width * 0.5f, 0f, z), new Vector2(depth, height * 0.96f), Quaternion.Euler(90f, 0f, 90f), sortingOrder - 1);
+            AddTexturedPanel(root.transform, "Right", sideMaterial, new Vector3(width * 0.5f, 0f, z), new Vector2(depth, height * 0.96f), Quaternion.Euler(90f, 0f, -90f), sortingOrder - 1);
+            return root;
+        }
+
+        static GameObject AddTexturedPanel(Transform parent, string name, Material material, Vector3 localPosition, Vector2 size, Quaternion localRotation, int sortingOrder, bool billboard = false)
+        {
+            var panel = new GameObject(name);
+            panel.transform.SetParent(parent, false);
+            panel.transform.localPosition = localPosition;
+            panel.transform.localRotation = localRotation;
+            panel.transform.localScale = new Vector3(size.x, size.y, 1f);
+            var filter = panel.AddComponent<MeshFilter>();
+            filter.sharedMesh = TexturedQuadMesh();
+            var renderer = panel.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = material;
+            renderer.sortingOrder = sortingOrder;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            if (billboard) panel.AddComponent<PaperBillboard>();
+            return panel;
         }
 
         static GameObject Actor(string name, Sprite sprite, Color color, float colliderRadius)
