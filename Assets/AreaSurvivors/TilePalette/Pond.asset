@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 13312, guid: 0000000000000000e000000000000000, type: 0}
   m_Name: Pond
   m_EditorClassIdentifier: 
-  m_Sprite: {fileID: 21300000, guid: 7d3bf3ad59f8dbd4ab104658292a486b, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 49a080292d409c34c96a14807f49f43c, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_Transform:
     e00: 1

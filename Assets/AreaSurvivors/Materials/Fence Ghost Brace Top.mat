@@ -36,7 +36,7 @@ Material:
     - PixelSnap: 0
     - _EnableExternalAlpha: 0
     m_Colors:
-    - _Color: {r: 0.68439996, g: 0.47199997, b: 0.2124, a: 0.22}
+    - _Color: {r: 0.7316, g: 0.53099996, b: 0.25959998, a: 0.32}
     - _Flip: {r: 1, g: 1, b: 1, a: 1}
     - _RendererColor: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []

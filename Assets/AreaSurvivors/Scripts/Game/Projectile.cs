@@ -6,13 +6,24 @@ namespace AreaSurvivors
     public sealed class Projectile : MonoBehaviour
     {
         public float lifetime = 3f;
+        public float visualScale = 1f;
         int damage;
         bool explosive;
+        float trailTimer;
+
+        void Update()
+        {
+            trailTimer -= Time.deltaTime;
+            if (trailTimer > 0f) return;
+            trailTimer = explosive ? 0.045f : 0.065f;
+            TrailFleck();
+        }
 
         public void Launch(Vector2 direction, int amount, float speed, bool isExplosive)
         {
             damage = amount;
             explosive = isExplosive;
+            if (visualScale > 0f) transform.localScale = Vector3.one * visualScale;
             var normalizedDirection = direction.normalized;
             GetComponent<Rigidbody2D>().velocity = normalizedDirection * speed;
             transform.right = normalizedDirection;
@@ -28,6 +39,7 @@ namespace AreaSurvivors
         {
             var enemy = other.GetComponent<EnemyController>();
             if (enemy == null) return;
+            ImpactFlash();
             if (explosive)
             {
                 var hits = Physics2D.OverlapCircleAll(transform.position, 1.1f);
@@ -46,6 +58,59 @@ namespace AreaSurvivors
                 GameManager.Instance?.RegisterDamageDealt(dealt);
             }
             Destroy(gameObject);
+        }
+
+        void ImpactFlash()
+        {
+            var source = GetComponentInChildren<PaperMeshVisual>();
+            if (source == null || source.sprite == null) return;
+
+            var go = new GameObject(explosive ? "Fireball Impact" : "Arrow Impact");
+            go.transform.position = transform.position;
+            go.transform.localScale = Vector3.one * (explosive ? 1.15f : 0.72f);
+            go.AddComponent<PaperBillboard>();
+            var visual = go.AddComponent<PaperMeshVisual>();
+            var color = explosive ? new Color(1f, 0.62f, 0.22f, 0.9f) : new Color(1f, 0.92f, 0.45f, 0.78f);
+            visual.Configure(source.sprite, color, 3300);
+            go.AddComponent<ProjectileImpactFlash>().Configure(visual, explosive ? 0.18f : 0.12f);
+            PixelBurstEffect.Spawn(source.sprite, transform.position, color, explosive ? 8 : 4, explosive ? 0.42f : 0.24f, explosive ? 0.26f : 0.18f);
+        }
+
+        void TrailFleck()
+        {
+            var source = GetComponentInChildren<PaperMeshVisual>();
+            if (source == null || source.sprite == null) return;
+            var color = explosive ? new Color(1f, 0.45f, 0.16f, 0.36f) : new Color(1f, 0.88f, 0.42f, 0.24f);
+            PixelBurstEffect.Spawn(source.sprite, transform.position - transform.right * 0.18f, color, 1, explosive ? 0.28f : 0.16f, explosive ? 0.16f : 0.11f, 3150);
+        }
+    }
+
+    sealed class ProjectileImpactFlash : MonoBehaviour
+    {
+        PaperMeshVisual visual;
+        float lifetime = 0.12f;
+        float age;
+        Vector3 startScale;
+
+        public void Configure(PaperMeshVisual target, float seconds)
+        {
+            visual = target;
+            lifetime = Mathf.Max(0.04f, seconds);
+            startScale = transform.localScale;
+        }
+
+        void Update()
+        {
+            age += Time.deltaTime;
+            float t = Mathf.Clamp01(age / lifetime);
+            transform.localScale = startScale * Mathf.Lerp(0.75f, 1.85f, t);
+            if (visual != null)
+            {
+                var color = visual.color;
+                color.a = Mathf.Lerp(color.a, 0f, t);
+                visual.color = color;
+            }
+            if (age >= lifetime) Destroy(gameObject);
         }
     }
 }

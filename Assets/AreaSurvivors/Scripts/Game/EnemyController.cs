@@ -21,6 +21,7 @@ namespace AreaSurvivors
         Collider2D[] colliders;
         PaperMeshVisual visual;
         float contactTimer;
+        float speedMultiplier = 1f;
         bool dying;
 
         void Awake()
@@ -41,7 +42,9 @@ namespace AreaSurvivors
             health.SetMax(hp);
             body.drag = 0f;
             xpValue = config.xpPerEnemy;
-            transform.localScale = Vector3.one * Mathf.Clamp(speedScale, 1f, 1.8f);
+            float visualScale = config != null ? config.enemyVisualScale : 0.82f;
+            transform.localScale = Vector3.one * Mathf.Max(0.1f, visualScale);
+            speedMultiplier = Mathf.Clamp(speedScale, 1f, 1.55f);
         }
 
         void Update()
@@ -50,7 +53,7 @@ namespace AreaSurvivors
             var targetDirection = ((Vector2)(target.position - transform.position)).normalized;
             var direction = AvoidObstacles(targetDirection);
             float slow = grid.GetOwner(transform.position) == TileOwner.Player ? config.playerTerritorySlow : 1f;
-            body.velocity = direction * config.enemyBaseSpeed * slow * Mathf.Max(0.7f, transform.localScale.x);
+            body.velocity = direction * config.enemyBaseSpeed * slow * speedMultiplier;
             if (directionalAnimator != null) directionalAnimator.Tick(direction, body.velocity.sqrMagnitude > 0.01f);
             grid.Paint(transform.position, TileOwner.Enemy, 1);
         }
@@ -95,11 +98,13 @@ namespace AreaSurvivors
             var otherHealth = collision.collider.GetComponent<Health>();
             if (otherHealth == null) return;
             var fence = collision.collider.GetComponent<DefensiveFence>();
+            var ballista = collision.collider.GetComponent<BallistaTower>();
             if (collision.collider.GetComponent<PlayerController>() == null &&
                 collision.collider.GetComponent<TowerController>() == null &&
-                (fence == null || !fence.IsBuilt)) return;
+                (fence == null || !fence.IsBuilt) &&
+                (ballista == null || !ballista.IsBuilt)) return;
             int dealt = otherHealth.Damage(config.enemyDamage);
-            float height = collision.collider.GetComponent<TowerController>() != null ? 1.05f : fence != null ? 0.82f : 0.58f;
+            float height = collision.collider.GetComponent<TowerController>() != null ? 1.05f : ballista != null ? 1.0f : fence != null ? 0.82f : 0.58f;
             DamagePopup.Show(damagePopupPrefab, collision.transform.position + Vector3.up * height, dealt, Color.red);
             contactTimer = 0.75f;
         }

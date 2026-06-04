@@ -17,23 +17,39 @@ MonoBehaviour:
   playerReviveSeconds: 6
   enemyTerritorySlow: 0.35
   paintRadius: 1
+  playerVisualScale: 1
+  cameraOrthographicSize: 12.5
+  cameraOffset: {x: 0, y: -15.5, z: -19}
+  cameraPitch: -45
+  cameraZoomedInOrthographicSize: 3.9
+  cameraZoomedInOffset: {x: 0, y: -8.5, z: -9}
+  cameraZoomedInPitch: -35
+  cameraDefaultZoom: 0.5
+  cameraZoomScrollSpeed: 0.16
+  cameraPlayerWeight: 0.55
   towerMaxHp: 160
   ballistaBuildSeconds: 2.2
-  ballistaRange: 7.5
+  ballistaRange: 9.5
   ballistaCooldown: 1.15
   ballistaDamage: 5
   fenceBuildSeconds: 1.8
   fenceMaxHp: 70
+  startingBallistaStock: 4
+  startingFenceStock: 4
   baseAttackPower: 6
   knightCooldown: 1.05
   archerCooldown: 0.75
   mageCooldown: 1.45
-  projectileSpeed: 9
-  enemyBaseSpeed: 0.82
+  projectileSpeed: 11.5
+  projectileLifetime: 4.2
+  projectileVisualScale: 1.35
+  enemyBaseSpeed: 0.9
+  enemyVisualScale: 1
   enemyBaseHp: 14
-  enemyDamage: 4
-  spawnInterval: 1.35
-  difficultyRampSeconds: 35
+  enemyDamage: 3
+  spawnInterval: 1.8
+  enemySpawnRadius: 28
+  difficultyRampSeconds: 55
   playerTerritorySlow: 0.35
   xpPerEnemy: 1
   tokenKillsDivisor: 8

@@ -12,8 +12,13 @@ namespace AreaSurvivors
         {
             if (renderers == null || renderers.Length == 0)
             {
-                renderers = GetComponentsInChildren<Renderer>();
+                Refresh();
             }
+        }
+
+        public void Refresh()
+        {
+            renderers = GetComponentsInChildren<Renderer>(true);
         }
 
         void LateUpdate()

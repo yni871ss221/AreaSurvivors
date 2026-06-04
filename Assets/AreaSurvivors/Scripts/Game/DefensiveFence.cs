@@ -20,8 +20,11 @@ namespace AreaSurvivors
         public float buildSeconds = 1.8f;
         public int maxHp = 70;
         public bool vertical;
+        public Sprite fenceSprite;
+        public Vector2 spriteVisualSize = new Vector2(1.34f, 0.58f);
 
         Health health;
+        TileGrid grid;
         float buildProgress;
         float visualHeight = 1f;
         float sparkleTimer;
@@ -31,7 +34,13 @@ namespace AreaSurvivors
         Color[][] completeObjectColors;
         int touchingPlayers;
         bool completed;
+        bool spriteVisualsPrepared;
+        bool usingSpriteVisuals;
+        bool breaking;
+        bool hasRegisteredCell;
+        Vector3Int registeredCell;
         const float SparkleDuration = 0.75f;
+        const float BuildDecaySecondsMultiplier = 3f;
 
         public bool IsBuilt => completed;
 
@@ -39,6 +48,14 @@ namespace AreaSurvivors
         {
             health = GetComponent<Health>();
             health.Died += _ => Break();
+            EnsureSpriteVisuals();
+        }
+
+        public void RegisterBuildPlacement(TileGrid tileGrid, Vector3Int originCell)
+        {
+            grid = tileGrid;
+            registeredCell = originCell;
+            hasRegisteredCell = true;
         }
 
         void Start()
@@ -48,6 +65,8 @@ namespace AreaSurvivors
                 buildSeconds = config.fenceBuildSeconds;
                 maxHp = config.fenceMaxHp;
             }
+
+            EnsureSpriteVisuals();
 
             if (completeRenderer != null && completeRenderer.sprite != null)
             {
@@ -69,6 +88,92 @@ namespace AreaSurvivors
             ApplyVisuals();
         }
 
+        void EnsureSpriteVisuals()
+        {
+            if (fenceSprite == null) return;
+            if (spriteVisualsPrepared) return;
+            usingSpriteVisuals = true;
+            if (ghostRenderer != null && buildRenderer != null && completeRenderer != null)
+            {
+                DestroyLegacyObject(ghostObject, ghostRenderer.gameObject);
+                DestroyLegacyObject(buildObject, buildRenderer.gameObject);
+                DestroyLegacyObject(completeObject, completeRenderer.gameObject);
+                ConfigureSpriteVisual(ghostRenderer, new Color(1f, 1f, 1f, 0.34f));
+                ConfigureSpriteVisual(buildRenderer, Color.white);
+                ConfigureSpriteVisual(completeRenderer, Color.white);
+                ghostObject = ghostRenderer.gameObject;
+                buildObject = null;
+                completeObject = completeRenderer.gameObject;
+                RefreshSortRenderers();
+                spriteVisualsPrepared = true;
+                return;
+            }
+
+            var legacyGhostObject = ghostObject;
+            var legacyBuildObject = buildObject;
+            var legacyCompleteObject = completeObject;
+            SetActive(ghostObject, false);
+            SetActive(buildObject, false);
+            SetActive(completeObject, false);
+
+            ghostRenderer = CreateSpriteVisual("Ghost Image", new Color(1f, 1f, 1f, 0.34f), 1000);
+            buildRenderer = CreateSpriteVisual("Build Fill Image", Color.white, 1001);
+            completeRenderer = CreateSpriteVisual("Complete Image", Color.white, 1002);
+            DestroyLegacyObject(legacyGhostObject, ghostRenderer.gameObject);
+            DestroyLegacyObject(legacyBuildObject, buildRenderer.gameObject);
+            DestroyLegacyObject(legacyCompleteObject, completeRenderer.gameObject);
+            ghostObject = ghostRenderer.gameObject;
+            buildObject = null;
+            completeObject = completeRenderer.gameObject;
+            completeObjectRenderers = null;
+            completeObjectColors = null;
+            RefreshSortRenderers();
+            spriteVisualsPrepared = true;
+        }
+
+        void DestroyLegacyObject(GameObject legacyObject, GameObject replacementObject)
+        {
+            if (legacyObject == null || legacyObject == replacementObject) return;
+            legacyObject.SetActive(false);
+            Destroy(legacyObject);
+        }
+
+        void RefreshSortRenderers()
+        {
+            var ySort = GetComponent<YSort>();
+            if (ySort == null) return;
+            ySort.renderers = new[]
+            {
+                ghostRenderer != null ? ghostRenderer.Renderer : null,
+                buildRenderer != null ? buildRenderer.Renderer : null,
+                completeRenderer != null ? completeRenderer.Renderer : null
+            };
+            ySort.Apply();
+        }
+
+        PaperMeshVisual CreateSpriteVisual(string name, Color color, int sortingOrder)
+        {
+            var go = new GameObject(name);
+            go.transform.SetParent(transform, false);
+            go.AddComponent<PaperBillboard>();
+            var visual = go.AddComponent<PaperMeshVisual>();
+            visual.Configure(fenceSprite, color, sortingOrder);
+            ConfigureSpriteVisual(visual, color);
+            return visual;
+        }
+
+        void ConfigureSpriteVisual(PaperMeshVisual visual, Color color)
+        {
+            if (visual == null) return;
+            visual.sprite = fenceSprite;
+            visual.color = color;
+            var bounds = fenceSprite != null ? fenceSprite.bounds.size : Vector3.one;
+            float x = Mathf.Abs(bounds.x) > 0.001f ? spriteVisualSize.x / bounds.x : 1f;
+            float y = Mathf.Abs(bounds.y) > 0.001f ? spriteVisualSize.y / bounds.y : 1f;
+            visual.transform.localScale = new Vector3(x, y, 1f);
+            visual.transform.localPosition = Vector3.zero;
+        }
+
         void OnDestroy()
         {
             SetPlayerPassThrough(false);
@@ -82,6 +187,10 @@ namespace AreaSurvivors
                 {
                     buildProgress = Mathf.Clamp01(buildProgress + Time.deltaTime / Mathf.Max(0.1f, buildSeconds));
                     if (buildProgress >= 1f) CompleteBuild();
+                }
+                else if (buildProgress > 0f)
+                {
+                    buildProgress = Mathf.Clamp01(buildProgress - Time.deltaTime / Mathf.Max(0.1f, buildSeconds * BuildDecaySecondsMultiplier));
                 }
 
                 AnimateHammer();
@@ -111,15 +220,22 @@ namespace AreaSurvivors
             SetPlayerPassThrough(true);
             ApplyVisuals();
             AnimateCompletionSparkle();
+            if (sparkleRenderer != null)
+            {
+                PixelBurstEffect.Spawn(sparkleRenderer.sprite, transform.position + new Vector3(0f, vertical ? 0.32f : 0.5f, 0f), new Color(1f, 0.96f, 0.52f, 0.66f), 6, 0.22f, 0.26f, 3400);
+            }
         }
 
         void Break()
         {
-            completed = false;
-            buildProgress = 0f;
-            sparkleTimer = 0f;
+            if (breaking) return;
+            breaking = true;
+            if (grid != null)
+            {
+                grid.ClearObject(hasRegisteredCell ? registeredCell : grid.WorldToCell(transform.position));
+            }
             SetPlayerPassThrough(false);
-            ApplyVisuals();
+            Destroy(gameObject);
         }
 
         void SetPlayerPassThrough(bool ignore)
@@ -144,17 +260,20 @@ namespace AreaSurvivors
                 buildRenderer.transform.localScale = new Vector3(buildVisualScale.x, buildVisualScale.y * Mathf.Max(0.02f, buildProgress), buildVisualScale.z);
                 buildRenderer.transform.localPosition = new Vector3(0f, -visualHeight * (1f - buildProgress) * 0.5f, 0f);
             }
-            if (buildObject != null)
+            if (!usingSpriteVisuals && buildObject != null)
             {
                 buildObject.SetActive(!completed && buildProgress > 0f);
                 buildObject.transform.localScale = new Vector3(buildVisualScale.x, buildVisualScale.y, buildVisualScale.z * Mathf.Max(0.02f, buildProgress));
             }
             if (completeRenderer != null) completeRenderer.visible = completed;
-            SetActive(completeObject, completed);
+            if (!usingSpriteVisuals || completeObject == null || (completeRenderer != null && completeObject == completeRenderer.gameObject))
+            {
+                SetActive(completeObject, completed);
+            }
             if (sparkleRenderer != null && !completed) sparkleRenderer.visible = false;
             if (buildGauge != null)
             {
-                buildGauge.gameObject.SetActive(!completed && touchingPlayers > 0);
+                buildGauge.gameObject.SetActive(!completed && (touchingPlayers > 0 || buildProgress > 0f));
                 buildGauge.value = buildProgress;
             }
             if (hammerRenderer != null) hammerRenderer.visible = !completed && touchingPlayers > 0;

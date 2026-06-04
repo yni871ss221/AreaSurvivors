@@ -50,6 +50,7 @@ namespace AreaSurvivors
             config = gameConfig;
             grid = tileGrid;
             characterType = type;
+            transform.localScale = Vector3.one * Mathf.Max(0.1f, config.playerVisualScale);
             ApplyCharacterSprite(type);
             moveSpeed = config.playerMoveSpeed + ProgressionStore.GetLevel(UpgradeType.MoveSpeed) * 0.18f;
             paintRadius = config.paintRadius + ProgressionStore.GetLevel(UpgradeType.PaintRadius) / 2;
@@ -82,7 +83,11 @@ namespace AreaSurvivors
 
         void Update()
         {
-            if (hpBar != null) hpBar.value = health.Normalized;
+            if (hpBar != null)
+            {
+                hpBar.value = health.Normalized;
+                hpBar.gameObject.SetActive(health.Normalized < 0.999f);
+            }
             if (IsReviving) return;
             var input = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
             if (input.sqrMagnitude > 1f) input.Normalize();

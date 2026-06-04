@@ -181,7 +181,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fa5a912dec849d4ca60b09970a366d4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sourceSprite: {fileID: 21300000, guid: 75deff6ab9beb69488fa042adb2101b9, type: 3}
+  sourceSprite: {fileID: 21300000, guid: 921a012043299cf4ba262a871f9b1a70, type: 3}
   tint: {r: 1, g: 1, b: 1, a: 1}
   sortingOrder: 15
 --- !u!114 &1972174312749643750

@@ -19,6 +19,7 @@ namespace AreaSurvivors
             config = gameConfig;
             grid = tileGrid;
             target = chaseTarget;
+            radius = Mathf.Max(10f, config.enemySpawnRadius);
             StartCoroutine(SpawnLoop());
         }
 
