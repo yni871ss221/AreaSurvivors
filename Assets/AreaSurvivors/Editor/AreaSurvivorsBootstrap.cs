@@ -241,7 +241,6 @@ namespace AreaSurvivors.Editor
                 verticalFence = verticalFence,
                 player = SavePrefab(CreatePlayer(arrow, fireball), Prefabs + "/Player.prefab").GetComponent<PlayerController>(),
                 enemy = SavePrefab(CreateEnemy(), Prefabs + "/Enemy.prefab"),
-                tower = SavePrefab(CreateTower(), Prefabs + "/Tower.prefab").GetComponent<TowerController>(),
                 xpOrb = SavePrefab(CreateXpOrb(), Prefabs + "/ExperienceOrb.prefab"),
                 damagePopup = SavePrefab(CreateDamagePopup(), Prefabs + "/DamagePopup.prefab")
             };
@@ -750,6 +749,7 @@ namespace AreaSurvivors.Editor
             GroundShadow(go.transform, new Vector2(2.05f, 1.35f));
             var ySort = go.AddComponent<YSort>();
             ySort.baseOrder = 1000;
+            ySort.sortPivotOffsetY = -1.2f;
             ySort.renderers = visual.GetComponentsInChildren<Renderer>(true);
             var rb = go.AddComponent<Rigidbody2D>();
             rb.gravityScale = 0f;
@@ -1050,18 +1050,20 @@ namespace AreaSurvivors.Editor
             grid.paintTile = LoadTile("Paint");
             grid.Build();
 
-            AddObstacles(grid);
             var spawner = new GameObject("Enemy Spawner").AddComponent<EnemySpawner>();
             spawner.enemyPrefab = prefabs.enemy;
             spawner.xpOrbPrefab = prefabs.xpOrb;
             spawner.damagePopupPrefab = prefabs.damagePopup;
+
+            var tower = CreateTower().GetComponent<TowerController>();
+            tower.transform.position = CellToWorld(grid, Vector2Int.zero);
 
             var manager = new GameObject("Game Manager").AddComponent<GameManager>();
             var buildPlacement = manager.gameObject.AddComponent<BuildPlacementController>();
             manager.config = config;
             manager.grid = grid;
             manager.playerPrefab = prefabs.player;
-            manager.towerPrefab = prefabs.tower;
+            manager.sceneTower = tower;
             manager.spawner = spawner;
             manager.buildPlacement = buildPlacement;
             buildPlacement.grid = grid;
@@ -1673,7 +1675,6 @@ namespace AreaSurvivors.Editor
         {
             public PlayerController player;
             public GameObject enemy;
-            public TowerController tower;
             public GameObject xpOrb;
             public GameObject arrow;
             public GameObject fireball;

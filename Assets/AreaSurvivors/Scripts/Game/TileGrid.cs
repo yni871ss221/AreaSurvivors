@@ -54,28 +54,63 @@ namespace AreaSurvivors
         public Tilemap objectTilemap;
         public TileBase groundTile;
         public TileBase paintTile;
+        [Header("Ground Details")]
+        public bool useGroundChunkBackground = true;
+        public string groundChunkResourcePath = "Generated/MapChunks/GrassChunk";
+        public int groundChunkCells = 24;
+        public int groundChunkSortingOrder = -25;
+        public bool useGroundVariants = true;
+        [Range(0f, 1f)]
+        public float grassDetailChance = 0.08f;
+        [Range(0f, 1f)]
+        public float dirtDetailChance = 0.025f;
+        [Range(0f, 1f)]
+        public float pathDetailChance = 0.18f;
+        public int groundVariantSeed = 173;
         public Color neutral = new Color(0.43f, 0.58f, 0.31f);
         public Color player = new Color(0.24f, 0.55f, 0.95f, 0.52f);
         public Color enemy = new Color(0.85f, 0.25f, 0.22f, 0.50f);
+        public float paintTransitionSeconds = 2f;
+        [Range(0.5f, 1f)]
+        public float controlledThreshold = 0.95f;
         public bool showGridLines = true;
         public Color gridLineColor = new Color(0.08f, 0.12f, 0.08f, 0.16f);
         public float gridLineThickness = 0.012f;
         public int gridLineSortingOrder = 930;
 
         TileOwner[,] owners;
+        float[,] controlValues;
+        float[,] targetControlValues;
+        bool[,] paintDirty;
         GridObjectRecord[,] objects;
         GameObject gridLineOverlay;
         Mesh gridLineMesh;
         Material gridLineMaterial;
+        GameObject groundChunkRoot;
+        readonly List<Mesh> groundChunkMeshes = new List<Mesh>();
+        Material groundChunkMaterial;
+        TileBase[] grassDetailTiles;
+        TileBase[] dirtDetailTiles;
+        TileBase[] pathDetailTiles;
+        readonly List<TileBase> generatedGroundTiles = new List<TileBase>();
 
         void Awake()
         {
             if (showGridLines) CreateGridLineOverlay();
         }
 
+        void Update()
+        {
+            UpdatePaintTransitions();
+        }
+
         public void Build()
         {
+            if (!useGroundChunkBackground) EnsureGroundVariantTiles();
             owners = new TileOwner[width, height];
+            controlValues = new float[width, height];
+            targetControlValues = new float[width, height];
+            paintDirty = new bool[width, height];
             objects = new GridObjectRecord[width, height];
             groundTilemap.ClearAllTiles();
             paintTilemap.ClearAllTiles();
@@ -85,13 +120,225 @@ namespace AreaSurvivors
                 for (int x = 0; x < width; x++)
                 {
                     var cell = GridToCell(x, y);
-                    groundTilemap.SetTile(cell, groundTile);
+                    groundTilemap.SetTile(cell, ChooseGroundTile(x, y));
                     groundTilemap.SetTileFlags(cell, TileFlags.None);
                     groundTilemap.SetColor(cell, Color.white);
                 }
             }
 
+            CreateGroundChunkBackground();
             CreateGridLineOverlay();
+        }
+
+        TileBase ChooseGroundTile(int x, int y)
+        {
+            if (useGroundChunkBackground) return groundTile;
+            if (!useGroundVariants) return groundTile;
+
+            float pathStrength = DecorativePathStrength(x, y);
+            if (pathStrength > 0f && HasTiles(pathDetailTiles))
+            {
+                float chance = Mathf.Lerp(dirtDetailChance, pathDetailChance, pathStrength);
+                if (Hash01(x, y, 17) < chance) return PickTile(pathDetailTiles, x, y, 29);
+            }
+
+            if (HasTiles(dirtDetailTiles) && Hash01(x, y, 41) < dirtDetailChance)
+            {
+                return PickTile(dirtDetailTiles, x, y, 43);
+            }
+
+            if (HasTiles(grassDetailTiles) && Hash01(x, y, 53) < grassDetailChance)
+            {
+                return PickTile(grassDetailTiles, x, y, 59);
+            }
+
+            return groundTile;
+        }
+
+        void CreateGroundChunkBackground()
+        {
+            DestroyGroundChunkBackground();
+
+            var groundRenderer = groundTilemap != null ? groundTilemap.GetComponent<TilemapRenderer>() : null;
+            if (!useGroundChunkBackground || groundTilemap == null)
+            {
+                if (groundRenderer != null) groundRenderer.enabled = true;
+                return;
+            }
+
+            var texture = Resources.Load<Texture2D>(groundChunkResourcePath);
+            if (texture == null)
+            {
+                if (groundRenderer != null) groundRenderer.enabled = true;
+                return;
+            }
+
+            if (groundRenderer != null) groundRenderer.enabled = false;
+            groundChunkRoot = new GameObject("Ground Chunk Background");
+            groundChunkRoot.transform.SetParent(transform, false);
+
+            var shader = Shader.Find("Sprites/Default");
+            if (shader == null) shader = Shader.Find("Unlit/Transparent");
+            groundChunkMaterial = new Material(shader)
+            {
+                name = "Ground Chunk Background Material",
+                mainTexture = texture,
+                hideFlags = HideFlags.HideAndDontSave
+            };
+            groundChunkMaterial.color = Color.white;
+
+            int chunkCells = Mathf.Max(1, groundChunkCells);
+            int columns = Mathf.CeilToInt(width / (float)chunkCells);
+            int rows = Mathf.CeilToInt(height / (float)chunkCells);
+            for (int y = 0; y < rows; y++)
+            {
+                for (int x = 0; x < columns; x++)
+                {
+                    int startX = x * chunkCells;
+                    int startY = y * chunkCells;
+                    int cellsX = Mathf.Min(chunkCells, width - startX);
+                    int cellsY = Mathf.Min(chunkCells, height - startY);
+                    CreateGroundChunk(startX, startY, cellsX, cellsY);
+                }
+            }
+        }
+
+        void CreateGroundChunk(int startX, int startY, int cellsX, int cellsY)
+        {
+            if (cellsX <= 0 || cellsY <= 0) return;
+            Vector3 firstCenter = groundTilemap.GetCellCenterWorld(GridToCell(startX, startY));
+            Vector3 rightStep = groundTilemap.GetCellCenterWorld(GridToCell(startX + 1, startY)) - firstCenter;
+            Vector3 upStep = groundTilemap.GetCellCenterWorld(GridToCell(startX, startY + 1)) - firstCenter;
+            Vector3 bottomLeft = firstCenter - rightStep * 0.5f - upStep * 0.5f;
+            Vector3 worldCenter = bottomLeft + rightStep * (cellsX * 0.5f) + upStep * (cellsY * 0.5f);
+            Vector3 localCenter = groundChunkRoot.transform.InverseTransformPoint(worldCenter);
+            Vector3 localRight = groundChunkRoot.transform.InverseTransformVector(rightStep * cellsX);
+            Vector3 localUp = groundChunkRoot.transform.InverseTransformVector(upStep * cellsY);
+
+            var mesh = new Mesh
+            {
+                name = "Ground Chunk Mesh",
+                hideFlags = HideFlags.HideAndDontSave
+            };
+            mesh.vertices = new[]
+            {
+                localCenter - localRight * 0.5f - localUp * 0.5f,
+                localCenter + localRight * 0.5f - localUp * 0.5f,
+                localCenter - localRight * 0.5f + localUp * 0.5f,
+                localCenter + localRight * 0.5f + localUp * 0.5f
+            };
+            float uMax = cellsX / (float)Mathf.Max(1, groundChunkCells);
+            float vMax = cellsY / (float)Mathf.Max(1, groundChunkCells);
+            mesh.uv = new[]
+            {
+                new Vector2(0f, 0f),
+                new Vector2(uMax, 0f),
+                new Vector2(0f, vMax),
+                new Vector2(uMax, vMax)
+            };
+            mesh.triangles = new[] { 0, 2, 1, 2, 3, 1 };
+            mesh.RecalculateBounds();
+            groundChunkMeshes.Add(mesh);
+
+            var chunk = new GameObject($"Ground Chunk {startX / Mathf.Max(1, groundChunkCells)} {startY / Mathf.Max(1, groundChunkCells)}");
+            chunk.transform.SetParent(groundChunkRoot.transform, false);
+            var filter = chunk.AddComponent<MeshFilter>();
+            filter.sharedMesh = mesh;
+            var renderer = chunk.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = groundChunkMaterial;
+            renderer.sortingOrder = groundChunkSortingOrder;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+        }
+
+        void EnsureGroundVariantTiles()
+        {
+            if (!useGroundVariants || HasTiles(grassDetailTiles) || HasTiles(dirtDetailTiles) || HasTiles(pathDetailTiles)) return;
+
+            var textures = Resources.LoadAll<Texture2D>("Generated/GroundVariants");
+            if (textures == null || textures.Length == 0) return;
+
+            var grass = new List<TileBase>();
+            var dirt = new List<TileBase>();
+            var paths = new List<TileBase>();
+            foreach (var texture in textures)
+            {
+                if (texture == null || texture.name.Contains("Preview")) continue;
+                var sprite = Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 128f);
+                sprite.name = texture.name;
+                sprite.hideFlags = HideFlags.HideAndDontSave;
+                var tile = ScriptableObject.CreateInstance<Tile>();
+                tile.name = "Ground Variant " + sprite.name;
+                tile.sprite = sprite;
+                tile.color = Color.white;
+                tile.flags = TileFlags.None;
+                tile.hideFlags = HideFlags.HideAndDontSave;
+                generatedGroundTiles.Add(tile);
+
+                string name = sprite.name.ToLowerInvariant();
+                if (name.Contains("path") || name.Contains("trail") || name.Contains("winding"))
+                {
+                    paths.Add(tile);
+                }
+                else if (name.Contains("dirt") || name.Contains("dry") || name.Contains("scrub") || name.Contains("clearing") || name.Contains("patch"))
+                {
+                    dirt.Add(tile);
+                }
+                else
+                {
+                    grass.Add(tile);
+                }
+            }
+
+            grassDetailTiles = grass.ToArray();
+            dirtDetailTiles = dirt.ToArray();
+            pathDetailTiles = paths.Count > 0 ? paths.ToArray() : dirtDetailTiles;
+        }
+
+        float DecorativePathStrength(int x, int y)
+        {
+            float xf = x - width * 0.5f;
+            float yf = y - height * 0.5f;
+            float diagonalCenter = Mathf.Sin((x + groundVariantSeed) * 0.13f) * 5.8f + xf * 0.32f - 8f;
+            float crossingCenter = Mathf.Sin((x - groundVariantSeed) * 0.09f) * 4.5f - xf * 0.18f + 14f;
+            float verticalCenter = Mathf.Sin((y + groundVariantSeed) * 0.11f) * 5.2f + 18f;
+            float diagonal = BandStrength(yf, diagonalCenter, 7.5f);
+            float crossing = BandStrength(yf, crossingCenter, 5.8f) * 0.62f;
+            float vertical = BandStrength(xf, verticalCenter, 5.2f) * 0.48f;
+            float brokenNoise = Mathf.PerlinNoise((x + groundVariantSeed) * 0.055f, (y - groundVariantSeed) * 0.055f);
+            float strength = Mathf.Max(diagonal, crossing, vertical) * Mathf.Lerp(0.35f, 1f, brokenNoise);
+            return Mathf.Clamp01(strength);
+        }
+
+        static float BandStrength(float value, float center, float radius)
+        {
+            return Mathf.Clamp01(1f - Mathf.Abs(value - center) / Mathf.Max(0.001f, radius));
+        }
+
+        TileBase PickTile(TileBase[] tiles, int x, int y, int salt)
+        {
+            if (!HasTiles(tiles)) return groundTile;
+            int index = Mathf.FloorToInt(Hash01(x, y, salt) * tiles.Length);
+            return tiles[Mathf.Clamp(index, 0, tiles.Length - 1)];
+        }
+
+        float Hash01(int x, int y, int salt)
+        {
+            unchecked
+            {
+                uint h = (uint)(groundVariantSeed + salt * 374761393);
+                h ^= (uint)(x * 668265263);
+                h ^= (uint)(y * 2246822519);
+                h ^= h >> 13;
+                h *= 1274126177;
+                h ^= h >> 16;
+                return (h & 0x00FFFFFF) / 16777216f;
+            }
+        }
+
+        static bool HasTiles(TileBase[] tiles)
+        {
+            return tiles != null && tiles.Length > 0;
         }
 
         public Vector3 GridToWorld(int x, int y)
@@ -225,33 +472,129 @@ namespace AreaSurvivors
         {
             int x, y;
             if (!TryWorldToGrid(world, out x, out y)) return TileOwner.Neutral;
-            return owners[x, y];
+            return OwnerFromControl(controlValues[x, y]);
         }
 
         public TileOwner GetOwner(Vector3Int cell)
         {
             int x, y;
-            if (!TryCellToGrid(cell, out x, out y) || owners == null) return TileOwner.Neutral;
-            return owners[x, y];
+            if (!TryCellToGrid(cell, out x, out y) || controlValues == null) return TileOwner.Neutral;
+            return OwnerFromControl(controlValues[x, y]);
+        }
+
+        public float GetControl(Vector3 world)
+        {
+            int x, y;
+            if (!TryWorldToGrid(world, out x, out y) || controlValues == null) return 0f;
+            return controlValues[x, y];
+        }
+
+        public float GetMoveMultiplier(Vector3 world, TileOwner mover, float slowedMultiplier)
+        {
+            int x, y;
+            if (!TryWorldToGrid(world, out x, out y) || controlValues == null) return 1f;
+
+            float control = controlValues[x, y];
+            float target = targetControlValues[x, y];
+            if (!paintDirty[x, y] && Mathf.Abs(control) < 0.01f && Mathf.Abs(target) < 0.01f) return 1f;
+
+            if (mover == TileOwner.Player && control >= 0f) return 1f;
+            if (mover == TileOwner.Enemy && control <= 0f) return 1f;
+            return Mathf.Clamp01(slowedMultiplier);
         }
 
         public void Paint(Vector3 world, TileOwner owner, int radius)
         {
+            Paint(world, owner, radius, false);
+        }
+
+        public void PaintImmediate(Vector3 world, TileOwner owner, int radius)
+        {
+            Paint(world, owner, radius, true);
+        }
+
+        void Paint(Vector3 world, TileOwner owner, int radius, bool immediate)
+        {
             int cx, cy;
             if (!TryWorldToGrid(world, out cx, out cy)) return;
+            float target = ControlFromOwner(owner);
             for (int y = cy - radius; y <= cy + radius; y++)
             {
                 for (int x = cx - radius; x <= cx + radius; x++)
                 {
                     if (x < 0 || y < 0 || x >= width || y >= height) continue;
                     if ((x - cx) * (x - cx) + (y - cy) * (y - cy) > radius * radius) continue;
-                    owners[x, y] = owner;
-                    var cell = GridToCell(x, y);
-                    paintTilemap.SetTile(cell, owner == TileOwner.Neutral ? null : paintTile);
-                    paintTilemap.SetTileFlags(cell, TileFlags.None);
-                    paintTilemap.SetColor(cell, owner == TileOwner.Player ? player : enemy);
+                    targetControlValues[x, y] = target;
+                    if (immediate)
+                    {
+                        controlValues[x, y] = target;
+                        paintDirty[x, y] = false;
+                        ApplyPaintVisual(x, y, target);
+                    }
+                    else
+                    {
+                        paintDirty[x, y] = true;
+                    }
                 }
             }
+        }
+
+        void UpdatePaintTransitions()
+        {
+            if (controlValues == null || targetControlValues == null || paintDirty == null || paintTilemap == null) return;
+
+            float step = paintTransitionSeconds <= 0f ? float.PositiveInfinity : Time.deltaTime * 2f / paintTransitionSeconds;
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    if (!paintDirty[x, y]) continue;
+
+                    float current = controlValues[x, y];
+                    float target = targetControlValues[x, y];
+                    float next = Mathf.MoveTowards(current, target, step);
+                    controlValues[x, y] = next;
+                    ApplyPaintVisual(x, y, next);
+
+                    if (Mathf.Approximately(next, target))
+                    {
+                        paintDirty[x, y] = false;
+                    }
+                }
+            }
+        }
+
+        void ApplyPaintVisual(int x, int y, float control)
+        {
+            owners[x, y] = OwnerFromControl(control);
+            var cell = GridToCell(x, y);
+            if (Mathf.Abs(control) < 0.01f && Mathf.Abs(targetControlValues[x, y]) < 0.01f)
+            {
+                paintTilemap.SetTile(cell, null);
+                return;
+            }
+
+            paintTilemap.SetTile(cell, paintTile);
+            paintTilemap.SetTileFlags(cell, TileFlags.None);
+            float t = Mathf.InverseLerp(-1f, 1f, control);
+            var color = Color.Lerp(enemy, player, t);
+            color.a = Mathf.Lerp(0.38f, Mathf.Max(enemy.a, player.a), Mathf.Abs(control));
+            paintTilemap.SetColor(cell, color);
+        }
+
+        TileOwner OwnerFromControl(float control)
+        {
+            float threshold = Mathf.Clamp01(controlledThreshold);
+            if (control >= threshold) return TileOwner.Player;
+            if (control <= -threshold) return TileOwner.Enemy;
+            return TileOwner.Neutral;
+        }
+
+        static float ControlFromOwner(TileOwner owner)
+        {
+            if (owner == TileOwner.Player) return 1f;
+            if (owner == TileOwner.Enemy) return -1f;
+            return 0f;
         }
 
         static Vector2Int NormalizeFootprint(Vector2Int footprint)
@@ -361,6 +704,25 @@ namespace AreaSurvivors
             gridLineOverlay = null;
             gridLineMesh = null;
             gridLineMaterial = null;
+        }
+
+        void DestroyGroundChunkBackground()
+        {
+            if (groundChunkRoot == null)
+            {
+                var existing = transform.Find("Ground Chunk Background");
+                if (existing != null) DestroyUnityObject(existing.gameObject);
+            }
+
+            if (groundChunkRoot != null) DestroyUnityObject(groundChunkRoot);
+            foreach (var mesh in groundChunkMeshes)
+            {
+                if (mesh != null) DestroyUnityObject(mesh);
+            }
+            groundChunkMeshes.Clear();
+            if (groundChunkMaterial != null) DestroyUnityObject(groundChunkMaterial);
+            groundChunkRoot = null;
+            groundChunkMaterial = null;
         }
 
         static void DestroyUnityObject(Object target)

@@ -52,7 +52,7 @@ namespace AreaSurvivors
             if (dying || target == null) return;
             var targetDirection = ((Vector2)(target.position - transform.position)).normalized;
             var direction = AvoidObstacles(targetDirection);
-            float slow = grid.GetOwner(transform.position) == TileOwner.Player ? config.playerTerritorySlow : 1f;
+            float slow = grid.GetMoveMultiplier(transform.position, TileOwner.Enemy, config.playerTerritorySlow);
             body.velocity = direction * config.enemyBaseSpeed * slow * speedMultiplier;
             if (directionalAnimator != null) directionalAnimator.Tick(direction, body.velocity.sqrMagnitude > 0.01f);
             grid.Paint(transform.position, TileOwner.Enemy, 1);

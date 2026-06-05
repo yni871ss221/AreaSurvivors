@@ -8,6 +8,7 @@ namespace AreaSurvivors
     public sealed class TowerController : MonoBehaviour
     {
         public Slider hpBar;
+        public Transform enemyTargetPoint;
         Health health;
         Collider2D[] colliders;
         PaperMeshVisual visual;
@@ -20,6 +21,7 @@ namespace AreaSurvivors
             health = GetComponent<Health>();
             colliders = GetComponents<Collider2D>();
             visual = GetComponentInChildren<PaperMeshVisual>();
+            EnsureModelOutlines();
             modelRenderers = GetComponentsInChildren<Renderer>(true);
             modelColors = CaptureColors(modelRenderers);
             health.Died += _ => StartCollapse();
@@ -28,6 +30,20 @@ namespace AreaSurvivors
         public void Configure(int maxHp)
         {
             health.SetMax(maxHp);
+        }
+
+        public Transform EnemyTarget => enemyTargetPoint != null ? enemyTargetPoint : transform;
+
+        public void ConfigureEnemyTarget(Vector3 worldPosition)
+        {
+            if (enemyTargetPoint == null)
+            {
+                var target = new GameObject("Enemy Target");
+                target.transform.SetParent(transform, true);
+                enemyTargetPoint = target.transform;
+            }
+
+            enemyTargetPoint.position = worldPosition;
         }
 
         void Update()
@@ -39,6 +55,21 @@ namespace AreaSurvivors
         {
             if (collapsing) return;
             StartCoroutine(CollapseRoutine());
+        }
+
+        void EnsureModelOutlines()
+        {
+            var renderers = GetComponentsInChildren<MeshRenderer>(true);
+            foreach (var renderer in renderers)
+            {
+                if (renderer == null || renderer.name.Contains("Shadow")) continue;
+                var texture = renderer.sharedMaterial != null ? renderer.sharedMaterial.mainTexture : null;
+                if (texture == null || !texture.name.Contains("Tower")) continue;
+                var outline = renderer.GetComponent<RuntimeSpriteOutline>();
+                if (outline == null) outline = renderer.gameObject.AddComponent<RuntimeSpriteOutline>();
+                outline.outlineColor = Color.black;
+                outline.thickness = 0.013f;
+            }
         }
 
         IEnumerator CollapseRoutine()

@@ -167,11 +167,21 @@ namespace AreaSurvivors
             if (visual == null) return;
             visual.sprite = fenceSprite;
             visual.color = color;
+            ConfigureOutline(visual.gameObject);
             var bounds = fenceSprite != null ? fenceSprite.bounds.size : Vector3.one;
             float x = Mathf.Abs(bounds.x) > 0.001f ? spriteVisualSize.x / bounds.x : 1f;
             float y = Mathf.Abs(bounds.y) > 0.001f ? spriteVisualSize.y / bounds.y : 1f;
             visual.transform.localScale = new Vector3(x, y, 1f);
             visual.transform.localPosition = Vector3.zero;
+        }
+
+        static void ConfigureOutline(GameObject target)
+        {
+            if (target == null) return;
+            var outline = target.GetComponent<RuntimeSpriteOutline>();
+            if (outline == null) outline = target.AddComponent<RuntimeSpriteOutline>();
+            outline.outlineColor = Color.black;
+            outline.thickness = 0.026f;
         }
 
         void OnDestroy()

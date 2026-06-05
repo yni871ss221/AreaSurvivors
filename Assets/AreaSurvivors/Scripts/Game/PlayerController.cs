@@ -93,7 +93,7 @@ namespace AreaSurvivors
             if (input.sqrMagnitude > 1f) input.Normalize();
             if (input.sqrMagnitude > 0.01f) facing = input;
 
-            float territory = grid.GetOwner(transform.position) == TileOwner.Enemy ? config.enemyTerritorySlow : 1f;
+            float territory = grid.GetMoveMultiplier(transform.position, TileOwner.Player, config.enemyTerritorySlow);
             body.velocity = input * moveSpeed * territory;
             if (directionalAnimator != null) directionalAnimator.Tick(facing, input.sqrMagnitude > 0.01f);
             grid.Paint(transform.position, TileOwner.Player, paintRadius);

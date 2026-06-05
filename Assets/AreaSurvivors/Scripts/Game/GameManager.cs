@@ -15,9 +15,10 @@ namespace AreaSurvivors
         public GameConfig config;
         public TileGrid grid;
         public PlayerController playerPrefab;
-        public TowerController towerPrefab;
+        public TowerController sceneTower;
         public EnemySpawner spawner;
         public BuildPlacementController buildPlacement;
+        public NaturalLandmarkSpawner naturalLandmarks;
         public GameHudController gameHud;
         public Text timerText;
         public Text killText;
@@ -37,7 +38,7 @@ namespace AreaSurvivors
         float elapsed;
         GameObject levelUpInputBlocker;
         readonly List<string> runUpgrades = new List<string>();
-        const int InitialTowerTerritoryRadius = 5;
+        const int InitialTowerTerritoryRadius = 10;
         static readonly Color UpgradeNormalColor = new Color(0.12f, 0.20f, 0.16f, 0.94f);
         static readonly Color UpgradeHoverColor = new Color(0.106f, 0.353f, 0.216f, 0.98f);
 
@@ -54,14 +55,26 @@ namespace AreaSurvivors
             {
                 grid.Build();
                 grid.RegisterSceneObjects();
+                SpawnNaturalLandmarks();
             }
 
-            Tower = Instantiate(towerPrefab, grid.GridToWorld(grid.width / 2, grid.height / 2), Quaternion.identity);
+            Tower = sceneTower != null ? sceneTower : FindObjectOfType<TowerController>();
+            if (Tower == null)
+            {
+                Debug.LogError("GameManager requires a scene TowerController.");
+                enabled = false;
+                return;
+            }
+
+            Tower.transform.position = grid.GridToWorld(grid.width / 2, grid.height / 2);
             Tower.Configure(config.towerMaxHp + ProgressionStore.GetLevel(UpgradeType.TowerMaxHp) * 12);
             if (Tower.hpBar != null) Tower.hpBar.gameObject.SetActive(false);
             var towerMarker = Tower.GetComponent<GridObjectMarker>();
             if (towerMarker != null) towerMarker.Register(grid);
-            grid.Paint(Tower.transform.position, TileOwner.Player, InitialTowerTerritoryRadius);
+            var towerRootCell = grid.WorldToCell(Tower.transform.position) + Vector3Int.down * 5;
+            var towerRootWorld = grid.groundTilemap.GetCellCenterWorld(towerRootCell);
+            Tower.ConfigureEnemyTarget(towerRootWorld);
+            grid.PaintImmediate(towerRootWorld, TileOwner.Player, InitialTowerTerritoryRadius);
 
             Player = Instantiate(playerPrefab, grid.GridToWorld(grid.width / 2, grid.height / 2 - 6), Quaternion.identity);
             Player.Configure(config, grid, RunState.SelectedCharacter);
@@ -71,8 +84,16 @@ namespace AreaSurvivors
 
             var cameraFollow = Camera.main.GetComponent<CameraFollow>();
             if (cameraFollow != null) cameraFollow.Configure(Player.transform, Tower.transform, config);
-            spawner.Begin(config, grid, Tower.transform);
+            spawner.Begin(config, grid, Tower.EnemyTarget);
             UpdateHud();
+        }
+
+        void SpawnNaturalLandmarks()
+        {
+            if (grid == null) return;
+            if (naturalLandmarks == null) naturalLandmarks = GetComponent<NaturalLandmarkSpawner>();
+            if (naturalLandmarks == null) naturalLandmarks = gameObject.AddComponent<NaturalLandmarkSpawner>();
+            naturalLandmarks.Spawn(grid);
         }
 
         void Update()
@@ -372,7 +393,7 @@ namespace AreaSurvivors
         {
             buildPlacement = placement;
             towerHealth = tower != null ? tower.GetComponent<Health>() : null;
-            towerIconSprite = CreateTowerSpriteFromRenderer(tower);
+            towerIconSprite = Resources.Load<Sprite>("Generated/Tower") ?? CreateTowerSpriteFromRenderer(tower);
             if (towerHealth != null) towerHealth.Damaged += OnTowerDamaged;
 
             var canvas = FindHudCanvas();
