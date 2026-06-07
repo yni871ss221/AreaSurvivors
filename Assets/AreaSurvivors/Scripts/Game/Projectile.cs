@@ -23,6 +23,7 @@ namespace AreaSurvivors
         {
             damage = amount;
             explosive = isExplosive;
+            ApplyWeaponSortingOrder(WeaponSortingOrders.Projectile);
             if (visualScale > 0f) transform.localScale = Vector3.one * visualScale;
             var normalizedDirection = direction.normalized;
             GetComponent<Rigidbody2D>().velocity = normalizedDirection * speed;
@@ -71,9 +72,9 @@ namespace AreaSurvivors
             go.AddComponent<PaperBillboard>();
             var visual = go.AddComponent<PaperMeshVisual>();
             var color = explosive ? new Color(1f, 0.62f, 0.22f, 0.9f) : new Color(1f, 0.92f, 0.45f, 0.78f);
-            visual.Configure(source.sprite, color, 3300);
+            visual.Configure(source.sprite, color, WeaponSortingOrders.Impact);
             go.AddComponent<ProjectileImpactFlash>().Configure(visual, explosive ? 0.18f : 0.12f);
-            PixelBurstEffect.Spawn(source.sprite, transform.position, color, explosive ? 8 : 4, explosive ? 0.42f : 0.24f, explosive ? 0.26f : 0.18f);
+            PixelBurstEffect.Spawn(source.sprite, transform.position, color, explosive ? 8 : 4, explosive ? 0.42f : 0.24f, explosive ? 0.26f : 0.18f, WeaponSortingOrders.ImpactBurst);
         }
 
         void TrailFleck()
@@ -81,7 +82,16 @@ namespace AreaSurvivors
             var source = GetComponentInChildren<PaperMeshVisual>();
             if (source == null || source.sprite == null) return;
             var color = explosive ? new Color(1f, 0.45f, 0.16f, 0.36f) : new Color(1f, 0.88f, 0.42f, 0.24f);
-            PixelBurstEffect.Spawn(source.sprite, transform.position - transform.right * 0.18f, color, 1, explosive ? 0.28f : 0.16f, explosive ? 0.16f : 0.11f, 3150);
+            PixelBurstEffect.Spawn(source.sprite, transform.position - transform.right * 0.18f, color, 1, explosive ? 0.28f : 0.16f, explosive ? 0.16f : 0.11f, WeaponSortingOrders.ProjectileTrail);
+        }
+
+        void ApplyWeaponSortingOrder(int sortingOrder)
+        {
+            var visuals = GetComponentsInChildren<PaperMeshVisual>(true);
+            foreach (var visual in visuals)
+            {
+                if (visual != null) visual.order = sortingOrder;
+            }
         }
     }
 

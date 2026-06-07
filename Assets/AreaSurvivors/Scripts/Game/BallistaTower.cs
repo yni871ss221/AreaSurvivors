@@ -58,6 +58,7 @@ namespace AreaSurvivors
             health.Died += _ => Break();
             EnsureBlockingCollider();
             EnsureSpriteVisuals();
+            ConfigureHammerVisual();
         }
 
         public void RegisterBuildPlacement(TileGrid tileGrid, Vector3Int originCell)
@@ -70,6 +71,7 @@ namespace AreaSurvivors
         void Start()
         {
             EnsureSpriteVisuals();
+            ConfigureHammerVisual();
 
             if (config != null)
             {
@@ -211,6 +213,18 @@ namespace AreaSurvivors
             if (outline == null) outline = target.AddComponent<RuntimeSpriteOutline>();
             outline.outlineColor = Color.black;
             outline.thickness = 0.035f;
+        }
+
+        void ConfigureHammerVisual()
+        {
+            if (hammerRenderer == null) return;
+            var hammer = Resources.Load<Sprite>("Generated/Hammer");
+            if (hammer != null) hammerRenderer.sprite = hammer;
+            hammerRenderer.order = 22020;
+            var outline = hammerRenderer.GetComponent<RuntimeSpriteOutline>();
+            if (outline == null) outline = hammerRenderer.gameObject.AddComponent<RuntimeSpriteOutline>();
+            outline.outlineColor = Color.black;
+            outline.thickness = 0.022f;
         }
 
         void Update()

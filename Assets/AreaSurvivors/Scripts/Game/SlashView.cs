@@ -17,8 +17,8 @@ namespace AreaSurvivors
             billboard.rollDegrees = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
             EnsureFrames();
             var visual = go.AddComponent<PaperMeshVisual>();
-            visual.Configure(frames.Length > 0 ? frames[0] : Resources.Load<Sprite>("Slash"), new Color(1f, 0.92f, 0.42f, 0.82f), 3200);
-            PixelBurstEffect.Spawn(visual.sprite, go.transform.position, new Color(1f, 0.94f, 0.45f, 0.46f), 3, 0.22f, 0.16f, 3180);
+            visual.Configure(frames.Length > 0 ? frames[0] : Resources.Load<Sprite>("Slash"), new Color(1f, 0.92f, 0.42f, 0.82f), WeaponSortingOrders.Slash);
+            PixelBurstEffect.Spawn(visual.sprite, go.transform.position, new Color(1f, 0.94f, 0.45f, 0.46f), 3, 0.22f, 0.16f, WeaponSortingOrders.SlashBurst);
             go.AddComponent<SlashView>().StartCoroutine(go.GetComponent<SlashView>().Life(visual, dir));
         }
 

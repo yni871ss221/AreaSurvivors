@@ -101,6 +101,9 @@ namespace AreaSurvivors
 
         public Vector2 Facing => facing;
         public Health Health => health;
+        public float MoveSpeed => moveSpeed;
+        public int PaintRadius => paintRadius;
+        public Sprite PortraitSprite => characterType == CharacterType.Archer ? archerSprite : characterType == CharacterType.Mage ? mageSprite : knightSprite;
 
         void OnDied(Health _)
         {

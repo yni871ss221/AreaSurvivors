@@ -56,6 +56,7 @@ namespace AreaSurvivors
             None,
             NoCell,
             NoStock,
+            NoResources,
             TooFar,
             Blocked,
             OutOfMap,
@@ -68,7 +69,6 @@ namespace AreaSurvivors
             config = runConfig;
             grid = runGrid;
             player = runPlayer;
-            ApplyConfigStock();
             HideBuildPreview();
             UpdateBuildStatus();
         }
@@ -159,23 +159,25 @@ namespace AreaSurvivors
                 Destroy(instance);
                 return false;
             }
+
+            if (!SpendBuildResources())
+            {
+                if (marker != null) grid.ClearObject(footprintOrigin);
+                Destroy(instance);
+                buildBlockReason = BuildBlockReason.NoResources;
+                UpdateBuildStatus();
+                return false;
+            }
+
             var ballista = instance.GetComponent<BallistaTower>();
             if (ballista != null) ballista.RegisterBuildPlacement(grid, footprintOrigin);
             var fence = instance.GetComponent<DefensiveFence>();
             if (fence != null) fence.RegisterBuildPlacement(grid, footprintOrigin);
 
             SetBuildObjectTile(footprintOrigin);
-            ConsumeBuildStock();
             buildBlockReason = BuildBlockReason.NoCell;
             UpdateBuildStatus();
             return true;
-        }
-
-        void ApplyConfigStock()
-        {
-            if (config == null) return;
-            ballistaStock = Mathf.Max(0, config.startingBallistaStock);
-            fenceStock = Mathf.Max(0, config.startingFenceStock);
         }
 
         static bool IsPointerOverUi()
@@ -296,9 +298,9 @@ namespace AreaSurvivors
                 return false;
             }
 
-            if (!HasBuildStock())
+            if (!HasBuildResources())
             {
-                reason = BuildBlockReason.NoStock;
+                reason = BuildBlockReason.NoResources;
                 return false;
             }
 
@@ -341,20 +343,16 @@ namespace AreaSurvivors
             return true;
         }
 
-        bool HasBuildStock()
+        bool HasBuildResources()
         {
-            return buildMode == BuildMode.Ballista ? ballistaStock > 0 : fenceStock > 0;
+            var cost = CurrentBuildCost();
+            return GameManager.Instance == null || GameManager.Instance.HasResources(cost.x, cost.y);
         }
 
-        void ConsumeBuildStock()
+        bool SpendBuildResources()
         {
-            if (buildMode == BuildMode.Ballista)
-            {
-                ballistaStock = Mathf.Max(0, ballistaStock - 1);
-                return;
-            }
-
-            fenceStock = Mathf.Max(0, fenceStock - 1);
+            var cost = CurrentBuildCost();
+            return GameManager.Instance == null || GameManager.Instance.TrySpendResources(cost.x, cost.y);
         }
 
         void ConfigurePlacedObject(GameObject instance)
@@ -420,6 +418,44 @@ namespace AreaSurvivors
             return fenceVertical ? new Vector2Int(1, 2) : new Vector2Int(2, 1);
         }
 
+        Vector2Int CurrentBuildCost()
+        {
+            if (config == null) return buildMode == BuildMode.Ballista ? new Vector2Int(50, 30) : new Vector2Int(10, 0);
+            if (buildMode == BuildMode.Ballista)
+            {
+                return new Vector2Int(Mathf.Max(0, config.ballistaWoodCost), Mathf.Max(0, config.ballistaStoneCost));
+            }
+
+            return new Vector2Int(Mathf.Max(0, config.fenceWoodCost), Mathf.Max(0, config.fenceStoneCost));
+        }
+
+        public string GetHudCostLabel(int slot)
+        {
+            bool ballista = slot == 0;
+            int wood = 0;
+            int stone = 0;
+            if (config != null)
+            {
+                wood = ballista ? config.ballistaWoodCost : config.fenceWoodCost;
+                stone = ballista ? config.ballistaStoneCost : config.fenceStoneCost;
+            }
+            else
+            {
+                wood = ballista ? 50 : 10;
+                stone = ballista ? 30 : 0;
+            }
+
+            return BuildCostLabel(Mathf.Max(0, wood), Mathf.Max(0, stone));
+        }
+
+        static string BuildCostLabel(int wood, int stone)
+        {
+            if (wood > 0 && stone > 0) return "\u6728" + wood + " \u77f3" + stone;
+            if (wood > 0) return "\u6728" + wood;
+            if (stone > 0) return "\u77f3" + stone;
+            return "0";
+        }
+
         Vector3Int CurrentBuildFootprintOrigin(Vector3Int pointerCell)
         {
             if (buildMode == BuildMode.Ballista) return pointerCell + Vector3Int.down;
@@ -464,7 +500,7 @@ namespace AreaSurvivors
 
         static Color BuildPreviewBlockedColor(BuildBlockReason reason)
         {
-            if (reason == BuildBlockReason.NoStock) return new Color(0.75f, 0.75f, 0.75f, 0.42f);
+            if (reason == BuildBlockReason.NoStock || reason == BuildBlockReason.NoResources) return new Color(0.75f, 0.75f, 0.75f, 0.42f);
             if (reason == BuildBlockReason.TooFar) return new Color(1f, 0.78f, 0.22f, 0.5f);
             if (reason == BuildBlockReason.NotPlayerTerritory) return new Color(1f, 0.45f, 0.12f, 0.5f);
             return new Color(1f, 0.24f, 0.22f, 0.48f);
@@ -472,7 +508,7 @@ namespace AreaSurvivors
 
         static Color BuildFootprintBlockedColor(BuildBlockReason reason)
         {
-            if (reason == BuildBlockReason.NoStock) return new Color(0.62f, 0.62f, 0.62f, 0.36f);
+            if (reason == BuildBlockReason.NoStock || reason == BuildBlockReason.NoResources) return new Color(0.62f, 0.62f, 0.62f, 0.36f);
             if (reason == BuildBlockReason.TooFar) return new Color(1f, 0.72f, 0.16f, 0.42f);
             if (reason == BuildBlockReason.NotPlayerTerritory) return new Color(1f, 0.48f, 0.12f, 0.42f);
             return new Color(1f, 0.18f, 0.12f, 0.42f);
@@ -585,9 +621,9 @@ namespace AreaSurvivors
         {
             if (buildText == null) return;
             var label = buildMode == BuildMode.Ballista ? "1 \u30d0\u30ea\u30b9\u30bf" : fenceVertical ? "3 \u7e26\u67f5" : "2 \u6a2a\u67f5";
-            int stock = buildMode == BuildMode.Ballista ? ballistaStock : fenceStock;
+            var cost = CurrentBuildCost();
             var status = !buildSelectionActive ? "選択待ち" : hasBuildCell || buildBlockReason != BuildBlockReason.NoCell ? BuildStatusLabel(buildBlockReason) : "E/Click";
-            buildText.text = $"{label} x{stock}  {status}";
+            buildText.text = $"{label} {BuildCostLabel(cost.x, cost.y)}  {status}";
             buildText.color = CurrentBuildStatusColor();
         }
 
@@ -595,6 +631,7 @@ namespace AreaSurvivors
         {
             if (reason == BuildBlockReason.None) return "\u914d\u7f6e\u53ef";
             if (reason == BuildBlockReason.NoStock) return "\u5728\u5eab\u306a\u3057";
+            if (reason == BuildBlockReason.NoResources) return "\u8cc7\u6e90\u4e0d\u8db3";
             if (reason == BuildBlockReason.TooFar) return "\u9060\u3059\u304e\u308b";
             if (reason == BuildBlockReason.Blocked) return "\u914d\u7f6e\u4e0d\u53ef";
             if (reason == BuildBlockReason.OutOfMap) return "\u7bc4\u56f2\u5916";
@@ -607,7 +644,7 @@ namespace AreaSurvivors
         {
             if (reason == BuildBlockReason.None) return new Color(0.66f, 1f, 0.72f, 1f);
             if (reason == BuildBlockReason.NoCell) return Color.white;
-            if (reason == BuildBlockReason.NoStock) return new Color(0.74f, 0.74f, 0.74f, 1f);
+            if (reason == BuildBlockReason.NoStock || reason == BuildBlockReason.NoResources) return new Color(0.74f, 0.74f, 0.74f, 1f);
             if (reason == BuildBlockReason.TooFar) return new Color(1f, 0.82f, 0.32f, 1f);
             return new Color(1f, 0.46f, 0.42f, 1f);
         }

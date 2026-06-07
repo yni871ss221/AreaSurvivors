@@ -210,10 +210,7 @@ namespace AreaSurvivors
 
         static void AddFrame(Transform parent, Vector2 size, Color color, float thickness)
         {
-            Border(parent, "Top Edge", color, new Vector2(0f, size.y * 0.5f - thickness * 0.5f), new Vector2(size.x, thickness));
-            Border(parent, "Bottom Edge", color * new Color(0.55f, 0.55f, 0.55f, 1f), new Vector2(0f, -size.y * 0.5f + thickness * 0.5f), new Vector2(size.x, thickness));
-            Border(parent, "Left Edge", color * new Color(0.72f, 0.72f, 0.72f, 1f), new Vector2(-size.x * 0.5f + thickness * 0.5f, 0f), new Vector2(thickness, size.y));
-            Border(parent, "Right Edge", color * new Color(0.72f, 0.72f, 0.72f, 1f), new Vector2(size.x * 0.5f - thickness * 0.5f, 0f), new Vector2(thickness, size.y));
+            UiBoxOutline.Apply(parent, color, thickness);
         }
 
         static void AddInset(Transform parent, Vector2 size, Color color)

@@ -12,56 +12,187 @@ namespace AreaSurvivors
             public string name = "Tree1";
             public string resourcePath = "Generated/Landmarks/Tree1";
             public Vector2Int footprint = Vector2Int.one;
-            public int count = 12;
+            public GridObjectType type = GridObjectType.Tree;
             public Vector2 colliderPadding = new Vector2(0.04f, 0.04f);
+            public bool harvestable = true;
+            public ResourceType resourceType = ResourceType.Wood;
+        }
+
+        [Serializable]
+        public sealed class PlacementEntry
+        {
+            public string landmarkName = "Tree1";
+            public int count = 1;
+        }
+
+        [Serializable]
+        public sealed class PlacementBand
+        {
+            public string name = "10-20";
+            public int minDistanceCells = 10;
+            public int maxDistanceCells = 20;
+            public PlacementEntry[] entries = Array.Empty<PlacementEntry>();
         }
 
         public int seed = 20260605;
-        public int centerClearanceCells = 16;
+        public bool randomizeSeedEachRun = true;
         public int edgePaddingCells = 4;
+        public int separationCells = 1;
         public int maxPlacementAttemptsPerObject = 80;
         public bool addOutline = true;
         public Color outlineColor = Color.black;
         public float outlineThickness = 0.018f;
         public LandmarkSpec[] landmarks =
         {
-            new LandmarkSpec { name = "Tree1", resourcePath = "Generated/Landmarks/Tree1", footprint = new Vector2Int(1, 1), count = 16 },
-            new LandmarkSpec { name = "Forest2", resourcePath = "Generated/Landmarks/Forest2", footprint = new Vector2Int(2, 2), count = 7 },
-            new LandmarkSpec { name = "Forest4", resourcePath = "Generated/Landmarks/Forest4", footprint = new Vector2Int(4, 4), count = 3 },
-            new LandmarkSpec { name = "Forest8", resourcePath = "Generated/Landmarks/Forest8", footprint = new Vector2Int(8, 8), count = 1 }
+            new LandmarkSpec { name = "Tree1", resourcePath = "Generated/Landmarks/Tree1", footprint = new Vector2Int(1, 1) },
+            new LandmarkSpec { name = "Forest2", resourcePath = "Generated/Landmarks/Forest2", footprint = new Vector2Int(2, 2) },
+            new LandmarkSpec { name = "Forest4", resourcePath = "Generated/Landmarks/Forest4", footprint = new Vector2Int(4, 4) },
+            new LandmarkSpec { name = "Forest8", resourcePath = "Generated/Landmarks/Forest8", footprint = new Vector2Int(8, 8), harvestable = false },
+            new LandmarkSpec { name = "Rock1", resourcePath = "Generated/Landmarks/Rock1", footprint = new Vector2Int(1, 1), type = GridObjectType.Rock, resourceType = ResourceType.Stone },
+            new LandmarkSpec { name = "Rock2", resourcePath = "Generated/Landmarks/Rock2", footprint = new Vector2Int(2, 2), type = GridObjectType.Rock, resourceType = ResourceType.Stone },
+            new LandmarkSpec { name = "Rock4", resourcePath = "Generated/Landmarks/Rock4", footprint = new Vector2Int(4, 4), type = GridObjectType.Rock, resourceType = ResourceType.Stone },
+            new LandmarkSpec { name = "Rock8", resourcePath = "Generated/Landmarks/Rock8", footprint = new Vector2Int(8, 8), type = GridObjectType.Rock, resourceType = ResourceType.Stone, harvestable = false }
+        };
+        public PlacementBand[] placementBands =
+        {
+            new PlacementBand
+            {
+                name = "10-20",
+                minDistanceCells = 10,
+                maxDistanceCells = 20,
+                entries = new[]
+                {
+                    new PlacementEntry { landmarkName = "Tree1", count = 3 },
+                    new PlacementEntry { landmarkName = "Rock1", count = 3 }
+                }
+            },
+            new PlacementBand
+            {
+                name = "20-30",
+                minDistanceCells = 20,
+                maxDistanceCells = 30,
+                entries = new[]
+                {
+                    new PlacementEntry { landmarkName = "Tree1", count = 5 },
+                    new PlacementEntry { landmarkName = "Rock1", count = 5 },
+                    new PlacementEntry { landmarkName = "Forest2", count = 3 },
+                    new PlacementEntry { landmarkName = "Rock2", count = 3 },
+                    new PlacementEntry { landmarkName = "Forest4", count = 1 },
+                    new PlacementEntry { landmarkName = "Rock4", count = 1 }
+                }
+            },
+            new PlacementBand
+            {
+                name = "30-40",
+                minDistanceCells = 30,
+                maxDistanceCells = 40,
+                entries = new[]
+                {
+                    new PlacementEntry { landmarkName = "Tree1", count = 10 },
+                    new PlacementEntry { landmarkName = "Rock1", count = 10 },
+                    new PlacementEntry { landmarkName = "Forest2", count = 5 },
+                    new PlacementEntry { landmarkName = "Rock2", count = 5 },
+                    new PlacementEntry { landmarkName = "Forest4", count = 3 },
+                    new PlacementEntry { landmarkName = "Rock4", count = 3 },
+                    new PlacementEntry { landmarkName = "Forest8", count = 1 },
+                    new PlacementEntry { landmarkName = "Rock8", count = 1 }
+                }
+            }
         };
 
         Transform spawnedRoot;
         bool spawned;
+        int lastUsedSeed;
+        Vector3Int placementCenterCell;
+
+        public int LastUsedSeed => lastUsedSeed;
 
         public void Spawn(TileGrid grid)
         {
+            var centerCell = grid != null ? grid.GridToCell(grid.width / 2, grid.height / 2) : Vector3Int.zero;
+            Spawn(grid, centerCell);
+        }
+
+        public void Spawn(TileGrid grid, Vector3Int centerCell)
+        {
             if (spawned || grid == null || landmarks == null) return;
             spawned = true;
+            placementCenterCell = centerCell;
 
             spawnedRoot = new GameObject("Natural Landmarks").transform;
             spawnedRoot.SetParent(transform, false);
-            var random = new System.Random(seed);
-            foreach (var spec in landmarks)
+            lastUsedSeed = ResolveSeed();
+            var random = new System.Random(lastUsedSeed);
+            var specsByName = BuildSpecLookup();
+            foreach (var band in placementBands)
             {
-                SpawnSpec(grid, random, spec);
+                SpawnBand(grid, random, specsByName, band);
             }
         }
 
-        void SpawnSpec(TileGrid grid, System.Random random, LandmarkSpec spec)
+        int ResolveSeed()
         {
-            if (spec == null || spec.count <= 0) return;
+            if (!randomizeSeedEachRun) return seed;
+
+            unchecked
+            {
+                int ticks = Environment.TickCount;
+                int time = (int)DateTime.UtcNow.Ticks;
+                int instance = GetInstanceID();
+                return seed ^ ticks ^ time ^ instance;
+            }
+        }
+
+        Dictionary<string, LandmarkSpec> BuildSpecLookup()
+        {
+            var specsByName = new Dictionary<string, LandmarkSpec>(StringComparer.Ordinal);
+            foreach (var spec in landmarks)
+            {
+                if (spec == null || string.IsNullOrEmpty(spec.name)) continue;
+                specsByName[spec.name] = spec;
+            }
+
+            return specsByName;
+        }
+
+        void SpawnBand(TileGrid grid, System.Random random, Dictionary<string, LandmarkSpec> specsByName, PlacementBand band)
+        {
+            if (band == null || band.entries == null) return;
+            var entries = new List<(PlacementEntry entry, LandmarkSpec spec)>();
+            foreach (var entry in band.entries)
+            {
+                if (entry == null || entry.count <= 0 || string.IsNullOrEmpty(entry.landmarkName)) continue;
+                if (!specsByName.TryGetValue(entry.landmarkName, out var spec))
+                {
+                    Debug.LogWarning($"Landmark spec '{entry.landmarkName}' was not found.");
+                    continue;
+                }
+
+                entries.Add((entry, spec));
+            }
+
+            entries.Sort((a, b) => Mathf.Max(b.spec.footprint.x, b.spec.footprint.y)
+                .CompareTo(Mathf.Max(a.spec.footprint.x, a.spec.footprint.y)));
+            foreach (var pair in entries)
+            {
+                SpawnEntry(grid, random, pair.spec, band, pair.entry.count);
+            }
+        }
+
+        void SpawnEntry(TileGrid grid, System.Random random, LandmarkSpec spec, PlacementBand band, int count)
+        {
+            if (spec == null || count <= 0) return;
             var sprite = LoadSprite(spec.resourcePath);
             if (sprite == null) return;
 
             var footprint = NormalizeFootprint(spec.footprint);
             int placed = 0;
             int attempts = 0;
-            int maxAttempts = Mathf.Max(1, spec.count * Mathf.Max(1, maxPlacementAttemptsPerObject));
-            while (placed < spec.count && attempts++ < maxAttempts)
+            int maxAttempts = Mathf.Max(1, count * Mathf.Max(1, maxPlacementAttemptsPerObject));
+            while (placed < count && attempts++ < maxAttempts)
             {
                 var cell = RandomCell(grid, random, footprint);
-                if (!CanUseCell(grid, cell, footprint)) continue;
+                if (!CanUseCell(grid, cell, footprint, band)) continue;
                 CreateLandmark(grid, spec, sprite, cell, footprint);
                 placed++;
             }
@@ -77,14 +208,41 @@ namespace AreaSurvivors
             return grid.GridToCell(random.Next(minX, maxX), random.Next(minY, maxY));
         }
 
-        bool CanUseCell(TileGrid grid, Vector3Int originCell, Vector2Int footprint)
+        bool CanUseCell(TileGrid grid, Vector3Int originCell, Vector2Int footprint, PlacementBand band)
         {
             if (!grid.CanPlaceObject(originCell, footprint)) return false;
+            if (!IsInsidePlacementBand(grid, originCell, footprint, band)) return false;
+            if (!HasSeparation(grid, originCell, footprint)) return false;
+
+            return true;
+        }
+
+        bool IsInsidePlacementBand(TileGrid grid, Vector3Int originCell, Vector2Int footprint, PlacementBand band)
+        {
+            if (band == null) return true;
+            if (!grid.TryCellToGrid(placementCenterCell, out var centerX, out var centerY)) return false;
             if (!grid.TryCellToGrid(originCell, out var x, out var y)) return false;
 
-            var center = new Vector2(grid.width * 0.5f, grid.height * 0.5f);
-            float clearance = Mathf.Max(0, centerClearanceCells) + Mathf.Max(footprint.x, footprint.y) * 0.5f;
-            return Vector2.Distance(new Vector2(x, y), center) > clearance;
+            float objectRadius = Mathf.Max(footprint.x, footprint.y) * 0.5f;
+            float distance = Vector2.Distance(new Vector2(x, y), new Vector2(centerX, centerY));
+            return distance - objectRadius >= Mathf.Max(0, band.minDistanceCells)
+                && distance + objectRadius < Mathf.Max(band.minDistanceCells, band.maxDistanceCells);
+        }
+
+        bool HasSeparation(TileGrid grid, Vector3Int originCell, Vector2Int footprint)
+        {
+            int separation = Mathf.Max(0, separationCells);
+            var min = MinCell(originCell, footprint);
+            for (int x = -separation; x < footprint.x + separation; x++)
+            {
+                for (int y = -separation; y < footprint.y + separation; y++)
+                {
+                    var cell = new Vector3Int(min.x + x, min.y + y, originCell.z);
+                    if (!grid.ContainsCell(cell) || grid.IsOccupied(cell)) return false;
+                }
+            }
+
+            return true;
         }
 
         void CreateLandmark(TileGrid grid, LandmarkSpec spec, Sprite sprite, Vector3Int originCell, Vector2Int footprint)
@@ -94,7 +252,7 @@ namespace AreaSurvivors
             root.transform.position = FootprintBottomCenterToWorld(grid, originCell, footprint);
 
             var marker = root.AddComponent<GridObjectMarker>();
-            marker.type = GridObjectType.Tree;
+            marker.type = spec.type;
             marker.flags = GridCellFlags.BlocksMovement | GridCellFlags.BlocksBuilding | GridCellFlags.Natural;
             marker.footprint = footprint;
             if (!grid.TryRegisterObject(originCell, marker.type, marker.flags, root, footprint))
@@ -135,6 +293,30 @@ namespace AreaSurvivors
                 Mathf.Max(0.1f, span.x - spec.colliderPadding.x),
                 Mathf.Max(0.1f, span.y - spec.colliderPadding.y));
             collider.offset = new Vector2(0f, collider.size.y * 0.5f);
+
+            if (spec.harvestable)
+            {
+                var config = GameManager.Instance != null ? GameManager.Instance.config : null;
+                var harvest = root.AddComponent<HarvestableResource>();
+                harvest.Configure(config, grid, originCell, footprint, spec.resourceType, HarvestAmountForFootprint(config, footprint));
+            }
+        }
+
+        static int HarvestAmountForFootprint(GameConfig config, Vector2Int footprint)
+        {
+            int cells = Mathf.Max(1, footprint.x) * Mathf.Max(1, footprint.y);
+            if (config == null)
+            {
+                if (cells <= 1) return 100;
+                if (cells <= 4) return 200;
+                if (cells <= 16) return 400;
+                return 800;
+            }
+
+            if (cells <= 1) return Mathf.Max(1, config.harvestAmount1Cell);
+            if (cells <= 4) return Mathf.Max(1, config.harvestAmount2Cell);
+            if (cells <= 16) return Mathf.Max(1, config.harvestAmount4Cell);
+            return Mathf.Max(1, config.harvestAmount8Cell);
         }
 
         static Sprite LoadSprite(string resourcePath)

@@ -23,7 +23,6 @@ namespace AreaSurvivors.Editor
         const string TilePalette = Root + "/TilePalette";
         const float TileCellWidth = 0.7f;
         const float TileCellHeight = 0.5f;
-        const float ObstacleCenterClearance = 5.8f;
 
         [MenuItem("Area Survivors/Build Initial Project")]
         public static void BuildAll()
@@ -171,7 +170,7 @@ namespace AreaSurvivors.Editor
         static void CreateTilePalette()
         {
             ImportGeneratedSprites();
-            foreach (var name in new[] { "Ground", "Paint", "Tree", "Rock", "Pond", "Tower", "Ballista", "FenceHorizontal", "FenceVertical" })
+            foreach (var name in new[] { "Ground", "Paint", "Tower", "Ballista", "FenceHorizontal", "FenceVertical" })
             {
                 CreateTileAsset(name);
             }
@@ -180,7 +179,7 @@ namespace AreaSurvivors.Editor
             var grid = palette.AddComponent<Grid>();
             grid.cellSize = new Vector3(TileCellWidth, TileCellHeight, 0f);
             var tilemap = CreateTilemap(palette.transform, "Palette Tiles", 0);
-            var tiles = new[] { "Ground", "Paint", "Tree", "Rock", "Pond", "Tower", "Ballista", "FenceHorizontal", "FenceVertical" };
+            var tiles = new[] { "Ground", "Paint", "Tower", "Ballista", "FenceHorizontal", "FenceVertical" };
             for (int i = 0; i < tiles.Length; i++)
             {
                 tilemap.SetTile(new Vector3Int(i, 0, 0), LoadTile(tiles[i]));
@@ -951,7 +950,10 @@ namespace AreaSurvivors.Editor
         {
             var go = new GameObject("ExperienceOrb");
             go.transform.localScale = Vector3.one * 0.34f;
-            MeshChild(go.transform, "Paper Visual", LoadSprite("Orb"), HasGeneratedSprite("Orb") ? Color.white : new Color(0.35f, 0.95f, 1f), 15);
+            var visual = MeshChild(go.transform, "Paper Visual", LoadSprite("Generated/ExperienceOrb"), Color.white, 15);
+            var outline = visual.gameObject.AddComponent<RuntimeSpriteOutline>();
+            outline.outlineColor = Color.black;
+            outline.thickness = 0.018f;
             var col = go.AddComponent<CircleCollider2D>();
             col.isTrigger = true;
             col.radius = 0.28f;
@@ -1089,79 +1091,6 @@ namespace AreaSurvivors.Editor
             buildPlacement.verticalFenceTile = LoadTile("FenceVertical");
         }
 
-        static void AddObstacles(TileGrid grid)
-        {
-            var specs = new[]
-            {
-                new ObstacleSpec("Tree", 18, 0.34f, new Vector2(0f, -0.06f)),
-                new ObstacleSpec("Rock", 16, 0.42f, Vector2.zero),
-                new ObstacleSpec("Pond", 10, 0.82f, Vector2.zero)
-            };
-
-            var availableCells = CreateObstacleGridCells();
-            var randomState = Random.state;
-            Random.InitState(20260603);
-            Shuffle(availableCells);
-            Random.state = randomState;
-            int nextCell = 0;
-            foreach (var spec in specs)
-            {
-                for (int i = 0; i < spec.count; i++)
-                {
-                    if (nextCell >= availableCells.Count) return;
-                    CreateObstacle(grid, spec, availableCells[nextCell++]);
-                }
-            }
-        }
-
-        static List<Vector2Int> CreateObstacleGridCells()
-        {
-            var cells = new List<Vector2Int>();
-            for (int x = -8; x <= 8; x++)
-            {
-                for (int y = -4; y <= 4; y++)
-                {
-                    var cell = new Vector2Int(x * 5, y * 8);
-                    if (new Vector2(cell.x * TileCellWidth, cell.y * TileCellHeight).magnitude < ObstacleCenterClearance) continue;
-                    if (Mathf.Abs(cell.x) <= 12 && Mathf.Abs(cell.y) <= 12) continue;
-                    cells.Add(cell);
-                }
-            }
-
-            return cells;
-        }
-
-        static void Shuffle<T>(IList<T> items)
-        {
-            for (int i = items.Count - 1; i > 0; i--)
-            {
-                int swapIndex = Random.Range(0, i + 1);
-                (items[i], items[swapIndex]) = (items[swapIndex], items[i]);
-            }
-        }
-
-        static void CreateObstacle(TileGrid grid, ObstacleSpec spec, Vector2Int cell)
-        {
-            var root = new GameObject(spec.name);
-            root.transform.position = CellToWorld(grid, cell);
-            var obstacle = root.AddComponent<Obstacle>();
-            obstacle.visualSize = ObstacleVisualSize(spec.name);
-            var type = spec.name == "Tree" ? GridObjectType.Tree : spec.name == "Rock" ? GridObjectType.Rock : GridObjectType.Pond;
-            ConfigureGridMarker(root, type, GridCellFlags.BlocksMovement | GridCellFlags.BlocksBuilding | GridCellFlags.Natural, Vector2Int.one);
-            grid.objectTilemap.SetTile(new Vector3Int(cell.x, cell.y, 0), LoadTile(spec.name));
-            GroundShadow(root.transform, new Vector2(spec.colliderRadius * 2.4f, spec.colliderRadius * 1.4f));
-            var sprite = LoadGeneratedSprite(spec.name) ?? LoadSprite(spec.name);
-            var visual = MeshChild(root.transform, "Paper Visual", sprite, Color.white, 1000);
-            ScalePaperVisual(visual, ObstacleVisualSize(spec.name));
-            var ySort = root.AddComponent<YSort>();
-            ySort.baseOrder = 1000;
-            ySort.renderers = new[] { visual.Renderer };
-
-            var col = root.AddComponent<CircleCollider2D>();
-            col.radius = spec.colliderRadius;
-            col.offset = spec.colliderOffset;
-        }
-
         static Vector3 CellToWorld(TileGrid grid, Vector2Int cell)
         {
             return grid.groundTilemap.GetCellCenterWorld(new Vector3Int(cell.x, cell.y, 0));
@@ -1284,21 +1213,7 @@ namespace AreaSurvivors.Editor
 
         static void AddHudFrame(Transform parent, Vector2 size)
         {
-            var color = new Color(0.58f, 0.68f, 0.40f, 0.9f);
-            HudBorder(parent, "Top Edge", new Vector2(0, size.y * 0.5f - 1), new Vector2(size.x, 2), color);
-            HudBorder(parent, "Bottom Edge", new Vector2(0, -size.y * 0.5f + 1), new Vector2(size.x, 2), color * new Color(0.56f, 0.56f, 0.56f, 1));
-            HudBorder(parent, "Left Edge", new Vector2(-size.x * 0.5f + 1, 0), new Vector2(2, size.y), color);
-            HudBorder(parent, "Right Edge", new Vector2(size.x * 0.5f - 1, 0), new Vector2(2, size.y), color);
-        }
-
-        static void HudBorder(Transform parent, string name, Vector2 position, Vector2 size, Color color)
-        {
-            var image = new GameObject(name).AddComponent<Image>();
-            image.transform.SetParent(parent, false);
-            image.color = color;
-            image.raycastTarget = false;
-            image.rectTransform.anchoredPosition = position;
-            image.rectTransform.sizeDelta = size;
+            UiBoxOutline.Apply(parent, new Color(0.58f, 0.68f, 0.40f, 0.9f), 2f);
         }
 
         static void AnchorTopCenter(RectTransform rect)
@@ -1404,9 +1319,6 @@ namespace AreaSurvivors.Editor
             Pixel("Slash_1", 18, 12, new[] { "...............Y..", "............YYYY..", ".........YYYYYY...", "......YYYYYY......", "....YYYYY.........", "..YYYY............", ".YY...............", "..................", "..................", "..................", "..................", ".................." }, Palette(), ResourcesPath + "/Generated/Slash_1.png");
             Pixel("Slash_2", 18, 12, new[] { "..................", "...............Y..", "............YYYY..", ".........YYYYY....", "......YYYYY.......", "...YYYYY..........", ".YYY..............", ".Y................", "..................", "..................", "..................", ".................." }, Palette(), ResourcesPath + "/Generated/Slash_2.png");
             Pixel("Slash", 18, 12, new[] { ".............YY...", "..........YYYYY...", ".......YYYYYY.....", ".....YYYYY........", "...YYYY...........", "..YYY.............", ".YY...............", "..................", "..................", "..................", "..................", ".................." }, Palette(), ResourcesPath + "/Slash.png");
-            Pixel("Tree", 16, 16, new[] { "......gggg......", "....ggGGGGgg....", "...gGGGGGGGGg...", "...gGGGGGGGGg...", "....ggGGGGgg....", "......bbbb......", "......bbbb......", ".....bbbbbb.....", "................", "................", "................", "................", "................", "................", "................", "................" }, Palette());
-            Pixel("Rock", 16, 16, new[] { "................", ".....kkkkkk.....", "...kkKKKKKKk....", "..kKKKKKKKKKk...", "..kKKKKKKKKKk...", "...kKKKKKKKk....", "....kkkkkk......", "................", "................", "................", "................", "................", "................", "................", "................", "................" }, Palette());
-            Pixel("Pond", 16, 16, new[] { "................", "....aaaaaaaa....", "..aaAAAAAAAAaa..", ".aAAAAAAAAAAAAa.", ".aAAAAAAAAAAAAa.", "..aaAAAAAAAAaa..", "....aaaaaaaa....", "................", "................", "................", "................", "................", "................", "................", "................", "................" }, Palette());
         }
 
         static Dictionary<char, Color32> Palette()
@@ -1520,14 +1432,6 @@ namespace AreaSurvivors.Editor
             return new[] { sprite, sprite, sprite };
         }
 
-        static Vector2 ObstacleVisualSize(string name)
-        {
-            if (name == "Tree") return new Vector2(0.7f, 0.8f);
-            if (name == "Rock") return new Vector2(0.7f, 0.47f);
-            if (name == "Pond") return new Vector2(0.7f, 0.31f);
-            return Vector2.one;
-        }
-
         static void ScalePaperVisual(PaperMeshVisual visual, Vector2 size)
         {
             if (visual == null || visual.sprite == null) return;
@@ -1567,9 +1471,6 @@ namespace AreaSurvivors.Editor
             if (assetPath.EndsWith("/Fireball.png")) return 96;
             if (assetPath.EndsWith("/FenceHorizontal.png")) return 256;
             if (assetPath.EndsWith("/FenceVertical.png")) return 256;
-            if (assetPath.EndsWith("/Tree.png")) return 256;
-            if (assetPath.EndsWith("/Rock.png")) return 256;
-            if (assetPath.EndsWith("/Pond.png")) return 256;
             if (assetPath.Contains("/Walk/")) return 256;
             if (assetPath.Contains("/Slash_")) return 256;
             return 128;
@@ -1682,22 +1583,6 @@ namespace AreaSurvivors.Editor
             public GameObject horizontalFence;
             public GameObject verticalFence;
             public GameObject damagePopup;
-        }
-
-        readonly struct ObstacleSpec
-        {
-            public readonly string name;
-            public readonly int count;
-            public readonly float colliderRadius;
-            public readonly Vector2 colliderOffset;
-
-            public ObstacleSpec(string name, int count, float colliderRadius, Vector2 colliderOffset)
-            {
-                this.name = name;
-                this.count = count;
-                this.colliderRadius = colliderRadius;
-                this.colliderOffset = colliderOffset;
-            }
         }
 
     }

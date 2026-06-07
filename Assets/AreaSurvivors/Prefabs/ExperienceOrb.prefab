@@ -97,6 +97,7 @@ GameObject:
   - component: {fileID: 4800175899794148073}
   - component: {fileID: 6121656363988807079}
   - component: {fileID: 1972174312749643750}
+  - component: {fileID: 2195665859421754439}
   m_Layer: 0
   m_Name: Paper Visual
   m_TagString: Untagged
@@ -181,7 +182,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fa5a912dec849d4ca60b09970a366d4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  sourceSprite: {fileID: 21300000, guid: 921a012043299cf4ba262a871f9b1a70, type: 3}
+  sourceSprite: {fileID: 21300000, guid: 2e8816223717edc4d9828396c04612d8, type: 3}
   tint: {r: 1, g: 1, b: 1, a: 1}
   sortingOrder: 15
 --- !u!114 &1972174312749643750
@@ -198,3 +199,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   faceCamera: 1
   rollDegrees: 0
+--- !u!114 &2195665859421754439
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1366431131355028889}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b0263aaf4bf791445af700215a584290, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outlineColor: {r: 0, g: 0, b: 0, a: 1}
+  thickness: 0.018
+  blink: 0
+  blinkSpeed: 5

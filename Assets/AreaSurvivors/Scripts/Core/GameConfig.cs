@@ -38,6 +38,20 @@ namespace AreaSurvivors
         public int startingBallistaStock = 4;
         public int startingFenceStock = 4;
 
+        [Header("Resources")]
+        public int startingWood = 100;
+        public int startingStone = 100;
+        public int fenceWoodCost = 10;
+        public int fenceStoneCost = 0;
+        public int ballistaWoodCost = 50;
+        public int ballistaStoneCost = 30;
+        public float harvestIntervalSeconds = 1f;
+        public int harvestAmountPerTick = 2;
+        public int harvestAmount1Cell = 100;
+        public int harvestAmount2Cell = 200;
+        public int harvestAmount4Cell = 400;
+        public int harvestAmount8Cell = 800;
+
         [Header("Combat")]
         public int baseAttackPower = 6;
         public float knightCooldown = 1.05f;

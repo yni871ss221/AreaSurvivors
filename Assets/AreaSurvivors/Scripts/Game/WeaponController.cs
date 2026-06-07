@@ -12,6 +12,8 @@ namespace AreaSurvivors
         PlayerController player;
         int attackPower;
         float cooldownMultiplier;
+        public int AttackPower => attackPower;
+        public float CurrentCooldown => config == null || player == null ? 0f : GetCooldown();
 
         public void Configure(GameConfig gameConfig, PlayerController owner)
         {
