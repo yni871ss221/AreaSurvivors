@@ -125,7 +125,7 @@ namespace AreaSurvivors
             remainingAmount -= amount;
             var manager = GameManager.Instance;
             if (manager != null) manager.AddResource(resourceType, amount);
-            HarvestResourcePopup.Show(transform.position + Vector3.up * PopupHeight(), amount, resourceIcon, ResourceColor());
+            HarvestResourcePopup.Show(InteractionPoint() + Vector3.up * 0.22f, amount, resourceIcon, ResourceColor());
             UpdateGauge();
 
             if (remainingAmount <= 0)
@@ -148,6 +148,7 @@ namespace AreaSurvivors
             var outline = go.AddComponent<RuntimeSpriteOutline>();
             outline.outlineColor = Color.black;
             outline.thickness = 0.022f;
+            go.AddComponent<PreserveSortingOrder>();
         }
 
         void EnsureGauge()
@@ -195,8 +196,20 @@ namespace AreaSurvivors
             if (pickaxeVisual == null) return;
             float swing = Mathf.Sin(Time.time * 13f);
             pickaxeVisual.transform.localRotation = Quaternion.Euler(0f, 0f, -22f + swing * 20f);
-            pickaxeVisual.transform.localPosition = new Vector3(0f, PopupHeight() - 0.04f + Mathf.Abs(swing) * 0.035f, 0f);
+            Vector3 localContact = transform.InverseTransformPoint(InteractionPoint());
+            pickaxeVisual.transform.localPosition = localContact + new Vector3(0f, 0.28f + Mathf.Abs(swing) * 0.035f, 0f);
             pickaxeVisual.transform.localScale = HarvestToolScale;
+        }
+
+        Vector3 InteractionPoint()
+        {
+            var player = GameManager.Instance != null ? GameManager.Instance.Player : null;
+            if (resourceCollider == null || player == null) return transform.position + Vector3.up * PopupHeight();
+            var playerCollider = player.GetComponent<Collider2D>();
+            if (playerCollider == null) return resourceCollider.ClosestPoint(player.transform.position);
+            var distance = resourceCollider.Distance(playerCollider);
+            if (distance.isOverlapped) return resourceCollider.ClosestPoint(player.transform.position);
+            return distance.pointA;
         }
 
         void UpdateGauge()

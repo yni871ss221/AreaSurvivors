@@ -74,7 +74,9 @@ namespace AreaSurvivors
             {
                 var enemy = hits[i].GetComponent<EnemyController>();
                 if (enemy == null) continue;
-                var dealt = hits[i].GetComponent<Health>()?.Damage(attackPower + config.knightDamageBonus) ?? 0;
+                var dealt = hits[i].GetComponent<Health>()?.Damage(
+                    attackPower + config.knightDamageBonus,
+                    hits[i].ClosestPoint(transform.position)) ?? 0;
                 ApplyKnockback(enemy, direction);
                 GameManager.Instance?.RegisterDamageDealt(dealt);
             }

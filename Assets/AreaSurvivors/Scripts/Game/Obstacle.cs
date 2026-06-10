@@ -20,6 +20,8 @@ namespace AreaSurvivors
         {
             var visual = GetComponentInChildren<PaperMeshVisual>(true);
             if (visual == null || visual.sprite == null) return;
+            if (visual.GetComponent<OcclusionMaskSource>() == null)
+                visual.gameObject.AddComponent<OcclusionMaskSource>();
 
             var size = visualSize.sqrMagnitude > 0.001f ? visualSize : DefaultVisualSize(name);
             if (size.sqrMagnitude <= 0.001f) return;

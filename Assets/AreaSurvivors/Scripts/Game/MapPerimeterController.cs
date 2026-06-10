@@ -20,6 +20,12 @@ namespace AreaSurvivors
         public float visualOutsideOffsetCells = 3f;
         [Min(0.1f)]
         public float visualScale = 0.9f;
+        [Range(0.5f, 1f)]
+        public float visualOverlap = 0.78f;
+        [Min(1)]
+        public int visualRows = 2;
+        [Min(0f)]
+        public float rowSpacingCells = 4f;
         public int visualSortingOrder = 800;
 
         const string GeneratedRootName = "Perimeter Content";
@@ -104,26 +110,51 @@ namespace AreaSurvivors
             var visualRoot = new GameObject("Visuals");
             visualRoot.transform.SetParent(parent, false);
 
-            float spacingX = Mathf.Max(Mathf.Abs(rightStep.x), Mathf.Abs(rightStep.x) * visualSpacingCells);
-            float spacingY = Mathf.Max(Mathf.Abs(upStep.y), Mathf.Abs(upStep.y) * visualSpacingCells);
+            float spacingX = VisualStep(forest, mountain, true, Mathf.Abs(rightStep.x) * visualSpacingCells);
+            float spacingY = VisualStep(forest, mountain, false, Mathf.Abs(upStep.y) * visualSpacingCells);
             float offsetX = mapSize.x * 0.5f + Mathf.Abs(rightStep.x) * visualOutsideOffsetCells;
             float offsetY = mapSize.y * 0.5f + Mathf.Abs(upStep.y) * visualOutsideOffsetCells;
 
-            int horizontalCount = Mathf.CeilToInt(mapSize.x / spacingX) + 2;
-            int verticalCount = Mathf.CeilToInt(mapSize.y / spacingY) + 2;
-            for (int i = 0; i < horizontalCount; i++)
+            int horizontalCount = Mathf.CeilToInt((mapSize.x + spacingX * 2f) / spacingX) + 2;
+            int verticalCount = Mathf.CeilToInt((mapSize.y + spacingY * 2f) / spacingY) + 2;
+            int rows = Mathf.Max(1, visualRows);
+            for (int row = 0; row < rows; row++)
             {
-                float x = center.x + (i - (horizontalCount - 1) * 0.5f) * spacingX;
-                CreateVisual(visualRoot.transform, $"North {i}", PickSprite(forest, mountain, i), new Vector3(x, center.y + offsetY, center.z));
-                CreateVisual(visualRoot.transform, $"South {i}", PickSprite(forest, mountain, i + 1), new Vector3(x, center.y - offsetY, center.z));
-            }
+                float rowX = row % 2 == 0 ? 0f : spacingX * 0.5f;
+                float rowY = row % 2 == 0 ? 0f : spacingY * 0.5f;
+                float outsideX = offsetX + row * Mathf.Abs(rightStep.x) * rowSpacingCells;
+                float outsideY = offsetY + row * Mathf.Abs(upStep.y) * rowSpacingCells;
 
-            for (int i = 0; i < verticalCount; i++)
-            {
-                float y = center.y + (i - (verticalCount - 1) * 0.5f) * spacingY;
-                CreateVisual(visualRoot.transform, $"East {i}", PickSprite(forest, mountain, i + 2), new Vector3(center.x + offsetX, y, center.z));
-                CreateVisual(visualRoot.transform, $"West {i}", PickSprite(forest, mountain, i + 3), new Vector3(center.x - offsetX, y, center.z));
+                for (int i = 0; i < horizontalCount; i++)
+                {
+                    float x = center.x + (i - (horizontalCount - 1) * 0.5f) * spacingX + rowX;
+                    CreateVisual(visualRoot.transform, $"North {row} {i}", PickSprite(forest, mountain, i + row), new Vector3(x, center.y + outsideY, center.z));
+                    CreateVisual(visualRoot.transform, $"South {row} {i}", PickSprite(forest, mountain, i + row + 1), new Vector3(x, center.y - outsideY, center.z));
+                }
+
+                for (int i = 0; i < verticalCount; i++)
+                {
+                    float y = center.y + (i - (verticalCount - 1) * 0.5f) * spacingY + rowY;
+                    CreateVisual(visualRoot.transform, $"East {row} {i}", PickSprite(forest, mountain, i + row + 2), new Vector3(center.x + outsideX, y, center.z));
+                    CreateVisual(visualRoot.transform, $"West {row} {i}", PickSprite(forest, mountain, i + row + 3), new Vector3(center.x - outsideX, y, center.z));
+                }
             }
+        }
+
+        float VisualStep(Sprite forest, Sprite mountain, bool horizontal, float fallback)
+        {
+            float forestSize = SpriteSize(forest, horizontal);
+            float mountainSize = SpriteSize(mountain, horizontal);
+            float size = forestSize > 0f && mountainSize > 0f
+                ? Mathf.Min(forestSize, mountainSize)
+                : Mathf.Max(forestSize, mountainSize);
+            return size > 0f ? Mathf.Max(0.1f, size * visualScale * visualOverlap) : Mathf.Max(0.1f, fallback);
+        }
+
+        static float SpriteSize(Sprite sprite, bool horizontal)
+        {
+            if (sprite == null) return 0f;
+            return horizontal ? sprite.bounds.size.x : sprite.bounds.size.y;
         }
 
         void CreateVisual(Transform parent, string visualName, Sprite sprite, Vector3 position)

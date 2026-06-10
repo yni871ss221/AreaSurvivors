@@ -49,6 +49,7 @@ namespace AreaSurvivors
             autoRegen = GetComponent<AutoRegeneration>();
             if (autoRegen == null) autoRegen = gameObject.AddComponent<AutoRegeneration>();
             hitCollider = GetComponent<Collider2D>();
+            if (GetComponent<CharacterOcclusionReveal>() == null) gameObject.AddComponent<CharacterOcclusionReveal>();
             health.Died += OnDied;
         }
 

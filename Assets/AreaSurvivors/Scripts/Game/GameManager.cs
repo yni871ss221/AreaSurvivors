@@ -772,22 +772,20 @@ namespace AreaSurvivors
             if (weapon != null) weapon.sprite = WeaponSprite(player.characterType);
 
             var weaponController = player.weapon;
-            if (playerAttackText != null) playerAttackText.text = "攻撃: " + (weaponController != null ? weaponController.AttackPower.ToString() : "-");
-            if (playerCooldownText != null) playerCooldownText.text = "間隔: " + (weaponController != null ? weaponController.CurrentCooldown.ToString("0.0") + "s" : "-");
-            if (playerSpeedText != null) playerSpeedText.text = "速度: " + player.MoveSpeed.ToString("0.0");
-            if (playerPaintText != null) playerPaintText.text = "塗り: " + player.PaintRadius;
-            if (playerReviveText != null) playerReviveText.text = "復活: " + player.ReviveSeconds.ToString("0.0") + "s";
-            if (playerProjectileText != null) playerProjectileText.text = "弾速: " + (weaponController != null ? weaponController.ProjectileSpeed.ToString("0.0") : "-");
-            if (playerRangeText != null) playerRangeText.text = player.characterType == CharacterType.Archer
-                ? "射程: " + (weaponController != null ? weaponController.WeaponRange.ToString("0.0") : "-")
-                : "範囲: " + (weaponController != null ? weaponController.WeaponRange.ToString("0.0") : "-");
+            if (playerAttackText != null) playerAttackText.text = weaponController != null ? weaponController.AttackPower.ToString() : "-";
+            if (playerCooldownText != null) playerCooldownText.text = weaponController != null ? weaponController.CurrentCooldown.ToString("0.0") + "s" : "-";
+            if (playerSpeedText != null) playerSpeedText.text = player.MoveSpeed.ToString("0.0");
+            if (playerPaintText != null) playerPaintText.text = player.PaintRadius.ToString();
+            if (playerReviveText != null) playerReviveText.text = player.ReviveSeconds.ToString("0.0") + "s";
+            if (playerProjectileText != null) playerProjectileText.text = weaponController != null ? weaponController.ProjectileSpeed.ToString("0.0") : "-";
+            if (playerRangeText != null) playerRangeText.text = weaponController != null ? weaponController.WeaponRange.ToString("0.0") : "-";
             var stats = player.Stats;
-            if (playerKnockbackText != null) playerKnockbackText.text = "ノック: " + stats.knockback.ToString("0.#");
-            if (playerDefenseText != null) playerDefenseText.text = "防御: " + stats.defense;
-            if (playerXpGainText != null) playerXpGainText.text = "経験: " + stats.xpGainMultiplier.ToString("0.0") + "x";
-            if (playerRegenText != null) playerRegenText.text = "回復: " + stats.autoRegen;
-            if (playerWorkText != null) playerWorkText.text = "作業: " + stats.workSpeedMultiplier.ToString("0.0") + "x";
-            if (playerResourceText != null) playerResourceText.text = "資源: +" + stats.resourceGainBonus;
+            if (playerKnockbackText != null) playerKnockbackText.text = stats.knockback.ToString("0.#");
+            if (playerDefenseText != null) playerDefenseText.text = stats.defense.ToString();
+            if (playerXpGainText != null) playerXpGainText.text = stats.xpGainMultiplier.ToString("0.0") + "x";
+            if (playerRegenText != null) playerRegenText.text = stats.autoRegen.ToString();
+            if (playerWorkText != null) playerWorkText.text = stats.workSpeedMultiplier.ToString("0.0") + "x";
+            if (playerResourceText != null) playerResourceText.text = "+" + stats.resourceGainBonus;
         }
 
         static RectTransform EnsureIconFrame(RectTransform parent, string name, Vector2 position, Vector2 size)
@@ -861,6 +859,8 @@ namespace AreaSurvivors
         static Text BindStatText(RectTransform parent, string name)
         {
             if (parent == null) return null;
+            var value = parent.Find(name + " Box/Value");
+            if (value != null && value.GetComponent<Text>() != null) return value.GetComponent<Text>();
             var boxed = parent.Find(name + " Box/Label");
             if (boxed != null && boxed.GetComponent<Text>() != null) return boxed.GetComponent<Text>();
             var direct = parent.Find(name);

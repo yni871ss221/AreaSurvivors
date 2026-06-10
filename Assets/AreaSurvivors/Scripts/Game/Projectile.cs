@@ -60,7 +60,7 @@ namespace AreaSurvivors
                     var hitEnemy = hit.GetComponent<EnemyController>();
                     if (hitEnemy != null)
                     {
-                        var dealt = hit.GetComponent<Health>()?.Damage(damage) ?? 0;
+                        var dealt = hit.GetComponent<Health>()?.Damage(damage, hit.ClosestPoint(transform.position)) ?? 0;
                         ApplyKnockback(hitEnemy, ((Vector2)hit.transform.position - (Vector2)transform.position).normalized);
                         GameManager.Instance?.RegisterDamageDealt(dealt);
                     }
@@ -68,7 +68,7 @@ namespace AreaSurvivors
             }
             else
             {
-                var dealt = other.GetComponent<Health>()?.Damage(damage) ?? 0;
+                var dealt = other.GetComponent<Health>()?.Damage(damage, other.ClosestPoint(transform.position)) ?? 0;
                 ApplyKnockback(enemy, GetComponent<Rigidbody2D>() != null ? GetComponent<Rigidbody2D>().velocity.normalized : transform.right);
                 GameManager.Instance?.RegisterDamageDealt(dealt);
             }

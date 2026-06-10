@@ -35,8 +35,13 @@ namespace AreaSurvivors
             int order = WorldObjectSortingOffset + baseOrder + Mathf.RoundToInt(-(transform.position.y + sortPivotOffsetY) * 100f) + orderOffset;
             foreach (var renderer in renderers)
             {
-                if (renderer != null) renderer.sortingOrder = order;
+                if (renderer == null || renderer.GetComponent<PreserveSortingOrder>() != null) continue;
+                renderer.sortingOrder = order;
             }
         }
+    }
+
+    public sealed class PreserveSortingOrder : MonoBehaviour
+    {
     }
 }

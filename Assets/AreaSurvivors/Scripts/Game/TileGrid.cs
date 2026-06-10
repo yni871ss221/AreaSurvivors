@@ -45,7 +45,7 @@ namespace AreaSurvivors
     public sealed class TileGrid : MonoBehaviour
     {
         public int width = 96;
-        public int height = 96;
+        public int height = 136;
         public float cellSize = 0.7f;
         public Sprite tileSprite;
         public Sprite paintSprite;
@@ -344,6 +344,25 @@ namespace AreaSurvivors
         public Vector3 GridToWorld(int x, int y)
         {
             return groundTilemap.GetCellCenterWorld(GridToCell(x, y));
+        }
+
+        public Bounds GetWorldBounds()
+        {
+            if (groundTilemap == null || width <= 0 || height <= 0)
+            {
+                return new Bounds(transform.position, Vector3.zero);
+            }
+
+            Vector3 first = groundTilemap.GetCellCenterWorld(GridToCell(0, 0));
+            Vector3 last = groundTilemap.GetCellCenterWorld(GridToCell(width - 1, height - 1));
+            Vector3 rightStep = width > 1
+                ? groundTilemap.GetCellCenterWorld(GridToCell(1, 0)) - first
+                : new Vector3(cellSize, 0f, 0f);
+            Vector3 upStep = height > 1
+                ? groundTilemap.GetCellCenterWorld(GridToCell(0, 1)) - first
+                : new Vector3(0f, cellSize, 0f);
+            var size = new Vector3(Mathf.Abs(rightStep.x) * width, Mathf.Abs(upStep.y) * height, 0.1f);
+            return new Bounds((first + last) * 0.5f, size);
         }
 
         public Vector3 FootprintCenterToWorld(Vector3Int originCell, Vector2Int footprint)

@@ -82,7 +82,12 @@ namespace AreaSurvivors
         public float cameraDefaultZoom = 0.5f;
         public float cameraZoomScrollSpeed = 0.16f;
         [Range(0f, 1f)]
-        public float cameraPlayerWeight = 0.55f;
+        public float cameraPlayerWeight = 1f;
+        public bool cameraUseGridBounds = true;
+        public Vector2 cameraMinimumPosition = new Vector2(-25f, -25f);
+        public Vector2 cameraMaximumPosition = new Vector2(25f, 25f);
+        [Min(0f)]
+        public float cameraBoundsPadding = 0.25f;
 
         [Header("Tower")]
         public int towerMaxHp = 160;

@@ -65,6 +65,8 @@ namespace AreaSurvivors
                 if (renderer == null || renderer.name.Contains("Shadow")) continue;
                 var texture = renderer.sharedMaterial != null ? renderer.sharedMaterial.mainTexture : null;
                 if (texture == null || !texture.name.Contains("Tower")) continue;
+                if (renderer.GetComponent<OcclusionMaskSource>() == null)
+                    renderer.gameObject.AddComponent<OcclusionMaskSource>();
                 var outline = renderer.GetComponent<RuntimeSpriteOutline>();
                 if (outline == null) outline = renderer.gameObject.AddComponent<RuntimeSpriteOutline>();
                 outline.outlineColor = Color.black;

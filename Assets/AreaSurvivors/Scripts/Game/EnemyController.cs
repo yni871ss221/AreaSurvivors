@@ -65,6 +65,10 @@ namespace AreaSurvivors
             visual = GetComponentInChildren<PaperMeshVisual>();
             outline = visual != null ? visual.GetComponent<RuntimeSpriteOutline>() : GetComponentInChildren<RuntimeSpriteOutline>();
             if (outline == null && visual != null) outline = visual.gameObject.AddComponent<RuntimeSpriteOutline>();
+            var reveal = GetComponent<CharacterOcclusionReveal>();
+            if (reveal == null) reveal = gameObject.AddComponent<CharacterOcclusionReveal>();
+            reveal.silhouetteColor = new Color(1f, 0.52f, 0.28f, 0.56f);
+            reveal.outlineColor = elite ? Color.yellow : boss ? Color.red : Color.white;
             ApplyOutlineStyle();
             IgnoreOtherEnemyCollisions();
             health.Damaged += OnDamaged;
@@ -170,6 +174,8 @@ namespace AreaSurvivors
             outline.outlineColor = desiredOutlineColor;
             outline.thickness = desiredOutlineThickness;
             outline.blink = false;
+            var reveal = GetComponent<CharacterOcclusionReveal>();
+            if (reveal != null) reveal.outlineColor = boss ? Color.red : elite ? Color.yellow : Color.white;
         }
 
         void Update()
@@ -377,9 +383,11 @@ namespace AreaSurvivors
                 collision.collider.GetComponentInParent<TowerController>() == null &&
                 (fence == null || !fence.IsBuilt) &&
                 (ballista == null || !ballista.IsBuilt)) return;
-            int dealt = otherHealth.Damage(attackDamage);
-            float height = collision.collider.GetComponent<TowerController>() != null ? 1.05f : ballista != null ? 1.0f : fence != null ? 0.82f : 0.58f;
-            DamagePopup.Show(damagePopupPrefab, collision.transform.position + Vector3.up * height, dealt, Color.red);
+            Vector3 hitPoint = collision.contactCount > 0
+                ? collision.GetContact(0).point
+                : collision.collider.ClosestPoint(transform.position);
+            int dealt = otherHealth.Damage(attackDamage, hitPoint);
+            DamagePopup.Show(damagePopupPrefab, hitPoint + Vector3.up * 0.18f, dealt, Color.red);
             contactTimer = 0.75f;
         }
 
@@ -390,9 +398,9 @@ namespace AreaSurvivors
                    collider.GetComponentInParent<BallistaTower>() == null;
         }
 
-        void OnDamaged(Health _, int amount)
+        void OnDamaged(Health damagedHealth, int amount)
         {
-            DamagePopup.Show(damagePopupPrefab, transform.position + Vector3.up * 0.55f, amount, Color.white);
+            DamagePopup.Show(damagePopupPrefab, damagedHealth.LastDamagePoint + Vector3.up * 0.18f, amount, Color.white);
         }
 
         void OnDied(Health _)

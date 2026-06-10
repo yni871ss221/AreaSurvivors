@@ -245,9 +245,40 @@ namespace AreaSurvivors.Testing
                     return EvaluateConfigFloat(assertion, out failure);
                 case GameplayTestAssertionType.AllMonitoredObjectsInsideGrid:
                     return EvaluateMonitoredObjectsInsideGrid(out failure);
+                case GameplayTestAssertionType.CameraViewportInsideGrid:
+                    return EvaluateCameraViewportInsideGrid(out failure);
                 default:
                     return true;
             }
+        }
+
+        bool EvaluateCameraViewportInsideGrid(out string failure)
+        {
+            failure = null;
+            var camera = Camera.main;
+            if (camera == null || grid == null)
+            {
+                failure = "Camera or TileGrid was not found.";
+                return false;
+            }
+
+            Bounds bounds = grid.GetWorldBounds();
+            for (int x = 0; x <= 1; x++)
+            {
+                for (int y = 0; y <= 1; y++)
+                {
+                    Ray ray = camera.ViewportPointToRay(new Vector3(x, y, 0f));
+                    if (Mathf.Abs(ray.direction.z) <= 0.0001f) continue;
+                    Vector3 ground = ray.GetPoint(-ray.origin.z / ray.direction.z);
+                    if (ground.x < bounds.min.x - 0.01f || ground.x > bounds.max.x + 0.01f ||
+                        ground.y < bounds.min.y - 0.01f || ground.y > bounds.max.y + 0.01f)
+                    {
+                        failure = $"Camera viewport left the grid at {ground}.";
+                        return false;
+                    }
+                }
+            }
+            return true;
         }
 
         bool EvaluateMonitoredObjectsInsideGrid(out string failure)

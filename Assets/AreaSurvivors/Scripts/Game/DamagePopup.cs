@@ -4,6 +4,8 @@ namespace AreaSurvivors
 {
     public sealed class DamagePopup : MonoBehaviour
     {
+        const int PopupSortingOrder = 24050;
+
         public TextMesh text;
         public TextMesh[] outlines;
         public float lifetime = 0.78f;
@@ -14,6 +16,12 @@ namespace AreaSurvivors
 
         void Awake()
         {
+            foreach (var renderer in GetComponentsInChildren<MeshRenderer>(true))
+            {
+                renderer.sortingOrder = PopupSortingOrder;
+                if (renderer.GetComponent<PreserveSortingOrder>() == null)
+                    renderer.gameObject.AddComponent<PreserveSortingOrder>();
+            }
             if (text != null)
             {
                 textOutline = text.GetComponent<RuntimeTextMeshOutline>();

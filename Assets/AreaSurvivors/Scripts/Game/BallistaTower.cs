@@ -40,6 +40,7 @@ namespace AreaSurvivors
         Renderer[] completeObjectRenderers;
         Color[][] completeObjectColors;
         int touchingPlayers;
+        Transform activeBuilder;
         bool completed;
         bool usingSpriteVisuals;
         bool breaking;
@@ -198,6 +199,8 @@ namespace AreaSurvivors
             if (visual == null || ballistaSprite == null) return;
             visual.sprite = ballistaSprite;
             visual.color = color;
+            if (visual.GetComponent<OcclusionMaskSource>() == null)
+                visual.gameObject.AddComponent<OcclusionMaskSource>();
             ConfigureOutline(visual.gameObject);
             var bounds = ballistaSprite.bounds.size;
             float x = Mathf.Abs(bounds.x) > 0.001f ? spriteVisualSize.x / bounds.x : 1f;
@@ -223,6 +226,7 @@ namespace AreaSurvivors
             hammerRenderer.order = 22020;
             var outline = hammerRenderer.GetComponent<RuntimeSpriteOutline>();
             if (outline == null) outline = hammerRenderer.gameObject.AddComponent<RuntimeSpriteOutline>();
+            if (hammerRenderer.GetComponent<PreserveSortingOrder>() == null) hammerRenderer.gameObject.AddComponent<PreserveSortingOrder>();
             outline.outlineColor = Color.black;
             outline.thickness = 0.022f;
         }
@@ -257,12 +261,16 @@ namespace AreaSurvivors
 
         void OnTriggerEnter2D(Collider2D other)
         {
-            if (other.GetComponent<PlayerController>() != null) touchingPlayers++;
+            if (other.GetComponent<PlayerController>() == null) return;
+            touchingPlayers++;
+            activeBuilder = other.transform;
         }
 
         void OnTriggerExit2D(Collider2D other)
         {
-            if (other.GetComponent<PlayerController>() != null) touchingPlayers = Mathf.Max(0, touchingPlayers - 1);
+            if (other.GetComponent<PlayerController>() == null) return;
+            touchingPlayers = Mathf.Max(0, touchingPlayers - 1);
+            if (touchingPlayers == 0 || activeBuilder == other.transform) activeBuilder = null;
         }
 
         static float WorkSpeedMultiplier()
@@ -306,7 +314,10 @@ namespace AreaSurvivors
             if (hammerRenderer == null || !hammerRenderer.visible) return;
             float swing = Mathf.Sin(Time.time * 16f);
             hammerRenderer.transform.localRotation = Quaternion.Euler(0f, 0f, -35f + swing * 32f);
-            hammerRenderer.transform.localPosition = new Vector3(0.28f, -0.12f + Mathf.Abs(swing) * 0.08f, 0f);
+            Vector3 contact = activeBuilder != null && blockingCollider != null
+                ? blockingCollider.ClosestPoint(activeBuilder.position)
+                : transform.position + new Vector3(0.28f, -0.12f, 0f);
+            hammerRenderer.transform.localPosition = transform.InverseTransformPoint(contact) + new Vector3(0f, 0.2f + Mathf.Abs(swing) * 0.08f, 0f);
         }
 
         void CompleteBuild()

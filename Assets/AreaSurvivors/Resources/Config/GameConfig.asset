@@ -34,7 +34,11 @@ MonoBehaviour:
   cameraZoomedInPitch: -35
   cameraDefaultZoom: 0.5
   cameraZoomScrollSpeed: 0.16
-  cameraPlayerWeight: 0.55
+  cameraPlayerWeight: 1
+  cameraUseGridBounds: 1
+  cameraMinimumPosition: {x: -25, y: -25}
+  cameraMaximumPosition: {x: 25, y: 25}
+  cameraBoundsPadding: 0.25
   towerMaxHp: 160
   towerMaxHpPerUpgradeLevel: 12
   ballistaBuildSeconds: 2.2

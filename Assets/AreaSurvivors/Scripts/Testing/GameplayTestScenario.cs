@@ -17,7 +17,8 @@ namespace AreaSurvivors.Testing
         StoneAtLeast,
         TokensAtLeast,
         ConfigFloatApproximately,
-        AllMonitoredObjectsInsideGrid
+        AllMonitoredObjectsInsideGrid,
+        CameraViewportInsideGrid
     }
 
     public enum GameplayConfigValueType
