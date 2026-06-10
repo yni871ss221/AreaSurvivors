@@ -34,6 +34,7 @@ namespace AreaSurvivors
         public int XpToNext => xpToNext;
         public int Wood { get; private set; }
         public int Stone { get; private set; }
+        public int RunTokens { get; private set; }
 
         int kills;
         int level = 1;
@@ -41,6 +42,10 @@ namespace AreaSurvivors
         int xpToNext = 5;
         int damageDealt;
         float elapsed;
+        float hudElapsed;
+        float xpRemainder;
+        bool bossActive;
+        bool gameEnding;
         GameObject levelUpInputBlocker;
         readonly List<string> runUpgrades = new List<string>();
         const int InitialTowerTerritoryRadius = 10;
@@ -56,8 +61,9 @@ namespace AreaSurvivors
         {
             Time.timeScale = 1f;
             config = Instantiate(config);
-            Wood = Mathf.Max(0, config.startingWood);
-            Stone = Mathf.Max(0, config.startingStone);
+            config.EnsureEnemySpawnDefaults();
+            Wood = Mathf.Max(0, config.startingWood + ProgressionStore.GetLevel(UpgradeType.StartingWood) * config.startingWoodPerUpgradeLevel);
+            Stone = Mathf.Max(0, config.startingStone + ProgressionStore.GetLevel(UpgradeType.StartingStone) * config.startingStonePerUpgradeLevel);
             if (grid != null)
             {
                 grid.Build();
@@ -73,17 +79,20 @@ namespace AreaSurvivors
             }
 
             Tower.transform.position = grid.GridToWorld(grid.width / 2, grid.height / 2);
-            Tower.Configure(config.towerMaxHp + ProgressionStore.GetLevel(UpgradeType.TowerMaxHp) * 12);
+            Tower.Configure(config.towerMaxHp + ProgressionStore.GetLevel(UpgradeType.TowerMaxHp) * config.towerMaxHpPerUpgradeLevel);
+            ConfigureTowerRegeneration();
             if (Tower.hpBar != null) Tower.hpBar.gameObject.SetActive(false);
             var towerMarker = Tower.GetComponent<GridObjectMarker>();
             if (towerMarker != null) towerMarker.Register(grid);
             var towerRootCell = grid.WorldToCell(Tower.transform.position) + Vector3Int.down * 5;
             var towerRootWorld = grid.groundTilemap.GetCellCenterWorld(towerRootCell);
             Tower.ConfigureEnemyTarget(towerRootWorld);
-            grid.PaintImmediate(towerRootWorld, TileOwner.Player, InitialTowerTerritoryRadius);
+            int initialTerritoryRadius = InitialTowerTerritoryRadius + ProgressionStore.GetLevel(UpgradeType.InitialTerritory) * config.initialTerritoryRadiusPerUpgradeLevel;
+            grid.PaintImmediate(towerRootWorld, TileOwner.Player, initialTerritoryRadius);
             SpawnNaturalLandmarks(towerRootCell);
 
             Player = Instantiate(playerPrefab, grid.GridToWorld(grid.width / 2, grid.height / 2 - 6), Quaternion.identity);
+            if (spawner != null) Player.damagePopupPrefab = spawner.damagePopupPrefab;
             Player.Configure(config, grid, RunState.SelectedCharacter);
             if (buildPlacement != null) buildPlacement.Initialize(config, grid, Player);
             PolishHud();
@@ -93,6 +102,17 @@ namespace AreaSurvivors
             if (cameraFollow != null) cameraFollow.Configure(Player.transform, Tower.transform, config);
             spawner.Begin(config, grid, Tower.EnemyTarget);
             UpdateHud();
+        }
+
+        void ConfigureTowerRegeneration()
+        {
+            if (Tower == null) return;
+            var regeneration = Tower.GetComponent<AutoRegeneration>();
+            if (regeneration == null) regeneration = Tower.gameObject.AddComponent<AutoRegeneration>();
+            regeneration.amount = ProgressionStore.GetLevel(UpgradeType.TowerAutoRegen) * config.towerAutoRegenPerUpgradeLevel;
+            regeneration.intervalSeconds = config.autoRegenIntervalSeconds;
+            regeneration.popupPrefab = spawner != null ? spawner.damagePopupPrefab : null;
+            regeneration.popupOffset = new Vector3(0f, 0.7f, 0f);
         }
 
         void SpawnNaturalLandmarks(Vector3Int centerCell)
@@ -106,6 +126,7 @@ namespace AreaSurvivors
         void Update()
         {
             elapsed += Time.deltaTime;
+            hudElapsed = bossActive ? Mathf.Min(config.bossTimeSeconds, hudElapsed) : elapsed;
             if (buildPlacement != null) buildPlacement.Tick();
             UpdateLevelUpButtonHover();
             UpdateHud();
@@ -143,9 +164,20 @@ namespace AreaSurvivors
             else Stone += amount;
         }
 
+        public void AddRunTokens(int amount)
+        {
+            RunTokens += Mathf.Max(0, amount);
+            UpdateHud();
+        }
+
         public void AddExperience(int amount)
         {
-            xp += Mathf.Max(1, amount);
+            float multiplier = Player != null ? Mathf.Max(0f, Player.Stats.xpGainMultiplier) : 1f;
+            xpRemainder += Mathf.Max(1, amount) * multiplier;
+            int gained = Mathf.FloorToInt(xpRemainder);
+            if (gained <= 0) return;
+            xpRemainder -= gained;
+            xp += gained;
             while (xp >= xpToNext)
             {
                 xp -= xpToNext;
@@ -200,11 +232,17 @@ namespace AreaSurvivors
         {
             var pool = new List<RunUpgradeChoice>
             {
-                new RunUpgradeChoice("\u653b\u6483\u529b +2", () => config.baseAttackPower += 2),
-                new RunUpgradeChoice("\u653b\u6483\u9593\u9694 -8%", () => { config.knightCooldown *= .92f; config.archerCooldown *= .92f; config.mageCooldown *= .92f; }),
-                new RunUpgradeChoice("\u79fb\u52d5\u901f\u5ea6 +8%", () => config.playerMoveSpeed *= 1.08f),
-                new RunUpgradeChoice("\u5857\u308a\u7bc4\u56f2 +1", () => config.paintRadius += 1),
-                new RunUpgradeChoice("\u6700\u5927HP +8", () => Player.Health.SetMax(Player.Health.maxHp + 8))
+                new RunUpgradeChoice("\u653b\u6483\u529b +" + config.runAttackPowerBonus, () => Player.StatsSource.AddAttackPower(config.runAttackPowerBonus)),
+                new RunUpgradeChoice("\u653b\u6483\u9593\u9694 -" + Mathf.RoundToInt((1f - config.runAttackCooldownMultiplier) * 100f) + "%", () => Player.StatsSource.MultiplyAttackCooldown(config.runAttackCooldownMultiplier)),
+                new RunUpgradeChoice("\u79fb\u52d5\u901f\u5ea6 +" + Mathf.RoundToInt((config.runMoveSpeedMultiplier - 1f) * 100f) + "%", () => Player.StatsSource.MultiplyMoveSpeed(config.runMoveSpeedMultiplier)),
+                new RunUpgradeChoice("\u5857\u308a\u7bc4\u56f2 +" + config.runPaintRadiusBonus, () => Player.StatsSource.AddPaintRadius(config.runPaintRadiusBonus)),
+                new RunUpgradeChoice("\u6700\u5927HP +" + config.runMaxHpBonus, () => Player.StatsSource.AddMaxHp(config.runMaxHpBonus)),
+                new RunUpgradeChoice("\u30ce\u30c3\u30af\u30d0\u30c3\u30af +" + config.runKnockbackBonus, () => Player.StatsSource.AddKnockback(config.runKnockbackBonus)),
+                new RunUpgradeChoice("\u9632\u5fa1 +" + config.runDefenseBonus, () => Player.StatsSource.AddDefense(config.runDefenseBonus)),
+                new RunUpgradeChoice("\u7d4c\u9a13\u5024 +" + config.runXpGainMultiplierBonus.ToString("0.0") + "x", () => Player.StatsSource.AddXpGainMultiplier(config.runXpGainMultiplierBonus)),
+                new RunUpgradeChoice("\u81ea\u52d5\u56de\u5fa9 +" + config.runAutoRegenBonus, () => Player.StatsSource.AddAutoRegen(config.runAutoRegenBonus)),
+                new RunUpgradeChoice("\u4f5c\u696d\u901f\u5ea6 +" + config.runWorkSpeedMultiplierBonus.ToString("0.0") + "x", () => Player.StatsSource.AddWorkSpeedMultiplier(config.runWorkSpeedMultiplierBonus)),
+                new RunUpgradeChoice("\u8cc7\u6e90\u7372\u5f97 +" + config.runResourceGainBonus, () => Player.StatsSource.AddResourceGain(config.runResourceGainBonus))
             };
             var result = new List<RunUpgradeChoice>();
             while (result.Count < 3 && pool.Count > 0)
@@ -220,7 +258,7 @@ namespace AreaSurvivors
         {
             choice.apply();
             runUpgrades.Add(choice.label);
-            Player.Configure(config, grid, Player.characterType);
+            Player.ApplyCurrentStats(false);
             levelUpPanel.SetActive(false);
             ShowLevelUpInputBlocker(false);
             if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(null);
@@ -323,27 +361,71 @@ namespace AreaSurvivors
 
         public void GameOver()
         {
+            EndRun(false);
+        }
+
+        public void BossSpawned(EnemyController boss)
+        {
+            if (boss == null) return;
+            bossActive = true;
+            hudElapsed = config.bossTimeSeconds;
+            if (timerText != null) timerText.color = Color.red;
+            gameHud?.ShowBoss(boss);
+            ShowAnnouncement(config.bossAnnouncement);
+        }
+
+        public void BossDefeated(EnemyController boss)
+        {
+            if (gameEnding) return;
+            StartCoroutine(GameClearRoutine(boss));
+        }
+
+        IEnumerator GameClearRoutine(EnemyController boss)
+        {
+            gameEnding = true;
+            spawner?.StopAndClearEnemies(boss);
+            ShowAnnouncement("GAME CLEAR");
+            yield return new WaitForSeconds(1.8f);
+            EndRun(true);
+        }
+
+        public void ShowAnnouncement(string message)
+        {
+            gameHud?.ShowAnnouncement(message);
+        }
+
+        void EndRun(bool clear)
+        {
+            if (!clear && gameEnding) return;
+            gameEnding = true;
             Time.timeScale = 1f;
-            int tokensEarned = Mathf.Max(0, kills / Mathf.Max(1, config.tokenKillsDivisor));
             RunResult.Last = new RunResult
             {
                 kills = kills,
                 damageDealt = damageDealt,
                 level = level,
-                tokensEarned = tokensEarned,
+                tokensEarned = EndTokenReward(),
                 survivedSeconds = elapsed,
+                gameClear = clear,
                 upgrades = new List<string>(runUpgrades)
             };
-            ProgressionStore.AddRunRewards(kills, config.tokenKillsDivisor);
-            SceneManager.LoadScene(SceneNames.GameOver);
+            ProgressionStore.AddRunTokens(kills, EndTokenReward());
+            SceneManager.LoadScene(SceneNames.GameEnd);
+        }
+
+        int EndTokenReward()
+        {
+            float multiplier = 1f + ProgressionStore.GetLevel(UpgradeType.EndTokenGain) * config.endTokenGainMultiplierPerUpgradeLevel;
+            return Mathf.Max(0, Mathf.RoundToInt(RunTokens * multiplier));
         }
 
         void UpdateHud()
         {
             if (timerText != null)
             {
-                var span = TimeSpan.FromSeconds(elapsed);
+                var span = TimeSpan.FromSeconds(hudElapsed);
                 timerText.text = $"{span.Minutes:00}:{span.Seconds:00}";
+                if (!bossActive) timerText.color = Color.white;
             }
             if (killText != null) killText.text = $"\u6483\u7834 {kills}";
             if (levelText != null) levelText.text = $"Lv {level}";
@@ -425,7 +507,7 @@ namespace AreaSurvivors
         static readonly Vector2 TowerHpBarPosition = new Vector2(0f, -126f);
         static readonly Vector2 TowerHpBarSize = new Vector2(38f, 136f);
         static readonly Vector2 TowerHpTextPosition = new Vector2(0f, -286f);
-        static readonly Vector2 PlayerPanelSize = new Vector2(390f, 228f);
+        static readonly Vector2 PlayerPanelSize = new Vector2(390f, 318f);
         static readonly Vector2 PlayerIconSize = new Vector2(58f, 58f);
         static readonly Vector2 WeaponIconSize = new Vector2(48f, 48f);
 
@@ -447,10 +529,29 @@ namespace AreaSurvivors
         Text playerCooldownText;
         Text playerSpeedText;
         Text playerPaintText;
+        Text playerReviveText;
+        Text playerProjectileText;
+        Text playerRangeText;
+        Text playerKnockbackText;
+        Text playerDefenseText;
+        Text playerXpGainText;
+        Text playerRegenText;
+        Text playerWorkText;
+        Text playerResourceText;
         Text woodText;
         Text stoneText;
+        Text tokenText;
+        RectTransform bossPanel;
+        Text bossNameText;
+        Image bossHpFill;
+        Text bossHpText;
+        Text announcementText;
+        EnemyController activeBoss;
+        Health bossHealth;
+        Coroutine announcementRoutine;
         Text[] stockLabels;
         Image[] slotBackplates;
+        Button[] slotButtons;
         UiSelectionHighlight[] slotHighlights;
         readonly List<FloatingHudDamage> damagePopups = new List<FloatingHudDamage>();
         int selectedSlot;
@@ -470,6 +571,7 @@ namespace AreaSurvivors
             HideLegacyBuildStatus(canvas.transform);
             BindSceneRunStats(canvas.transform);
             BindSceneResourceHud(canvas.transform);
+            BindSceneBossHud(canvas.transform);
             BuildPlayerPanel(canvas.transform);
             BuildConstructionMenu(canvas.transform);
             BuildTowerPanel(canvas.transform);
@@ -477,11 +579,13 @@ namespace AreaSurvivors
             UpdateResourceHud();
             UpdateBuildSlots();
             UpdateTowerPanel();
+            UpdateBossHud();
         }
 
         void OnDestroy()
         {
             if (towerHealth != null) towerHealth.Damaged -= OnTowerDamaged;
+            if (bossHealth != null) bossHealth.Died -= OnBossDied;
         }
 
         void Update()
@@ -491,6 +595,7 @@ namespace AreaSurvivors
             UpdateResourceHud();
             UpdateBuildSlots();
             UpdateTowerPanel();
+            UpdateBossHud();
             TickDamagePopups();
         }
 
@@ -515,8 +620,10 @@ namespace AreaSurvivors
         {
             woodText = FindText(parent, "Wood Resource/Amount");
             stoneText = FindText(parent, "Stone Resource/Amount");
+            tokenText = FindText(parent, "Token Resource/Amount");
             SetResourceIcon(parent, "Wood Resource/Icon", "WoodIcon");
             SetResourceIcon(parent, "Stone Resource/Icon", "StoneIcon");
+            SetResourceIcon(parent, "Token Resource/Icon", "Token");
         }
 
         void UpdateResourceHud()
@@ -524,6 +631,64 @@ namespace AreaSurvivors
             if (gameManager == null) return;
             if (woodText != null) woodText.text = gameManager.Wood.ToString();
             if (stoneText != null) stoneText.text = gameManager.Stone.ToString();
+            if (tokenText != null) tokenText.text = gameManager.RunTokens.ToString();
+        }
+
+        void BindSceneBossHud(Transform parent)
+        {
+            bossPanel = parent.Find("Boss Status") as RectTransform;
+            bossNameText = FindText(parent, "Boss Status/Boss Name");
+            bossHpText = FindText(parent, "Boss Status/Boss HP Bar/Label");
+            var fill = parent.Find("Boss Status/Boss HP Bar/Fill");
+            bossHpFill = fill != null ? fill.GetComponent<Image>() : null;
+            announcementText = FindText(parent, "Announcement/Label");
+            if (bossPanel != null) bossPanel.gameObject.SetActive(false);
+            if (announcementText != null) announcementText.transform.parent.gameObject.SetActive(false);
+        }
+
+        public void ShowBoss(EnemyController boss)
+        {
+            if (bossHealth != null) bossHealth.Died -= OnBossDied;
+            activeBoss = boss;
+            bossHealth = boss != null ? boss.GetComponent<Health>() : null;
+            if (bossHealth != null) bossHealth.Died += OnBossDied;
+            if (bossPanel != null) bossPanel.gameObject.SetActive(boss != null);
+            if (bossNameText != null) bossNameText.text = boss != null ? boss.displayName : "";
+            UpdateBossHud();
+        }
+
+        public void ShowAnnouncement(string message)
+        {
+            if (announcementText == null || string.IsNullOrEmpty(message)) return;
+            if (announcementRoutine != null) StopCoroutine(announcementRoutine);
+            announcementRoutine = StartCoroutine(AnnouncementRoutine(message));
+        }
+
+        IEnumerator AnnouncementRoutine(string message)
+        {
+            var root = announcementText.transform.parent.gameObject;
+            root.SetActive(true);
+            announcementText.text = message;
+            var color = announcementText.color;
+            color.a = 1f;
+            announcementText.color = color;
+            yield return new WaitForSecondsRealtime(1.8f);
+            root.SetActive(false);
+            announcementRoutine = null;
+        }
+
+        void UpdateBossHud()
+        {
+            if (bossPanel == null || bossHealth == null) return;
+            bossPanel.gameObject.SetActive(!bossHealth.IsDead);
+            float normalized = bossHealth.Normalized;
+            if (bossHpFill != null) bossHpFill.rectTransform.anchorMax = new Vector2(Mathf.Clamp01(normalized), 1f);
+            if (bossHpText != null) bossHpText.text = bossHealth.currentHp + "/" + bossHealth.maxHp;
+        }
+
+        void OnBossDied(Health _)
+        {
+            if (bossPanel != null) bossPanel.gameObject.SetActive(false);
         }
 
         void BuildPlayerPanel(Transform parent)
@@ -553,10 +718,19 @@ namespace AreaSurvivors
 
             playerHpFill = EnsureHorizontalBar(playerPanel, "Player HP Bar", new Vector2(174f, -36f), new Vector2(190f, 24f), HpRed, out playerHpText);
             playerXpFill = EnsureHorizontalBar(playerPanel, "Player XP Bar", new Vector2(174f, -72f), new Vector2(190f, 20f), HpBlue, out playerLevelText);
-            playerAttackText = EnsureStatText(playerStatsPanel, "Attack Text", new Vector2(58f, -102f));
-            playerCooldownText = EnsureStatText(playerStatsPanel, "Cooldown Text", new Vector2(58f, -132f));
-            playerSpeedText = EnsureStatText(playerStatsPanel, "Speed Text", new Vector2(58f, -162f));
-            playerPaintText = EnsureStatText(playerStatsPanel, "Paint Text", new Vector2(58f, -192f));
+            playerAttackText = BindStatText(playerStatsPanel, "Attack Text");
+            playerCooldownText = BindStatText(playerStatsPanel, "Cooldown Text");
+            playerSpeedText = BindStatText(playerStatsPanel, "Speed Text");
+            playerPaintText = BindStatText(playerStatsPanel, "Paint Text");
+            playerReviveText = BindStatText(playerStatsPanel, "Revive Text");
+            playerProjectileText = BindStatText(playerStatsPanel, "Projectile Text");
+            playerRangeText = BindStatText(playerStatsPanel, "Range Text");
+            playerKnockbackText = BindStatText(playerStatsPanel, "Knockback Text");
+            playerDefenseText = BindStatText(playerStatsPanel, "Defense Text");
+            playerXpGainText = BindStatText(playerStatsPanel, "Xp Gain Text");
+            playerRegenText = BindStatText(playerStatsPanel, "Regen Text");
+            playerWorkText = BindStatText(playerStatsPanel, "Work Text");
+            playerResourceText = BindStatText(playerStatsPanel, "Resource Text");
         }
 
         static void HideLegacyPlayerTiles(RectTransform statsRoot)
@@ -602,6 +776,18 @@ namespace AreaSurvivors
             if (playerCooldownText != null) playerCooldownText.text = "間隔: " + (weaponController != null ? weaponController.CurrentCooldown.ToString("0.0") + "s" : "-");
             if (playerSpeedText != null) playerSpeedText.text = "速度: " + player.MoveSpeed.ToString("0.0");
             if (playerPaintText != null) playerPaintText.text = "塗り: " + player.PaintRadius;
+            if (playerReviveText != null) playerReviveText.text = "復活: " + player.ReviveSeconds.ToString("0.0") + "s";
+            if (playerProjectileText != null) playerProjectileText.text = "弾速: " + (weaponController != null ? weaponController.ProjectileSpeed.ToString("0.0") : "-");
+            if (playerRangeText != null) playerRangeText.text = player.characterType == CharacterType.Archer
+                ? "射程: " + (weaponController != null ? weaponController.WeaponRange.ToString("0.0") : "-")
+                : "範囲: " + (weaponController != null ? weaponController.WeaponRange.ToString("0.0") : "-");
+            var stats = player.Stats;
+            if (playerKnockbackText != null) playerKnockbackText.text = "ノック: " + stats.knockback.ToString("0.#");
+            if (playerDefenseText != null) playerDefenseText.text = "防御: " + stats.defense;
+            if (playerXpGainText != null) playerXpGainText.text = "経験: " + stats.xpGainMultiplier.ToString("0.0") + "x";
+            if (playerRegenText != null) playerRegenText.text = "回復: " + stats.autoRegen;
+            if (playerWorkText != null) playerWorkText.text = "作業: " + stats.workSpeedMultiplier.ToString("0.0") + "x";
+            if (playerResourceText != null) playerResourceText.text = "資源: +" + stats.resourceGainBonus;
         }
 
         static RectTransform EnsureIconFrame(RectTransform parent, string name, Vector2 position, Vector2 size)
@@ -672,6 +858,15 @@ namespace AreaSurvivors
             return fill;
         }
 
+        static Text BindStatText(RectTransform parent, string name)
+        {
+            if (parent == null) return null;
+            var boxed = parent.Find(name + " Box/Label");
+            if (boxed != null && boxed.GetComponent<Text>() != null) return boxed.GetComponent<Text>();
+            var direct = parent.Find(name);
+            return direct != null ? direct.GetComponent<Text>() : null;
+        }
+
         static Text EnsureStatText(RectTransform parent, string name, Vector2 position)
         {
             var oldDirectText = parent.Find(name);
@@ -716,6 +911,7 @@ namespace AreaSurvivors
 
             stockLabels = new Text[3];
             slotBackplates = new Image[3];
+            slotButtons = new Button[3];
             slotHighlights = new UiSelectionHighlight[3];
             ConfigureBuildSlot(root, 0, "1", LoadHudSprite("Ballista", buildPlacement != null ? buildPlacement.ballistaPreviewSprite : null), new Vector2(42f, 48f), () =>
             {
@@ -751,6 +947,7 @@ namespace AreaSurvivors
             var button = buttonObject.GetComponent<Button>();
             if (button == null) button = buttonObject.AddComponent<Button>();
             button.targetGraphic = image;
+            slotButtons[index] = button;
             button.transition = Selectable.Transition.None;
             button.onClick.RemoveAllListeners();
             button.onClick.AddListener(onClick);
@@ -868,6 +1065,8 @@ namespace AreaSurvivors
             if (stockLabels[2] != null) stockLabels[2].text = buildPlacement.GetHudCostLabel(2);
             for (int i = 0; i < slotBackplates.Length; i++)
             {
+                bool unlocked = buildPlacement.IsSlotUnlocked(i);
+                if (slotButtons != null && i < slotButtons.Length && slotButtons[i] != null) slotButtons[i].interactable = unlocked;
                 if (slotBackplates[i] != null) slotBackplates[i].color = i == selectedSlot ? SlotSelectedColor : SlotColor;
                 if (slotHighlights != null && i < slotHighlights.Length && slotHighlights[i] != null) slotHighlights[i].forceSelected = i == selectedSlot;
             }

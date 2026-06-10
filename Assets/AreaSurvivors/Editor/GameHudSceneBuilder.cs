@@ -7,6 +7,7 @@ namespace AreaSurvivors.Editor
 {
     public static class GameHudSceneBuilder
     {
+        const string GameScenePath = "Assets/AreaSurvivors/Scenes/05_Game.unity";
         static readonly Color PanelColor = new Color(0.035f, 0.05f, 0.045f, 0.72f);
         static readonly Color SlotColor = new Color(0.09f, 0.16f, 0.12f, 0.92f);
         static readonly Color EdgeColor = new Color(0.58f, 0.68f, 0.40f, 0.9f);
@@ -16,19 +17,17 @@ namespace AreaSurvivors.Editor
         [MenuItem("AreaSurvivors/HUD/Create Player Status Panel")]
         public static void CreatePlayerStatusPanel()
         {
-            var canvas = Object.FindObjectOfType<Canvas>();
-            if (canvas == null || canvas.name != "HUD")
-            {
-                var hud = GameObject.Find("HUD");
-                canvas = hud != null ? hud.GetComponent<Canvas>() : null;
-            }
+            var canvas = FindHudCanvas();
             if (canvas == null)
             {
                 Debug.LogError("HUD Canvas was not found.");
                 return;
             }
 
-            var root = EnsurePanel(canvas.transform, "Player Status", new Vector2(14f, -12f), new Vector2(390f, 228f), Vector2.up);
+            var splitPlayer = canvas.transform.Find("Player") as RectTransform;
+            var root = splitPlayer != null
+                ? splitPlayer
+                : EnsurePanel(canvas.transform, "Player Status", new Vector2(14f, -12f), new Vector2(390f, 318f), Vector2.up);
             EnsureFrame(root, root.sizeDelta);
 
             var characterFrame = EnsurePanel(root, "Character Frame", new Vector2(18f, -36f), new Vector2(70f, 70f), Vector2.up, SlotColor);
@@ -45,14 +44,29 @@ namespace AreaSurvivors.Editor
 
             EnsureBar(root, "Player HP Bar", new Vector2(174f, -36f), new Vector2(190f, 24f), HpGreen, "45/45");
             EnsureBar(root, "Player XP Bar", new Vector2(174f, -72f), new Vector2(190f, 20f), HpBlue, "Lv.1");
-            EnsureStatBox(root, "Attack Text", new Vector2(58f, -102f), "攻撃: 10");
-            EnsureStatBox(root, "Cooldown Text", new Vector2(58f, -132f), "間隔: 0.9s");
-            EnsureStatBox(root, "Speed Text", new Vector2(58f, -162f), "速度: 2.5");
-            EnsureStatBox(root, "Paint Text", new Vector2(58f, -192f), "塗り: 3");
+
+            var statsRoot = splitPlayer != null
+                ? canvas.transform.Find("Player Status") as RectTransform
+                : root;
+            if (statsRoot != null)
+            {
+                ConfigurePlayerStatColumn(statsRoot, splitPlayer != null);
+                EnsureAdvancedStatBoxes(statsRoot, splitPlayer != null);
+            }
 
             EditorSceneManager.MarkSceneDirty(canvas.gameObject.scene);
             EditorSceneManager.SaveScene(canvas.gameObject.scene);
             Debug.Log("Player Status HUD panel was created in the scene.");
+        }
+
+        [MenuItem("AreaSurvivors/HUD/Normalize Game Player Status Panel")]
+        public static void NormalizeGamePlayerStatusPanel()
+        {
+            var scene = EditorSceneManager.OpenScene(GameScenePath);
+            CreatePlayerStatusPanel();
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene);
+            Debug.Log("Game Player Status HUD panel was normalized in 05_Game.");
         }
 
         [MenuItem("AreaSurvivors/HUD/Create Run Resource Panels")]
@@ -63,6 +77,7 @@ namespace AreaSurvivors.Editor
             ImportGeneratedSprite("Pickaxe");
             ImportGeneratedSprite("Axe");
             ImportGeneratedSprite("Hammer");
+            ImportGeneratedSprite("Token");
             var canvas = FindHudCanvas();
             if (canvas == null)
             {
@@ -84,8 +99,11 @@ namespace AreaSurvivors.Editor
 
             var wood = EnsureResourcePanel(canvas.transform, "Wood Resource", new Vector2(222f, -28f), Resources.Load<Sprite>("Generated/WoodIcon"), "100");
             var stone = EnsureResourcePanel(canvas.transform, "Stone Resource", new Vector2(332f, -28f), Resources.Load<Sprite>("Generated/StoneIcon"), "100");
+            var token = EnsureResourcePanel(canvas.transform, "Token Resource", new Vector2(442f, -28f), Resources.Load<Sprite>("Generated/Token"), "0");
             EnsureFrame(wood, wood.sizeDelta);
             EnsureFrame(stone, stone.sizeDelta);
+            EnsureFrame(token, token.sizeDelta);
+            EnsureBossHud(canvas.transform);
 
             var oldBackplate = canvas.transform.Find("Run Stats Backplate");
             if (oldBackplate != null) oldBackplate.gameObject.SetActive(false);
@@ -93,6 +111,43 @@ namespace AreaSurvivors.Editor
             EditorSceneManager.MarkSceneDirty(canvas.gameObject.scene);
             EditorSceneManager.SaveScene(canvas.gameObject.scene);
             Debug.Log("Run stats and resource HUD panels were created in the scene.");
+        }
+
+        [MenuItem("AreaSurvivors/HUD/Normalize Enemy Spawn HUD")]
+        public static void NormalizeEnemySpawnHud()
+        {
+            ImportGeneratedSprite("Token");
+            var scene = EditorSceneManager.OpenScene(GameScenePath);
+            var canvas = FindHudCanvas();
+            if (canvas == null)
+            {
+                Debug.LogError("HUD Canvas was not found.");
+                return;
+            }
+
+            var token = EnsureResourcePanel(canvas.transform, "Token Resource", new Vector2(442f, -28f), Resources.Load<Sprite>("Generated/Token"), "0");
+            EnsureFrame(token, token.sizeDelta);
+            EnsureBossHud(canvas.transform);
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene);
+            Debug.Log("Enemy spawn HUD widgets were normalized in 05_Game.");
+        }
+
+        [MenuItem("AreaSurvivors/Config/Normalize Enemy Spawn Defaults")]
+        public static void NormalizeEnemySpawnDefaults()
+        {
+            var config = AssetDatabase.LoadAssetAtPath<GameConfig>("Assets/AreaSurvivors/Resources/Config/GameConfig.asset");
+            if (config == null)
+            {
+                Debug.LogError("GameConfig.asset was not found.");
+                return;
+            }
+
+            config.EnsureEnemySpawnDefaults();
+            EditorUtility.SetDirty(config);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Debug.Log("Enemy spawn defaults were normalized in GameConfig.asset.");
         }
 
         [MenuItem("AreaSurvivors/HUD/Convert UI Frames To Outline Components")]
@@ -173,6 +228,86 @@ namespace AreaSurvivors.Editor
             text.rectTransform.offsetMin = new Vector2(36f, 0f);
             text.rectTransform.offsetMax = new Vector2(-6f, 0f);
             return root;
+        }
+
+        static void EnsureBossHud(Transform parent)
+        {
+            var boss = EnsurePanel(parent, "Boss Status", new Vector2(0f, -72f), new Vector2(520f, 58f), new Vector2(0.5f, 1f), new Color(0.035f, 0.03f, 0.035f, 0.78f));
+            SetAnchored(boss, new Vector2(0f, -72f), new Vector2(520f, 58f), new Vector2(0.5f, 1f));
+            EnsureFrame(boss, boss.sizeDelta);
+            var name = EnsureText(boss, "Boss Name", "オークキング", 20, TextAnchor.MiddleCenter);
+            name.color = new Color(1f, 0.78f, 0.62f, 1f);
+            name.rectTransform.anchorMin = new Vector2(0f, 0.5f);
+            name.rectTransform.anchorMax = new Vector2(1f, 0.5f);
+            name.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            name.rectTransform.anchoredPosition = new Vector2(0f, 13f);
+            name.rectTransform.sizeDelta = new Vector2(500f, 24f);
+
+            var bar = EnsurePanel(boss, "Boss HP Bar", new Vector2(0f, -12f), new Vector2(470f, 20f), new Vector2(0.5f, 0.5f), new Color(0.02f, 0.015f, 0.015f, 0.9f));
+            var fill = EnsureImage(bar, "Fill", bar.sizeDelta);
+            fill.color = new Color(0.86f, 0.08f, 0.06f, 0.98f);
+            fill.rectTransform.anchorMin = Vector2.zero;
+            fill.rectTransform.anchorMax = Vector2.one;
+            fill.rectTransform.pivot = new Vector2(0f, 0.5f);
+            fill.rectTransform.offsetMin = new Vector2(3f, 3f);
+            fill.rectTransform.offsetMax = new Vector2(-3f, -3f);
+            var label = EnsureText(bar, "Label", "0/0", 12, TextAnchor.MiddleCenter);
+            Stretch(label.rectTransform);
+            boss.gameObject.SetActive(false);
+
+            var announcement = EnsurePanel(parent, "Announcement", new Vector2(0f, -136f), new Vector2(520f, 48f), new Vector2(0.5f, 1f), new Color(0.03f, 0.02f, 0.02f, 0.78f));
+            SetAnchored(announcement, new Vector2(0f, -136f), new Vector2(520f, 48f), new Vector2(0.5f, 1f));
+            EnsureFrame(announcement, announcement.sizeDelta);
+            var announcementLabel = EnsureText(announcement, "Label", "", 28, TextAnchor.MiddleCenter);
+            announcementLabel.color = new Color(1f, 0.84f, 0.55f, 1f);
+            Stretch(announcementLabel.rectTransform);
+            announcement.gameObject.SetActive(false);
+        }
+
+        static void ConfigurePlayerStatColumn(RectTransform root, bool splitLayout)
+        {
+            if (splitLayout)
+            {
+                root.sizeDelta = new Vector2(Mathf.Max(root.sizeDelta.x, 112f), Mathf.Max(root.sizeDelta.y, 412f));
+                EnsureFrame(root, root.sizeDelta);
+                EnsureStatBox(root, "Attack Text", new Vector2(56f, -18f), "攻撃: 10");
+                EnsureStatBox(root, "Cooldown Text", new Vector2(56f, -48f), "間隔: 0.9s");
+                EnsureStatBox(root, "Speed Text", new Vector2(56f, -78f), "速度: 2.5");
+                EnsureStatBox(root, "Paint Text", new Vector2(56f, -108f), "塗り: 3");
+                EnsureStatBox(root, "Revive Text", new Vector2(56f, -138f), "復活: 6.0s");
+                EnsureStatBox(root, "Projectile Text", new Vector2(56f, -168f), "弾速: 11.5");
+                EnsureStatBox(root, "Range Text", new Vector2(56f, -198f), "範囲: 1.1");
+                return;
+            }
+
+            EnsureStatBox(root, "Attack Text", new Vector2(58f, -102f), "攻撃: 10");
+            EnsureStatBox(root, "Cooldown Text", new Vector2(58f, -132f), "間隔: 0.9s");
+            EnsureStatBox(root, "Speed Text", new Vector2(58f, -162f), "速度: 2.5");
+            EnsureStatBox(root, "Paint Text", new Vector2(58f, -192f), "塗り: 3");
+            EnsureStatBox(root, "Revive Text", new Vector2(58f, -222f), "復活: 6.0s");
+            EnsureStatBox(root, "Projectile Text", new Vector2(58f, -252f), "弾速: 11.5");
+            EnsureStatBox(root, "Range Text", new Vector2(58f, -282f), "範囲: 1.1");
+        }
+
+        static void EnsureAdvancedStatBoxes(RectTransform root, bool splitLayout)
+        {
+            if (splitLayout)
+            {
+                EnsureStatBox(root, "Knockback Text", new Vector2(56f, -228f), "ノック: 1");
+                EnsureStatBox(root, "Defense Text", new Vector2(56f, -258f), "防御: 0");
+                EnsureStatBox(root, "Xp Gain Text", new Vector2(56f, -288f), "経験: 1.0x");
+                EnsureStatBox(root, "Regen Text", new Vector2(56f, -318f), "回復: 0");
+                EnsureStatBox(root, "Work Text", new Vector2(56f, -348f), "作業: 1.0x");
+                EnsureStatBox(root, "Resource Text", new Vector2(56f, -378f), "資源: +0");
+                return;
+            }
+
+            EnsureStatBox(root, "Knockback Text", new Vector2(58f, -312f), "ノック: 1");
+            EnsureStatBox(root, "Defense Text", new Vector2(58f, -342f), "防御: 0");
+            EnsureStatBox(root, "Xp Gain Text", new Vector2(58f, -372f), "経験: 1.0x");
+            EnsureStatBox(root, "Regen Text", new Vector2(58f, -402f), "回復: 0");
+            EnsureStatBox(root, "Work Text", new Vector2(58f, -432f), "作業: 1.0x");
+            EnsureStatBox(root, "Resource Text", new Vector2(58f, -462f), "資源: +0");
         }
 
         static RectTransform EnsurePanel(Transform parent, string name, Vector2 position, Vector2 size, Vector2 anchor, Color? color = null)

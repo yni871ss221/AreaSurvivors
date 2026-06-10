@@ -12,6 +12,7 @@ namespace AreaSurvivors
         public TileGrid grid;
         public WeaponController weapon;
         public Slider hpBar;
+        public GameObject damagePopupPrefab;
         public DirectionalSpriteAnimator directionalAnimator;
         public Sprite knightSprite;
         public Sprite archerSprite;
@@ -32,6 +33,8 @@ namespace AreaSurvivors
 
         Rigidbody2D body;
         Health health;
+        PlayerStats stats;
+        AutoRegeneration autoRegen;
         Collider2D hitCollider;
         Vector2 facing = Vector2.down;
         float moveSpeed;
@@ -41,6 +44,10 @@ namespace AreaSurvivors
         {
             body = GetComponent<Rigidbody2D>();
             health = GetComponent<Health>();
+            stats = GetComponent<PlayerStats>();
+            if (stats == null) stats = gameObject.AddComponent<PlayerStats>();
+            autoRegen = GetComponent<AutoRegeneration>();
+            if (autoRegen == null) autoRegen = gameObject.AddComponent<AutoRegeneration>();
             hitCollider = GetComponent<Collider2D>();
             health.Died += OnDied;
         }
@@ -50,12 +57,38 @@ namespace AreaSurvivors
             config = gameConfig;
             grid = tileGrid;
             characterType = type;
+            stats.Initialize(config);
             transform.localScale = Vector3.one * Mathf.Max(0.1f, config.playerVisualScale);
             ApplyCharacterSprite(type);
-            moveSpeed = config.playerMoveSpeed + ProgressionStore.GetLevel(UpgradeType.MoveSpeed) * 0.18f;
-            paintRadius = config.paintRadius + ProgressionStore.GetLevel(UpgradeType.PaintRadius) / 2;
-            health.SetMax(config.playerMaxHp + ProgressionStore.GetLevel(UpgradeType.MaxHp) * 5);
+            ApplyCurrentStats(true);
             weapon.Configure(config, this);
+        }
+
+        public void ApplyCurrentStats(bool fullHeal)
+        {
+            var current = Stats;
+            int beforeMax = health.maxHp;
+            int beforeHp = health.currentHp;
+            health.defense = current.defense;
+            health.SetMax(current.maxHp, fullHeal);
+            if (!fullHeal && current.maxHp > beforeMax)
+            {
+                health.Heal(current.maxHp - beforeMax);
+            }
+            else if (!fullHeal)
+            {
+                health.currentHp = Mathf.Min(beforeHp, health.maxHp);
+            }
+            moveSpeed = current.moveSpeed;
+            paintRadius = current.paintRadius;
+            if (autoRegen != null)
+            {
+                autoRegen.amount = current.autoRegen;
+                autoRegen.intervalSeconds = config.autoRegenIntervalSeconds;
+                autoRegen.popupPrefab = damagePopupPrefab;
+                autoRegen.popupOffset = new Vector3(0f, 0.58f, 0f);
+            }
+            if (weapon != null) weapon.RefreshFromStats();
         }
 
         void ApplyCharacterSprite(CharacterType type)
@@ -101,9 +134,19 @@ namespace AreaSurvivors
 
         public Vector2 Facing => facing;
         public Health Health => health;
+        public PlayerStats StatsSource => stats;
+        public StatBlock Stats => stats != null ? stats.Current : default;
         public float MoveSpeed => moveSpeed;
         public int PaintRadius => paintRadius;
+        public float ReviveSeconds => Stats.reviveSeconds;
         public Sprite PortraitSprite => characterType == CharacterType.Archer ? archerSprite : characterType == CharacterType.Mage ? mageSprite : knightSprite;
+        public bool CanPerformWorldActions =>
+            isActiveAndEnabled &&
+            !IsReviving &&
+            health != null &&
+            !health.IsDead &&
+            hitCollider != null &&
+            hitCollider.enabled;
 
         void OnDied(Health _)
         {
@@ -130,7 +173,7 @@ namespace AreaSurvivors
                 mainVisual.visible = false;
             }
 
-            float revive = Mathf.Max(1f, config.playerReviveSeconds - ProgressionStore.GetLevel(UpgradeType.ReviveSpeed) * 0.35f);
+            float revive = ReviveSeconds;
             float elapsed = 0f;
             while (elapsed < revive)
             {

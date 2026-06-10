@@ -18,6 +18,14 @@ MonoBehaviour:
   enemyTerritorySlow: 0.35
   paintRadius: 1
   playerVisualScale: 1
+  moveSpeedPerUpgradeLevel: 0.18
+  paintRadiusLevelsPerBonus: 2
+  maxHpPerUpgradeLevel: 5
+  reviveSecondsReductionPerUpgradeLevel: 0.35
+  minReviveSeconds: 1
+  runMoveSpeedMultiplier: 1.08
+  runPaintRadiusBonus: 1
+  runMaxHpBonus: 8
   cameraOrthographicSize: 12.5
   cameraOffset: {x: 0, y: -15.5, z: -19}
   cameraPitch: -45
@@ -28,18 +36,76 @@ MonoBehaviour:
   cameraZoomScrollSpeed: 0.16
   cameraPlayerWeight: 0.55
   towerMaxHp: 160
+  towerMaxHpPerUpgradeLevel: 12
   ballistaBuildSeconds: 2.2
   ballistaRange: 9.5
   ballistaCooldown: 1.15
   ballistaDamage: 5
+  ballistaMaxHp: 90
   fenceBuildSeconds: 1.8
   fenceMaxHp: 70
   startingBallistaStock: 4
   startingFenceStock: 4
+  startingWood: 100
+  startingStone: 100
+  startingWoodPerUpgradeLevel: 25
+  startingStonePerUpgradeLevel: 25
+  fenceWoodCost: 10
+  fenceStoneCost: 0
+  ballistaWoodCost: 50
+  ballistaStoneCost: 30
+  harvestIntervalSeconds: 1
+  harvestAmountPerTick: 2
+  harvestAmount1Cell: 100
+  harvestAmount2Cell: 200
+  harvestAmount4Cell: 400
+  harvestAmount8Cell: 800
+  woodcuttingSpeedPerUpgradeLevel: 0.1
+  woodcuttingGainPerUpgradeLevel: 1
+  miningSpeedPerUpgradeLevel: 0.1
+  miningGainPerUpgradeLevel: 1
   baseAttackPower: 6
   knightCooldown: 1.05
   archerCooldown: 0.75
   mageCooldown: 1.45
+  attackPowerPerUpgradeLevel: 1
+  attackCooldownReductionPerUpgradeLevel: 0.06
+  minAttackCooldownMultiplier: 0.45
+  runAttackPowerBonus: 2
+  runAttackCooldownMultiplier: 0.92
+  knightDamageBonus: 2
+  knightSlashRange: 1.05
+  knightSlashOffset: 1.05
+  mageExplosionRadius: 1.1
+  baseKnockback: 1
+  knockbackForceUnit: 2.2
+  knockbackDuration: 0.16
+  baseDefense: 0
+  baseXpGainMultiplier: 1
+  baseAutoRegen: 0
+  autoRegenIntervalSeconds: 2
+  baseWorkSpeedMultiplier: 1
+  baseResourceGainBonus: 0
+  knockbackPerUpgradeLevel: 1
+  defensePerUpgradeLevel: 1
+  xpGainMultiplierPerUpgradeLevel: 0.1
+  autoRegenPerUpgradeLevel: 1
+  workSpeedMultiplierPerUpgradeLevel: 0.1
+  resourceGainPerUpgradeLevel: 1
+  runKnockbackBonus: 1
+  runDefenseBonus: 1
+  runXpGainMultiplierBonus: 0.1
+  runAutoRegenBonus: 1
+  runWorkSpeedMultiplierBonus: 0.1
+  runResourceGainBonus: 1
+  ballistaRangePerUpgradeLevel: 0.75
+  initialTerritoryRadiusPerUpgradeLevel: 1
+  towerAutoRegenPerUpgradeLevel: 1
+  endTokenGainMultiplierPerUpgradeLevel: 0.1
+  eliteSpawnRatePerUpgradeLevel: 0.1
+  autoBuildSpeedPerUpgradeLevel: 0.1
+  autoWoodcuttingSpeedPerUpgradeLevel: 0.1
+  autoMiningSpeedPerUpgradeLevel: 0.1
   projectileSpeed: 11.5
   projectileLifetime: 4.2
   projectileVisualScale: 1.35
@@ -51,5 +117,110 @@ MonoBehaviour:
   enemySpawnRadius: 28
   difficultyRampSeconds: 55
   playerTerritorySlow: 0.35
+  spawnDirectionChangeSeconds: 30
+  spawnDirectionArcDegrees: 60
+  maxAliveEnemies: 160
+  bossTimeSeconds: 300
+  bossAnnouncement: "\u30AA\u30FC\u30AF\u30AD\u30F3\u30B0\u51FA\u73FE\uFF01"
+  enemyDefinitions:
+  - kind: 0
+    displayName: "\u30A4\u30CE\u30B7\u30B7"
+    spriteKey: EnemyBoar
+    animationSpeedMultiplier: 1
+    hpMultiplier: 1
+    damageMultiplier: 1
+    speedMultiplier: 1
+    cellSize: 1
+    xpValue: 1
+    tokenValue: 0
+    elite: 0
+    boss: 0
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    outlineThickness: 0.018
+  - kind: 1
+    displayName: "\u30A8\u30EA\u30FC\u30C8\u30A4\u30CE\u30B7\u30B7"
+    spriteKey: EnemyBoar
+    animationSpeedMultiplier: 1
+    hpMultiplier: 5
+    damageMultiplier: 2
+    speedMultiplier: 0.95
+    cellSize: 1.5
+    xpValue: 6
+    tokenValue: 1
+    elite: 1
+    boss: 0
+    outlineColor: {r: 1, g: 0.86, b: 0.12, a: 1}
+    outlineThickness: 0.055
+  - kind: 2
+    displayName: "\u30AA\u30FC\u30AF"
+    spriteKey: EnemyOrc
+    animationSpeedMultiplier: 0.5
+    hpMultiplier: 2
+    damageMultiplier: 2
+    speedMultiplier: 0.82
+    cellSize: 2
+    xpValue: 3
+    tokenValue: 0
+    elite: 0
+    boss: 0
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    outlineThickness: 0.02
+  - kind: 3
+    displayName: "\u30A8\u30EA\u30FC\u30C8\u30AA\u30FC\u30AF"
+    spriteKey: EnemyOrc
+    animationSpeedMultiplier: 0.5
+    hpMultiplier: 10
+    damageMultiplier: 4
+    speedMultiplier: 0.76
+    cellSize: 2.5
+    xpValue: 12
+    tokenValue: 1
+    elite: 1
+    boss: 0
+    outlineColor: {r: 1, g: 0.86, b: 0.12, a: 1}
+    outlineThickness: 0.055
+  - kind: 4
+    displayName: "\u30AA\u30FC\u30AF\u30AD\u30F3\u30B0"
+    spriteKey: EnemyOrcKing
+    animationSpeedMultiplier: 0.5
+    hpMultiplier: 40
+    damageMultiplier: 8
+    speedMultiplier: 0.62
+    cellSize: 4
+    xpValue: 50
+    tokenValue: 3
+    elite: 0
+    boss: 1
+    outlineColor: {r: 1, g: 0.08, b: 0.04, a: 1}
+    outlineThickness: 0.075
+  spawnPhases:
+  - startSeconds: 0
+    enemyKind: 0
+    spawnInterval: 1.8
+    baseBatchCount: 1
+    batchIncreasePerDirectionChange: 1
+    maxBatchCount: 10
+  - startSeconds: 150
+    enemyKind: 2
+    spawnInterval: 1.8899999
+    baseBatchCount: 1
+    batchIncreasePerDirectionChange: 1
+    maxBatchCount: 14
+  timedEnemySpawns:
+  - timeSeconds: 120
+    enemyKind: 1
+    count: 1
+    announce: 1
+    announcement: "\u30A8\u30EA\u30FC\u30C8\u30A4\u30CE\u30B7\u30B7\u51FA\u73FE\uFF01"
+  - timeSeconds: 270
+    enemyKind: 3
+    count: 1
+    announce: 1
+    announcement: "\u30A8\u30EA\u30FC\u30C8\u30AA\u30FC\u30AF\u51FA\u73FE\uFF01"
+  - timeSeconds: 300
+    enemyKind: 4
+    count: 1
+    announce: 1
+    announcement: "\u30AA\u30FC\u30AF\u30AD\u30F3\u30B0\u51FA\u73FE\uFF01"
   xpPerEnemy: 1
   tokenKillsDivisor: 8

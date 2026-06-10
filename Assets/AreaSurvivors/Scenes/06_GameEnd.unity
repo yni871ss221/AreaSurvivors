@@ -133,7 +133,7 @@ GameObject:
   - component: {fileID: 729292299}
   - component: {fileID: 729292298}
   m_Layer: 0
-  m_Name: 06_GameOver Controller
+  m_Name: 06_GameEnd Controller
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

@@ -11,7 +11,7 @@ namespace AreaSurvivors
             var result = RunResult.Last ?? new RunResult();
             var ui = SimpleUi.Root("Game Over UI", new Color(0.08f, 0.07f, 0.08f), "Generated/UI/UpgradeBackground");
             SimpleUi.Panel(ui.transform, "Result Board", new Vector2(0, 18), new Vector2(820, 540), new Color(0.035f, 0.03f, 0.04f, 0.84f));
-            SimpleUi.Label(ui.transform, "GAME OVER", 48, new Vector2(0, 250), new Vector2(520, 58), "Title", new Color(1f, 0.76f, 0.62f));
+            SimpleUi.Label(ui.transform, result.gameClear ? "GAME CLEAR" : "GAME OVER", 48, new Vector2(0, 250), new Vector2(520, 58), "Title", result.gameClear ? new Color(0.66f, 1f, 0.64f) : new Color(1f, 0.76f, 0.62f));
             SimpleUi.Label(ui.transform, "\u30e9\u30f3\u30ea\u30b6\u30eb\u30c8", 25, new Vector2(0, 204), new Vector2(360, 34), "Subtitle", new Color(0.96f, 0.90f, 0.68f));
 
             var survived = TimeSpan.FromSeconds(result.survivedSeconds);

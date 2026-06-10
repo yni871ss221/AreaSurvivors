@@ -1,0 +1,54 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ff4efad9b94e2b4ca9cd09cca12394d, type: 3}
+  m_Name: Gameplay_Navigation_Default
+  m_EditorClassIdentifier: 
+  targetCellOffset: {x: 0, y: 0}
+  enemies:
+  - kind: 2
+    cellOffset: {x: -12, y: 0}
+    count: 1
+    spacing: {x: 1, y: 0}
+    monitorForStall: 1
+    requireReachTarget: 1
+    suppressStuckRecovery: 0
+  - kind: 2
+    cellOffset: {x: -12, y: 1}
+    count: 1
+    spacing: {x: 1, y: 0}
+    monitorForStall: 1
+    requireReachTarget: 1
+    suppressStuckRecovery: 0
+  landmarks:
+  - landmarkName: Rock4
+    cellOffset: {x: -7, y: 0}
+    count: 1
+    spacing: {x: 1, y: 0}
+  - landmarkName: Rock1
+    cellOffset: {x: -3, y: 3}
+    count: 1
+    spacing: {x: 1, y: 0}
+  - landmarkName: Tree1
+    cellOffset: {x: -3, y: -3}
+    count: 1
+    spacing: {x: 1, y: 0}
+  prefabs: []
+  simulationTimeScale: 4
+  testDurationSeconds: 12
+  reachDistance: 1.25
+  stallSeconds: 3
+  stallMovementThreshold: 0.08
+  pauseOnComplete: 0
+  assertions:
+  - type: 0
+    expectedCount: 0
+    objectName: 

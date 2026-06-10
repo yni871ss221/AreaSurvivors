@@ -118,6 +118,13 @@ namespace AreaSurvivors
 
         public void SelectBallista()
         {
+            if (!IsSlotUnlocked(0))
+            {
+                buildSelectionActive = false;
+                SelectedHudSlot = -1;
+                UpdateBuildStatus();
+                return;
+            }
             buildMode = BuildMode.Ballista;
             buildSelectionActive = true;
             SelectedHudSlot = 0;
@@ -189,7 +196,7 @@ namespace AreaSurvivors
         {
             if (Input.GetKeyDown(KeyCode.Alpha1))
             {
-                SelectBallista();
+                if (IsSlotUnlocked(0)) SelectBallista();
             }
             if (Input.GetKeyDown(KeyCode.Alpha2))
             {
@@ -431,6 +438,7 @@ namespace AreaSurvivors
 
         public string GetHudCostLabel(int slot)
         {
+            if (!IsSlotUnlocked(slot)) return "\u30ed\u30c3\u30af";
             bool ballista = slot == 0;
             int wood = 0;
             int stone = 0;
@@ -446,6 +454,11 @@ namespace AreaSurvivors
             }
 
             return BuildCostLabel(Mathf.Max(0, wood), Mathf.Max(0, stone));
+        }
+
+        public bool IsSlotUnlocked(int slot)
+        {
+            return slot != 0 || ProgressionStore.IsUnlocked(UpgradeType.UnlockBallista);
         }
 
         static string BuildCostLabel(int wood, int stone)

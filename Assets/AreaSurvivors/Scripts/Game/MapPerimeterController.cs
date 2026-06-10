@@ -1,0 +1,170 @@
+using UnityEngine;
+
+namespace AreaSurvivors
+{
+    public sealed class MapPerimeterController : MonoBehaviour
+    {
+        public TileGrid grid;
+
+        [Header("Boundary")]
+        [Min(0.5f)]
+        public float wallThicknessCells = 4f;
+
+        [Header("Provisional Visuals")]
+        public bool showVisuals = true;
+        public string forestResourcePath = "Generated/Landmarks/Forest8";
+        public string mountainResourcePath = "Generated/Landmarks/Rock8";
+        [Min(1f)]
+        public float visualSpacingCells = 7f;
+        [Min(0f)]
+        public float visualOutsideOffsetCells = 3f;
+        [Min(0.1f)]
+        public float visualScale = 0.9f;
+        public int visualSortingOrder = 800;
+
+        const string GeneratedRootName = "Perimeter Content";
+        const string LegacyGeneratedRootName = "Generated Perimeter";
+
+        [ContextMenu("Rebuild Perimeter")]
+        public void Rebuild()
+        {
+            if (grid == null) grid = FindObjectOfType<TileGrid>();
+            if (grid == null || grid.groundTilemap == null || grid.width <= 0 || grid.height <= 0)
+            {
+                Debug.LogWarning("Map perimeter requires a configured TileGrid.", this);
+                return;
+            }
+
+            ClearGenerated();
+
+            var generated = new GameObject(GeneratedRootName);
+            generated.transform.SetParent(transform, false);
+
+            CalculateMapBounds(out var center, out var size, out var rightStep, out var upStep);
+            CreateBoundary(generated.transform, center, size, rightStep, upStep);
+            if (showVisuals) CreateVisuals(generated.transform, center, size, rightStep, upStep);
+        }
+
+        [ContextMenu("Clear Generated Perimeter")]
+        public void ClearGenerated()
+        {
+            var existing = transform.Find(GeneratedRootName);
+            if (existing != null) DestroyUnityObject(existing.gameObject);
+            var legacy = transform.Find(LegacyGeneratedRootName);
+            if (legacy != null) DestroyUnityObject(legacy.gameObject);
+        }
+
+        public void CalculateMapBounds(out Vector3 center, out Vector2 size, out Vector3 rightStep, out Vector3 upStep)
+        {
+            Vector3 firstCenter = grid.groundTilemap.GetCellCenterWorld(grid.GridToCell(0, 0));
+            rightStep = grid.width > 1
+                ? grid.groundTilemap.GetCellCenterWorld(grid.GridToCell(1, 0)) - firstCenter
+                : new Vector3(grid.cellSize, 0f, 0f);
+            upStep = grid.height > 1
+                ? grid.groundTilemap.GetCellCenterWorld(grid.GridToCell(0, 1)) - firstCenter
+                : new Vector3(0f, grid.cellSize, 0f);
+            Vector3 lastCenter = grid.groundTilemap.GetCellCenterWorld(grid.GridToCell(grid.width - 1, grid.height - 1));
+            center = (firstCenter + lastCenter) * 0.5f;
+            size = new Vector2(Mathf.Abs(rightStep.x) * grid.width, Mathf.Abs(upStep.y) * grid.height);
+        }
+
+        void CreateBoundary(Transform parent, Vector3 center, Vector2 mapSize, Vector3 rightStep, Vector3 upStep)
+        {
+            var boundaryRoot = new GameObject("Boundary Colliders");
+            boundaryRoot.transform.SetParent(parent, false);
+
+            float thicknessX = Mathf.Max(0.1f, Mathf.Abs(rightStep.x) * wallThicknessCells);
+            float thicknessY = Mathf.Max(0.1f, Mathf.Abs(upStep.y) * wallThicknessCells);
+            CreateWall(boundaryRoot.transform, "North", center + Vector3.up * (mapSize.y + thicknessY) * 0.5f,
+                new Vector2(mapSize.x + thicknessX * 2f, thicknessY));
+            CreateWall(boundaryRoot.transform, "South", center + Vector3.down * (mapSize.y + thicknessY) * 0.5f,
+                new Vector2(mapSize.x + thicknessX * 2f, thicknessY));
+            CreateWall(boundaryRoot.transform, "East", center + Vector3.right * (mapSize.x + thicknessX) * 0.5f,
+                new Vector2(thicknessX, mapSize.y + thicknessY * 2f));
+            CreateWall(boundaryRoot.transform, "West", center + Vector3.left * (mapSize.x + thicknessX) * 0.5f,
+                new Vector2(thicknessX, mapSize.y + thicknessY * 2f));
+        }
+
+        void CreateWall(Transform parent, string wallName, Vector3 position, Vector2 size)
+        {
+            var wall = new GameObject(wallName);
+            wall.layer = gameObject.layer;
+            wall.transform.SetParent(parent, true);
+            wall.transform.position = position;
+            var collider = wall.AddComponent<BoxCollider2D>();
+            collider.size = size;
+        }
+
+        void CreateVisuals(Transform parent, Vector3 center, Vector2 mapSize, Vector3 rightStep, Vector3 upStep)
+        {
+            var forest = LoadSprite(forestResourcePath);
+            var mountain = LoadSprite(mountainResourcePath);
+            if (forest == null && mountain == null) return;
+
+            var visualRoot = new GameObject("Visuals");
+            visualRoot.transform.SetParent(parent, false);
+
+            float spacingX = Mathf.Max(Mathf.Abs(rightStep.x), Mathf.Abs(rightStep.x) * visualSpacingCells);
+            float spacingY = Mathf.Max(Mathf.Abs(upStep.y), Mathf.Abs(upStep.y) * visualSpacingCells);
+            float offsetX = mapSize.x * 0.5f + Mathf.Abs(rightStep.x) * visualOutsideOffsetCells;
+            float offsetY = mapSize.y * 0.5f + Mathf.Abs(upStep.y) * visualOutsideOffsetCells;
+
+            int horizontalCount = Mathf.CeilToInt(mapSize.x / spacingX) + 2;
+            int verticalCount = Mathf.CeilToInt(mapSize.y / spacingY) + 2;
+            for (int i = 0; i < horizontalCount; i++)
+            {
+                float x = center.x + (i - (horizontalCount - 1) * 0.5f) * spacingX;
+                CreateVisual(visualRoot.transform, $"North {i}", PickSprite(forest, mountain, i), new Vector3(x, center.y + offsetY, center.z));
+                CreateVisual(visualRoot.transform, $"South {i}", PickSprite(forest, mountain, i + 1), new Vector3(x, center.y - offsetY, center.z));
+            }
+
+            for (int i = 0; i < verticalCount; i++)
+            {
+                float y = center.y + (i - (verticalCount - 1) * 0.5f) * spacingY;
+                CreateVisual(visualRoot.transform, $"East {i}", PickSprite(forest, mountain, i + 2), new Vector3(center.x + offsetX, y, center.z));
+                CreateVisual(visualRoot.transform, $"West {i}", PickSprite(forest, mountain, i + 3), new Vector3(center.x - offsetX, y, center.z));
+            }
+        }
+
+        void CreateVisual(Transform parent, string visualName, Sprite sprite, Vector3 position)
+        {
+            if (sprite == null) return;
+            var root = new GameObject(visualName);
+            root.transform.SetParent(parent, true);
+            root.transform.position = position;
+            root.transform.localScale = Vector3.one * visualScale;
+
+            var visual = root.AddComponent<PaperMeshVisual>();
+            visual.Configure(sprite, Color.white, visualSortingOrder);
+            var billboard = root.AddComponent<PaperBillboard>();
+            billboard.faceCamera = true;
+        }
+
+        static Sprite PickSprite(Sprite forest, Sprite mountain, int index)
+        {
+            if (forest == null) return mountain;
+            if (mountain == null) return forest;
+            return index % 3 == 0 ? mountain : forest;
+        }
+
+        static Sprite LoadSprite(string resourcePath)
+        {
+            if (string.IsNullOrEmpty(resourcePath)) return null;
+            var importedSprite = Resources.Load<Sprite>(resourcePath);
+            if (importedSprite != null) return importedSprite;
+
+            var texture = Resources.Load<Texture2D>(resourcePath);
+            if (texture == null) return null;
+            texture.filterMode = FilterMode.Point;
+            texture.wrapMode = TextureWrapMode.Clamp;
+            return Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0f), 128f);
+        }
+
+        static void DestroyUnityObject(Object target)
+        {
+            if (target == null) return;
+            if (Application.isPlaying) Destroy(target);
+            else DestroyImmediate(target);
+        }
+    }
+}

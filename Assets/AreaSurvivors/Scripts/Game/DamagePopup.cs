@@ -10,6 +10,17 @@ namespace AreaSurvivors
         float age;
         Color baseColor = Color.white;
         float drift;
+        RuntimeTextMeshOutline textOutline;
+
+        void Awake()
+        {
+            if (text != null)
+            {
+                textOutline = text.GetComponent<RuntimeTextMeshOutline>();
+                if (textOutline == null) textOutline = text.gameObject.AddComponent<RuntimeTextMeshOutline>();
+            }
+            DisableLegacyOutlines();
+        }
 
         public static void Show(GameObject prefab, Vector3 position, int amount, Color color)
         {
@@ -19,16 +30,7 @@ namespace AreaSurvivors
             if (popup != null)
             {
                 popup.text.text = amount.ToString();
-                popup.text.color = color;
-                if (popup.outlines != null)
-                {
-                    foreach (var outline in popup.outlines)
-                    {
-                        if (outline == null) continue;
-                        outline.text = amount.ToString();
-                        outline.color = Color.black;
-                    }
-                }
+                popup.textOutline?.SetColors(color, Color.black);
                 popup.baseColor = color;
                 popup.drift = UnityEngine.Random.Range(-0.12f, 0.12f);
             }
@@ -41,11 +43,7 @@ namespace AreaSurvivors
             transform.position += new Vector3(drift, 0.42f, 0f) * Time.deltaTime;
             transform.localScale = Vector3.one * EvaluateScale(t);
             float alpha = t < 0.48f ? 1f : 1f - Mathf.InverseLerp(0.48f, 1f, t);
-            SetAlpha(text, baseColor, alpha);
-            if (outlines != null)
-            {
-                foreach (var outline in outlines) SetAlpha(outline, Color.black, alpha);
-            }
+            textOutline?.SetAlpha(alpha);
             if (age >= lifetime) Destroy(gameObject);
         }
 
@@ -56,10 +54,15 @@ namespace AreaSurvivors
             return 0.68f;
         }
 
-        static void SetAlpha(TextMesh mesh, Color color, float alpha)
+        void DisableLegacyOutlines()
         {
-            if (mesh == null) return;
-            mesh.color = new Color(color.r, color.g, color.b, alpha);
+            if (outlines == null) return;
+            foreach (var outline in outlines)
+            {
+                if (outline == null) continue;
+                var renderer = outline.GetComponent<MeshRenderer>();
+                if (renderer != null) renderer.enabled = false;
+            }
         }
     }
 }

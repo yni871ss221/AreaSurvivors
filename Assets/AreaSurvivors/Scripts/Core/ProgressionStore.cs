@@ -35,6 +35,7 @@ namespace AreaSurvivors
         public static bool TryBuy(UpgradeType type)
         {
             int level = GetLevel(type);
+            if (level >= GetMaxLevel(type)) return false;
             int cost = GetCost(type, level);
             if (Data.tokens < cost) return false;
 
@@ -46,13 +47,68 @@ namespace AreaSurvivors
 
         public static int GetCost(UpgradeType type, int level)
         {
-            return 4 + level * 3 + (type == UpgradeType.TowerMaxHp ? 2 : 0);
+            return BaseCost(type) + level * 3;
+        }
+
+        public static int GetMaxLevel(UpgradeType type)
+        {
+            switch (type)
+            {
+                case UpgradeType.UnlockBallista:
+                case UpgradeType.UnlockWatchTower:
+                case UpgradeType.UnlockLargeWorkshop:
+                case UpgradeType.UnlockTowerCannon:
+                case UpgradeType.UnlockTowerUpgrade:
+                case UpgradeType.UnlockDefenseCharacter:
+                case UpgradeType.UnlockCarpenterHut:
+                case UpgradeType.UnlockAutoBuild:
+                case UpgradeType.UnlockWorkerHut:
+                case UpgradeType.UnlockClassChange:
+                    return 1;
+                default:
+                    return 10;
+            }
+        }
+
+        public static bool IsUnlocked(UpgradeType type)
+        {
+            return GetLevel(type) > 0;
+        }
+
+        static int BaseCost(UpgradeType type)
+        {
+            switch (type)
+            {
+                case UpgradeType.UnlockBallista: return 3;
+                case UpgradeType.UnlockWatchTower:
+                case UpgradeType.UnlockLargeWorkshop:
+                case UpgradeType.UnlockTowerCannon:
+                case UpgradeType.UnlockTowerUpgrade:
+                case UpgradeType.UnlockDefenseCharacter:
+                case UpgradeType.UnlockCarpenterHut:
+                case UpgradeType.UnlockAutoBuild:
+                case UpgradeType.UnlockWorkerHut:
+                case UpgradeType.UnlockClassChange:
+                    return 8;
+                case UpgradeType.TowerMaxHp:
+                case UpgradeType.TowerAutoRegen:
+                case UpgradeType.EndTokenGain:
+                case UpgradeType.EliteSpawnRate:
+                    return 6;
+                default:
+                    return 4;
+            }
         }
 
         public static void AddRunRewards(int kills, int divisor)
         {
             int gained = Mathf.Max(0, kills / Mathf.Max(1, divisor));
-            Data.tokens += gained;
+            AddRunTokens(kills, gained);
+        }
+
+        public static void AddRunTokens(int kills, int tokens)
+        {
+            Data.tokens += Mathf.Max(0, tokens);
             Data.totalKills += kills;
             Save();
         }

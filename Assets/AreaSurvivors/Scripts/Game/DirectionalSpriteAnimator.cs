@@ -15,9 +15,11 @@ namespace AreaSurvivors
         Vector2 currentDirection = Vector2.down;
         float timer;
         int frameIndex = 1;
+        float baseFramesPerSecond;
 
         void Awake()
         {
+            baseFramesPerSecond = Mathf.Max(1f, framesPerSecond);
             visual = GetComponentInChildren<PaperMeshVisual>();
             currentFrames = downFrames;
             ApplyFrame(false);
@@ -31,6 +33,26 @@ namespace AreaSurvivors
             upFrames = up;
             currentFrames = FramesForDirection(currentDirection);
             ApplyFrame(false);
+        }
+
+        public bool SetFramesFromResources(string spriteKey)
+        {
+            if (string.IsNullOrWhiteSpace(spriteKey)) return false;
+            var down = LoadFrames(spriteKey, "Down");
+            var left = LoadFrames(spriteKey, "Left");
+            var right = LoadFrames(spriteKey, "Right");
+            var up = LoadFrames(spriteKey, "Up");
+            if (!HasCompleteFrames(down) || !HasCompleteFrames(left) || !HasCompleteFrames(right) || !HasCompleteFrames(up))
+                return false;
+
+            SetFrames(down, left, right, up);
+            return true;
+        }
+
+        public void SetPlaybackSpeedMultiplier(float multiplier)
+        {
+            if (baseFramesPerSecond <= 0f) baseFramesPerSecond = Mathf.Max(1f, framesPerSecond);
+            framesPerSecond = baseFramesPerSecond * Mathf.Max(0.1f, multiplier);
         }
 
         public void Tick(Vector2 direction, bool moving)
@@ -90,6 +112,26 @@ namespace AreaSurvivors
         static bool HasFrames(Sprite[] frames)
         {
             return frames != null && frames.Length > 0 && frames[0] != null;
+        }
+
+        static bool HasCompleteFrames(Sprite[] frames)
+        {
+            if (frames == null || frames.Length == 0) return false;
+            foreach (var frame in frames)
+            {
+                if (frame == null) return false;
+            }
+            return true;
+        }
+
+        static Sprite[] LoadFrames(string spriteKey, string direction)
+        {
+            var frames = new Sprite[3];
+            for (int i = 0; i < frames.Length; i++)
+            {
+                frames[i] = Resources.Load<Sprite>($"Generated/Walk/{spriteKey}/{direction}_{i}");
+            }
+            return frames;
         }
     }
 }

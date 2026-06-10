@@ -37,8 +37,13 @@ namespace AreaSurvivors
         public int seed = 20260605;
         public bool randomizeSeedEachRun = true;
         public int edgePaddingCells = 4;
-        public int separationCells = 1;
-        public int maxPlacementAttemptsPerObject = 80;
+        [Min(2)]
+        public int separationCells = 2;
+        public int maxPlacementAttemptsPerObject = 2000;
+        [Header("Clear Routes")]
+        public int clearRouteCount = 6;
+        public float clearRouteHalfWidthCells = 2.5f;
+        public float clearRouteAngleOffsetDegrees;
         public bool addOutline = true;
         public Color outlineColor = Color.black;
         public float outlineThickness = 0.018f;
@@ -106,6 +111,26 @@ namespace AreaSurvivors
         Vector3Int placementCenterCell;
 
         public int LastUsedSeed => lastUsedSeed;
+
+        public bool CreateTestLandmark(TileGrid grid, string landmarkName, Vector3Int originCell)
+        {
+            if (grid == null || string.IsNullOrEmpty(landmarkName)) return false;
+            var specsByName = BuildSpecLookup();
+            if (!specsByName.TryGetValue(landmarkName, out var spec)) return false;
+            var sprite = LoadSprite(spec.resourcePath);
+            if (sprite == null) return false;
+
+            if (spawnedRoot == null)
+            {
+                spawnedRoot = new GameObject("Test Natural Landmarks").transform;
+                spawnedRoot.SetParent(transform, false);
+            }
+
+            var footprint = NormalizeFootprint(spec.footprint);
+            if (!grid.CanPlaceObject(originCell, footprint)) return false;
+            CreateLandmark(grid, spec, sprite, originCell, footprint);
+            return true;
+        }
 
         public void Spawn(TileGrid grid)
         {
@@ -212,9 +237,33 @@ namespace AreaSurvivors
         {
             if (!grid.CanPlaceObject(originCell, footprint)) return false;
             if (!IsInsidePlacementBand(grid, originCell, footprint, band)) return false;
+            if (OverlapsClearRoute(grid, originCell, footprint)) return false;
             if (!HasSeparation(grid, originCell, footprint)) return false;
 
             return true;
+        }
+
+        bool OverlapsClearRoute(TileGrid grid, Vector3Int originCell, Vector2Int footprint)
+        {
+            int routeCount = Mathf.Max(0, clearRouteCount);
+            float halfWidth = Mathf.Max(0f, clearRouteHalfWidthCells);
+            if (routeCount == 0 || halfWidth <= 0f) return false;
+            if (!grid.TryCellToGrid(placementCenterCell, out var centerX, out var centerY)) return false;
+            if (!grid.TryCellToGrid(originCell, out var x, out var y)) return false;
+
+            var fromCenter = new Vector2(x - centerX, y - centerY);
+            float protectedHalfWidth = halfWidth + Mathf.Max(footprint.x, footprint.y) * 0.5f;
+            float angleStep = 360f / routeCount;
+            for (int i = 0; i < routeCount; i++)
+            {
+                float radians = (clearRouteAngleOffsetDegrees + angleStep * i) * Mathf.Deg2Rad;
+                var routeDirection = new Vector2(Mathf.Cos(radians), Mathf.Sin(radians));
+                if (Vector2.Dot(fromCenter, routeDirection) < 0f) continue;
+                float perpendicular = Mathf.Abs(routeDirection.x * fromCenter.y - routeDirection.y * fromCenter.x);
+                if (perpendicular <= protectedHalfWidth) return true;
+            }
+
+            return false;
         }
 
         bool IsInsidePlacementBand(TileGrid grid, Vector3Int originCell, Vector2Int footprint, PlacementBand band)
@@ -231,7 +280,7 @@ namespace AreaSurvivors
 
         bool HasSeparation(TileGrid grid, Vector3Int originCell, Vector2Int footprint)
         {
-            int separation = Mathf.Max(0, separationCells);
+            int separation = Mathf.Max(2, separationCells);
             var min = MinCell(originCell, footprint);
             for (int x = -separation; x < footprint.x + separation; x++)
             {

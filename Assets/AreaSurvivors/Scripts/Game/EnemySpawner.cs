@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace AreaSurvivors
@@ -12,43 +13,175 @@ namespace AreaSurvivors
         public GameObject xpOrbPrefab;
         public GameObject damagePopupPrefab;
         public float radius = 34f;
+
+        public float ElapsedSeconds => elapsed;
+        public float CurrentDirectionDegrees => directionDegrees;
+        public int DirectionChangeIndex => directionChangeIndex;
+
         float elapsed;
+        float directionTimer;
+        float directionDegrees;
+        int directionChangeIndex;
+        int lastDirectionSector = -1;
+        bool running;
+        bool[] timedSpawned;
+        readonly List<EnemyController> activeEnemies = new List<EnemyController>();
 
         public void Begin(GameConfig gameConfig, TileGrid tileGrid, Transform chaseTarget)
         {
             config = gameConfig;
             grid = tileGrid;
             target = chaseTarget;
+            config.EnsureEnemySpawnDefaults();
             radius = Mathf.Max(10f, config.enemySpawnRadius);
+            timedSpawned = new bool[config.timedEnemySpawns != null ? config.timedEnemySpawns.Length : 0];
+            ChooseNextDirection();
+            running = true;
             StartCoroutine(SpawnLoop());
         }
 
         void Update()
         {
+            if (!running || Time.timeScale <= 0f) return;
             elapsed += Time.deltaTime;
+            directionTimer += Time.deltaTime;
+            if (directionTimer >= Mathf.Max(1f, config.spawnDirectionChangeSeconds))
+            {
+                directionTimer -= Mathf.Max(1f, config.spawnDirectionChangeSeconds);
+                directionChangeIndex++;
+                ChooseNextDirection();
+            }
+            ProcessTimedSpawns();
+            activeEnemies.RemoveAll(enemy => enemy == null);
         }
 
         IEnumerator SpawnLoop()
         {
-            while (true)
+            while (running)
             {
-                float ramp = 1f + elapsed / Mathf.Max(1f, config.difficultyRampSeconds);
-                int batch = Mathf.Clamp(Mathf.FloorToInt(ramp), 1, 8);
-                for (int i = 0; i < batch; i++) SpawnOne(ramp);
-                yield return new WaitForSeconds(Mathf.Max(0.18f, config.spawnInterval / ramp));
+                var phase = CurrentPhase();
+                if (phase != null)
+                {
+                    int batch = Mathf.Clamp(
+                        phase.baseBatchCount + directionChangeIndex * phase.batchIncreasePerDirectionChange,
+                        1,
+                        Mathf.Max(1, phase.maxBatchCount));
+                    SpawnBatch(phase.enemyKind, batch);
+                }
+                yield return new WaitForSeconds(Mathf.Max(0.18f, phase != null ? phase.spawnInterval : config.spawnInterval));
             }
         }
 
-        void SpawnOne(float ramp)
+        void ProcessTimedSpawns()
+        {
+            if (config.timedEnemySpawns == null) return;
+            for (int i = 0; i < config.timedEnemySpawns.Length; i++)
+            {
+                if (timedSpawned[i]) continue;
+                var timed = config.timedEnemySpawns[i];
+                if (timed == null || elapsed < timed.timeSeconds) continue;
+                timedSpawned[i] = true;
+                SpawnBatch(timed.enemyKind, Mathf.Max(1, timed.count), true);
+                if (timed.announce && !string.IsNullOrEmpty(timed.announcement))
+                {
+                    GameManager.Instance?.ShowAnnouncement(timed.announcement);
+                }
+            }
+        }
+
+        SpawnPhase CurrentPhase()
+        {
+            if (config.spawnPhases == null || config.spawnPhases.Length == 0) return null;
+            SpawnPhase result = config.spawnPhases[0];
+            foreach (var phase in config.spawnPhases)
+            {
+                if (phase != null && phase.startSeconds <= elapsed && phase.startSeconds >= result.startSeconds) result = phase;
+            }
+            return result;
+        }
+
+        void SpawnBatch(EnemyKind kind, int count, bool force = false)
         {
             if (enemyPrefab == null || target == null) return;
-            Vector2 dir = Random.insideUnitCircle.normalized;
-            if (dir.sqrMagnitude < 0.01f) dir = Vector2.right;
-            var go = Instantiate(enemyPrefab, target.position + (Vector3)(dir * radius), Quaternion.identity);
+            int capacity = force ? count : Mathf.Max(0, config.maxAliveEnemies - activeEnemies.Count);
+            int spawnCount = Mathf.Min(count, capacity);
+            for (int i = 0; i < spawnCount; i++) SpawnOne(kind);
+        }
+
+        void SpawnOne(EnemyKind kind)
+        {
+            kind = ApplyEliteSpawnChance(kind);
+            var definition = config.GetEnemyDefinition(kind);
+            if (definition == null) return;
+            float halfArc = Mathf.Max(0.5f, config.spawnDirectionArcDegrees * 0.5f);
+            float angle = directionDegrees + Random.Range(-halfArc, halfArc);
+            var dir = new Vector2(Mathf.Cos(angle * Mathf.Deg2Rad), Mathf.Sin(angle * Mathf.Deg2Rad));
+            var spawnPosition = ClampSpawnInsideGrid(target.position + (Vector3)(dir * radius), definition.cellSize);
+            var go = Instantiate(enemyPrefab, spawnPosition, Quaternion.identity);
+            go.name = definition.displayName;
             var enemy = go.GetComponent<EnemyController>();
+            if (enemy == null)
+            {
+                Destroy(go);
+                return;
+            }
+
             enemy.xpOrbPrefab = xpOrbPrefab;
             enemy.damagePopupPrefab = damagePopupPrefab;
-            enemy.Configure(config, grid, target, Mathf.RoundToInt(config.enemyBaseHp * ramp), Mathf.Min(1.65f, 1f + ramp * 0.06f));
+            int hp = Mathf.Max(1, Mathf.RoundToInt(config.enemyBaseHp * Mathf.Max(0.01f, definition.hpMultiplier)));
+            enemy.Configure(config, grid, target, definition, hp, definition.speedMultiplier);
+            activeEnemies.Add(enemy);
+            if (definition.boss) GameManager.Instance?.BossSpawned(enemy);
+        }
+
+        EnemyKind ApplyEliteSpawnChance(EnemyKind kind)
+        {
+            int level = ProgressionStore.GetLevel(UpgradeType.EliteSpawnRate);
+            if (level <= 0 || config == null) return kind;
+            float chance = Mathf.Clamp01(level * config.eliteSpawnRatePerUpgradeLevel);
+            if (Random.value >= chance) return kind;
+            if (kind == EnemyKind.Boar) return EnemyKind.EliteBoar;
+            if (kind == EnemyKind.Orc) return EnemyKind.EliteOrc;
+            return kind;
+        }
+
+        Vector3 ClampSpawnInsideGrid(Vector3 candidate, float enemyCellSize)
+        {
+            if (grid == null || grid.groundTilemap == null || grid.width <= 0 || grid.height <= 0) return candidate;
+
+            Vector3 minCenter = grid.GridToWorld(0, 0);
+            Vector3 maxCenter = grid.GridToWorld(grid.width - 1, grid.height - 1);
+            Vector3 rightStep = grid.width > 1 ? grid.GridToWorld(1, 0) - minCenter : new Vector3(grid.cellSize, 0f, 0f);
+            Vector3 upStep = grid.height > 1 ? grid.GridToWorld(0, 1) - minCenter : new Vector3(0f, grid.cellSize, 0f);
+            float insetX = Mathf.Abs(rightStep.x) * (Mathf.Max(1f, enemyCellSize) * 0.5f + 0.5f);
+            float insetY = Mathf.Abs(upStep.y) * (Mathf.Max(1f, enemyCellSize) * 0.5f + 0.5f);
+            float minX = Mathf.Min(minCenter.x, maxCenter.x) - Mathf.Abs(rightStep.x) * 0.5f + insetX;
+            float maxX = Mathf.Max(minCenter.x, maxCenter.x) + Mathf.Abs(rightStep.x) * 0.5f - insetX;
+            float minY = Mathf.Min(minCenter.y, maxCenter.y) - Mathf.Abs(upStep.y) * 0.5f + insetY;
+            float maxY = Mathf.Max(minCenter.y, maxCenter.y) + Mathf.Abs(upStep.y) * 0.5f - insetY;
+            candidate.x = Mathf.Clamp(candidate.x, minX, maxX);
+            candidate.y = Mathf.Clamp(candidate.y, minY, maxY);
+            return candidate;
+        }
+
+        void ChooseNextDirection()
+        {
+            const int sectors = 8;
+            int sector = Random.Range(0, sectors);
+            if (sector == lastDirectionSector) sector = (sector + Random.Range(1, sectors)) % sectors;
+            lastDirectionSector = sector;
+            directionDegrees = sector * (360f / sectors);
+        }
+
+        public void StopAndClearEnemies(EnemyController except = null)
+        {
+            running = false;
+            StopAllCoroutines();
+            foreach (var enemy in FindObjectsOfType<EnemyController>())
+            {
+                if (enemy != null && enemy != except) Destroy(enemy.gameObject);
+            }
+            activeEnemies.Clear();
         }
     }
 }

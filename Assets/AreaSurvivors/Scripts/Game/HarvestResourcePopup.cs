@@ -4,7 +4,6 @@ namespace AreaSurvivors
 {
     public sealed class HarvestResourcePopup : MonoBehaviour
     {
-        const int TextOutlineOrder = 23000;
         const int TextOrder = 23001;
         const int IconOrder = 23002;
 
@@ -15,6 +14,7 @@ namespace AreaSurvivors
 
         float age;
         float drift;
+        RuntimeTextMeshOutline textOutline;
 
         public static void Show(Vector3 position, int amount, Sprite resourceIcon, Color color)
         {
@@ -26,20 +26,9 @@ namespace AreaSurvivors
             popup.drift = Random.Range(-0.08f, 0.08f);
 
             var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            popup.outlines = new TextMesh[4];
-            var offsets = new[]
-            {
-                new Vector3(-0.018f, 0f, 0f),
-                new Vector3(0.018f, 0f, 0f),
-                new Vector3(0f, -0.018f, 0f),
-                new Vector3(0f, 0.018f, 0f)
-            };
-            for (int i = 0; i < popup.outlines.Length; i++)
-            {
-                popup.outlines[i] = CreateText(root.transform, "Outline", font, "+" + amount, Color.black, TextOutlineOrder, offsets[i]);
-            }
-
             popup.text = CreateText(root.transform, "Text", font, "+" + amount, color, TextOrder, Vector3.zero);
+            popup.textOutline = popup.text.gameObject.AddComponent<RuntimeTextMeshOutline>();
+            popup.textOutline.SetColors(color, Color.black);
             if (resourceIcon != null)
             {
                 var iconObject = new GameObject("Icon");
@@ -60,11 +49,7 @@ namespace AreaSurvivors
             transform.position += new Vector3(drift, 0.42f, 0f) * Time.deltaTime;
             transform.localScale = Vector3.one * EvaluateScale(t);
             float alpha = t < 0.5f ? 1f : 1f - Mathf.InverseLerp(0.5f, 1f, t);
-            SetTextAlpha(text, alpha);
-            if (outlines != null)
-            {
-                foreach (var outline in outlines) SetTextAlpha(outline, alpha);
-            }
+            textOutline?.SetAlpha(alpha);
             if (icon != null)
             {
                 var color = icon.color;
@@ -91,14 +76,6 @@ namespace AreaSurvivors
             var renderer = go.GetComponent<MeshRenderer>();
             renderer.sortingOrder = order;
             return mesh;
-        }
-
-        static void SetTextAlpha(TextMesh mesh, float alpha)
-        {
-            if (mesh == null) return;
-            var color = mesh.color;
-            color.a = alpha;
-            mesh.color = color;
         }
 
         static float EvaluateScale(float t)

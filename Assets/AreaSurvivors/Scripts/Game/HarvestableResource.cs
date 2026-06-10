@@ -72,7 +72,7 @@ namespace AreaSurvivors
             }
 
             harvesting = true;
-            harvestTimer += Time.deltaTime;
+            harvestTimer += Time.deltaTime * WorkSpeedMultiplier();
             AnimatePickaxe();
             UpdateGauge();
             if (harvestTimer < harvestInterval) return;
@@ -86,18 +86,18 @@ namespace AreaSurvivors
             if (Time.timeScale <= 0f || remainingAmount <= 0 || grid == null) return false;
             var manager = GameManager.Instance;
             var player = manager != null ? manager.Player : null;
-            if (player == null) return false;
+            if (player == null || !player.CanPerformWorldActions) return false;
             if (!IsTouchingPlayer(player)) return false;
             return IsAdjacentToPlayerTerritory();
         }
 
         bool IsTouchingPlayer(PlayerController player)
         {
-            if (resourceCollider == null || player == null) return false;
+            if (resourceCollider == null || !resourceCollider.enabled || player == null || !player.CanPerformWorldActions) return false;
             var playerCollider = player.GetComponent<Collider2D>();
-            if (playerCollider == null) return false;
+            if (playerCollider == null || !playerCollider.enabled || !playerCollider.gameObject.activeInHierarchy) return false;
             var distance = resourceCollider.Distance(playerCollider);
-            return distance.distance <= 0.035f;
+            return distance.isOverlapped || distance.distance <= 0.035f;
         }
 
         bool IsAdjacentToPlayerTerritory()
@@ -121,7 +121,7 @@ namespace AreaSurvivors
 
         void HarvestTick()
         {
-            int amount = Mathf.Min(Mathf.Max(1, amountPerTick), remainingAmount);
+            int amount = Mathf.Min(Mathf.Max(1, amountPerTick + ResourceGainBonus()), remainingAmount);
             remainingAmount -= amount;
             var manager = GameManager.Instance;
             if (manager != null) manager.AddResource(resourceType, amount);
@@ -217,6 +217,34 @@ namespace AreaSurvivors
             return resourceType == ResourceType.Wood
                 ? new Color(0.92f, 0.62f, 0.25f, 1f)
                 : new Color(0.78f, 0.80f, 0.82f, 1f);
+        }
+
+        float WorkSpeedMultiplier()
+        {
+            var player = GameManager.Instance != null ? GameManager.Instance.Player : null;
+            float multiplier = player != null ? Mathf.Max(0.05f, player.Stats.workSpeedMultiplier) : 1f;
+            var config = player != null ? player.config : null;
+            if (config == null) return multiplier;
+            if (resourceType == ResourceType.Wood)
+            {
+                multiplier += ProgressionStore.GetLevel(UpgradeType.WoodcuttingSpeed) * config.woodcuttingSpeedPerUpgradeLevel;
+            }
+            else
+            {
+                multiplier += ProgressionStore.GetLevel(UpgradeType.MiningSpeed) * config.miningSpeedPerUpgradeLevel;
+            }
+            return multiplier;
+        }
+
+        int ResourceGainBonus()
+        {
+            var player = GameManager.Instance != null ? GameManager.Instance.Player : null;
+            int bonus = player != null ? Mathf.Max(0, player.Stats.resourceGainBonus) : 0;
+            var config = player != null ? player.config : null;
+            if (config == null) return bonus;
+            return bonus + (resourceType == ResourceType.Wood
+                ? ProgressionStore.GetLevel(UpgradeType.WoodcuttingGain) * config.woodcuttingGainPerUpgradeLevel
+                : ProgressionStore.GetLevel(UpgradeType.MiningGain) * config.miningGainPerUpgradeLevel);
         }
 
         static Vector3Int MinCell(Vector3Int origin, Vector2Int size)

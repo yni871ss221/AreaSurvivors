@@ -7,8 +7,11 @@ namespace AreaSurvivors
     {
         public float lifetime = 3f;
         public float visualScale = 1f;
+        public float knockback;
+        public float knockbackDuration = 0.16f;
         int damage;
         bool explosive;
+        float explosionRadius = 1.1f;
         float trailTimer;
 
         void Update()
@@ -21,8 +24,16 @@ namespace AreaSurvivors
 
         public void Launch(Vector2 direction, int amount, float speed, bool isExplosive)
         {
+            Launch(direction, amount, speed, isExplosive, explosionRadius, lifetime, visualScale);
+        }
+
+        public void Launch(Vector2 direction, int amount, float speed, bool isExplosive, float radius, float seconds, float scale)
+        {
             damage = amount;
             explosive = isExplosive;
+            explosionRadius = Mathf.Max(0.05f, radius);
+            lifetime = Mathf.Max(0.05f, seconds);
+            visualScale = Mathf.Max(0.05f, scale);
             ApplyWeaponSortingOrder(WeaponSortingOrders.Projectile);
             if (visualScale > 0f) transform.localScale = Vector3.one * visualScale;
             var normalizedDirection = direction.normalized;
@@ -43,12 +54,14 @@ namespace AreaSurvivors
             ImpactFlash();
             if (explosive)
             {
-                var hits = Physics2D.OverlapCircleAll(transform.position, 1.1f);
+                var hits = Physics2D.OverlapCircleAll(transform.position, explosionRadius);
                 foreach (var hit in hits)
                 {
-                    if (hit.GetComponent<EnemyController>() != null)
+                    var hitEnemy = hit.GetComponent<EnemyController>();
+                    if (hitEnemy != null)
                     {
                         var dealt = hit.GetComponent<Health>()?.Damage(damage) ?? 0;
+                        ApplyKnockback(hitEnemy, ((Vector2)hit.transform.position - (Vector2)transform.position).normalized);
                         GameManager.Instance?.RegisterDamageDealt(dealt);
                     }
                 }
@@ -56,9 +69,18 @@ namespace AreaSurvivors
             else
             {
                 var dealt = other.GetComponent<Health>()?.Damage(damage) ?? 0;
+                ApplyKnockback(enemy, GetComponent<Rigidbody2D>() != null ? GetComponent<Rigidbody2D>().velocity.normalized : transform.right);
                 GameManager.Instance?.RegisterDamageDealt(dealt);
             }
             Destroy(gameObject);
+        }
+
+        void ApplyKnockback(EnemyController enemy, Vector2 direction)
+        {
+            if (enemy == null || knockback <= 0f) return;
+            var receiver = enemy.GetComponent<KnockbackReceiver>();
+            if (receiver == null) return;
+            receiver.Apply(direction, knockback, knockbackDuration);
         }
 
         void ImpactFlash()

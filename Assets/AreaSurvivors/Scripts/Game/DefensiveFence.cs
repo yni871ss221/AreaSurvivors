@@ -209,7 +209,7 @@ namespace AreaSurvivors
             {
                 if (touchingPlayers > 0)
                 {
-                    buildProgress = Mathf.Clamp01(buildProgress + Time.deltaTime / Mathf.Max(0.1f, buildSeconds));
+                    buildProgress = Mathf.Clamp01(buildProgress + Time.deltaTime * WorkSpeedMultiplier() / Mathf.Max(0.1f, buildSeconds));
                     if (buildProgress >= 1f) CompleteBuild();
                 }
                 else if (buildProgress > 0f)
@@ -233,6 +233,12 @@ namespace AreaSurvivors
         void OnTriggerExit2D(Collider2D other)
         {
             if (other.GetComponent<PlayerController>() != null) touchingPlayers = Mathf.Max(0, touchingPlayers - 1);
+        }
+
+        static float WorkSpeedMultiplier()
+        {
+            var player = GameManager.Instance != null ? GameManager.Instance.Player : null;
+            return player != null ? Mathf.Max(0.05f, player.Stats.workSpeedMultiplier) : 1f;
         }
 
         void CompleteBuild()

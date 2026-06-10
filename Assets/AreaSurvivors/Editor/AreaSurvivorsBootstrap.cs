@@ -38,7 +38,7 @@ namespace AreaSurvivors.Editor
             CreateMenuScene(SceneNames.Lobby, typeof(LobbyScreen));
             CreateMenuScene(SceneNames.Upgrades, typeof(UpgradeScreen));
             CreateGameScene(config, prefabs);
-            CreateMenuScene(SceneNames.GameOver, typeof(GameOverScreen));
+            CreateMenuScene(SceneNames.GameEnd, typeof(GameOverScreen));
             SetBuildScenes();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -113,6 +113,27 @@ namespace AreaSurvivors.Editor
             Debug.Log("Area Survivors HUD layout rebuilt.");
         }
 
+        [MenuItem("Area Survivors/Map/Rebuild Map Perimeter")]
+        public static void RebuildMapPerimeter()
+        {
+            var grid = Object.FindObjectOfType<TileGrid>();
+            if (grid == null)
+            {
+                Debug.LogWarning("TileGrid was not found in the active scene.");
+                return;
+            }
+
+            var perimeterType = GetRuntimeType("AreaSurvivors.MapPerimeterController");
+            var perimeter = Object.FindObjectOfType(perimeterType) as Component;
+            if (perimeter == null) perimeter = new GameObject("Map Perimeter").AddComponent(perimeterType);
+            SetObjectReference(perimeter, "grid", grid);
+            perimeter.SendMessage("Rebuild", SendMessageOptions.DontRequireReceiver);
+            EditorUtility.SetDirty(perimeter);
+            EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+            Selection.activeGameObject = perimeter.gameObject;
+            Debug.Log("Map perimeter rebuilt.");
+        }
+
         static void EnsureFolders()
         {
             foreach (var path in new[] { Root, Scenes, Prefabs, Materials, Meshes, Sprites, GeneratedSprites, ResourcesPath, TilePalette, Root + "/Resources/Config", Root + "/Resources/Generated" })
@@ -150,9 +171,57 @@ namespace AreaSurvivors.Editor
             config.cameraDefaultZoom = 0.5f;
             config.cameraZoomScrollSpeed = 0.16f;
             config.cameraPlayerWeight = 0.55f;
+            config.playerMoveSpeed = 2.1f;
+            config.playerMaxHp = 40;
+            config.playerReviveSeconds = 6f;
+            config.paintRadius = 1;
             config.playerVisualScale = 1f;
+            config.moveSpeedPerUpgradeLevel = 0.18f;
+            config.paintRadiusLevelsPerBonus = 2;
+            config.maxHpPerUpgradeLevel = 5;
+            config.reviveSecondsReductionPerUpgradeLevel = 0.35f;
+            config.minReviveSeconds = 1f;
+            config.runMoveSpeedMultiplier = 1.08f;
+            config.runPaintRadiusBonus = 1;
+            config.runMaxHpBonus = 8;
+            config.towerMaxHp = 160;
+            config.towerMaxHpPerUpgradeLevel = 12;
             config.ballistaRange = 9.5f;
             config.ballistaMaxHp = 90;
+            config.baseAttackPower = 6;
+            config.knightCooldown = 1.05f;
+            config.archerCooldown = 0.75f;
+            config.mageCooldown = 1.45f;
+            config.attackPowerPerUpgradeLevel = 1;
+            config.attackCooldownReductionPerUpgradeLevel = 0.06f;
+            config.minAttackCooldownMultiplier = 0.45f;
+            config.runAttackPowerBonus = 2;
+            config.runAttackCooldownMultiplier = 0.92f;
+            config.knightDamageBonus = 2;
+            config.knightSlashRange = 1.05f;
+            config.knightSlashOffset = 1.05f;
+            config.mageExplosionRadius = 1.1f;
+            config.baseKnockback = 1f;
+            config.knockbackForceUnit = 2.2f;
+            config.knockbackDuration = 0.16f;
+            config.baseDefense = 0;
+            config.baseXpGainMultiplier = 1f;
+            config.baseAutoRegen = 0;
+            config.autoRegenIntervalSeconds = 2f;
+            config.baseWorkSpeedMultiplier = 1f;
+            config.baseResourceGainBonus = 0;
+            config.knockbackPerUpgradeLevel = 1f;
+            config.defensePerUpgradeLevel = 1;
+            config.xpGainMultiplierPerUpgradeLevel = 0.1f;
+            config.autoRegenPerUpgradeLevel = 1;
+            config.workSpeedMultiplierPerUpgradeLevel = 0.1f;
+            config.resourceGainPerUpgradeLevel = 1;
+            config.runKnockbackBonus = 1;
+            config.runDefenseBonus = 1;
+            config.runXpGainMultiplierBonus = 0.1f;
+            config.runAutoRegenBonus = 1;
+            config.runWorkSpeedMultiplierBonus = 0.1f;
+            config.runResourceGainBonus = 1;
             config.projectileSpeed = 11.5f;
             config.projectileLifetime = 4.2f;
             config.projectileVisualScale = 1.35f;
@@ -162,6 +231,12 @@ namespace AreaSurvivors.Editor
             config.spawnInterval = 1.8f;
             config.enemySpawnRadius = 28f;
             config.difficultyRampSeconds = 55f;
+            config.spawnDirectionChangeSeconds = 30f;
+            config.spawnDirectionArcDegrees = 60f;
+            config.maxAliveEnemies = 160;
+            config.bossTimeSeconds = 300f;
+            config.bossAnnouncement = "オークキング出現！";
+            config.EnsureEnemySpawnDefaults();
             config.startingBallistaStock = 4;
             config.startingFenceStock = 4;
             EditorUtility.SetDirty(config);
@@ -262,6 +337,8 @@ namespace AreaSurvivors.Editor
             var health = go.AddComponent<Health>();
             health.maxHp = 40;
             var animator = go.AddComponent<DirectionalSpriteAnimator>();
+            go.AddComponent<PlayerStats>();
+            go.AddComponent<AutoRegeneration>();
             var player = go.AddComponent<PlayerController>();
             player.directionalAnimator = animator;
             player.knightSprite = knightSprite;
@@ -728,6 +805,13 @@ namespace AreaSurvivors.Editor
         {
             var enemySprite = LoadCharacterSprite("EnemyBoar");
             var go = Actor("Enemy", enemySprite, Color.white, 0.34f);
+            var enemyVisual = go.GetComponentInChildren<PaperMeshVisual>();
+            if (enemyVisual != null)
+            {
+                var outline = enemyVisual.gameObject.AddComponent<RuntimeSpriteOutline>();
+                outline.outlineColor = Color.black;
+                outline.thickness = 0.018f;
+            }
             go.AddComponent<Health>();
             var animator = go.AddComponent<DirectionalSpriteAnimator>();
             animator.SetFrames(
@@ -966,23 +1050,13 @@ namespace AreaSurvivors.Editor
             var go = new GameObject("DamagePopup");
             go.AddComponent<PaperBillboard>();
             var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            var outlines = new TextMesh[4];
-            var offsets = new[]
-            {
-                new Vector3(0.025f, 0f, 0f),
-                new Vector3(-0.025f, 0f, 0f),
-                new Vector3(0f, 0.025f, 0f),
-                new Vector3(0f, -0.025f, 0f)
-            };
-            for (int i = 0; i < outlines.Length; i++)
-            {
-                outlines[i] = AddDamageText(go.transform, "Outline", font, Color.black, 3999);
-                outlines[i].transform.localPosition = offsets[i];
-            }
             var text = AddDamageText(go.transform, "Text", font, Color.white, 4000);
+            var outline = text.gameObject.AddComponent<RuntimeTextMeshOutline>();
+            outline.faceColor = Color.white;
+            outline.outlineColor = Color.black;
+            outline.outlinePixels = 2f;
             var popup = go.AddComponent<DamagePopup>();
             popup.text = text;
-            popup.outlines = outlines;
             return go;
         }
 
@@ -1017,9 +1091,10 @@ namespace AreaSurvivors.Editor
             camera.tag = "MainCamera";
             camera.orthographic = true;
             camera.orthographicSize = config.cameraOrthographicSize;
+            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.backgroundColor = new Color(0.025f, 0.035f, 0.03f, 1f);
             camera.transform.position = config.cameraOffset;
             camera.transform.rotation = Quaternion.Euler(config.cameraPitch, 0f, 0f);
-            camera.backgroundColor = new Color(0.19f, 0.31f, 0.19f);
             camera.gameObject.AddComponent<AudioListener>();
             var follow = camera.gameObject.AddComponent<CameraFollow>();
             follow.offset = config.cameraOffset;
@@ -1051,6 +1126,9 @@ namespace AreaSurvivors.Editor
             grid.groundTile = LoadTile("Ground");
             grid.paintTile = LoadTile("Paint");
             grid.Build();
+            var perimeter = new GameObject("Map Perimeter").AddComponent(GetRuntimeType("AreaSurvivors.MapPerimeterController"));
+            SetObjectReference(perimeter, "grid", grid);
+            perimeter.SendMessage("Rebuild", SendMessageOptions.DontRequireReceiver);
 
             var spawner = new GameObject("Enemy Spawner").AddComponent<EnemySpawner>();
             spawner.enemyPrefab = prefabs.enemy;
@@ -1277,7 +1355,7 @@ namespace AreaSurvivors.Editor
         static void SetBuildScenes()
         {
             var entries = new List<EditorBuildSettingsScene>();
-            foreach (var sceneName in new[] { SceneNames.Title, SceneNames.Options, SceneNames.Lobby, SceneNames.Upgrades, SceneNames.Game, SceneNames.GameOver })
+            foreach (var sceneName in new[] { SceneNames.Title, SceneNames.Options, SceneNames.Lobby, SceneNames.Upgrades, SceneNames.Game, SceneNames.GameEnd })
             {
                 entries.Add(new EditorBuildSettingsScene($"{Scenes}/{sceneName}.unity", true));
             }

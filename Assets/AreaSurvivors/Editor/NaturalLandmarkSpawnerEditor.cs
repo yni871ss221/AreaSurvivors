@@ -11,6 +11,9 @@ namespace AreaSurvivors.Editor
         SerializedProperty edgePaddingCells;
         SerializedProperty separationCells;
         SerializedProperty maxPlacementAttemptsPerObject;
+        SerializedProperty clearRouteCount;
+        SerializedProperty clearRouteHalfWidthCells;
+        SerializedProperty clearRouteAngleOffsetDegrees;
         SerializedProperty addOutline;
         SerializedProperty outlineColor;
         SerializedProperty outlineThickness;
@@ -29,6 +32,9 @@ namespace AreaSurvivors.Editor
             edgePaddingCells = serializedObject.FindProperty("edgePaddingCells");
             separationCells = serializedObject.FindProperty("separationCells");
             maxPlacementAttemptsPerObject = serializedObject.FindProperty("maxPlacementAttemptsPerObject");
+            clearRouteCount = serializedObject.FindProperty("clearRouteCount");
+            clearRouteHalfWidthCells = serializedObject.FindProperty("clearRouteHalfWidthCells");
+            clearRouteAngleOffsetDegrees = serializedObject.FindProperty("clearRouteAngleOffsetDegrees");
             addOutline = serializedObject.FindProperty("addOutline");
             outlineColor = serializedObject.FindProperty("outlineColor");
             outlineThickness = serializedObject.FindProperty("outlineThickness");
@@ -57,7 +63,9 @@ namespace AreaSurvivors.Editor
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
                 EditorGUILayout.LabelField("中心塔からの距離区間ごとの配置数", EditorStyles.boldLabel);
-                EditorGUILayout.PropertyField(separationCells, new GUIContent("Gap Cells", "自然物同士が触れ合わないように空けるセル数"));
+                separationCells.intValue = Mathf.Max(2, EditorGUILayout.IntField(
+                    new GUIContent("Gap Cells", "自然物同士の間に必ず空けるセル数。袋小路を減らすため最低2セルです。"),
+                    separationCells.intValue));
                 EditorGUILayout.Space(4f);
 
                 for (int i = 0; i < placementBands.arraySize; i++)
@@ -165,6 +173,11 @@ namespace AreaSurvivors.Editor
                 EditorGUILayout.PropertyField(randomizeSeedEachRun);
                 EditorGUILayout.PropertyField(edgePaddingCells);
                 EditorGUILayout.PropertyField(maxPlacementAttemptsPerObject);
+                EditorGUILayout.Space(4f);
+                EditorGUILayout.LabelField("Clear Routes From Center Tower", EditorStyles.miniBoldLabel);
+                EditorGUILayout.PropertyField(clearRouteCount, new GUIContent("Route Count"));
+                EditorGUILayout.PropertyField(clearRouteHalfWidthCells, new GUIContent("Half Width Cells"));
+                EditorGUILayout.PropertyField(clearRouteAngleOffsetDegrees, new GUIContent("Angle Offset"));
             }
         }
 
