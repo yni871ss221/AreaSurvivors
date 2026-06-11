@@ -7,7 +7,6 @@ namespace AreaSurvivors.Editor
 {
     public static class GameplayTestTools
     {
-        const string GameScenePath = "Assets/AreaSurvivors/Scenes/05_Game.unity";
         const string TestScenePath = "Assets/AreaSurvivors/Scenes/90_GameplayTest.unity";
         const string TestFolder = "Assets/AreaSurvivors/Testing";
         const string DefaultScenarioPath = TestFolder + "/Gameplay_Navigation_Default.asset";
@@ -15,6 +14,8 @@ namespace AreaSurvivors.Editor
         const string ActionSmokeScenarioPath = TestFolder + "/Gameplay_Action_Smoke.asset";
         const string EnemyVisualsScenarioPath = TestFolder + "/Gameplay_Enemy_Visuals.asset";
         const string MapPerimeterScenarioPath = TestFolder + "/Gameplay_Map_Perimeter.asset";
+        const string SelectedScenarioEditorPref = "AreaSurvivors.GameplayTestScenarioPath";
+        static bool playModeQueued;
 
         [MenuItem("Area Survivors/Test Scenarios/Build Gameplay Test Scene")]
         public static void BuildGameplayTestScene()
@@ -26,25 +27,15 @@ namespace AreaSurvivors.Editor
             EnsureEnemyVisualsScenario();
             EnsureMapPerimeterScenario();
 
-            if (!AssetDatabase.CopyAsset(GameScenePath, TestScenePath) && AssetDatabase.LoadAssetAtPath<SceneAsset>(TestScenePath) == null)
-            {
-                Debug.LogError("Gameplay test scene could not be copied.");
-                return;
-            }
-
-            var scene = EditorSceneManager.OpenScene(TestScenePath);
-            var runnerObject = GameObject.Find("Gameplay Test Runner") ?? GameObject.Find("Navigation Test Runner");
-            if (runnerObject == null) runnerObject = new GameObject("Gameplay Test Runner");
-            runnerObject.name = "Gameplay Test Runner";
-
-            var runner = runnerObject.GetComponent<GameplayTestRunner>();
-            if (runner == null) runner = runnerObject.AddComponent<GameplayTestRunner>();
-            AssignReferences(runner, scenario);
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            var bootstrapObject = new GameObject("Gameplay Test Bootstrap");
+            var bootstrap = bootstrapObject.AddComponent<GameplayTestBootstrap>();
+            AssignReferences(bootstrap, scenario);
 
             EditorSceneManager.MarkSceneDirty(scene);
-            EditorSceneManager.SaveScene(scene);
+            EditorSceneManager.SaveScene(scene, TestScenePath);
             Selection.activeObject = scenario;
-            Debug.Log($"Gameplay test scene built: {TestScenePath}");
+            Debug.Log($"Lightweight gameplay test scene built: {TestScenePath}");
         }
 
         [MenuItem("Area Survivors/Test Scenarios/Open Gameplay Test")]
@@ -64,35 +55,35 @@ namespace AreaSurvivors.Editor
                 return;
             }
 
-            OpenGameplayTest();
-            var runner = Object.FindObjectOfType<GameplayTestRunner>();
-            if (runner == null)
-            {
-                BuildGameplayTestScene();
-                runner = Object.FindObjectOfType<GameplayTestRunner>();
-            }
-
-            AssignReferences(runner, scenario);
-            EditorUtility.SetDirty(runner);
-            EditorSceneManager.MarkSceneDirty(runner.gameObject.scene);
-            EditorSceneManager.SaveScene(runner.gameObject.scene);
-            Debug.Log($"Gameplay test scenario selected: {scenario.name}");
+            UseScenarioAsset(scenario);
         }
 
         [MenuItem("Area Survivors/Test Scenarios/Run Selected Scenario")]
         public static void RunSelectedScenario()
         {
-            UseSelectedScenario();
-            if (Object.FindObjectOfType<GameplayTestRunner>() == null) return;
-            EditorApplication.delayCall += () => EditorApplication.isPlaying = true;
+            var scenario = Selection.activeObject as GameplayTestScenario;
+            if (scenario == null)
+            {
+                Debug.LogWarning("Select a GameplayTestScenario asset.");
+                return;
+            }
+            RunScenarioAsset(scenario);
         }
 
         [MenuItem("Area Survivors/Test Scenarios/Run Current Gameplay Test")]
         public static void RunCurrentGameplayTest()
         {
-            OpenGameplayTest();
-            EditorApplication.delayCall += () => EditorApplication.isPlaying = true;
+            QueuePlayMode();
         }
+
+        [MenuItem("Area Survivors/Test Scenarios/Run Samples/Prefab Smoke")]
+        public static void RunPrefabSmoke() => RunScenarioAsset(EnsurePrefabSmokeScenario());
+
+        [MenuItem("Area Survivors/Test Scenarios/Run Samples/Navigation Default")]
+        public static void RunNavigationDefault() => RunScenarioAsset(EnsureDefaultScenario());
+
+        [MenuItem("Area Survivors/Test Scenarios/Run Samples/Map Perimeter")]
+        public static void RunMapPerimeter() => RunScenarioAsset(EnsureMapPerimeterScenario());
 
         [MenuItem("Area Survivors/Test Scenarios/Samples/Use Navigation Default")]
         public static void UseNavigationDefault()
@@ -137,31 +128,44 @@ namespace AreaSurvivors.Editor
             EditorGUIUtility.PingObject(scenario);
         }
 
-        static void AssignReferences(GameplayTestRunner runner, GameplayTestScenario scenario)
+        static void AssignReferences(GameplayTestBootstrap bootstrap, GameplayTestScenario scenario)
         {
-            runner.scenario = scenario;
-            runner.config = AssetDatabase.LoadAssetAtPath<GameConfig>("Assets/AreaSurvivors/Resources/Config/GameConfig.asset");
-            runner.grid = Object.FindObjectOfType<TileGrid>();
-            runner.landmarkSpawner = Object.FindObjectOfType<NaturalLandmarkSpawner>();
-            runner.enemyPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/AreaSurvivors/Prefabs/Enemy.prefab");
-            runner.xpOrbPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/AreaSurvivors/Prefabs/ExperienceOrb.prefab");
-            runner.damagePopupPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/AreaSurvivors/Prefabs/DamagePopup.prefab");
+            bootstrap.scenario = scenario;
+            bootstrap.config = AssetDatabase.LoadAssetAtPath<GameConfig>("Assets/AreaSurvivors/Resources/Config/GameConfig.asset");
+            bootstrap.enemyPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/AreaSurvivors/Prefabs/Enemy.prefab");
+            bootstrap.xpOrbPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/AreaSurvivors/Prefabs/ExperienceOrb.prefab");
+            bootstrap.damagePopupPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/AreaSurvivors/Prefabs/DamagePopup.prefab");
         }
 
         public static void UseScenarioAsset(GameplayTestScenario scenario)
         {
-            OpenGameplayTest();
-            var runner = Object.FindObjectOfType<GameplayTestRunner>();
-            if (runner == null)
-            {
-                BuildGameplayTestScene();
-                runner = Object.FindObjectOfType<GameplayTestRunner>();
-            }
-            AssignReferences(runner, scenario);
-            EditorUtility.SetDirty(runner);
-            EditorSceneManager.MarkSceneDirty(runner.gameObject.scene);
-            EditorSceneManager.SaveScene(runner.gameObject.scene);
+            if (scenario == null) return;
+            EditorPrefs.SetString(SelectedScenarioEditorPref, AssetDatabase.GetAssetPath(scenario));
             Selection.activeObject = scenario;
+            Debug.Log($"Gameplay test scenario selected: {scenario.name}");
+        }
+
+        static void RunScenarioAsset(GameplayTestScenario scenario)
+        {
+            UseScenarioAsset(scenario);
+            QueuePlayMode();
+        }
+
+        static void QueuePlayMode()
+        {
+            OpenGameplayTest();
+            if (playModeQueued) return;
+            playModeQueued = true;
+            EditorApplication.update += EnterPlayModeWhenReady;
+        }
+
+        static void EnterPlayModeWhenReady()
+        {
+            if (EditorApplication.isCompiling || EditorApplication.isUpdating) return;
+            if (EditorSceneManager.GetActiveScene().path != TestScenePath) return;
+            EditorApplication.update -= EnterPlayModeWhenReady;
+            playModeQueued = false;
+            if (!EditorApplication.isPlayingOrWillChangePlaymode) EditorApplication.isPlaying = true;
         }
 
         static GameplayTestScenario EnsureDefaultScenario()
