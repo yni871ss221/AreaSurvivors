@@ -24,6 +24,10 @@ namespace AreaSurvivors
             SimpleUi.Panel(ui.transform, "Upgrade List", new Vector2(0, -146), new Vector2(660, 78), new Color(0.05f, 0.07f, 0.08f, 0.86f));
             SimpleUi.Label(ui.transform, "\u53d6\u5f97\u3057\u305f\u5f37\u5316", 19, new Vector2(-245, -122), new Vector2(150, 28), "Upgrade Header", new Color(0.96f, 0.90f, 0.68f));
             SimpleUi.Label(ui.transform, UpgradeText(result), 18, new Vector2(70, -154), new Vector2(500, 58), "Upgrade Text", new Color(0.86f, 0.93f, 0.88f), TextAnchor.MiddleLeft);
+            if (!string.IsNullOrWhiteSpace(result.clearMessage))
+            {
+                SimpleUi.Label(ui.transform, result.clearMessage, 22, new Vector2(0, -204), new Vector2(620, 34), "Clear Message", new Color(0.72f, 1f, 0.74f));
+            }
 
             var nav = gameObject.AddComponent<SceneNavigator>();
             SimpleUi.Button(ui.transform, "\u30ed\u30d3\u30fc\u3078", new Vector2(0, -264), nav.LoadLobby, new Vector2(250, 56), "Generated/Tower");

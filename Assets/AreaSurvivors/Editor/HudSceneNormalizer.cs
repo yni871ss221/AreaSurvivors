@@ -13,7 +13,7 @@ namespace AreaSurvivors.Editor
         {
             "Player", "Player Status", "Construction Menu", "Tower Status",
             "Timer Panel", "Kill Panel", "Wood Resource", "Stone Resource",
-            "Token Resource", "Boss Status", "Announcement"
+            "Token Resource", "Stage Panel", "Boss Status", "Announcement"
         };
 
         static readonly string[] NeverFadePanels = { "Level Up Panel" };

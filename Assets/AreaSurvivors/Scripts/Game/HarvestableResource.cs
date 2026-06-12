@@ -121,11 +121,23 @@ namespace AreaSurvivors
 
         void HarvestTick()
         {
-            int amount = Mathf.Min(Mathf.Max(1, amountPerTick + ResourceGainBonus()), remainingAmount);
+            HarvestAmount(Mathf.Max(1, amountPerTick + ResourceGainBonus()), InteractionPoint() + Vector3.up * 0.22f);
+        }
+
+        public int HarvestExternal(int requestedAmount)
+        {
+            return HarvestAmount(requestedAmount, AutoHarvestPopupPoint());
+        }
+
+        int HarvestAmount(int requestedAmount, Vector3 popupPosition)
+        {
+            if (remainingAmount <= 0) return 0;
+            int amount = Mathf.Min(Mathf.Max(1, requestedAmount), remainingAmount);
             remainingAmount -= amount;
             var manager = GameManager.Instance;
             if (manager != null) manager.AddResource(resourceType, amount);
-            HarvestResourcePopup.Show(InteractionPoint() + Vector3.up * 0.22f, amount, resourceIcon, ResourceColor());
+            if (resourceIcon == null) resourceIcon = LoadGeneratedSprite(resourceType == ResourceType.Wood ? "WoodIcon" : "StoneIcon");
+            HarvestResourcePopup.Show(popupPosition, amount, resourceIcon, ResourceColor());
             UpdateGauge();
 
             if (remainingAmount <= 0)
@@ -133,6 +145,8 @@ namespace AreaSurvivors
                 if (grid != null) grid.ClearObject(originCell);
                 Destroy(gameObject);
             }
+
+            return amount;
         }
 
         void EnsurePickaxe()
@@ -210,6 +224,12 @@ namespace AreaSurvivors
             var distance = resourceCollider.Distance(playerCollider);
             if (distance.isOverlapped) return resourceCollider.ClosestPoint(player.transform.position);
             return distance.pointA;
+        }
+
+        Vector3 AutoHarvestPopupPoint()
+        {
+            if (resourceCollider == null) return transform.position + Vector3.up * PopupHeight();
+            return resourceCollider.bounds.center + Vector3.up * (resourceCollider.bounds.extents.y + 0.18f);
         }
 
         void UpdateGauge()

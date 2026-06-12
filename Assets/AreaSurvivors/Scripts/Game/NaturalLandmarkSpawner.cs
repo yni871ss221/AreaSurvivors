@@ -317,6 +317,7 @@ namespace AreaSurvivors
             visualObject.transform.SetParent(root.transform, false);
             var visual = visualObject.AddComponent<PaperMeshVisual>();
             visual.Configure(sprite, Color.white, 1000);
+            visual.useBottomCenterAnchor = true;
             var billboard = visualObject.AddComponent<PaperBillboard>();
             billboard.faceCamera = true;
             if (addOutline)

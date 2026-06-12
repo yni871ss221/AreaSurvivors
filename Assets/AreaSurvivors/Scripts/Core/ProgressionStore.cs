@@ -6,6 +6,7 @@ namespace AreaSurvivors
     public static class ProgressionStore
     {
         const string SaveKey = "AreaSurvivors.Save.v1";
+        const int ImplementedStageCount = 2;
         static SaveData cached;
 
         public static SaveData Data
@@ -17,6 +18,8 @@ namespace AreaSurvivors
                     var json = PlayerPrefs.GetString(SaveKey, string.Empty);
                     cached = string.IsNullOrEmpty(json) ? new SaveData() : JsonUtility.FromJson<SaveData>(json);
                     if (cached.upgrades == null) cached.upgrades = new List<UpgradeLevel>();
+                    if (cached.stageSpeedSettings == null) cached.stageSpeedSettings = new List<StageSpeedSetting>();
+                    if (cached.highestUnlockedStage < 1) cached.highestUnlockedStage = 1;
                 }
 
                 return cached;
@@ -65,6 +68,9 @@ namespace AreaSurvivors
                 case UpgradeType.UnlockWorkerHut:
                 case UpgradeType.UnlockClassChange:
                     return 1;
+                case UpgradeType.AutoResourceInterval:
+                case UpgradeType.AutoResourceGain:
+                    return 2;
                 default:
                     return 10;
             }
@@ -110,6 +116,66 @@ namespace AreaSurvivors
         {
             Data.tokens += Mathf.Max(0, tokens);
             Data.totalKills += kills;
+            Save();
+        }
+
+        public static bool IsStageUnlocked(int stage)
+        {
+            return stage >= 1 && Data.highestUnlockedStage >= stage;
+        }
+
+        public static bool IsStageCleared(int stage)
+        {
+            return stage >= 1 && Data.highestClearedStage >= stage;
+        }
+
+        public static bool MarkStageCleared(int stage)
+        {
+            if (stage < 1) return false;
+            int nextUnlockedStage = Mathf.Min(stage + 1, ImplementedStageCount);
+            bool unlockedNewStage = Data.highestUnlockedStage < nextUnlockedStage;
+            Data.highestClearedStage = Mathf.Max(Data.highestClearedStage, stage);
+            Data.highestUnlockedStage = Mathf.Max(Data.highestUnlockedStage, nextUnlockedStage);
+            Save();
+            return unlockedNewStage;
+        }
+
+        public static bool IsFastStage(int stage)
+        {
+            foreach (var setting in Data.stageSpeedSettings)
+            {
+                if (setting != null && setting.stage == stage) return setting.fastMode && IsStageCleared(stage);
+            }
+            return false;
+        }
+
+        public static void SetFastStage(int stage, bool fastMode)
+        {
+            if (stage < 1 || !IsStageCleared(stage)) return;
+            foreach (var setting in Data.stageSpeedSettings)
+            {
+                if (setting != null && setting.stage == stage)
+                {
+                    setting.fastMode = fastMode;
+                    Save();
+                    return;
+                }
+            }
+
+            Data.stageSpeedSettings.Add(new StageSpeedSetting { stage = stage, fastMode = fastMode });
+            Save();
+        }
+
+        public static void AddTokensForTesting(int tokens)
+        {
+            Data.tokens += Mathf.Max(0, tokens);
+            Save();
+        }
+
+        public static void ResetUpgradesForTesting()
+        {
+            if (Data.upgrades == null) Data.upgrades = new List<UpgradeLevel>();
+            Data.upgrades.Clear();
             Save();
         }
 

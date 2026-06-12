@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace AreaSurvivors
@@ -8,7 +9,12 @@ namespace AreaSurvivors
         EliteBoar,
         Orc,
         EliteOrc,
-        OrcKing
+        OrcKing,
+        Goblin,
+        EliteGoblin,
+        Ogre,
+        EliteOgre,
+        GoblinLord
     }
 
     [System.Serializable]
@@ -74,10 +80,10 @@ namespace AreaSurvivors
         [Header("Camera")]
         public float cameraOrthographicSize = 12.5f;
         public Vector3 cameraOffset = new Vector3(0f, -15.5f, -19f);
-        public float cameraPitch = -45f;
+        public float cameraPitch = -35f;
         public float cameraZoomedInOrthographicSize = 3.9f;
         public Vector3 cameraZoomedInOffset = new Vector3(0f, -8.5f, -9f);
-        public float cameraZoomedInPitch = -35f;
+        public float cameraZoomedInPitch = -45f;
         [Range(0f, 1f)]
         public float cameraDefaultZoom = 0.5f;
         public float cameraZoomScrollSpeed = 0.16f;
@@ -99,6 +105,15 @@ namespace AreaSurvivors
         public int ballistaMaxHp = 90;
         public float fenceBuildSeconds = 1.8f;
         public int fenceMaxHp = 70;
+        public float carpenterHutBuildSeconds = 2.4f;
+        public int carpenterHutMaxHp = 50;
+        public float carpenterHutAutoBuildSpeedMultiplier = 0.1f;
+        public float workerHutBuildSeconds = 2.4f;
+        public int workerHutMaxHp = 50;
+        public float watchTowerBuildSeconds = 3.2f;
+        public int watchTowerMaxHp = 100;
+        public float watchTowerAutoPaintIntervalSeconds = 2f;
+        public int watchTowerAutoPaintRadiusCells = 10;
         public int startingBallistaStock = 4;
         public int startingFenceStock = 4;
 
@@ -111,8 +126,18 @@ namespace AreaSurvivors
         public int fenceStoneCost = 0;
         public int ballistaWoodCost = 50;
         public int ballistaStoneCost = 30;
+        public int carpenterHutWoodCost = 30;
+        public int carpenterHutStoneCost = 20;
+        public int workerHutWoodCost = 30;
+        public int workerHutStoneCost = 20;
+        public int watchTowerWoodCost = 50;
+        public int watchTowerStoneCost = 50;
         public float harvestIntervalSeconds = 1f;
         public int harvestAmountPerTick = 2;
+        public float workerHutAutoGatherBaseIntervalSeconds = 5f;
+        public float workerHutAutoGatherIntervalReductionPerLevel = 1f;
+        public int workerHutAutoGatherBaseAmount = 1;
+        public int workerHutAutoGatherAmountPerLevel = 1;
         public int harvestAmount1Cell = 100;
         public int harvestAmount2Cell = 200;
         public int harvestAmount4Cell = 400;
@@ -196,88 +221,33 @@ namespace AreaSurvivors
 
         public void EnsureEnemySpawnDefaults()
         {
+            var defaultDefinitions = DefaultEnemyDefinitions();
             if (enemyDefinitions == null || enemyDefinitions.Length == 0)
             {
-                enemyDefinitions = new[]
-                {
-                    new EnemyDefinition
-                    {
-                        kind = EnemyKind.Boar,
-                        displayName = "イノシシ",
-                        spriteKey = "EnemyBoar",
-                        hpMultiplier = 1f,
-                        damageMultiplier = 1f,
-                        speedMultiplier = 1f,
-                        cellSize = 1f,
-                        xpValue = Mathf.Max(1, xpPerEnemy),
-                        tokenValue = 0,
-                        outlineColor = Color.black,
-                        outlineThickness = 0.018f
-                    },
-                    new EnemyDefinition
-                    {
-                        kind = EnemyKind.EliteBoar,
-                        displayName = "エリートイノシシ",
-                        spriteKey = "EnemyBoar",
-                        hpMultiplier = 5f,
-                        damageMultiplier = 2f,
-                        speedMultiplier = 0.95f,
-                        cellSize = 1.5f,
-                        xpValue = Mathf.Max(5, xpPerEnemy * 6),
-                        tokenValue = 1,
-                        elite = true,
-                        outlineColor = new Color(1f, 0.86f, 0.12f, 1f),
-                        outlineThickness = 0.055f
-                    },
-                    new EnemyDefinition
-                    {
-                        kind = EnemyKind.Orc,
-                        displayName = "オーク",
-                        spriteKey = "EnemyOrc",
-                        animationSpeedMultiplier = 0.5f,
-                        hpMultiplier = 2f,
-                        damageMultiplier = 2f,
-                        speedMultiplier = 0.82f,
-                        cellSize = 2f,
-                        xpValue = Mathf.Max(3, xpPerEnemy * 3),
-                        tokenValue = 0,
-                        outlineColor = Color.black,
-                        outlineThickness = 0.02f
-                    },
-                    new EnemyDefinition
-                    {
-                        kind = EnemyKind.EliteOrc,
-                        displayName = "エリートオーク",
-                        spriteKey = "EnemyOrc",
-                        animationSpeedMultiplier = 0.5f,
-                        hpMultiplier = 10f,
-                        damageMultiplier = 4f,
-                        speedMultiplier = 0.76f,
-                        cellSize = 2.5f,
-                        xpValue = Mathf.Max(12, xpPerEnemy * 12),
-                        tokenValue = 1,
-                        elite = true,
-                        outlineColor = new Color(1f, 0.86f, 0.12f, 1f),
-                        outlineThickness = 0.055f
-                    },
-                    new EnemyDefinition
-                    {
-                        kind = EnemyKind.OrcKing,
-                        displayName = "オークキング",
-                        spriteKey = "EnemyOrcKing",
-                        animationSpeedMultiplier = 0.5f,
-                        hpMultiplier = 40f,
-                        damageMultiplier = 8f,
-                        speedMultiplier = 0.62f,
-                        cellSize = 4f,
-                        xpValue = 50,
-                        tokenValue = 3,
-                        boss = true,
-                        outlineColor = new Color(1f, 0.08f, 0.04f, 1f),
-                        outlineThickness = 0.075f
-                    }
-                };
+                enemyDefinitions = defaultDefinitions;
             }
+            else
+            {
+                var merged = new List<EnemyDefinition>(enemyDefinitions);
+                foreach (var defaultDefinition in defaultDefinitions)
+                {
+                    bool exists = false;
+                    foreach (var definition in merged)
+                    {
+                        if (definition != null && definition.kind == defaultDefinition.kind)
+                        {
+                            exists = true;
+                            break;
+                        }
+                    }
+
+                    if (!exists) merged.Add(defaultDefinition);
+                }
+
+                enemyDefinitions = merged.ToArray();
+            }
+
+            ApplyStageTwoAnimationSpeedDefaults(defaultDefinitions);
 
             if (spawnPhases == null || spawnPhases.Length == 0)
             {
@@ -306,7 +276,198 @@ namespace AreaSurvivors
             {
                 if (definition != null && definition.kind == kind) return definition;
             }
+            foreach (var definition in DefaultEnemyDefinitions())
+            {
+                if (definition != null && definition.kind == kind) return definition;
+            }
             return enemyDefinitions != null && enemyDefinitions.Length > 0 ? enemyDefinitions[0] : null;
+        }
+
+        EnemyDefinition[] DefaultEnemyDefinitions()
+        {
+            return new[]
+            {
+                new EnemyDefinition
+                {
+                    kind = EnemyKind.Boar,
+                    displayName = "イノシシ",
+                    spriteKey = "EnemyBoar",
+                    hpMultiplier = 1f,
+                    damageMultiplier = 1f,
+                    speedMultiplier = 1f,
+                    cellSize = 1f,
+                    xpValue = Mathf.Max(1, xpPerEnemy),
+                    tokenValue = 0,
+                    outlineColor = Color.black,
+                    outlineThickness = 0.018f
+                },
+                new EnemyDefinition
+                {
+                    kind = EnemyKind.EliteBoar,
+                    displayName = "エリートイノシシ",
+                    spriteKey = "EnemyBoar",
+                    hpMultiplier = 5f,
+                    damageMultiplier = 2f,
+                    speedMultiplier = 0.95f,
+                    cellSize = 1.5f,
+                    xpValue = Mathf.Max(5, xpPerEnemy * 6),
+                    tokenValue = 1,
+                    elite = true,
+                    outlineColor = new Color(1f, 0.86f, 0.12f, 1f),
+                    outlineThickness = 0.055f
+                },
+                new EnemyDefinition
+                {
+                    kind = EnemyKind.Orc,
+                    displayName = "オーク",
+                    spriteKey = "EnemyOrc",
+                    animationSpeedMultiplier = 0.5f,
+                    hpMultiplier = 2f,
+                    damageMultiplier = 2f,
+                    speedMultiplier = 0.82f,
+                    cellSize = 2f,
+                    xpValue = Mathf.Max(3, xpPerEnemy * 3),
+                    tokenValue = 0,
+                    outlineColor = Color.black,
+                    outlineThickness = 0.02f
+                },
+                new EnemyDefinition
+                {
+                    kind = EnemyKind.EliteOrc,
+                    displayName = "エリートオーク",
+                    spriteKey = "EnemyOrc",
+                    animationSpeedMultiplier = 0.5f,
+                    hpMultiplier = 10f,
+                    damageMultiplier = 4f,
+                    speedMultiplier = 0.76f,
+                    cellSize = 2.5f,
+                    xpValue = Mathf.Max(12, xpPerEnemy * 12),
+                    tokenValue = 1,
+                    elite = true,
+                    outlineColor = new Color(1f, 0.86f, 0.12f, 1f),
+                    outlineThickness = 0.055f
+                },
+                new EnemyDefinition
+                {
+                    kind = EnemyKind.OrcKing,
+                    displayName = "オークキング",
+                    spriteKey = "EnemyOrcKing",
+                    animationSpeedMultiplier = 0.5f,
+                    hpMultiplier = 40f,
+                    damageMultiplier = 8f,
+                    speedMultiplier = 0.62f,
+                    cellSize = 4f,
+                    xpValue = 50,
+                    tokenValue = 3,
+                    boss = true,
+                    outlineColor = new Color(1f, 0.08f, 0.04f, 1f),
+                    outlineThickness = 0.075f
+                },
+                new EnemyDefinition
+                {
+                    kind = EnemyKind.Goblin,
+                    displayName = "ゴブリン",
+                    spriteKey = "EnemyGoblin",
+                    animationSpeedMultiplier = 0.35f,
+                    hpMultiplier = 2f,
+                    damageMultiplier = 2f,
+                    speedMultiplier = 1f,
+                    cellSize = 1f,
+                    xpValue = Mathf.Max(2, xpPerEnemy * 2),
+                    tokenValue = 0,
+                    outlineColor = Color.black,
+                    outlineThickness = 0.018f
+                },
+                new EnemyDefinition
+                {
+                    kind = EnemyKind.EliteGoblin,
+                    displayName = "エリートゴブリン",
+                    spriteKey = "EnemyGoblin",
+                    animationSpeedMultiplier = 0.35f,
+                    hpMultiplier = 10f,
+                    damageMultiplier = 4f,
+                    speedMultiplier = 0.95f,
+                    cellSize = 1.5f,
+                    xpValue = Mathf.Max(10, xpPerEnemy * 10),
+                    tokenValue = 1,
+                    elite = true,
+                    outlineColor = new Color(1f, 0.86f, 0.12f, 1f),
+                    outlineThickness = 0.055f
+                },
+                new EnemyDefinition
+                {
+                    kind = EnemyKind.Ogre,
+                    displayName = "オーガ",
+                    spriteKey = "EnemyOgre",
+                    animationSpeedMultiplier = 0.35f,
+                    hpMultiplier = 4f,
+                    damageMultiplier = 4f,
+                    speedMultiplier = 0.82f,
+                    cellSize = 2f,
+                    xpValue = Mathf.Max(6, xpPerEnemy * 6),
+                    tokenValue = 0,
+                    outlineColor = Color.black,
+                    outlineThickness = 0.02f
+                },
+                new EnemyDefinition
+                {
+                    kind = EnemyKind.EliteOgre,
+                    displayName = "エリートオーガ",
+                    spriteKey = "EnemyOgre",
+                    animationSpeedMultiplier = 0.35f,
+                    hpMultiplier = 20f,
+                    damageMultiplier = 8f,
+                    speedMultiplier = 0.76f,
+                    cellSize = 2.5f,
+                    xpValue = Mathf.Max(24, xpPerEnemy * 24),
+                    tokenValue = 1,
+                    elite = true,
+                    outlineColor = new Color(1f, 0.86f, 0.12f, 1f),
+                    outlineThickness = 0.055f
+                },
+                new EnemyDefinition
+                {
+                    kind = EnemyKind.GoblinLord,
+                    displayName = "ゴブリンロード",
+                    spriteKey = "EnemyGoblinLord",
+                    animationSpeedMultiplier = 0.35f,
+                    hpMultiplier = 80f,
+                    damageMultiplier = 16f,
+                    speedMultiplier = 0.62f,
+                    cellSize = 4f,
+                    xpValue = 100,
+                    tokenValue = 5,
+                    boss = true,
+                    outlineColor = new Color(1f, 0.08f, 0.04f, 1f),
+                    outlineThickness = 0.075f
+                }
+            };
+        }
+
+        void ApplyStageTwoAnimationSpeedDefaults(EnemyDefinition[] defaults)
+        {
+            if (enemyDefinitions == null || defaults == null) return;
+            foreach (var definition in enemyDefinitions)
+            {
+                if (definition == null || !IsStageTwoEnemy(definition.kind)) continue;
+                foreach (var defaultDefinition in defaults)
+                {
+                    if (defaultDefinition != null && defaultDefinition.kind == definition.kind)
+                    {
+                        definition.animationSpeedMultiplier = defaultDefinition.animationSpeedMultiplier;
+                        break;
+                    }
+                }
+            }
+        }
+
+        static bool IsStageTwoEnemy(EnemyKind kind)
+        {
+            return kind == EnemyKind.Goblin ||
+                kind == EnemyKind.EliteGoblin ||
+                kind == EnemyKind.Ogre ||
+                kind == EnemyKind.EliteOgre ||
+                kind == EnemyKind.GoblinLord;
         }
     }
 }

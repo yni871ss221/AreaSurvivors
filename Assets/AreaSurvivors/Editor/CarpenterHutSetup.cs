@@ -1,0 +1,257 @@
+using AreaSurvivors;
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using UnityEngine.Tilemaps;
+using UnityEngine.UI;
+
+namespace AreaSurvivors.Editor
+{
+    public static class CarpenterHutSetup
+    {
+        const string SpritePath = "Assets/AreaSurvivors/Sprites/Generated/CarpenterHut.png";
+        const string HammerSpritePath = "Assets/AreaSurvivors/Sprites/Generated/Hammer.png";
+        const string SparkleSpritePath = "Assets/AreaSurvivors/Sprites/Generated/Sparkle.png";
+        const string TilePath = "Assets/AreaSurvivors/TilePalette/CarpenterHut.asset";
+        const string PrefabPath = "Assets/AreaSurvivors/Prefabs/CarpenterHut.prefab";
+        const string GameScenePath = "Assets/AreaSurvivors/Scenes/05_Game.unity";
+
+        [MenuItem("Area Survivors/Setup Carpenter Hut")]
+        public static void Run()
+        {
+            ConfigureSpriteImporter();
+            var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(SpritePath);
+            var tile = CreateTile(sprite);
+            var prefab = CreatePrefab(sprite);
+            UpdateConfig();
+            UpdateGameScene(sprite, tile, prefab);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Debug.Log("Carpenter hut setup completed.");
+        }
+
+        static void ConfigureSpriteImporter()
+        {
+            AssetDatabase.ImportAsset(SpritePath, ImportAssetOptions.ForceUpdate);
+            var importer = AssetImporter.GetAtPath(SpritePath) as TextureImporter;
+            if (importer == null) return;
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.spritePixelsPerUnit = 128f;
+            importer.spritePivot = new Vector2(0.5f, 0.5f);
+            importer.filterMode = FilterMode.Point;
+            importer.mipmapEnabled = false;
+            importer.alphaIsTransparency = true;
+            importer.textureCompression = TextureImporterCompression.Uncompressed;
+            importer.SaveAndReimport();
+        }
+
+        static Tile CreateTile(Sprite sprite)
+        {
+            var tile = AssetDatabase.LoadAssetAtPath<Tile>(TilePath);
+            if (tile == null)
+            {
+                tile = ScriptableObject.CreateInstance<Tile>();
+                AssetDatabase.CreateAsset(tile, TilePath);
+            }
+
+            tile.name = "CarpenterHut";
+            tile.sprite = sprite;
+            tile.color = Color.white;
+            tile.colliderType = Tile.ColliderType.None;
+            EditorUtility.SetDirty(tile);
+            return tile;
+        }
+
+        static GameObject CreatePrefab(Sprite sprite)
+        {
+            var go = new GameObject("CarpenterHut");
+            var marker = go.AddComponent<GridObjectMarker>();
+            marker.type = GridObjectType.CarpenterHut;
+            marker.flags = GridCellFlags.BlocksMovement | GridCellFlags.BlocksBuilding | GridCellFlags.Defensive;
+            marker.footprint = Vector2Int.one;
+
+            var rb = go.AddComponent<Rigidbody2D>();
+            rb.bodyType = RigidbodyType2D.Static;
+
+            var trigger = go.AddComponent<BoxCollider2D>();
+            trigger.isTrigger = true;
+            trigger.size = new Vector2(0.82f, 0.72f);
+            trigger.offset = new Vector2(0f, -0.08f);
+
+            var blocker = go.AddComponent<BoxCollider2D>();
+            blocker.size = trigger.size;
+            blocker.offset = trigger.offset;
+            blocker.enabled = false;
+
+            go.AddComponent<Health>();
+            var ySort = go.AddComponent<YSort>();
+            ySort.baseOrder = 1000;
+
+            var hut = go.AddComponent<CarpenterHut>();
+            hut.blockingCollider = blocker;
+            hut.hutSprite = sprite;
+            hut.spriteVisualSize = VisualSizeForTransformScale(sprite, 0.33f);
+            hut.spriteVisualOffset = new Vector3(0f, -0.25f, 0f);
+            hut.hammerRenderer = CreateOverlayVisual(go.transform, "Hammer", AssetDatabase.LoadAssetAtPath<Sprite>(HammerSpritePath), 22020);
+            hut.sparkleRenderer = CreateOverlayVisual(go.transform, "Completion Sparkle", AssetDatabase.LoadAssetAtPath<Sprite>(SparkleSpritePath), 22030);
+
+            var prefab = PrefabUtility.SaveAsPrefabAsset(go, PrefabPath);
+            Object.DestroyImmediate(go);
+            return prefab;
+        }
+
+        static PaperMeshVisual CreateOverlayVisual(Transform parent, string name, Sprite sprite, int sortingOrder)
+        {
+            var child = new GameObject(name);
+            child.transform.SetParent(parent, false);
+            child.AddComponent<PaperBillboard>();
+            var visual = child.AddComponent<PaperMeshVisual>();
+            visual.Configure(sprite, Color.white, sortingOrder);
+            visual.visible = false;
+            var outline = child.AddComponent<RuntimeSpriteOutline>();
+            outline.outlineColor = Color.black;
+            outline.thickness = 0.022f;
+            child.AddComponent<PreserveSortingOrder>();
+            return visual;
+        }
+
+        static Vector2 VisualSizeForTransformScale(Sprite sprite, float scale)
+        {
+            if (sprite == null) return Vector2.one * scale;
+            return new Vector2(sprite.bounds.size.x * scale, sprite.bounds.size.y * scale);
+        }
+
+        static void UpdateConfig()
+        {
+            var config = AssetDatabase.LoadAssetAtPath<GameConfig>("Assets/AreaSurvivors/Resources/Config/GameConfig.asset");
+            if (config == null) return;
+            config.carpenterHutBuildSeconds = 2.4f;
+            config.carpenterHutMaxHp = 50;
+            config.carpenterHutAutoBuildSpeedMultiplier = 0.1f;
+            config.carpenterHutWoodCost = 30;
+            config.carpenterHutStoneCost = 20;
+            EditorUtility.SetDirty(config);
+        }
+
+        static void UpdateGameScene(Sprite sprite, Tile tile, GameObject prefab)
+        {
+            var scene = EditorSceneManager.OpenScene(GameScenePath, OpenSceneMode.Single);
+            var placement = Object.FindObjectOfType<BuildPlacementController>(true);
+            if (placement != null)
+            {
+                placement.carpenterHutPrefab = prefab;
+                placement.carpenterHutPreviewSprite = sprite;
+                placement.carpenterHutTile = tile;
+                EditorUtility.SetDirty(placement);
+            }
+
+            var menuObject = GameObject.Find("Construction Menu");
+            if (menuObject != null)
+            {
+                UpdateConstructionMenu(menuObject.transform, sprite);
+                EditorUtility.SetDirty(menuObject);
+            }
+
+            EditorSceneManager.SaveScene(scene);
+        }
+
+        static void UpdateConstructionMenu(Transform menu, Sprite sprite)
+        {
+            var menuRect = menu.GetComponent<RectTransform>();
+            var slotPositions = BuildSlotPositions(menu);
+            var statusPosition = new Vector2(slotPositions[4].x + 70f, slotPositions[4].y);
+            if (menuRect != null) EnsureMenuBounds(menuRect, slotPositions, statusPosition);
+
+            var status = menu.Find("Build Status") as RectTransform;
+            if (status != null)
+            {
+                status.anchoredPosition = statusPosition;
+                status.sizeDelta = new Vector2(58f, 58f);
+                var text = status.GetComponent<Text>();
+                if (text != null) text.fontSize = 13;
+            }
+
+            var existing = menu.Find("Build Slot 5");
+            if (existing == null)
+            {
+                var source = menu.Find("Build Slot 4");
+                if (source == null) source = menu.Find("Build Slot 3");
+                if (source == null) return;
+                existing = Object.Instantiate(source.gameObject, menu).transform;
+                existing.name = "Build Slot 5";
+            }
+
+            var slotRect = existing.GetComponent<RectTransform>();
+            if (slotRect != null)
+            {
+                slotRect.anchorMin = Vector2.zero;
+                slotRect.anchorMax = Vector2.zero;
+                slotRect.pivot = Vector2.zero;
+                slotRect.anchoredPosition = slotPositions[4];
+            }
+            SetText(existing, "Key", "5");
+            SetText(existing, "Stock", "ロック");
+
+            var icon = existing.Find("Icon");
+            if (icon != null)
+            {
+                var image = icon.GetComponent<Image>();
+                if (image != null)
+                {
+                    image.sprite = sprite;
+                    image.preserveAspect = true;
+                    image.rectTransform.sizeDelta = new Vector2(44f, 44f);
+                }
+            }
+
+            EditorUtility.SetDirty(existing);
+        }
+
+        static Vector2[] BuildSlotPositions(Transform menu)
+        {
+            var result = new[]
+            {
+                new Vector2(41f, 15f),
+                new Vector2(111f, 15f),
+                new Vector2(181f, 15f),
+                new Vector2(251f, 15f),
+                new Vector2(321f, 15f)
+            };
+
+            for (int i = 0; i < result.Length; i++)
+            {
+                var slot = menu.Find("Build Slot " + (i + 1)) as RectTransform;
+                if (slot != null) result[i] = slot.anchoredPosition;
+            }
+
+            var spacing = result[2].x - result[1].x;
+            if (Mathf.Abs(spacing) < 1f) spacing = result[1].x - result[0].x;
+            if (Mathf.Abs(spacing) < 1f) spacing = 70f;
+            if (menu.Find("Build Slot 4") == null) result[3] = new Vector2(result[2].x + spacing, result[2].y);
+            if (menu.Find("Build Slot 5") == null) result[4] = new Vector2(result[3].x + spacing, result[3].y);
+            return result;
+        }
+
+        static void EnsureMenuBounds(RectTransform menuRect, Vector2[] slotPositions, Vector2 statusPosition)
+        {
+            const float slotHeight = 66f;
+            const float statusWidth = 58f;
+            const float statusHeight = 58f;
+            const float margin = 12f;
+
+            var size = menuRect.sizeDelta;
+            size.x = Mathf.Max(size.x, statusPosition.x + statusWidth + margin);
+            size.y = Mathf.Max(size.y, Mathf.Max(slotPositions[0].y + slotHeight, statusPosition.y + statusHeight) + margin);
+            menuRect.sizeDelta = size;
+        }
+
+        static void SetText(Transform root, string childName, string value)
+        {
+            var child = root.Find(childName);
+            if (child == null) return;
+            var text = child.GetComponent<Text>();
+            if (text != null) text.text = value;
+        }
+    }
+}

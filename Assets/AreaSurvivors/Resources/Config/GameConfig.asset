@@ -28,10 +28,10 @@ MonoBehaviour:
   runMaxHpBonus: 8
   cameraOrthographicSize: 12.5
   cameraOffset: {x: 0, y: -15.5, z: -19}
-  cameraPitch: -45
+  cameraPitch: -35
   cameraZoomedInOrthographicSize: 3.9
   cameraZoomedInOffset: {x: 0, y: -8.5, z: -9}
-  cameraZoomedInPitch: -35
+  cameraZoomedInPitch: -45
   cameraDefaultZoom: 0.5
   cameraZoomScrollSpeed: 0.16
   cameraPlayerWeight: 1
@@ -48,6 +48,15 @@ MonoBehaviour:
   ballistaMaxHp: 90
   fenceBuildSeconds: 1.8
   fenceMaxHp: 70
+  carpenterHutBuildSeconds: 2.4
+  carpenterHutMaxHp: 50
+  carpenterHutAutoBuildSpeedMultiplier: 0.1
+  workerHutBuildSeconds: 2.4
+  workerHutMaxHp: 50
+  watchTowerBuildSeconds: 3.2
+  watchTowerMaxHp: 100
+  watchTowerAutoPaintIntervalSeconds: 2
+  watchTowerAutoPaintRadiusCells: 10
   startingBallistaStock: 4
   startingFenceStock: 4
   startingWood: 100
@@ -58,8 +67,18 @@ MonoBehaviour:
   fenceStoneCost: 0
   ballistaWoodCost: 50
   ballistaStoneCost: 30
+  carpenterHutWoodCost: 30
+  carpenterHutStoneCost: 20
+  workerHutWoodCost: 30
+  workerHutStoneCost: 20
+  watchTowerWoodCost: 50
+  watchTowerStoneCost: 50
   harvestIntervalSeconds: 1
   harvestAmountPerTick: 2
+  workerHutAutoGatherBaseIntervalSeconds: 5
+  workerHutAutoGatherIntervalReductionPerLevel: 1
+  workerHutAutoGatherBaseAmount: 1
+  workerHutAutoGatherAmountPerLevel: 1
   harvestAmount1Cell: 100
   harvestAmount2Cell: 200
   harvestAmount4Cell: 400

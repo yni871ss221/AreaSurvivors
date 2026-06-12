@@ -15,26 +15,48 @@ namespace AreaSurvivors
         public float radius = 34f;
 
         public float ElapsedSeconds => elapsed;
+        public float StageElapsedSeconds => stageElapsed;
         public float CurrentDirectionDegrees => directionDegrees;
         public int DirectionChangeIndex => directionChangeIndex;
+        public string CurrentBossAnnouncement => currentBossAnnouncement;
 
         float elapsed;
+        float stageElapsed;
+        float elapsedOffset;
+        float stageTimeMultiplier = 1f;
+        float enemyMoveMultiplier = 1f;
+        int currentStage = 1;
         float directionTimer;
         float directionDegrees;
         int directionChangeIndex;
         int lastDirectionSector = -1;
         bool running;
         bool[] timedSpawned;
+        string currentBossAnnouncement = "オークキング出現！";
         readonly List<EnemyController> activeEnemies = new List<EnemyController>();
 
         public void Begin(GameConfig gameConfig, TileGrid tileGrid, Transform chaseTarget)
+        {
+            BeginStage(gameConfig, tileGrid, chaseTarget, 1, 0f, 1f);
+        }
+
+        public void BeginStage(GameConfig gameConfig, TileGrid tileGrid, Transform chaseTarget, int stage, float displayElapsedOffset, float speedMultiplier)
         {
             config = gameConfig;
             grid = tileGrid;
             target = chaseTarget;
             config.EnsureEnemySpawnDefaults();
             radius = Mathf.Max(10f, config.enemySpawnRadius);
-            timedSpawned = new bool[config.timedEnemySpawns != null ? config.timedEnemySpawns.Length : 0];
+            currentStage = Mathf.Max(1, stage);
+            elapsedOffset = Mathf.Max(0f, displayElapsedOffset);
+            elapsed = elapsedOffset;
+            stageElapsed = 0f;
+            stageTimeMultiplier = Mathf.Max(0.1f, speedMultiplier);
+            enemyMoveMultiplier = Mathf.Max(0.1f, speedMultiplier);
+            directionTimer = 0f;
+            directionChangeIndex = 0;
+            timedSpawned = new bool[TimedSpawnsForCurrentStage().Length];
+            currentBossAnnouncement = BossAnnouncementForStage(currentStage);
             ChooseNextDirection();
             running = true;
             StartCoroutine(SpawnLoop());
@@ -43,8 +65,10 @@ namespace AreaSurvivors
         void Update()
         {
             if (!running || Time.timeScale <= 0f) return;
-            elapsed += Time.deltaTime;
-            directionTimer += Time.deltaTime;
+            float delta = Time.deltaTime * stageTimeMultiplier;
+            stageElapsed += delta;
+            elapsed = elapsedOffset + stageElapsed;
+            directionTimer += delta;
             if (directionTimer >= Mathf.Max(1f, config.spawnDirectionChangeSeconds))
             {
                 directionTimer -= Mathf.Max(1f, config.spawnDirectionChangeSeconds);
@@ -68,18 +92,20 @@ namespace AreaSurvivors
                         Mathf.Max(1, phase.maxBatchCount));
                     SpawnBatch(phase.enemyKind, batch);
                 }
-                yield return new WaitForSeconds(Mathf.Max(0.18f, phase != null ? phase.spawnInterval : config.spawnInterval));
+                float interval = phase != null ? phase.spawnInterval : config.spawnInterval;
+                yield return new WaitForSeconds(Mathf.Max(0.18f, interval / Mathf.Max(0.1f, stageTimeMultiplier)));
             }
         }
 
         void ProcessTimedSpawns()
         {
-            if (config.timedEnemySpawns == null) return;
-            for (int i = 0; i < config.timedEnemySpawns.Length; i++)
+            var timedSpawns = TimedSpawnsForCurrentStage();
+            if (timedSpawns == null) return;
+            for (int i = 0; i < timedSpawns.Length; i++)
             {
                 if (timedSpawned[i]) continue;
-                var timed = config.timedEnemySpawns[i];
-                if (timed == null || elapsed < timed.timeSeconds) continue;
+                var timed = timedSpawns[i];
+                if (timed == null || stageElapsed < timed.timeSeconds) continue;
                 timedSpawned[i] = true;
                 SpawnBatch(timed.enemyKind, Mathf.Max(1, timed.count), true);
                 if (timed.announce && !string.IsNullOrEmpty(timed.announcement))
@@ -91,11 +117,12 @@ namespace AreaSurvivors
 
         SpawnPhase CurrentPhase()
         {
-            if (config.spawnPhases == null || config.spawnPhases.Length == 0) return null;
-            SpawnPhase result = config.spawnPhases[0];
-            foreach (var phase in config.spawnPhases)
+            var phases = SpawnPhasesForCurrentStage();
+            if (phases == null || phases.Length == 0) return null;
+            SpawnPhase result = phases[0];
+            foreach (var phase in phases)
             {
-                if (phase != null && phase.startSeconds <= elapsed && phase.startSeconds >= result.startSeconds) result = phase;
+                if (phase != null && phase.startSeconds <= stageElapsed && phase.startSeconds >= result.startSeconds) result = phase;
             }
             return result;
         }
@@ -129,7 +156,7 @@ namespace AreaSurvivors
             enemy.xpOrbPrefab = xpOrbPrefab;
             enemy.damagePopupPrefab = damagePopupPrefab;
             int hp = Mathf.Max(1, Mathf.RoundToInt(config.enemyBaseHp * Mathf.Max(0.01f, definition.hpMultiplier)));
-            enemy.Configure(config, grid, target, definition, hp, definition.speedMultiplier);
+            enemy.Configure(config, grid, target, definition, hp, definition.speedMultiplier * enemyMoveMultiplier);
             activeEnemies.Add(enemy);
             if (definition.boss) GameManager.Instance?.BossSpawned(enemy);
         }
@@ -142,6 +169,8 @@ namespace AreaSurvivors
             if (Random.value >= chance) return kind;
             if (kind == EnemyKind.Boar) return EnemyKind.EliteBoar;
             if (kind == EnemyKind.Orc) return EnemyKind.EliteOrc;
+            if (kind == EnemyKind.Goblin) return EnemyKind.EliteGoblin;
+            if (kind == EnemyKind.Ogre) return EnemyKind.EliteOgre;
             return kind;
         }
 
@@ -182,6 +211,40 @@ namespace AreaSurvivors
                 if (enemy != null && enemy != except) Destroy(enemy.gameObject);
             }
             activeEnemies.Clear();
+        }
+
+        SpawnPhase[] SpawnPhasesForCurrentStage()
+        {
+            if (currentStage == 2)
+            {
+                return new[]
+                {
+                    new SpawnPhase { startSeconds = 0f, enemyKind = EnemyKind.Goblin, spawnInterval = config.spawnInterval, baseBatchCount = 1, batchIncreasePerDirectionChange = 1, maxBatchCount = 10 },
+                    new SpawnPhase { startSeconds = 150f, enemyKind = EnemyKind.Ogre, spawnInterval = Mathf.Max(0.5f, config.spawnInterval * 1.05f), baseBatchCount = 1, batchIncreasePerDirectionChange = 1, maxBatchCount = 14 }
+                };
+            }
+
+            return config.spawnPhases;
+        }
+
+        TimedEnemySpawn[] TimedSpawnsForCurrentStage()
+        {
+            if (currentStage == 2)
+            {
+                return new[]
+                {
+                    new TimedEnemySpawn { timeSeconds = 120f, enemyKind = EnemyKind.EliteGoblin, count = 1, announce = true, announcement = "エリートゴブリン出現！" },
+                    new TimedEnemySpawn { timeSeconds = 270f, enemyKind = EnemyKind.EliteOgre, count = 1, announce = true, announcement = "エリートオーガ出現！" },
+                    new TimedEnemySpawn { timeSeconds = 300f, enemyKind = EnemyKind.GoblinLord, count = 1, announce = true, announcement = "ゴブリンロード出現！" }
+                };
+            }
+
+            return config.timedEnemySpawns ?? new TimedEnemySpawn[0];
+        }
+
+        static string BossAnnouncementForStage(int stage)
+        {
+            return stage == 2 ? "ゴブリンロード出現！" : "オークキング出現！";
         }
     }
 }

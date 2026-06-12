@@ -32,7 +32,21 @@ namespace AreaSurvivors
             DrawTree();
 
             var nav = gameObject.AddComponent<SceneNavigator>();
+            SimpleUi.Button(ui.transform, "スキル初期化", new Vector2(-500, -318), ResetUpgradesForTesting, new Vector2(190, 54), "Generated/Orb");
+            SimpleUi.Button(ui.transform, "トークン+99999", new Vector2(-290, -318), AddTestTokens, new Vector2(220, 54), "Generated/Token");
             SimpleUi.Button(ui.transform, "ロビーへ", new Vector2(500, -318), nav.LoadLobby, new Vector2(210, 54), "Generated/Slash_0");
+        }
+
+        void ResetUpgradesForTesting()
+        {
+            ProgressionStore.ResetUpgradesForTesting();
+            UnityEngine.SceneManagement.SceneManager.LoadScene(SceneNames.Upgrades);
+        }
+
+        void AddTestTokens()
+        {
+            ProgressionStore.AddTokensForTesting(99999);
+            UnityEngine.SceneManagement.SceneManager.LoadScene(SceneNames.Upgrades);
         }
 
         void BuildNodes()
@@ -65,13 +79,13 @@ namespace AreaSurvivors
             // Construction branch
             Add(UpgradeType.UnlockBallista, null, 95, 210, "バリスタ解禁", "バリスタを建造可能にします。", "Generated/Ballista");
             Add(UpgradeType.BallistaRange, UpgradeType.UnlockBallista, 95, 105, "バリスタ射程", "バリスタの攻撃射程を広げます。", "Generated/Arrow");
-            Add(UpgradeType.UnlockWatchTower, UpgradeType.UnlockBallista, 205, 105, "監視塔解禁", "建造物「監視塔」をアンロックします。", "Generated/Tower", false);
-            Add(UpgradeType.UnlockCarpenterHut, UpgradeType.UnlockBallista, 95, 0, "大工小屋解禁", "自動建造を行う大工を追加できる建造物をアンロックします。", "Generated/Hammer", false);
+            Add(UpgradeType.UnlockWatchTower, UpgradeType.UnlockBallista, 205, 105, "監視塔解禁", "周囲の青くないセルを自動で塗る監視塔を建造可能にします。", "Generated/WatchTower");
+            Add(UpgradeType.UnlockCarpenterHut, UpgradeType.UnlockBallista, 95, 0, "大工小屋解禁", "自動建造を行う大工を追加できる建造物をアンロックします。", "Generated/Hammer");
             Add(UpgradeType.UnlockAutoBuild, UpgradeType.UnlockCarpenterHut, 95, -105, "大工の自動建造", "大工がエリア内に適切な建造物を建築します。", "Generated/Hammer", false);
             Add(UpgradeType.AutoBuildSpeed, UpgradeType.UnlockAutoBuild, 95, -210, "自動建造速度", "大工による自動建造の速度を上げます。", "Generated/Hammer", false);
-            Add(UpgradeType.UnlockWorkerHut, UpgradeType.UnlockCarpenterHut, 205, 0, "作業小屋解禁", "自動採取を行う作業者を追加できる建造物をアンロックします。", "Generated/Pickaxe", false);
-            Add(UpgradeType.AutoWoodcuttingSpeed, UpgradeType.UnlockWorkerHut, 205, -105, "自動伐採速度", "作業者の自動伐採速度を上げます。", "Generated/Axe", false);
-            Add(UpgradeType.AutoMiningSpeed, UpgradeType.UnlockWorkerHut, 205, -210, "自動採掘速度", "作業者の自動採掘速度を上げます。", "Generated/Pickaxe", false);
+            Add(UpgradeType.UnlockWorkerHut, UpgradeType.UnlockCarpenterHut, 205, 0, "作業小屋解禁", "自動採取を行う作業小屋を建造可能にします。", "Generated/WorkerHut");
+            Add(UpgradeType.AutoResourceInterval, UpgradeType.UnlockWorkerHut, 205, -105, "自動獲得速度上昇", "作業小屋の自動獲得間隔を1秒ずつ短縮します。", "Generated/Hammer");
+            Add(UpgradeType.AutoResourceGain, UpgradeType.UnlockWorkerHut, 205, -210, "自動獲得量増加", "作業小屋が一度に得る木材と石材を1ずつ増やします。", "Generated/WoodIcon");
 
             // Tower / territory branch
             Add(UpgradeType.TowerMaxHp, null, 340, 210, "中心塔HP", "中心塔の最大HPを増やします。", "Generated/Tower");

@@ -36,6 +36,8 @@ namespace AreaSurvivors
         UnlockWorkerHut,
         AutoWoodcuttingSpeed,
         AutoMiningSpeed,
+        AutoResourceInterval,
+        AutoResourceGain,
         EndTokenGain,
         EliteSpawnRate,
         UnlockClassChange

@@ -10,6 +10,9 @@ namespace AreaSurvivors
         public int tokensEarned;
         public float survivedSeconds;
         public bool gameClear;
+        public int clearedStage;
+        public int unlockedStage;
+        public string clearMessage;
         public List<string> upgrades = new List<string>();
 
         public static RunResult Last { get; set; }

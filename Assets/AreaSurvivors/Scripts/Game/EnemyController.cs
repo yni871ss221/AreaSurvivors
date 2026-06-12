@@ -379,10 +379,16 @@ namespace AreaSurvivors
             if (otherHealth == null) return;
             var fence = collision.collider.GetComponentInParent<DefensiveFence>();
             var ballista = collision.collider.GetComponentInParent<BallistaTower>();
+            var carpenterHut = collision.collider.GetComponentInParent<CarpenterHut>();
+            var workerHut = collision.collider.GetComponentInParent<WorkerHut>();
+            var watchTower = collision.collider.GetComponentInParent<WatchTower>();
             if (collision.collider.GetComponentInParent<PlayerController>() == null &&
                 collision.collider.GetComponentInParent<TowerController>() == null &&
                 (fence == null || !fence.IsBuilt) &&
-                (ballista == null || !ballista.IsBuilt)) return;
+                (ballista == null || !ballista.IsBuilt) &&
+                (carpenterHut == null || !carpenterHut.IsBuilt) &&
+                (workerHut == null || !workerHut.IsBuilt) &&
+                (watchTower == null || !watchTower.IsBuilt)) return;
             Vector3 hitPoint = collision.contactCount > 0
                 ? collision.GetContact(0).point
                 : collision.collider.ClosestPoint(transform.position);
@@ -395,7 +401,10 @@ namespace AreaSurvivors
         {
             if (collider == null || collider.GetComponentInParent<Obstacle>() == null) return false;
             return collider.GetComponentInParent<DefensiveFence>() == null &&
-                   collider.GetComponentInParent<BallistaTower>() == null;
+                   collider.GetComponentInParent<BallistaTower>() == null &&
+                   collider.GetComponentInParent<CarpenterHut>() == null &&
+                   collider.GetComponentInParent<WorkerHut>() == null &&
+                   collider.GetComponentInParent<WatchTower>() == null;
         }
 
         void OnDamaged(Health damagedHealth, int amount)

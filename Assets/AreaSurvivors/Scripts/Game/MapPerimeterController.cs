@@ -167,6 +167,7 @@ namespace AreaSurvivors
 
             var visual = root.AddComponent<PaperMeshVisual>();
             visual.Configure(sprite, Color.white, visualSortingOrder);
+            visual.useBottomCenterAnchor = true;
             var billboard = root.AddComponent<PaperBillboard>();
             billboard.faceCamera = true;
         }

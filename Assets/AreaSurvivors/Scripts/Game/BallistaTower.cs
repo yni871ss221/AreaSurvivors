@@ -4,7 +4,7 @@ using UnityEngine.UI;
 namespace AreaSurvivors
 {
     [RequireComponent(typeof(Health))]
-    public sealed class BallistaTower : MonoBehaviour
+    public sealed class BallistaTower : MonoBehaviour, IBuildableConstruction
     {
         public GameConfig config;
         public TileGrid grid;
@@ -31,6 +31,7 @@ namespace AreaSurvivors
         GridObjectMarker marker;
         float buildProgress;
         float attackTimer;
+        float assistedBuildTimer;
         float visualHeight = 1f;
         float sparkleTimer;
         Vector3 buildVisualScale = Vector3.one;
@@ -48,8 +49,12 @@ namespace AreaSurvivors
         Vector3Int registeredCell;
         readonly float sparkleDuration = 0.75f;
         const float BuildDecaySecondsMultiplier = 3f;
+        static readonly Vector3 ToolVisualScale = Vector3.one * 0.58f;
 
         public bool IsBuilt => completed;
+        public TileGrid Grid => grid;
+        public Vector3Int OriginCell => hasRegisteredCell ? registeredCell : grid != null ? grid.WorldToCell(transform.position) : Vector3Int.zero;
+        public Vector2Int Footprint => marker != null ? marker.footprint : new Vector2Int(2, 2);
 
         void Awake()
         {
@@ -197,6 +202,7 @@ namespace AreaSurvivors
         void ConfigureSpriteVisual(PaperMeshVisual visual, Color color)
         {
             if (visual == null || ballistaSprite == null) return;
+            visual.useBottomCenterAnchor = true;
             visual.sprite = ballistaSprite;
             visual.color = color;
             if (visual.GetComponent<OcclusionMaskSource>() == null)
@@ -206,7 +212,13 @@ namespace AreaSurvivors
             float x = Mathf.Abs(bounds.x) > 0.001f ? spriteVisualSize.x / bounds.x : 1f;
             float y = Mathf.Abs(bounds.y) > 0.001f ? spriteVisualSize.y / bounds.y : 1f;
             visual.transform.localScale = new Vector3(x, y, 1f);
+            visual.transform.localPosition = SpriteVisualOffset();
             visual.visible = false;
+        }
+
+        Vector3 SpriteVisualOffset()
+        {
+            return new Vector3(0f, -1f, 0f);
         }
 
         static void ConfigureOutline(GameObject target)
@@ -224,6 +236,7 @@ namespace AreaSurvivors
             var hammer = Resources.Load<Sprite>("Generated/Hammer");
             if (hammer != null) hammerRenderer.sprite = hammer;
             hammerRenderer.order = 22020;
+            ApplyToolVisualScale(hammerRenderer.transform);
             var outline = hammerRenderer.GetComponent<RuntimeSpriteOutline>();
             if (outline == null) outline = hammerRenderer.gameObject.AddComponent<RuntimeSpriteOutline>();
             if (hammerRenderer.GetComponent<PreserveSortingOrder>() == null) hammerRenderer.gameObject.AddComponent<PreserveSortingOrder>();
@@ -237,16 +250,22 @@ namespace AreaSurvivors
             {
                 if (touchingPlayers > 0)
                 {
-                    buildProgress = Mathf.Clamp01(buildProgress + Time.deltaTime * WorkSpeedMultiplier() / Mathf.Max(0.1f, buildSeconds));
-                    if (buildProgress >= 1f) CompleteBuild();
+                    AddBuildWork(WorkSpeedMultiplier(), activeBuilder);
                 }
                 else if (buildProgress > 0f)
                 {
-                    buildProgress = Mathf.Clamp01(buildProgress - Time.deltaTime / Mathf.Max(0.1f, buildSeconds * BuildDecaySecondsMultiplier));
+                    if (assistedBuildTimer > 0f)
+                    {
+                        assistedBuildTimer = Mathf.Max(0f, assistedBuildTimer - Time.deltaTime);
+                    }
+                    else
+                    {
+                        buildProgress = Mathf.Clamp01(buildProgress - Time.deltaTime / Mathf.Max(0.1f, buildSeconds * BuildDecaySecondsMultiplier));
+                    }
                 }
 
-                AnimateHammer();
                 ApplyBuildVisuals();
+                AnimateHammer();
                 return;
             }
 
@@ -279,6 +298,15 @@ namespace AreaSurvivors
             return player != null ? Mathf.Max(0.05f, player.Stats.workSpeedMultiplier) : 1f;
         }
 
+        public void AddBuildWork(float workSpeedMultiplier, Transform builder = null)
+        {
+            if (completed) return;
+            buildProgress = Mathf.Clamp01(buildProgress + Time.deltaTime * Mathf.Max(0f, workSpeedMultiplier) / Mathf.Max(0.1f, buildSeconds));
+            assistedBuildTimer = 0.18f;
+            if (builder != null) activeBuilder = builder;
+            if (buildProgress >= 1f) CompleteBuild();
+        }
+
         void ApplyBuildVisuals()
         {
             if (ghostRenderer != null) ghostRenderer.visible = !completed;
@@ -287,7 +315,7 @@ namespace AreaSurvivors
             {
                 buildRenderer.visible = !completed && buildProgress > 0f;
                 buildRenderer.transform.localScale = new Vector3(buildVisualScale.x, buildVisualScale.y * Mathf.Max(0.02f, buildProgress), buildVisualScale.z);
-                buildRenderer.transform.localPosition = new Vector3(0f, -visualHeight * (1f - buildProgress) * 0.5f, 0f);
+                buildRenderer.transform.localPosition = SpriteVisualOffset();
             }
             if (!usingSpriteVisuals && buildObject != null)
             {
@@ -305,19 +333,22 @@ namespace AreaSurvivors
                 buildGauge.gameObject.SetActive(!completed && (touchingPlayers > 0 || buildProgress > 0f));
                 buildGauge.value = buildProgress;
             }
-            if (hammerRenderer != null) hammerRenderer.visible = !completed && touchingPlayers > 0;
+            if (hammerRenderer != null) hammerRenderer.visible = ShouldShowHammer();
             if (blockingCollider != null) blockingCollider.enabled = completed;
         }
 
         void AnimateHammer()
         {
-            if (hammerRenderer == null || !hammerRenderer.visible) return;
+            if (hammerRenderer == null || !ShouldShowHammer()) return;
             float swing = Mathf.Sin(Time.time * 16f);
             hammerRenderer.transform.localRotation = Quaternion.Euler(0f, 0f, -35f + swing * 32f);
-            Vector3 contact = activeBuilder != null && blockingCollider != null
-                ? blockingCollider.ClosestPoint(activeBuilder.position)
-                : transform.position + new Vector3(0.28f, -0.12f, 0f);
-            hammerRenderer.transform.localPosition = transform.InverseTransformPoint(contact) + new Vector3(0f, 0.2f + Mathf.Abs(swing) * 0.08f, 0f);
+            hammerRenderer.transform.localPosition = new Vector3(0.24f, 0.28f + Mathf.Abs(swing) * 0.08f, 0f);
+            ApplyToolVisualScale(hammerRenderer.transform);
+        }
+
+        bool ShouldShowHammer()
+        {
+            return !completed && (touchingPlayers > 0 || assistedBuildTimer > 0f);
         }
 
         void CompleteBuild()
@@ -420,6 +451,16 @@ namespace AreaSurvivors
         static void SetActive(GameObject target, bool active)
         {
             if (target != null) target.SetActive(active);
+        }
+
+        static void ApplyToolVisualScale(Transform target)
+        {
+            if (target == null) return;
+            var parentScale = target.parent != null ? target.parent.lossyScale : Vector3.one;
+            target.localScale = new Vector3(
+                ToolVisualScale.x / Mathf.Max(0.001f, Mathf.Abs(parentScale.x)),
+                ToolVisualScale.y / Mathf.Max(0.001f, Mathf.Abs(parentScale.y)),
+                ToolVisualScale.z);
         }
 
         static Color[][] CaptureColors(Renderer[] renderers)

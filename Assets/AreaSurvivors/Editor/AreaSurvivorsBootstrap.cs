@@ -384,6 +384,7 @@ namespace AreaSurvivors.Editor
             var ghost = CreateSpriteVisual(go.transform, "Ghost Image", ballistaSprite, new Vector2(1.34f, 1.65f), new Color(1f, 1f, 1f, 0.34f), 1000);
             var build = CreateSpriteVisual(go.transform, "Build Fill Image", ballistaSprite, new Vector2(1.34f, 1.65f), Color.white, 1001);
             var complete = CreateSpriteVisual(go.transform, "Complete Image", ballistaSprite, new Vector2(1.34f, 1.65f), Color.white, 1002);
+            SetVisualOffset(new Vector3(0f, -1f, 0f), ghost, build, complete);
             var hammer = MeshChild(go.transform, "Hammer", LoadGeneratedSprite("Hammer") ?? LoadSprite("Hammer"), Color.white, 2200);
             hammer.transform.localPosition = new Vector3(0.28f, -0.12f, 0f);
             var sparkle = MeshChild(go.transform, "Completion Sparkle", LoadGeneratedSprite("Sparkle") ?? LoadSprite("Sparkle"), new Color(1f, 1f, 1f, 0f), 2400);
@@ -437,6 +438,7 @@ namespace AreaSurvivors.Editor
             var ghost = CreateFenceSpriteVisual(go.transform, "Ghost Image", fenceSprite, vertical, new Color(1f, 1f, 1f, 0.34f), 1000);
             var build = CreateFenceSpriteVisual(go.transform, "Build Fill Image", fenceSprite, vertical, Color.white, 1001);
             var complete = CreateFenceSpriteVisual(go.transform, "Complete Image", fenceSprite, vertical, Color.white, 1002);
+            SetVisualOffset(new Vector3(0f, vertical ? -1.2f : -0.22f, 0f), ghost, build, complete);
             var hammer = MeshChild(go.transform, "Hammer", LoadGeneratedSprite("Hammer") ?? LoadSprite("Hammer"), Color.white, 2200);
             hammer.transform.localPosition = new Vector3(0.24f, -0.06f, 0f);
             var sparkle = MeshChild(go.transform, "Completion Sparkle", LoadGeneratedSprite("Sparkle") ?? LoadSprite("Sparkle"), new Color(1f, 1f, 1f, 0f), 2400);
@@ -476,12 +478,22 @@ namespace AreaSurvivors.Editor
         static PaperMeshVisual CreateSpriteVisual(Transform parent, string name, Sprite sprite, Vector2 size, Color color, int sortingOrder)
         {
             var visual = MeshChild(parent, name, sprite, color, sortingOrder);
+            visual.useBottomCenterAnchor = true;
             var bounds = sprite != null ? sprite.bounds.size : Vector3.one;
             float x = Mathf.Abs(bounds.x) > 0.001f ? size.x / bounds.x : 1f;
             float y = Mathf.Abs(bounds.y) > 0.001f ? size.y / bounds.y : 1f;
             visual.transform.localScale = new Vector3(x, y, 1f);
+            visual.transform.localPosition = new Vector3(0f, -size.y * 0.5f, 0f);
             visual.visible = false;
             return visual;
+        }
+
+        static void SetVisualOffset(Vector3 offset, params PaperMeshVisual[] visuals)
+        {
+            foreach (var visual in visuals)
+            {
+                if (visual != null) visual.transform.localPosition = offset;
+            }
         }
 
         static GameObject CreateFenceModel(Transform parent, string name, bool vertical, Vector2 footprint, FencePalette palette)

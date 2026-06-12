@@ -13,13 +13,16 @@ namespace AreaSurvivors
 
     public enum GridObjectType
     {
-        Empty,
-        Tower,
-        Ballista,
-        Fence,
-        Tree,
-        Rock,
-        Pond
+        Empty = 0,
+        Tower = 1,
+        Ballista = 2,
+        CarpenterHut = 3,
+        Fence = 4,
+        Tree = 5,
+        Rock = 6,
+        Pond = 7,
+        WorkerHut = 8,
+        WatchTower = 9
     }
 
     [System.Flags]

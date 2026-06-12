@@ -29,6 +29,7 @@ namespace AreaSurvivors
 
         public PlayerController Player { get; private set; }
         public TowerController Tower { get; private set; }
+        public int CurrentStage => currentStage;
         public int CurrentLevel => level;
         public int CurrentXp => xp;
         public int XpToNext => xpToNext;
@@ -44,6 +45,8 @@ namespace AreaSurvivors
         float elapsed;
         float hudElapsed;
         float xpRemainder;
+        int currentStage = 1;
+        float currentStageSpeedMultiplier = 1f;
         bool bossActive;
         bool gameEnding;
         GameObject levelUpInputBlocker;
@@ -51,7 +54,6 @@ namespace AreaSurvivors
         const int InitialTowerTerritoryRadius = 10;
         static readonly Color UpgradeNormalColor = new Color(0.12f, 0.20f, 0.16f, 0.94f);
         static readonly Color UpgradeHoverColor = new Color(0.106f, 0.353f, 0.216f, 0.98f);
-
         void Awake()
         {
             Instance = this;
@@ -95,12 +97,13 @@ namespace AreaSurvivors
             if (spawner != null) Player.damagePopupPrefab = spawner.damagePopupPrefab;
             Player.Configure(config, grid, RunState.SelectedCharacter);
             if (buildPlacement != null) buildPlacement.Initialize(config, grid, Player);
+            ConfigureAutoBuildingScheduler();
             PolishHud();
             ConfigureGameHud();
 
             var cameraFollow = Camera.main.GetComponent<CameraFollow>();
             if (cameraFollow != null) cameraFollow.Configure(Player.transform, Tower.transform, config);
-            spawner.Begin(config, grid, Tower.EnemyTarget);
+            BeginStage(RunState.ConsumeNextStartStage());
             UpdateHud();
         }
 
@@ -123,10 +126,17 @@ namespace AreaSurvivors
             naturalLandmarks.Spawn(grid, centerCell);
         }
 
+        void ConfigureAutoBuildingScheduler()
+        {
+            var scheduler = GetComponent<AutoBuildingScheduler>();
+            if (scheduler == null) scheduler = gameObject.AddComponent<AutoBuildingScheduler>();
+            scheduler.Configure(config);
+        }
+
         void Update()
         {
-            elapsed += Time.deltaTime;
-            hudElapsed = bossActive ? Mathf.Min(config.bossTimeSeconds, hudElapsed) : elapsed;
+            elapsed += Time.deltaTime * currentStageSpeedMultiplier;
+            hudElapsed = bossActive ? Mathf.Min(StageStartDisplaySeconds() + config.bossTimeSeconds, hudElapsed) : elapsed;
             if (buildPlacement != null) buildPlacement.Tick();
             UpdateLevelUpButtonHover();
             UpdateHud();
@@ -368,25 +378,55 @@ namespace AreaSurvivors
         {
             if (boss == null) return;
             bossActive = true;
-            hudElapsed = config.bossTimeSeconds;
+            hudElapsed = StageStartDisplaySeconds() + config.bossTimeSeconds;
             if (timerText != null) timerText.color = Color.red;
             gameHud?.ShowBoss(boss);
-            ShowAnnouncement(config.bossAnnouncement);
+            ShowAnnouncement(spawner != null ? spawner.CurrentBossAnnouncement : config.bossAnnouncement);
         }
 
         public void BossDefeated(EnemyController boss)
         {
             if (gameEnding) return;
-            StartCoroutine(GameClearRoutine(boss));
+            StartCoroutine(BossDefeatedRoutine(boss));
         }
 
-        IEnumerator GameClearRoutine(EnemyController boss)
+        IEnumerator BossDefeatedRoutine(EnemyController boss)
+        {
+            if (currentStage == 1)
+            {
+                bool unlockedStage2 = ProgressionStore.MarkStageCleared(1);
+                if (unlockedStage2)
+                {
+                    yield return GameClearRoutine(boss, 1, 2, "ステージ2がアンロックされました");
+                    yield break;
+                }
+
+                yield return StageTransitionRoutine(boss, 2);
+                yield break;
+            }
+
+            bool unlockedNextStage = ProgressionStore.MarkStageCleared(currentStage);
+            yield return GameClearRoutine(boss, currentStage, unlockedNextStage ? currentStage + 1 : 0, string.Empty);
+        }
+
+        IEnumerator GameClearRoutine(EnemyController boss, int clearedStage, int unlockedStage, string clearMessage)
         {
             gameEnding = true;
             spawner?.StopAndClearEnemies(boss);
             ShowAnnouncement("GAME CLEAR");
             yield return new WaitForSeconds(1.8f);
-            EndRun(true);
+            EndRun(true, clearedStage, unlockedStage, clearMessage);
+        }
+
+        IEnumerator StageTransitionRoutine(EnemyController boss, int nextStage)
+        {
+            bossActive = false;
+            if (timerText != null) timerText.color = Color.white;
+            gameHud?.ShowBoss(null);
+            spawner?.StopAndClearEnemies(boss);
+            ShowAnnouncement("STAGE " + nextStage);
+            yield return new WaitForSeconds(1.4f);
+            BeginStage(nextStage);
         }
 
         public void ShowAnnouncement(string message)
@@ -395,6 +435,11 @@ namespace AreaSurvivors
         }
 
         void EndRun(bool clear)
+        {
+            EndRun(clear, clear ? currentStage : 0, 0, string.Empty);
+        }
+
+        void EndRun(bool clear, int clearedStage, int unlockedStage, string clearMessage)
         {
             if (!clear && gameEnding) return;
             gameEnding = true;
@@ -407,6 +452,9 @@ namespace AreaSurvivors
                 tokensEarned = EndTokenReward(),
                 survivedSeconds = elapsed,
                 gameClear = clear,
+                clearedStage = clearedStage,
+                unlockedStage = unlockedStage,
+                clearMessage = clearMessage,
                 upgrades = new List<string>(runUpgrades)
             };
             ProgressionStore.AddRunTokens(kills, EndTokenReward());
@@ -430,6 +478,24 @@ namespace AreaSurvivors
             if (killText != null) killText.text = $"\u6483\u7834 {kills}";
             if (levelText != null) levelText.text = $"Lv {level}";
             if (xpBar != null) xpBar.value = xpToNext <= 0 ? 0f : (float)xp / xpToNext;
+            gameHud?.SetStage(currentStage);
+        }
+
+        void BeginStage(int stage)
+        {
+            currentStage = Mathf.Max(1, stage);
+            currentStageSpeedMultiplier = ProgressionStore.IsFastStage(currentStage) ? 2f : 1f;
+            elapsed = StageStartDisplaySeconds();
+            hudElapsed = elapsed;
+            bossActive = false;
+            if (timerText != null) timerText.color = Color.white;
+            if (spawner != null) spawner.BeginStage(config, grid, Tower.EnemyTarget, currentStage, StageStartDisplaySeconds(), currentStageSpeedMultiplier);
+            gameHud?.SetStage(currentStage);
+        }
+
+        float StageStartDisplaySeconds()
+        {
+            return Mathf.Max(0, currentStage - 1) * config.bossTimeSeconds;
         }
 
         void PolishHud()
@@ -510,6 +576,10 @@ namespace AreaSurvivors
         static readonly Vector2 PlayerPanelSize = new Vector2(390f, 318f);
         static readonly Vector2 PlayerIconSize = new Vector2(58f, 58f);
         static readonly Vector2 WeaponIconSize = new Vector2(48f, 48f);
+        static readonly Vector2 BuildStatusPanelPosition = new Vector2(14f, 15f);
+        static readonly Vector2 BuildStatusPanelSize = new Vector2(82f, 66f);
+        const float BuildSlotStartX = 110f;
+        const float BuildSlotSpacing = 70f;
 
         BuildPlacementController buildPlacement;
         GameManager gameManager;
@@ -549,8 +619,10 @@ namespace AreaSurvivors
         EnemyController activeBoss;
         Health bossHealth;
         Coroutine announcementRoutine;
+        Text stageText;
         Text[] stockLabels;
         Image[] slotBackplates;
+        Image[] slotIcons;
         Button[] slotButtons;
         UiSelectionHighlight[] slotHighlights;
         readonly List<FloatingHudDamage> damagePopups = new List<FloatingHudDamage>();
@@ -570,6 +642,7 @@ namespace AreaSurvivors
 
             HideLegacyBuildStatus(canvas.transform);
             BindSceneRunStats(canvas.transform);
+            BuildStagePanel(canvas.transform);
             BindSceneResourceHud(canvas.transform);
             BindSceneBossHud(canvas.transform);
             BuildPlayerPanel(canvas.transform);
@@ -602,6 +675,7 @@ namespace AreaSurvivors
         void BindSceneRunStats(Transform parent)
         {
             if (parent == null || gameManager == null) return;
+            stageText = FindText(parent, "Stage Panel/Label");
             var timer = FindText(parent, "Timer Panel/Label");
             if (timer != null)
             {
@@ -614,6 +688,11 @@ namespace AreaSurvivors
                 if (gameManager.killText != null && gameManager.killText != kills) gameManager.killText.gameObject.SetActive(false);
                 gameManager.killText = kills;
             }
+        }
+
+        public void SetStage(int stage)
+        {
+            if (stageText != null) stageText.text = "STAGE " + Mathf.Max(1, stage);
         }
 
         void BindSceneResourceHud(Transform parent)
@@ -905,35 +984,157 @@ namespace AreaSurvivors
             var root = existing != null ? existing.GetComponent<RectTransform>() : null;
             if (root == null)
             {
-                root = CreatePanel(parent, "Construction Menu", new Vector2(16f, 16f), new Vector2(276f, 96f), Vector2.zero, Vector2.zero);
-                AddFrame(root, new Vector2(276f, 96f));
+                root = CreatePanel(parent, "Construction Menu", new Vector2(16f, 16f), new Vector2(386f, 96f), Vector2.zero, Vector2.zero);
+                AddFrame(root, new Vector2(386f, 96f));
             }
 
-            stockLabels = new Text[3];
-            slotBackplates = new Image[3];
-            slotButtons = new Button[3];
-            slotHighlights = new UiSelectionHighlight[3];
-            ConfigureBuildSlot(root, 0, "1", LoadHudSprite("Ballista", buildPlacement != null ? buildPlacement.ballistaPreviewSprite : null), new Vector2(42f, 48f), () =>
+            var slotPositions = BuildSlotPositions(root);
+            var statusPosition = BuildStatusPanelPosition;
+            EnsureBuildMenuBounds(root, slotPositions, statusPosition);
+            stockLabels = new Text[6];
+            slotBackplates = new Image[6];
+            slotIcons = new Image[6];
+            slotButtons = new Button[6];
+            slotHighlights = new UiSelectionHighlight[6];
+            ConfigureBuildSlot(root, 0, "1", LoadHudSprite("FenceHorizontal", buildPlacement != null ? buildPlacement.horizontalFencePreviewSprite : null), slotPositions[0], () =>
             {
                 selectedSlot = 0;
-                buildPlacement?.SelectBallista();
-            });
-            ConfigureBuildSlot(root, 1, "2", LoadHudSprite("FenceHorizontal", buildPlacement != null ? buildPlacement.horizontalFencePreviewSprite : null), new Vector2(112f, 48f), () =>
-            {
-                selectedSlot = 1;
                 buildPlacement?.SelectFence(false);
             });
-            ConfigureBuildSlot(root, 2, "3", LoadHudSprite("FenceVertical", buildPlacement != null ? buildPlacement.verticalFencePreviewSprite : null), new Vector2(182f, 48f), () =>
+            ConfigureBuildSlot(root, 1, "2", LoadHudSprite("FenceVertical", buildPlacement != null ? buildPlacement.verticalFencePreviewSprite : null), slotPositions[1], () =>
             {
-                selectedSlot = 2;
+                selectedSlot = 1;
                 buildPlacement?.SelectFence(true);
             });
+            ConfigureBuildSlot(root, 2, "3", LoadHudSprite("Ballista", buildPlacement != null ? buildPlacement.ballistaPreviewSprite : null), slotPositions[2], () =>
+            {
+                selectedSlot = 2;
+                buildPlacement?.SelectBallista();
+            });
+            ConfigureBuildSlot(root, 3, "4", LoadHudSprite("WatchTower", buildPlacement != null ? buildPlacement.watchTowerPreviewSprite : null), slotPositions[3], () =>
+            {
+                selectedSlot = 3;
+                buildPlacement?.SelectWatchTower();
+            });
+            ConfigureBuildSlot(root, 4, "5", LoadHudSprite("CarpenterHut", buildPlacement != null ? buildPlacement.carpenterHutPreviewSprite : null), slotPositions[4], () =>
+            {
+                selectedSlot = 4;
+                buildPlacement?.SelectCarpenterHut();
+            });
+            ConfigureBuildSlot(root, 5, "6", LoadHudSprite("WorkerHut", buildPlacement != null ? buildPlacement.workerHutPreviewSprite : null), slotPositions[5], () =>
+            {
+                selectedSlot = 5;
+                buildPlacement?.SelectWorkerHut();
+            });
 
-            var statusTransform = root.Find("Build Status");
-            var status = statusTransform != null ? statusTransform.GetComponent<Text>() : null;
-            if (status == null) status = CreateText(root, "Build Status", "", 14, new Vector2(238f, 48f), new Vector2(64f, 58f), TextAnchor.MiddleCenter);
-            status.gameObject.SetActive(true);
+            var status = EnsureBuildStatusPanel(root, statusPosition);
             if (buildPlacement != null) buildPlacement.buildText = status;
+        }
+
+        void BuildStagePanel(Transform parent)
+        {
+            var existing = parent.Find("Stage Panel");
+            var root = existing != null ? existing.GetComponent<RectTransform>() : null;
+            if (root == null)
+            {
+                root = CreatePanel(parent, "Stage Panel", new Vector2(-222f, -28f), new Vector2(118f, 34f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
+                AddFrame(root, root.sizeDelta);
+            }
+
+            root.anchorMin = new Vector2(0.5f, 1f);
+            root.anchorMax = new Vector2(0.5f, 1f);
+            root.pivot = new Vector2(0.5f, 1f);
+            root.anchoredPosition = new Vector2(-222f, -28f);
+            root.sizeDelta = new Vector2(118f, 34f);
+            var label = FindText(root, "Label");
+            if (label == null) label = CreateText(root, "Label", "", 18, Vector2.zero, root.sizeDelta, TextAnchor.MiddleCenter);
+            label.rectTransform.anchorMin = Vector2.zero;
+            label.rectTransform.anchorMax = Vector2.one;
+            label.rectTransform.offsetMin = Vector2.zero;
+            label.rectTransform.offsetMax = Vector2.zero;
+            stageText = label;
+            SetStage(gameManager != null ? gameManager.CurrentStage : 1);
+        }
+
+        static Vector2[] BuildSlotPositions(RectTransform root)
+        {
+            var result = new[]
+            {
+                new Vector2(BuildSlotStartX, 15f),
+                new Vector2(BuildSlotStartX + BuildSlotSpacing, 15f),
+                new Vector2(BuildSlotStartX + BuildSlotSpacing * 2f, 15f),
+                new Vector2(BuildSlotStartX + BuildSlotSpacing * 3f, 15f),
+                new Vector2(BuildSlotStartX + BuildSlotSpacing * 4f, 15f),
+                new Vector2(BuildSlotStartX + BuildSlotSpacing * 5f, 15f)
+            };
+
+            var firstSlot = root.Find("Build Slot 1") as RectTransform;
+            float y = firstSlot != null ? firstSlot.anchoredPosition.y : result[0].y;
+            float spacing = BuildSlotSpacing;
+            var secondSlot = root.Find("Build Slot 2") as RectTransform;
+            if (firstSlot != null && secondSlot != null)
+            {
+                float existingSpacing = secondSlot.anchoredPosition.x - firstSlot.anchoredPosition.x;
+                if (Mathf.Abs(existingSpacing) >= 1f) spacing = existingSpacing;
+            }
+
+            for (int i = 0; i < result.Length; i++)
+            {
+                result[i] = new Vector2(BuildSlotStartX + spacing * i, y);
+            }
+
+            return result;
+        }
+
+        static void EnsureBuildMenuBounds(RectTransform root, Vector2[] slotPositions, Vector2 statusPosition)
+        {
+            const float slotHeight = 66f;
+            const float margin = 12f;
+
+            float right = Mathf.Max(slotPositions[slotPositions.Length - 1].x + 58f, statusPosition.x + BuildStatusPanelSize.x) + margin;
+            float top = Mathf.Max(slotPositions[0].y + slotHeight, statusPosition.y + BuildStatusPanelSize.y) + margin;
+            var size = root.sizeDelta;
+            size.x = Mathf.Max(size.x, right);
+            size.y = Mathf.Max(size.y, top);
+            root.sizeDelta = size;
+        }
+
+        static Text EnsureBuildStatusPanel(RectTransform root, Vector2 position)
+        {
+            var panelTransform = root.Find("Build Status Panel") as RectTransform;
+            if (panelTransform == null)
+            {
+                panelTransform = CreatePanel(root, "Build Status Panel", position, BuildStatusPanelSize, Vector2.zero, Vector2.zero);
+            }
+
+            panelTransform.anchorMin = Vector2.zero;
+            panelTransform.anchorMax = Vector2.zero;
+            panelTransform.pivot = Vector2.zero;
+            panelTransform.anchoredPosition = position;
+            panelTransform.sizeDelta = BuildStatusPanelSize;
+            var panelImage = panelTransform.GetComponent<Image>();
+            if (panelImage != null) panelImage.color = SlotColor;
+            AddFrame(panelTransform, BuildStatusPanelSize);
+
+            var statusTransform = panelTransform.Find("Build Status");
+            if (statusTransform == null) statusTransform = root.Find("Build Status");
+            var status = statusTransform != null ? statusTransform.GetComponent<Text>() : null;
+            if (status == null) status = CreateText(panelTransform, "Build Status", "", 12, Vector2.zero, new Vector2(74f, 58f), TextAnchor.MiddleCenter);
+            status.transform.SetParent(panelTransform, false);
+            status.name = "Build Status";
+            status.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+            status.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+            status.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            status.rectTransform.anchoredPosition = Vector2.zero;
+            status.rectTransform.sizeDelta = new Vector2(74f, 58f);
+            status.fontSize = 12;
+            status.alignment = TextAnchor.MiddleCenter;
+            status.horizontalOverflow = HorizontalWrapMode.Wrap;
+            status.verticalOverflow = VerticalWrapMode.Truncate;
+            status.gameObject.SetActive(true);
+            status.transform.SetAsLastSibling();
+            panelTransform.SetAsLastSibling();
+            return status;
         }
 
         void ConfigureBuildSlot(RectTransform parent, int index, string key, Sprite sprite, Vector2 position, UnityEngine.Events.UnityAction onClick)
@@ -970,29 +1171,27 @@ namespace AreaSurvivors
             };
 
             var rect = buttonObject.GetComponent<RectTransform>();
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.zero;
+            rect.pivot = Vector2.zero;
+            rect.anchoredPosition = position;
             if (slot == null)
             {
                 image.color = SlotColor;
-                rect.anchorMin = Vector2.zero;
-                rect.anchorMax = Vector2.zero;
-                rect.pivot = new Vector2(0.5f, 0.5f);
-                rect.anchoredPosition = position;
                 rect.sizeDelta = new Vector2(58f, 66f);
                 AddFrame(rect, rect.sizeDelta);
             }
 
-            if (sprite != null)
-            {
-                var iconTransform = rect.Find("Icon");
-                var icon = iconTransform != null ? iconTransform.GetComponent<Image>() : null;
-                if (icon == null) icon = new GameObject("Icon").AddComponent<Image>();
-                icon.transform.SetParent(rect, false);
-                icon.sprite = sprite;
-                icon.preserveAspect = true;
-                icon.raycastTarget = false;
-                icon.rectTransform.anchoredPosition = new Vector2(0f, -2f);
-                icon.rectTransform.sizeDelta = index == 2 ? new Vector2(30f, 48f) : new Vector2(46f, 44f);
-            }
+            var iconTransform = rect.Find("Icon");
+            var icon = iconTransform != null ? iconTransform.GetComponent<Image>() : null;
+            if (icon == null) icon = new GameObject("Icon").AddComponent<Image>();
+            icon.transform.SetParent(rect, false);
+            icon.sprite = sprite;
+            icon.preserveAspect = true;
+            icon.raycastTarget = false;
+            icon.rectTransform.anchoredPosition = new Vector2(0f, -2f);
+            icon.rectTransform.sizeDelta = index == 1 ? new Vector2(30f, 48f) : new Vector2(46f, 44f);
+            slotIcons[index] = icon;
 
             var keyTransform = rect.Find("Key");
             var keyText = keyTransform != null ? keyTransform.GetComponent<Text>() : null;
@@ -1060,13 +1259,15 @@ namespace AreaSurvivors
         {
             if (buildPlacement == null || stockLabels == null) return;
             selectedSlot = buildPlacement.SelectedHudSlot;
-            if (stockLabels[0] != null) stockLabels[0].text = buildPlacement.GetHudCostLabel(0);
-            if (stockLabels[1] != null) stockLabels[1].text = buildPlacement.GetHudCostLabel(1);
-            if (stockLabels[2] != null) stockLabels[2].text = buildPlacement.GetHudCostLabel(2);
+            for (int i = 0; i < stockLabels.Length; i++)
+            {
+                if (stockLabels[i] != null) stockLabels[i].text = buildPlacement.GetHudCostLabel(i);
+            }
             for (int i = 0; i < slotBackplates.Length; i++)
             {
                 bool unlocked = buildPlacement.IsSlotUnlocked(i);
                 if (slotButtons != null && i < slotButtons.Length && slotButtons[i] != null) slotButtons[i].interactable = unlocked;
+                if (slotIcons != null && i < slotIcons.Length && slotIcons[i] != null) slotIcons[i].enabled = unlocked;
                 if (slotBackplates[i] != null) slotBackplates[i].color = i == selectedSlot ? SlotSelectedColor : SlotColor;
                 if (slotHighlights != null && i < slotHighlights.Length && slotHighlights[i] != null) slotHighlights[i].forceSelected = i == selectedSlot;
             }

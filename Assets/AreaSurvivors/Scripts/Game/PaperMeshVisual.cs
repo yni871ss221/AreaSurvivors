@@ -8,6 +8,7 @@ namespace AreaSurvivors
         [SerializeField] Sprite sourceSprite;
         [SerializeField] Color tint = Color.white;
         [SerializeField] int sortingOrder;
+        [SerializeField] bool anchorBottomCenter;
 
         MeshFilter meshFilter;
         MeshRenderer meshRenderer;
@@ -42,6 +43,17 @@ namespace AreaSurvivors
                 sortingOrder = value;
                 EnsureRenderer();
                 meshRenderer.sortingOrder = value;
+            }
+        }
+
+        public bool useBottomCenterAnchor
+        {
+            get => anchorBottomCenter;
+            set
+            {
+                if (anchorBottomCenter == value) return;
+                anchorBottomCenter = value;
+                ApplySprite();
             }
         }
 
@@ -95,6 +107,12 @@ namespace AreaSurvivors
             var bounds = sourceSprite.bounds;
             var min = bounds.min;
             var max = bounds.max;
+            if (anchorBottomCenter)
+            {
+                float halfWidth = bounds.size.x * 0.5f;
+                min = new Vector3(-halfWidth, 0f, 0f);
+                max = new Vector3(halfWidth, bounds.size.y, 0f);
+            }
             var texture = sourceSprite.texture;
             var rect = sourceSprite.textureRect;
             float x0 = rect.xMin / texture.width;

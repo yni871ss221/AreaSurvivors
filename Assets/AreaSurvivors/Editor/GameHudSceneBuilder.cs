@@ -91,6 +91,12 @@ namespace AreaSurvivors.Editor
             var timerText = EnsureText(timer, "Label", "00:00", 20, TextAnchor.MiddleCenter);
             Stretch(timerText.rectTransform);
 
+            var stage = EnsurePanel(canvas.transform, "Stage Panel", new Vector2(-222f, -28f), new Vector2(118f, 34f), new Vector2(0.5f, 1f));
+            SetAnchored(stage, new Vector2(-222f, -28f), new Vector2(118f, 34f), new Vector2(0.5f, 1f));
+            EnsureFrame(stage, stage.sizeDelta);
+            var stageText = EnsureText(stage, "Label", "STAGE 1", 18, TextAnchor.MiddleCenter);
+            Stretch(stageText.rectTransform);
+
             var kills = EnsurePanel(canvas.transform, "Kill Panel", new Vector2(82f, -28f), new Vector2(154f, 34f), new Vector2(0.5f, 1f));
             SetAnchored(kills, new Vector2(82f, -28f), new Vector2(154f, 34f), new Vector2(0.5f, 1f));
             EnsureFrame(kills, kills.sizeDelta);
@@ -127,6 +133,11 @@ namespace AreaSurvivors.Editor
 
             var token = EnsureResourcePanel(canvas.transform, "Token Resource", new Vector2(442f, -28f), Resources.Load<Sprite>("Generated/Token"), "0");
             EnsureFrame(token, token.sizeDelta);
+            var stage = EnsurePanel(canvas.transform, "Stage Panel", new Vector2(-222f, -28f), new Vector2(118f, 34f), new Vector2(0.5f, 1f));
+            SetAnchored(stage, new Vector2(-222f, -28f), new Vector2(118f, 34f), new Vector2(0.5f, 1f));
+            EnsureFrame(stage, stage.sizeDelta);
+            var stageText = EnsureText(stage, "Label", "STAGE 1", 18, TextAnchor.MiddleCenter);
+            Stretch(stageText.rectTransform);
             EnsureBossHud(canvas.transform);
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene);
