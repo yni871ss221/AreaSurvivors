@@ -298,7 +298,7 @@ namespace AreaSurvivors
         {
             var root = new GameObject(spec.name);
             root.transform.SetParent(spawnedRoot, true);
-            root.transform.position = FootprintBottomCenterToWorld(grid, originCell, footprint);
+            root.transform.position = GridObjectVisual.FootprintBottomCenterToWorld(grid, originCell, footprint);
 
             var marker = root.AddComponent<GridObjectMarker>();
             marker.type = spec.type;
@@ -312,12 +312,17 @@ namespace AreaSurvivors
 
             var obstacle = root.AddComponent<Obstacle>();
             obstacle.visualSize = sprite.bounds.size;
+            var gridVisual = root.AddComponent<GridObjectVisual>();
+            gridVisual.ConfigureFootprint(footprint);
+            gridVisual.fitVisualWidthToFootprint = true;
+            gridVisual.resetVisualOffset = true;
 
             var visualObject = new GameObject("Paper Visual");
             visualObject.transform.SetParent(root.transform, false);
             var visual = visualObject.AddComponent<PaperMeshVisual>();
             visual.Configure(sprite, Color.white, 1000);
             visual.useBottomCenterAnchor = true;
+            gridVisual.ApplyToVisual(visual, sprite, sprite.bounds.size);
             var billboard = visualObject.AddComponent<PaperBillboard>();
             billboard.faceCamera = true;
             if (addOutline)
@@ -332,17 +337,7 @@ namespace AreaSurvivors
             ySort.renderers = new[] { visual.Renderer };
 
             var collider = root.AddComponent<BoxCollider2D>();
-            var min = MinCell(originCell, footprint);
-            var max = new Vector3Int(min.x + footprint.x - 1, min.y + footprint.y - 1, originCell.z);
-            var minWorld = grid.groundTilemap.GetCellCenterWorld(min);
-            var maxWorld = grid.groundTilemap.GetCellCenterWorld(max);
-            var span = new Vector2(
-                Mathf.Abs(maxWorld.x - minWorld.x) + grid.cellSize,
-                Mathf.Abs(maxWorld.y - minWorld.y) + grid.cellSize * 0.72f);
-            collider.size = new Vector2(
-                Mathf.Max(0.1f, span.x - spec.colliderPadding.x),
-                Mathf.Max(0.1f, span.y - spec.colliderPadding.y));
-            collider.offset = new Vector2(0f, collider.size.y * 0.5f);
+            gridVisual.ConfigureFootprintBox(collider, false);
 
             if (spec.harvestable)
             {
@@ -376,15 +371,6 @@ namespace AreaSurvivors
             texture.filterMode = FilterMode.Point;
             texture.wrapMode = TextureWrapMode.Clamp;
             return Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0f), 128f);
-        }
-
-        static Vector3 FootprintBottomCenterToWorld(TileGrid grid, Vector3Int originCell, Vector2Int footprint)
-        {
-            var min = MinCell(originCell, footprint);
-            var max = new Vector3Int(min.x + footprint.x - 1, min.y, originCell.z);
-            var bottomCenter = (grid.groundTilemap.GetCellCenterWorld(min) + grid.groundTilemap.GetCellCenterWorld(max)) * 0.5f;
-            var up = grid.groundTilemap.GetCellCenterWorld(min + Vector3Int.up) - grid.groundTilemap.GetCellCenterWorld(min);
-            return bottomCenter - up * 0.5f;
         }
 
         static Vector3Int MinCell(Vector3Int originCell, Vector2Int footprint)

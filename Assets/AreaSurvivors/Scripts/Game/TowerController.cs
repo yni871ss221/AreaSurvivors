@@ -9,19 +9,46 @@ namespace AreaSurvivors
     {
         public Slider hpBar;
         public Transform enemyTargetPoint;
+        public Vector3 upgradedVisualScale = Vector3.one;
+        public Vector3 upgradedVisualOffset = Vector3.zero;
+        public event System.Action<Sprite> Upgraded;
         Health health;
         Collider2D[] colliders;
+        BoxCollider2D footprintCollider;
+        GridObjectVisual gridVisual;
         PaperMeshVisual visual;
+        PaperMeshVisual baseTowerVisual;
+        PaperMeshVisual upgradeGhostVisual;
+        PaperMeshVisual upgradeBuildVisual;
+        PaperMeshVisual upgradedCompleteVisual;
+        PaperMeshVisual upgradeHammerVisual;
+        PaperMeshVisual upgradeSparkleVisual;
+        TowerUpgradeConstruction pendingUpgrade;
+        Sprite upgradedSprite;
+        Transform texturedModel;
         Renderer[] modelRenderers;
         Color[][] modelColors;
+        Vector3 groundAnchorWorld;
         bool collapsing;
+        bool isUpgraded;
+        bool hasGroundAnchor;
+        bool upgradeVisualsPrepared;
+        Vector3 upgradeBuildBaseScale = Vector3.one;
+        Vector3 upgradedCompleteBaseScale = Vector3.one;
+        const float UpgradeSparkleDuration = 0.75f;
+        float upgradeSparkleTimer;
+        static readonly Vector3 ToolVisualScale = Vector3.one * 0.58f;
 
         void Awake()
         {
             health = GetComponent<Health>();
+            EnsureGridObjectVisual();
+            EnsureFootprintCollider();
             colliders = GetComponents<Collider2D>();
-            visual = GetComponentInChildren<PaperMeshVisual>();
-            EnsureModelOutlines();
+            texturedModel = transform.Find("Textured Model");
+            if (texturedModel != null) texturedModel.gameObject.SetActive(false);
+            EnsureBaseTowerVisual();
+            visual = baseTowerVisual != null ? baseTowerVisual : GetComponentInChildren<PaperMeshVisual>();
             modelRenderers = GetComponentsInChildren<Renderer>(true);
             modelColors = CaptureColors(modelRenderers);
             health.Died += _ => StartCollapse();
@@ -32,10 +59,26 @@ namespace AreaSurvivors
             health.SetMax(maxHp);
         }
 
+        public bool IsUpgraded => isUpgraded;
+        public bool HasPendingUpgrade => pendingUpgrade != null;
+        public Health Health => health;
+        public Vector3 GroundAnchorWorld => hasGroundAnchor ? groundAnchorWorld : enemyTargetPoint != null ? enemyTargetPoint.position : transform.position;
+
         public Transform EnemyTarget => enemyTargetPoint != null ? enemyTargetPoint : transform;
+
+        public void AlignToGridFootprint(TileGrid grid, Vector3Int originCell)
+        {
+            EnsureGridObjectVisual();
+            gridVisual.AlignRootToFootprint(grid, originCell);
+            ConfigureEnemyTarget(GridObjectVisual.FootprintOriginToWorld(grid, originCell));
+            EnsureFootprintCollider();
+            EnsureBaseTowerVisual();
+        }
 
         public void ConfigureEnemyTarget(Vector3 worldPosition)
         {
+            groundAnchorWorld = worldPosition;
+            hasGroundAnchor = true;
             if (enemyTargetPoint == null)
             {
                 var target = new GameObject("Enemy Target");
@@ -49,6 +92,336 @@ namespace AreaSurvivors
         void Update()
         {
             if (hpBar != null) hpBar.value = health.Normalized;
+            AnimateUpgradeSparkle();
+        }
+
+        public bool CanStartUpgrade()
+        {
+            return !isUpgraded && pendingUpgrade == null && !collapsing && health != null && !health.IsDead;
+        }
+
+        public bool BeginUpgradeReservation(GameConfig config, TileGrid grid, GameManager owner, Sprite sprite)
+        {
+            if (!CanStartUpgrade()) return false;
+            upgradedSprite = sprite != null ? sprite : LoadGeneratedSprite("TowerUpgrade");
+            pendingUpgrade = gameObject.AddComponent<TowerUpgradeConstruction>();
+            pendingUpgrade.Configure(this, config, grid, owner, upgradedSprite);
+            SetBaseTowerVisible(false);
+            ShowUpgradeConstruction(0f, true, false);
+            return true;
+        }
+
+        public void CancelUpgradeReservation()
+        {
+            if (pendingUpgrade == null) return;
+            pendingUpgrade.CancelAndRefund();
+        }
+
+        public void ClearPendingUpgrade(TowerUpgradeConstruction construction)
+        {
+            if (pendingUpgrade == construction) pendingUpgrade = null;
+            HideUpgradeConstruction();
+            if (!isUpgraded) SetBaseTowerVisible(true);
+        }
+
+        public void ShowUpgradePreview(Sprite sprite, bool allowed)
+        {
+            if (isUpgraded || pendingUpgrade != null) return;
+            upgradedSprite = sprite != null ? sprite : LoadGeneratedSprite("TowerUpgrade");
+            EnsureUpgradeVisuals(upgradedSprite);
+            if (upgradeGhostVisual == null) return;
+            upgradeGhostVisual.color = allowed ? new Color(0.30f, 0.82f, 1f, 0.42f) : new Color(1f, 0.20f, 0.16f, 0.42f);
+            upgradeGhostVisual.visible = true;
+        }
+
+        public void HideUpgradePreview()
+        {
+            if (pendingUpgrade != null) return;
+            if (upgradeGhostVisual != null) upgradeGhostVisual.visible = false;
+        }
+
+        public void ShowUpgradeConstruction(float progress, bool active, bool showHammer)
+        {
+            EnsureUpgradeVisuals(upgradedSprite != null ? upgradedSprite : LoadGeneratedSprite("TowerUpgrade"));
+            progress = Mathf.Clamp01(progress);
+            if (upgradeGhostVisual != null)
+            {
+                upgradeGhostVisual.color = new Color(0.30f, 0.82f, 1f, 0.36f);
+                upgradeGhostVisual.visible = active && !isUpgraded;
+            }
+            if (upgradeBuildVisual != null)
+            {
+                upgradeBuildVisual.visible = active && !isUpgraded && progress > 0f;
+                upgradeBuildVisual.transform.localScale = new Vector3(upgradeBuildBaseScale.x, upgradeBuildBaseScale.y * Mathf.Max(0.02f, progress), upgradeBuildBaseScale.z);
+            }
+            if (upgradeHammerVisual != null)
+            {
+                if (!isUpgraded && showHammer && !upgradeHammerVisual.gameObject.activeSelf) upgradeHammerVisual.gameObject.SetActive(true);
+                upgradeHammerVisual.visible = !isUpgraded && showHammer;
+            }
+            if (!isUpgraded && showHammer) AnimateUpgradeHammer();
+        }
+
+        public void HideUpgradeConstruction()
+        {
+            if (upgradeGhostVisual != null) upgradeGhostVisual.visible = false;
+            if (upgradeBuildVisual != null) upgradeBuildVisual.visible = false;
+            if (upgradeHammerVisual != null) upgradeHammerVisual.visible = false;
+        }
+
+        public void CompleteUpgrade(GameConfig config, TileGrid grid, Sprite sprite)
+        {
+            if (isUpgraded) return;
+            isUpgraded = true;
+            pendingUpgrade = null;
+            upgradedSprite = sprite != null ? sprite : LoadGeneratedSprite("TowerUpgrade");
+            EnsureUpgradeVisuals(upgradedSprite);
+            SetBaseTowerVisible(false);
+            if (upgradeGhostVisual != null) upgradeGhostVisual.visible = false;
+            if (upgradeBuildVisual != null) upgradeBuildVisual.visible = false;
+            if (upgradeHammerVisual != null)
+            {
+                upgradeHammerVisual.visible = false;
+                upgradeHammerVisual.gameObject.SetActive(false);
+            }
+            if (upgradedCompleteVisual != null)
+            {
+                upgradedCompleteVisual.visible = true;
+                upgradedCompleteVisual.color = Color.white;
+                upgradedCompleteVisual.transform.localScale = upgradedCompleteBaseScale;
+            }
+
+            if (health != null) health.SetMax(config != null ? config.upgradedTowerMaxHp : 450);
+            var regeneration = GetComponent<AutoRegeneration>();
+            if (regeneration != null && config != null) regeneration.amount += Mathf.Max(0, config.upgradedTowerRegenBonus);
+            var cannon = GetComponent<TowerCannonController>();
+            if (cannon != null && config != null)
+            {
+                cannon.ApplyTowerUpgrade(config.upgradedTowerCannonDamageBonus, config.upgradedTowerCannonExplosionRadiusMultiplier);
+            }
+            if (grid != null && config != null)
+            {
+                grid.PaintImmediate(GroundAnchorWorld, TileOwner.Player, Mathf.Max(0, config.upgradedTowerImmediatePaintRadiusCells));
+            }
+
+            upgradeSparkleTimer = UpgradeSparkleDuration;
+            if (upgradeSparkleVisual != null)
+            {
+                PixelBurstEffect.Spawn(upgradeSparkleVisual.sprite, transform.position + new Vector3(0f, 0.5f, 0f), new Color(1f, 0.96f, 0.52f, 0.72f), 12, 0.55f, 0.35f, WeaponSortingOrders.ImpactBurst);
+            }
+            Upgraded?.Invoke(upgradedSprite);
+        }
+
+        void SetBaseTowerVisible(bool visible)
+        {
+            if (baseTowerVisual != null) baseTowerVisual.visible = visible;
+            if (texturedModel != null) texturedModel.gameObject.SetActive(false);
+        }
+
+        void EnsureGridObjectVisual()
+        {
+            if (gridVisual == null) gridVisual = GetComponent<GridObjectVisual>();
+            if (gridVisual == null) gridVisual = gameObject.AddComponent<GridObjectVisual>();
+            var marker = GetComponent<GridObjectMarker>();
+            gridVisual.ConfigureFootprint(marker != null ? marker.footprint : new Vector2Int(3, 3));
+            gridVisual.fitVisualWidthToFootprint = true;
+            gridVisual.resetVisualOffset = true;
+            gridVisual.visualOffset = Vector3.zero;
+        }
+
+        void EnsureFootprintCollider()
+        {
+            EnsureGridObjectVisual();
+            var box = default(BoxCollider2D);
+            foreach (var circle in GetComponents<CircleCollider2D>())
+            {
+                if (circle != null) Destroy(circle);
+            }
+            foreach (var candidate in GetComponents<BoxCollider2D>())
+            {
+                if (!candidate.isTrigger)
+                {
+                    box = candidate;
+                    break;
+                }
+            }
+
+            footprintCollider = gridVisual.ConfigureFootprintBox(box, false);
+        }
+
+        void EnsureBaseTowerVisual()
+        {
+            EnsureGridObjectVisual();
+            if (baseTowerVisual == null)
+            {
+                var existing = transform.Find("Base Tower Image");
+                if (existing != null) baseTowerVisual = existing.GetComponent<PaperMeshVisual>();
+                if (baseTowerVisual == null)
+                {
+                    var go = new GameObject("Base Tower Image");
+                    go.transform.SetParent(transform, false);
+                    var billboard = go.AddComponent<PaperBillboard>();
+                    billboard.faceCamera = false;
+                    baseTowerVisual = go.AddComponent<PaperMeshVisual>();
+                }
+            }
+
+            var sprite = LoadGeneratedSprite("Tower");
+            if (sprite == null) return;
+            baseTowerVisual.Configure(sprite, Color.white, 1003);
+            gridVisual.ApplyToVisual(baseTowerVisual, sprite, sprite.bounds.size);
+            baseTowerVisual.visible = !isUpgraded && pendingUpgrade == null;
+            var preserveSortingOrder = baseTowerVisual.GetComponent<PreserveSortingOrder>();
+            if (preserveSortingOrder != null) Destroy(preserveSortingOrder);
+            if (baseTowerVisual.GetComponent<OcclusionMaskSource>() == null) baseTowerVisual.gameObject.AddComponent<OcclusionMaskSource>();
+            var outline = baseTowerVisual.GetComponent<RuntimeSpriteOutline>();
+            if (outline == null) outline = baseTowerVisual.gameObject.AddComponent<RuntimeSpriteOutline>();
+            outline.outlineColor = Color.black;
+            outline.thickness = 0.018f;
+        }
+
+        void EnsureUpgradeVisuals(Sprite sprite)
+        {
+            if (sprite == null) return;
+            if (upgradeVisualsPrepared)
+            {
+                ConfigureUpgradeVisual(upgradeGhostVisual, sprite, upgradeGhostVisual != null ? upgradeGhostVisual.color : Color.white);
+                ConfigureUpgradeVisual(upgradeBuildVisual, sprite, Color.white);
+                ConfigureUpgradeVisual(upgradedCompleteVisual, sprite, Color.white);
+                return;
+            }
+
+            upgradeGhostVisual = CreateUpgradeVisual("Upgrade Ghost", sprite, new Color(0.30f, 0.82f, 1f, 0.36f), 22000);
+            upgradeBuildVisual = CreateUpgradeVisual("Upgrade Build Fill", sprite, Color.white, 22001);
+            upgradedCompleteVisual = CreateUpgradeVisual("Upgraded Tower Image", sprite, Color.white, 22002);
+            upgradeHammerVisual = CreateOverlayVisual("Upgrade Hammer", LoadGeneratedSprite("Hammer"), 22020);
+            upgradeSparkleVisual = CreateOverlayVisual("Upgrade Sparkle", LoadGeneratedSprite("Sparkle"), 22030);
+            if (upgradeBuildVisual != null) upgradeBuildBaseScale = upgradeBuildVisual.transform.localScale;
+            if (upgradedCompleteVisual != null) upgradedCompleteBaseScale = upgradedCompleteVisual.transform.localScale;
+            if (upgradeGhostVisual != null) upgradeGhostVisual.visible = false;
+            if (upgradeBuildVisual != null) upgradeBuildVisual.visible = false;
+            if (upgradedCompleteVisual != null) upgradedCompleteVisual.visible = false;
+            if (upgradeHammerVisual != null) upgradeHammerVisual.visible = false;
+            if (upgradeSparkleVisual != null) upgradeSparkleVisual.visible = false;
+            upgradeVisualsPrepared = true;
+        }
+
+        PaperMeshVisual CreateUpgradeVisual(string objectName, Sprite sprite, Color color, int sortingOrder)
+        {
+            var go = new GameObject(objectName);
+            go.transform.SetParent(transform, false);
+            var billboard = go.AddComponent<PaperBillboard>();
+            billboard.faceCamera = false;
+            var mesh = go.AddComponent<PaperMeshVisual>();
+            mesh.Configure(sprite, color, sortingOrder);
+            ConfigureUpgradeVisual(mesh, sprite, color);
+            return mesh;
+        }
+
+        PaperMeshVisual CreateOverlayVisual(string objectName, Sprite sprite, int sortingOrder)
+        {
+            var go = new GameObject(objectName);
+            go.transform.SetParent(transform, false);
+            go.AddComponent<PaperBillboard>();
+            var mesh = go.AddComponent<PaperMeshVisual>();
+            mesh.Configure(sprite, Color.white, sortingOrder);
+            mesh.visible = false;
+            if (mesh.GetComponent<PreserveSortingOrder>() == null) mesh.gameObject.AddComponent<PreserveSortingOrder>();
+            var outline = mesh.GetComponent<RuntimeSpriteOutline>();
+            if (outline == null) outline = mesh.gameObject.AddComponent<RuntimeSpriteOutline>();
+            outline.outlineColor = Color.black;
+            outline.thickness = 0.022f;
+            ApplyToolVisualScale(mesh.transform);
+            return mesh;
+        }
+
+        void ConfigureUpgradeVisual(PaperMeshVisual mesh, Sprite sprite, Color color)
+        {
+            if (mesh == null || sprite == null) return;
+            mesh.useBottomCenterAnchor = true;
+            mesh.sprite = sprite;
+            mesh.color = color;
+            mesh.order = mesh.order;
+            mesh.transform.localRotation = Quaternion.identity;
+            EnsureGridObjectVisual();
+            mesh.useBottomCenterAnchor = true;
+            var bounds = sprite.bounds.size;
+            float fitScale = Mathf.Abs(bounds.x) > 0.001f ? gridVisual.FootprintWorldSize.x / bounds.x : 1f;
+            mesh.transform.localScale = new Vector3(fitScale, fitScale, 1f);
+            mesh.transform.localScale = new Vector3(
+                mesh.transform.localScale.x * upgradedVisualScale.x,
+                mesh.transform.localScale.y * upgradedVisualScale.y,
+                mesh.transform.localScale.z * upgradedVisualScale.z);
+            mesh.transform.localPosition = UpgradeVisualOffset;
+            var outline = mesh.GetComponent<RuntimeSpriteOutline>();
+            if (outline == null) outline = mesh.gameObject.AddComponent<RuntimeSpriteOutline>();
+            outline.outlineColor = Color.black;
+            outline.thickness = 0.018f;
+            if (mesh.GetComponent<OcclusionMaskSource>() == null) mesh.gameObject.AddComponent<OcclusionMaskSource>();
+        }
+
+        void AnimateUpgradeHammer()
+        {
+            if (upgradeHammerVisual == null) return;
+            float swing = Mathf.Sin(Time.time * 16f);
+            upgradeHammerVisual.transform.localRotation = Quaternion.Euler(0f, 0f, -35f + swing * 32f);
+            upgradeHammerVisual.transform.localPosition = UpgradeVisualOffset + new Vector3(0.42f, 1.4f + Mathf.Abs(swing) * 0.08f, 0f);
+            ApplyToolVisualScale(upgradeHammerVisual.transform);
+        }
+
+        void AnimateUpgradeSparkle()
+        {
+            if (upgradeSparkleTimer <= 0f)
+            {
+                if (upgradeSparkleVisual != null) upgradeSparkleVisual.visible = false;
+                return;
+            }
+
+            upgradeSparkleTimer = Mathf.Max(0f, upgradeSparkleTimer - Time.deltaTime);
+            float t = 1f - upgradeSparkleTimer / UpgradeSparkleDuration;
+            float pulse = Mathf.Sin(t * Mathf.PI);
+            if (upgradedCompleteVisual != null)
+            {
+                upgradedCompleteVisual.color = Color.Lerp(Color.white, new Color(1f, 0.96f, 0.52f, 1f), pulse);
+                upgradedCompleteVisual.transform.localScale = upgradedCompleteBaseScale * (1f + pulse * 0.08f);
+            }
+            if (upgradeSparkleVisual != null)
+            {
+                upgradeSparkleVisual.visible = true;
+                upgradeSparkleVisual.color = new Color(1f, 1f, 1f, pulse);
+                upgradeSparkleVisual.transform.localScale = Vector3.one * (0.45f + pulse * 1.25f);
+                upgradeSparkleVisual.transform.localRotation = Quaternion.Euler(0f, 0f, t * 210f);
+                upgradeSparkleVisual.transform.localPosition = UpgradeVisualOffset + new Vector3(0.18f, 2.2f + pulse * 0.12f, 0f);
+            }
+        }
+
+        Vector3 UpgradeVisualOffset
+        {
+            get
+            {
+                return upgradedVisualOffset;
+            }
+        }
+
+        static void ApplyToolVisualScale(Transform target)
+        {
+            if (target == null) return;
+            var parentScale = target.parent != null ? target.parent.lossyScale : Vector3.one;
+            target.localScale = new Vector3(
+                ToolVisualScale.x / Mathf.Max(0.001f, Mathf.Abs(parentScale.x)),
+                ToolVisualScale.y / Mathf.Max(0.001f, Mathf.Abs(parentScale.y)),
+                ToolVisualScale.z);
+        }
+
+        static Sprite LoadGeneratedSprite(string name)
+        {
+            var sprite = Resources.Load<Sprite>("Generated/" + name);
+            if (sprite != null) return sprite;
+            var texture = Resources.Load<Texture2D>("Generated/" + name);
+            if (texture == null) return null;
+            texture.filterMode = FilterMode.Point;
+            texture.wrapMode = TextureWrapMode.Clamp;
+            return Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 128f);
         }
 
         void StartCollapse()

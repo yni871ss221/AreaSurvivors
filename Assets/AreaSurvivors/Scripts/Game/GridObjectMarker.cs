@@ -11,7 +11,10 @@ namespace AreaSurvivors
         public bool Register(TileGrid grid)
         {
             if (grid == null || grid.groundTilemap == null) return false;
-            var cell = grid.groundTilemap.WorldToCell(transform.position);
+            var visual = GetComponent<GridObjectVisual>();
+            var cell = visual != null && visual.HasGridOrigin
+                ? visual.GridOriginCell
+                : grid.groundTilemap.WorldToCell(transform.position);
             return grid.TryRegisterObject(cell, type, flags, gameObject, footprint);
         }
     }

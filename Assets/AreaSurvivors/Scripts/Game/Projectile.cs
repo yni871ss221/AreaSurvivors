@@ -9,6 +9,9 @@ namespace AreaSurvivors
         public float visualScale = 1f;
         public float knockback;
         public float knockbackDuration = 0.16f;
+        public Sprite impactSprite;
+        public Color impactColor = Color.white;
+        public float impactVisualScale = 1f;
         int damage;
         bool explosive;
         float explosionRadius = 1.1f;
@@ -86,17 +89,18 @@ namespace AreaSurvivors
         void ImpactFlash()
         {
             var source = GetComponentInChildren<PaperMeshVisual>();
-            if (source == null || source.sprite == null) return;
+            var flashSprite = impactSprite != null ? impactSprite : source != null ? source.sprite : null;
+            if (flashSprite == null) return;
 
             var go = new GameObject(explosive ? "Fireball Impact" : "Arrow Impact");
             go.transform.position = transform.position;
-            go.transform.localScale = Vector3.one * (explosive ? 1.15f : 0.72f);
+            go.transform.localScale = Vector3.one * (impactSprite != null ? Mathf.Max(0.05f, impactVisualScale) : explosive ? 1.15f : 0.72f);
             go.AddComponent<PaperBillboard>();
             var visual = go.AddComponent<PaperMeshVisual>();
-            var color = explosive ? new Color(1f, 0.62f, 0.22f, 0.9f) : new Color(1f, 0.92f, 0.45f, 0.78f);
-            visual.Configure(source.sprite, color, WeaponSortingOrders.Impact);
-            go.AddComponent<ProjectileImpactFlash>().Configure(visual, explosive ? 0.18f : 0.12f);
-            PixelBurstEffect.Spawn(source.sprite, transform.position, color, explosive ? 8 : 4, explosive ? 0.42f : 0.24f, explosive ? 0.26f : 0.18f, WeaponSortingOrders.ImpactBurst);
+            var color = impactSprite != null ? impactColor : explosive ? new Color(1f, 0.62f, 0.22f, 0.9f) : new Color(1f, 0.92f, 0.45f, 0.78f);
+            visual.Configure(flashSprite, color, WeaponSortingOrders.Impact);
+            go.AddComponent<ProjectileImpactFlash>().Configure(visual, impactSprite != null ? 0.26f : explosive ? 0.18f : 0.12f);
+            PixelBurstEffect.Spawn(flashSprite, transform.position, color, explosive ? 10 : 4, explosive ? 0.46f : 0.24f, explosive ? 0.28f : 0.18f, WeaponSortingOrders.ImpactBurst);
         }
 
         void TrailFleck()

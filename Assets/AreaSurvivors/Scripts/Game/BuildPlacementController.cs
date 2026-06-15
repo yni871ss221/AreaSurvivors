@@ -36,7 +36,6 @@ namespace AreaSurvivors
         public int fenceStock = 4;
         public Text buildText;
 
-        const float VerticalFenceWorldYOffset = 0f;
 
         BuildMode buildMode = BuildMode.Ballista;
         bool fenceVertical;
@@ -83,6 +82,11 @@ namespace AreaSurvivors
             player = runPlayer;
             HideBuildPreview();
             UpdateBuildStatus();
+        }
+
+        public void CancelActiveSelection()
+        {
+            CancelBuildSelection();
         }
 
         public void Tick()
@@ -205,7 +209,7 @@ namespace AreaSurvivors
             if (grid == null || grid.groundTilemap == null) return false;
             var footprint = CurrentBuildFootprint();
             var footprintOrigin = CurrentBuildFootprintOrigin(cell);
-            var world = grid.FootprintCenterToWorld(footprintOrigin, footprint) + CurrentBuildWorldOffset();
+            var world = GridObjectVisual.FootprintBottomCenterToWorld(grid, footprintOrigin, footprint);
             BuildBlockReason reason;
             if (!CanPlaceCurrentBuild(footprintOrigin, world, out reason))
             {
@@ -319,7 +323,7 @@ namespace AreaSurvivors
             {
                 var footprint = CurrentBuildFootprint();
                 var footprintOrigin = CurrentBuildFootprintOrigin(currentBuildCell);
-                var world = grid.FootprintCenterToWorld(footprintOrigin, footprint) + CurrentBuildWorldOffset();
+                var world = GridObjectVisual.FootprintBottomCenterToWorld(grid, footprintOrigin, footprint);
                 buildPreviewRoot.transform.position = world + new Vector3(0f, 0f, -0.02f);
                 canPlaceBuild = CanPlaceCurrentBuild(footprintOrigin, world, out buildBlockReason);
                 DrawBuildFootprintPreview(footprintOrigin, footprint, canPlaceBuild);
@@ -678,21 +682,6 @@ namespace AreaSurvivors
                     yield return new Vector3Int(minX + x, minY + y, originCell.z);
                 }
             }
-        }
-
-        Vector3 CurrentBuildWorldOffset()
-        {
-            if (buildMode == BuildMode.Ballista) return CellStep(Vector3Int.up);
-            if (buildMode == BuildMode.CarpenterHut) return Vector3.zero;
-            if (buildMode == BuildMode.WorkerHut) return Vector3.zero;
-            if (buildMode == BuildMode.WatchTower) return CellStep(Vector3Int.up);
-            return buildMode == BuildMode.Fence && fenceVertical ? new Vector3(0f, VerticalFenceWorldYOffset, 0f) : Vector3.zero;
-        }
-
-        Vector3 CellStep(Vector3Int direction)
-        {
-            if (grid == null || grid.groundTilemap == null) return new Vector3(direction.x * 0.7f, direction.y * 0.5f, 0f);
-            return grid.groundTilemap.GetCellCenterWorld(direction) - grid.groundTilemap.GetCellCenterWorld(Vector3Int.zero);
         }
 
         void ApplyBuildPreviewAppearance()

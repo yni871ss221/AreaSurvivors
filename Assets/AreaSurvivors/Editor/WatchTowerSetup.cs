@@ -38,7 +38,7 @@ namespace AreaSurvivors.Editor
             importer.textureType = TextureImporterType.Sprite;
             importer.spriteImportMode = SpriteImportMode.Single;
             importer.spritePixelsPerUnit = 128f;
-            importer.spritePivot = new Vector2(0.5f, 0.5f);
+            importer.spritePivot = new Vector2(0.5f, 0f);
             importer.filterMode = FilterMode.Point;
             importer.mipmapEnabled = false;
             importer.alphaIsTransparency = true;
@@ -70,18 +70,17 @@ namespace AreaSurvivors.Editor
             marker.type = GridObjectType.WatchTower;
             marker.flags = GridCellFlags.BlocksMovement | GridCellFlags.BlocksBuilding | GridCellFlags.Defensive;
             marker.footprint = new Vector2Int(2, 2);
+            var gridVisual = go.AddComponent<GridObjectVisual>();
+            gridVisual.ConfigureFootprint(marker.footprint);
 
             var rb = go.AddComponent<Rigidbody2D>();
             rb.bodyType = RigidbodyType2D.Static;
 
             var trigger = go.AddComponent<BoxCollider2D>();
-            trigger.isTrigger = true;
-            trigger.size = new Vector2(1.42f, 1.05f);
-            trigger.offset = new Vector2(0f, -0.05f);
+            gridVisual.ConfigureFootprintBox(trigger, true);
 
             var blocker = go.AddComponent<BoxCollider2D>();
-            blocker.size = trigger.size;
-            blocker.offset = trigger.offset;
+            gridVisual.ConfigureFootprintBox(blocker, false);
             blocker.enabled = false;
 
             go.AddComponent<Health>();
@@ -91,8 +90,8 @@ namespace AreaSurvivors.Editor
             var tower = go.AddComponent<WatchTower>();
             tower.blockingCollider = blocker;
             tower.towerSprite = sprite;
-            tower.spriteVisualSize = VisualSizeForWidth(sprite, 1.22f);
-            tower.spriteVisualOffset = new Vector3(0f, -1f, 0f);
+            tower.spriteVisualSize = VisualSizeForWidth(sprite, GridObjectVisual.CellWidth * marker.footprint.x);
+            tower.spriteVisualOffset = Vector3.zero;
             tower.hammerRenderer = CreateOverlayVisual(go.transform, "Hammer", AssetDatabase.LoadAssetAtPath<Sprite>(HammerSpritePath), 22020);
             tower.sparkleRenderer = CreateOverlayVisual(go.transform, "Completion Sparkle", AssetDatabase.LoadAssetAtPath<Sprite>(SparkleSpritePath), 22030);
 

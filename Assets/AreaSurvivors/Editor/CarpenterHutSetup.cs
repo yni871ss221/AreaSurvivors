@@ -38,7 +38,7 @@ namespace AreaSurvivors.Editor
             importer.textureType = TextureImporterType.Sprite;
             importer.spriteImportMode = SpriteImportMode.Single;
             importer.spritePixelsPerUnit = 128f;
-            importer.spritePivot = new Vector2(0.5f, 0.5f);
+            importer.spritePivot = new Vector2(0.5f, 0f);
             importer.filterMode = FilterMode.Point;
             importer.mipmapEnabled = false;
             importer.alphaIsTransparency = true;
@@ -70,18 +70,17 @@ namespace AreaSurvivors.Editor
             marker.type = GridObjectType.CarpenterHut;
             marker.flags = GridCellFlags.BlocksMovement | GridCellFlags.BlocksBuilding | GridCellFlags.Defensive;
             marker.footprint = Vector2Int.one;
+            var gridVisual = go.AddComponent<GridObjectVisual>();
+            gridVisual.ConfigureFootprint(marker.footprint);
 
             var rb = go.AddComponent<Rigidbody2D>();
             rb.bodyType = RigidbodyType2D.Static;
 
             var trigger = go.AddComponent<BoxCollider2D>();
-            trigger.isTrigger = true;
-            trigger.size = new Vector2(0.82f, 0.72f);
-            trigger.offset = new Vector2(0f, -0.08f);
+            gridVisual.ConfigureFootprintBox(trigger, true);
 
             var blocker = go.AddComponent<BoxCollider2D>();
-            blocker.size = trigger.size;
-            blocker.offset = trigger.offset;
+            gridVisual.ConfigureFootprintBox(blocker, false);
             blocker.enabled = false;
 
             go.AddComponent<Health>();
@@ -91,8 +90,8 @@ namespace AreaSurvivors.Editor
             var hut = go.AddComponent<CarpenterHut>();
             hut.blockingCollider = blocker;
             hut.hutSprite = sprite;
-            hut.spriteVisualSize = VisualSizeForTransformScale(sprite, 0.33f);
-            hut.spriteVisualOffset = new Vector3(0f, -0.25f, 0f);
+            hut.spriteVisualSize = VisualSizeForWidth(sprite, GridObjectVisual.CellWidth);
+            hut.spriteVisualOffset = Vector3.zero;
             hut.hammerRenderer = CreateOverlayVisual(go.transform, "Hammer", AssetDatabase.LoadAssetAtPath<Sprite>(HammerSpritePath), 22020);
             hut.sparkleRenderer = CreateOverlayVisual(go.transform, "Completion Sparkle", AssetDatabase.LoadAssetAtPath<Sprite>(SparkleSpritePath), 22030);
 
@@ -116,10 +115,10 @@ namespace AreaSurvivors.Editor
             return visual;
         }
 
-        static Vector2 VisualSizeForTransformScale(Sprite sprite, float scale)
+        static Vector2 VisualSizeForWidth(Sprite sprite, float width)
         {
-            if (sprite == null) return Vector2.one * scale;
-            return new Vector2(sprite.bounds.size.x * scale, sprite.bounds.size.y * scale);
+            if (sprite == null || sprite.bounds.size.x <= 0.001f) return new Vector2(width, width);
+            return new Vector2(width, sprite.bounds.size.y * (width / sprite.bounds.size.x));
         }
 
         static void UpdateConfig()

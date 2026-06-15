@@ -186,6 +186,14 @@ namespace AreaSurvivors.Editor
             config.runMaxHpBonus = 8;
             config.towerMaxHp = 160;
             config.towerMaxHpPerUpgradeLevel = 12;
+            config.towerUpgradeWoodCost = 300;
+            config.towerUpgradeStoneCost = 300;
+            config.towerUpgradeBuildSeconds = 5f;
+            config.upgradedTowerMaxHp = 450;
+            config.upgradedTowerRegenBonus = 3;
+            config.upgradedTowerCannonDamageBonus = 10;
+            config.upgradedTowerCannonExplosionRadiusMultiplier = 2f;
+            config.upgradedTowerImmediatePaintRadiusCells = 15;
             config.ballistaRange = 9.5f;
             config.ballistaMaxHp = 90;
             config.baseAttackPower = 6;
@@ -333,7 +341,7 @@ namespace AreaSurvivors.Editor
             var knightSprite = LoadCharacterSprite("Knight");
             var archerSprite = LoadCharacterSprite("Archer");
             var mageSprite = LoadCharacterSprite("Mage");
-            var go = Actor("Player", knightSprite, Color.white, 0.32f, new Vector3(0f, -0.28f, 0.01f));
+            var go = Actor("Player", knightSprite, Color.white, 0.32f);
             var health = go.AddComponent<Health>();
             health.maxHp = 40;
             var animator = go.AddComponent<DirectionalSpriteAnimator>();
@@ -368,15 +376,15 @@ namespace AreaSurvivors.Editor
         {
             var go = new GameObject("BallistaTower");
             ConfigureGridMarker(go, GridObjectType.Ballista, GridCellFlags.BlocksBuilding | GridCellFlags.Defensive, new Vector2Int(2, 2));
-            GroundShadow(go.transform, new Vector2(1.34f, 0.95f));
+            var gridVisual = go.AddComponent<GridObjectVisual>();
+            gridVisual.ConfigureFootprint(new Vector2Int(2, 2));
             var rb = go.AddComponent<Rigidbody2D>();
             rb.bodyType = RigidbodyType2D.Static;
-            var trigger = go.AddComponent<CircleCollider2D>();
+            var trigger = go.AddComponent<BoxCollider2D>();
             trigger.isTrigger = true;
-            trigger.radius = TileCellWidth * 1.5f;
+            gridVisual.ConfigureFootprintBox(trigger, true);
             var blocker = go.AddComponent<BoxCollider2D>();
-            blocker.size = new Vector2(1.28f, 1f);
-            blocker.offset = new Vector2(0f, -0.1f);
+            gridVisual.ConfigureFootprintBox(blocker, false);
             blocker.enabled = false;
             go.AddComponent<Health>();
 
@@ -384,7 +392,7 @@ namespace AreaSurvivors.Editor
             var ghost = CreateSpriteVisual(go.transform, "Ghost Image", ballistaSprite, new Vector2(1.34f, 1.65f), new Color(1f, 1f, 1f, 0.34f), 1000);
             var build = CreateSpriteVisual(go.transform, "Build Fill Image", ballistaSprite, new Vector2(1.34f, 1.65f), Color.white, 1001);
             var complete = CreateSpriteVisual(go.transform, "Complete Image", ballistaSprite, new Vector2(1.34f, 1.65f), Color.white, 1002);
-            SetVisualOffset(new Vector3(0f, -1f, 0f), ghost, build, complete);
+            SetVisualOffset(Vector3.zero, ghost, build, complete);
             var hammer = MeshChild(go.transform, "Hammer", LoadGeneratedSprite("Hammer") ?? LoadSprite("Hammer"), Color.white, 2200);
             hammer.transform.localPosition = new Vector3(0.28f, -0.12f, 0f);
             var sparkle = MeshChild(go.transform, "Completion Sparkle", LoadGeneratedSprite("Sparkle") ?? LoadSprite("Sparkle"), new Color(1f, 1f, 1f, 0f), 2400);
@@ -418,27 +426,24 @@ namespace AreaSurvivors.Editor
         static GameObject CreateFence(bool vertical)
         {
             var go = new GameObject(vertical ? "DefensiveFenceVertical" : "DefensiveFenceHorizontal");
-            if (vertical) go.transform.localScale = new Vector3(0.4f, 0.4f, 1f);
-            ConfigureGridMarker(go, GridObjectType.Fence, GridCellFlags.BlocksMovement | GridCellFlags.BlocksBuilding | GridCellFlags.Defensive, vertical ? new Vector2Int(1, 2) : new Vector2Int(2, 1));
+            var footprint = vertical ? new Vector2Int(1, 2) : new Vector2Int(2, 1);
+            ConfigureGridMarker(go, GridObjectType.Fence, GridCellFlags.BlocksMovement | GridCellFlags.BlocksBuilding | GridCellFlags.Defensive, footprint);
+            var gridVisual = go.AddComponent<GridObjectVisual>();
+            gridVisual.ConfigureFootprint(footprint);
             var rb = go.AddComponent<Rigidbody2D>();
             rb.bodyType = RigidbodyType2D.Static;
             go.AddComponent<Health>();
 
             var buildTrigger = go.AddComponent<BoxCollider2D>();
-            buildTrigger.isTrigger = true;
-            buildTrigger.size = vertical
-                ? new Vector2(0.56f, 1.55f)
-                : new Vector2(1.34f, 0.56f);
-            buildTrigger.offset = Vector2.zero;
+            gridVisual.ConfigureFootprintBox(buildTrigger, true);
             var blocker = go.AddComponent<BoxCollider2D>();
-            blocker.size = buildTrigger.size;
-            blocker.offset = buildTrigger.offset;
+            gridVisual.ConfigureFootprintBox(blocker, false);
 
             var fenceSprite = LoadGeneratedSprite(vertical ? "FenceVertical" : "FenceHorizontal") ?? LoadSprite(vertical ? "FenceVertical" : "FenceHorizontal");
             var ghost = CreateFenceSpriteVisual(go.transform, "Ghost Image", fenceSprite, vertical, new Color(1f, 1f, 1f, 0.34f), 1000);
             var build = CreateFenceSpriteVisual(go.transform, "Build Fill Image", fenceSprite, vertical, Color.white, 1001);
             var complete = CreateFenceSpriteVisual(go.transform, "Complete Image", fenceSprite, vertical, Color.white, 1002);
-            SetVisualOffset(new Vector3(0f, vertical ? -1.2f : -0.22f, 0f), ghost, build, complete);
+            SetVisualOffset(Vector3.zero, ghost, build, complete);
             var hammer = MeshChild(go.transform, "Hammer", LoadGeneratedSprite("Hammer") ?? LoadSprite("Hammer"), Color.white, 2200);
             hammer.transform.localPosition = new Vector3(0.24f, -0.06f, 0f);
             var sparkle = MeshChild(go.transform, "Completion Sparkle", LoadGeneratedSprite("Sparkle") ?? LoadSprite("Sparkle"), new Color(1f, 1f, 1f, 0f), 2400);
@@ -483,7 +488,7 @@ namespace AreaSurvivors.Editor
             float x = Mathf.Abs(bounds.x) > 0.001f ? size.x / bounds.x : 1f;
             float y = Mathf.Abs(bounds.y) > 0.001f ? size.y / bounds.y : 1f;
             visual.transform.localScale = new Vector3(x, y, 1f);
-            visual.transform.localPosition = new Vector3(0f, -size.y * 0.5f, 0f);
+            visual.transform.localPosition = Vector3.zero;
             visual.visible = false;
             return visual;
         }
@@ -840,8 +845,9 @@ namespace AreaSurvivors.Editor
         {
             var go = new GameObject("Tower");
             ConfigureGridMarker(go, GridObjectType.Tower, GridCellFlags.BlocksMovement | GridCellFlags.BlocksBuilding | GridCellFlags.Defensive, new Vector2Int(3, 3));
+            var gridVisual = go.AddComponent<GridObjectVisual>();
+            gridVisual.ConfigureFootprint(new Vector2Int(3, 3));
             var visual = CreateTexturedSpriteModel(go.transform, "Textured Model", "Tower", 2.05f, 0.24f, 2.9f, Color.white, 1000);
-            GroundShadow(go.transform, new Vector2(2.05f, 1.35f));
             var ySort = go.AddComponent<YSort>();
             ySort.baseOrder = 1000;
             ySort.sortPivotOffsetY = -1.2f;
@@ -850,8 +856,8 @@ namespace AreaSurvivors.Editor
             rb.gravityScale = 0f;
             rb.freezeRotation = true;
             rb.bodyType = RigidbodyType2D.Static;
-            var col = go.AddComponent<CircleCollider2D>();
-            col.radius = 1.05f;
+            var col = go.AddComponent<BoxCollider2D>();
+            gridVisual.ConfigureFootprintBox(col, false);
             go.AddComponent<Health>();
             var tower = go.AddComponent<TowerController>();
             tower.hpBar = AddWorldHpBar(go.transform, new Vector3(0, -0.82f, 0), 0.9f);
@@ -897,15 +903,11 @@ namespace AreaSurvivors.Editor
 
         static GameObject Actor(string name, Sprite sprite, Color color, float colliderRadius)
         {
-            return Actor(name, sprite, color, colliderRadius, new Vector3(0f, 0f, 0.01f));
-        }
-
-        static GameObject Actor(string name, Sprite sprite, Color color, float colliderRadius, Vector3 shadowLocalPosition)
-        {
             var go = new GameObject(name);
+            var gridVisual = go.AddComponent<GridObjectVisual>();
+            gridVisual.ConfigureCharacter(1f);
             var visual = MeshChild(go.transform, "Paper Visual", sprite, HasGeneratedSprite(name) ? Color.white : color, 1000);
             ScalePaperVisual(visual, Vector2.one * TileCellWidth);
-            GroundShadow(go.transform, new Vector2(colliderRadius * 2.2f, colliderRadius * 1.2f), shadowLocalPosition);
             var ySort = go.AddComponent<YSort>();
             ySort.baseOrder = 1000;
             ySort.renderers = new[] { visual.Renderer };
@@ -913,7 +915,7 @@ namespace AreaSurvivors.Editor
             rb.gravityScale = 0f;
             rb.freezeRotation = true;
             var col = go.AddComponent<CircleCollider2D>();
-            col.radius = colliderRadius;
+            gridVisual.ConfigureCharacterCircle(col);
             return go;
         }
 
@@ -1007,22 +1009,6 @@ namespace AreaSurvivors.Editor
             var visual = child.AddComponent<PaperMeshVisual>();
             visual.Configure(sprite, color, sortingOrder);
             child.AddComponent<PaperBillboard>().faceCamera = faceCamera;
-            return visual;
-        }
-
-        static PaperMeshVisual GroundShadow(Transform parent, Vector2 scale)
-        {
-            return GroundShadow(parent, scale, new Vector3(0f, 0f, 0.01f));
-        }
-
-        static PaperMeshVisual GroundShadow(Transform parent, Vector2 scale, Vector3 localPosition)
-        {
-            var child = new GameObject("Ground Shadow");
-            child.transform.SetParent(parent, false);
-            child.transform.localPosition = localPosition;
-            child.transform.localScale = new Vector3(scale.x, scale.y, 1f);
-            var visual = child.AddComponent<PaperMeshVisual>();
-            visual.Configure(LoadSprite("Shadow"), new Color(0f, 0f, 0f, 0.2f), -10);
             return visual;
         }
 
@@ -1603,11 +1589,11 @@ namespace AreaSurvivors.Editor
             importer.spritePixelsPerUnit = pixelsPerUnit;
             if (assetPath.EndsWith("/FenceHorizontal.png"))
             {
-                importer.spritePivot = new Vector2(0.5f, 0.5f);
+                importer.spritePivot = new Vector2(0.5f, 0f);
             }
             else if (assetPath.EndsWith("/FenceVertical.png"))
             {
-                importer.spritePivot = new Vector2(0.5f, 0.5f);
+                importer.spritePivot = new Vector2(0.5f, 0f);
             }
             importer.filterMode = FilterMode.Point;
             importer.mipmapEnabled = false;

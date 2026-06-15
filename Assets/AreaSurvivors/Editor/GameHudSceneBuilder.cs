@@ -78,6 +78,7 @@ namespace AreaSurvivors.Editor
             ImportGeneratedSprite("Axe");
             ImportGeneratedSprite("Hammer");
             ImportGeneratedSprite("Token");
+            ImportGeneratedSprite("SkullIcon");
             var canvas = FindHudCanvas();
             if (canvas == null)
             {
@@ -100,8 +101,7 @@ namespace AreaSurvivors.Editor
             var kills = EnsurePanel(canvas.transform, "Kill Panel", new Vector2(82f, -28f), new Vector2(154f, 34f), new Vector2(0.5f, 1f));
             SetAnchored(kills, new Vector2(82f, -28f), new Vector2(154f, 34f), new Vector2(0.5f, 1f));
             EnsureFrame(kills, kills.sizeDelta);
-            var killText = EnsureText(kills, "Label", "撃破 0", 20, TextAnchor.MiddleCenter);
-            Stretch(killText.rectTransform);
+            ConfigureKillPanel(kills);
 
             var wood = EnsureResourcePanel(canvas.transform, "Wood Resource", new Vector2(222f, -28f), Resources.Load<Sprite>("Generated/WoodIcon"), "100");
             var stone = EnsureResourcePanel(canvas.transform, "Stone Resource", new Vector2(332f, -28f), Resources.Load<Sprite>("Generated/StoneIcon"), "100");
@@ -117,6 +117,68 @@ namespace AreaSurvivors.Editor
             EditorSceneManager.MarkSceneDirty(canvas.gameObject.scene);
             EditorSceneManager.SaveScene(canvas.gameObject.scene);
             Debug.Log("Run stats and resource HUD panels were created in the scene.");
+        }
+
+        [MenuItem("AreaSurvivors/HUD/Normalize Stage And Kill HUD")]
+        public static void NormalizeStageAndKillHud()
+        {
+            ImportGeneratedSprite("SkullIcon");
+            var scene = EditorSceneManager.OpenScene(GameScenePath);
+            var canvas = FindHudCanvas();
+            if (canvas == null)
+            {
+                Debug.LogError("HUD Canvas was not found.");
+                return;
+            }
+
+            var stage = EnsurePanel(canvas.transform, "Stage Panel", new Vector2(-222f, -28f), new Vector2(118f, 34f), new Vector2(0.5f, 1f));
+            SetAnchored(stage, new Vector2(-222f, -28f), new Vector2(118f, 34f), new Vector2(0.5f, 1f));
+            EnsureFrame(stage, stage.sizeDelta);
+            var stageText = EnsureText(stage, "Label", "STAGE 1", 18, TextAnchor.MiddleCenter);
+            Stretch(stageText.rectTransform);
+
+            var kills = EnsurePanel(canvas.transform, "Kill Panel", new Vector2(82f, -28f), new Vector2(112f, 34f), new Vector2(0.5f, 1f));
+            SetAnchored(kills, new Vector2(82f, -28f), new Vector2(112f, 34f), new Vector2(0.5f, 1f));
+            EnsureFrame(kills, kills.sizeDelta);
+            ConfigureKillPanel(kills);
+
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene);
+            Debug.Log("Stage and kill HUD widgets were normalized in 05_Game.");
+        }
+
+        [MenuItem("AreaSurvivors/HUD/Create Tower Upgrade Button")]
+        public static void CreateTowerUpgradeButton()
+        {
+            ImportGeneratedSprite("UpgradeBuildingIcon");
+            var canvas = FindHudCanvas();
+            if (canvas == null)
+            {
+                Debug.LogError("HUD Canvas was not found.");
+                return;
+            }
+
+            var button = EnsureButton(canvas.transform, "Upgrade Building Button", new Vector2(-69f, -354f), new Vector2(54f, 54f), Vector2.one);
+            button.image.color = new Color(0.10f, 0.19f, 0.14f, 0.94f);
+            EnsureFrame(button.transform, button.image.rectTransform.sizeDelta);
+            var icon = EnsureImage(button.transform, "Icon", new Vector2(40f, 40f));
+            icon.sprite = Resources.Load<Sprite>("Generated/UpgradeBuildingIcon");
+            icon.preserveAspect = true;
+            AddIconOutline(icon);
+
+            EditorSceneManager.MarkSceneDirty(canvas.gameObject.scene);
+            EditorSceneManager.SaveScene(canvas.gameObject.scene);
+            Debug.Log("Tower upgrade HUD button was created in the scene.");
+        }
+
+        [MenuItem("AreaSurvivors/HUD/Normalize Tower Upgrade Button")]
+        public static void NormalizeTowerUpgradeButton()
+        {
+            var scene = EditorSceneManager.OpenScene(GameScenePath);
+            CreateTowerUpgradeButton();
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene);
+            Debug.Log("Tower upgrade HUD button was normalized in 05_Game.");
         }
 
         [MenuItem("AreaSurvivors/HUD/Normalize Enemy Spawn HUD")]
@@ -241,6 +303,24 @@ namespace AreaSurvivors.Editor
             return root;
         }
 
+        static void ConfigureKillPanel(RectTransform root)
+        {
+            var icon = EnsureImage(root, "Icon", new Vector2(24f, 24f));
+            icon.sprite = Resources.Load<Sprite>("Generated/SkullIcon");
+            icon.preserveAspect = true;
+            AddIconOutline(icon);
+            icon.rectTransform.anchorMin = new Vector2(0f, 0.5f);
+            icon.rectTransform.anchorMax = new Vector2(0f, 0.5f);
+            icon.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            icon.rectTransform.anchoredPosition = new Vector2(22f, 0f);
+
+            var killText = EnsureText(root, "Label", "0", 20, TextAnchor.MiddleLeft);
+            killText.rectTransform.anchorMin = Vector2.zero;
+            killText.rectTransform.anchorMax = Vector2.one;
+            killText.rectTransform.offsetMin = new Vector2(42f, 0f);
+            killText.rectTransform.offsetMax = new Vector2(-8f, 0f);
+        }
+
         static void EnsureBossHud(Transform parent)
         {
             var boss = EnsurePanel(parent, "Boss Status", new Vector2(0f, -72f), new Vector2(520f, 58f), new Vector2(0.5f, 1f), new Color(0.035f, 0.03f, 0.035f, 0.78f));
@@ -357,6 +437,39 @@ namespace AreaSurvivors.Editor
             image.rectTransform.anchoredPosition = Vector2.zero;
             image.rectTransform.sizeDelta = size;
             return image;
+        }
+
+        static Button EnsureButton(Transform parent, string name, Vector2 position, Vector2 size, Vector2 anchor)
+        {
+            var existing = parent.Find(name);
+            var button = existing != null ? existing.GetComponent<Button>() : null;
+            Image image;
+            if (button == null)
+            {
+                image = existing != null ? existing.GetComponent<Image>() : null;
+                if (image == null)
+                {
+                    image = new GameObject(name).AddComponent<Image>();
+                    image.transform.SetParent(parent, false);
+                }
+                button = image.gameObject.AddComponent<Button>();
+                button.targetGraphic = image;
+            }
+            else
+            {
+                image = button.GetComponent<Image>();
+                if (image == null) image = button.gameObject.AddComponent<Image>();
+                button.targetGraphic = image;
+            }
+
+            image.raycastTarget = true;
+            var rect = image.rectTransform;
+            rect.anchorMin = anchor;
+            rect.anchorMax = anchor;
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = position;
+            rect.sizeDelta = size;
+            return button;
         }
 
         static void EnsureBar(RectTransform parent, string name, Vector2 position, Vector2 size, Color fillColor, string label)

@@ -17,7 +17,7 @@ namespace AreaSurvivors
         public PaperMeshVisual sparkleRenderer;
         public Sprite hutSprite;
         public Vector2 spriteVisualSize = new Vector2(0.58f, 0.66f);
-        public Vector3 spriteVisualOffset = new Vector3(0f, -0.25f, 0f);
+        public Vector3 spriteVisualOffset = Vector3.zero;
         public GameObject ghostObject;
         public GameObject buildObject;
         public GameObject completeObject;
@@ -27,6 +27,7 @@ namespace AreaSurvivors
 
         Health health;
         GridObjectMarker marker;
+        GridObjectVisual gridVisual;
         float buildProgress;
         float assistedBuildTimer;
         float visualHeight = 1f;
@@ -53,6 +54,8 @@ namespace AreaSurvivors
         {
             health = GetComponent<Health>();
             marker = GetComponent<GridObjectMarker>();
+            EnsureGridObjectVisual();
+            EnsureFootprintColliders();
             health.Died += _ => Break();
             EnsureSpriteVisuals();
             ConfigureHammerVisual();
@@ -63,6 +66,8 @@ namespace AreaSurvivors
             grid = tileGrid;
             registeredCell = originCell;
             hasRegisteredCell = true;
+            EnsureGridObjectVisual();
+            EnsureFootprintColliders();
         }
 
         void Start()
@@ -254,7 +259,6 @@ namespace AreaSurvivors
             buildProgress = 1f;
             sparkleTimer = SparkleDuration;
             health.SetMax(maxHp);
-            SetPlayerPassThrough(true);
             ApplyVisuals();
             AnimateCompletionSparkle();
             if (sparkleRenderer != null)
@@ -268,7 +272,6 @@ namespace AreaSurvivors
             if (breaking) return;
             breaking = true;
             if (grid != null) grid.ClearObject(hasRegisteredCell ? registeredCell : grid.WorldToCell(transform.position));
-            SetPlayerPassThrough(false);
             Destroy(gameObject);
         }
 
@@ -320,12 +323,34 @@ namespace AreaSurvivors
             visual.color = color;
             if (visual.GetComponent<OcclusionMaskSource>() == null) visual.gameObject.AddComponent<OcclusionMaskSource>();
             ConfigureOutline(visual.gameObject);
-            var bounds = hutSprite.bounds.size;
-            float x = Mathf.Abs(bounds.x) > 0.001f ? spriteVisualSize.x / bounds.x : 1f;
-            float y = Mathf.Abs(bounds.y) > 0.001f ? spriteVisualSize.y / bounds.y : 1f;
-            visual.transform.localScale = new Vector3(x, y, 1f);
-            visual.transform.localPosition = spriteVisualOffset;
+            EnsureGridObjectVisual();
+            gridVisual.ApplyToVisual(visual, hutSprite, spriteVisualSize);
             visual.visible = false;
+        }
+
+        void EnsureGridObjectVisual()
+        {
+            if (gridVisual == null) gridVisual = GetComponent<GridObjectVisual>();
+            if (gridVisual == null) gridVisual = gameObject.AddComponent<GridObjectVisual>();
+            gridVisual.ConfigureFootprint(Footprint);
+            gridVisual.fitVisualWidthToFootprint = true;
+            gridVisual.resetVisualOffset = true;
+        }
+
+        void EnsureFootprintColliders()
+        {
+            EnsureGridObjectVisual();
+            var trigger = default(BoxCollider2D);
+            var blocker = blockingCollider as BoxCollider2D;
+            foreach (var box in GetComponents<BoxCollider2D>())
+            {
+                if (box.isTrigger && trigger == null) trigger = box;
+                else if (!box.isTrigger && blocker == null) blocker = box;
+            }
+
+            gridVisual.ConfigureFootprintBox(trigger, true);
+            blocker = gridVisual.ConfigureFootprintBox(blocker, false);
+            blockingCollider = blocker;
         }
 
         static void ConfigureOutline(GameObject target)
@@ -373,7 +398,7 @@ namespace AreaSurvivors
             {
                 buildRenderer.visible = !completed && buildProgress > 0f;
                 buildRenderer.transform.localScale = new Vector3(buildVisualScale.x, buildVisualScale.y * Mathf.Max(0.02f, buildProgress), buildVisualScale.z);
-                buildRenderer.transform.localPosition = spriteVisualOffset;
+                buildRenderer.transform.localPosition = gridVisual != null ? gridVisual.visualOffset : spriteVisualOffset;
             }
             if (completeRenderer != null) completeRenderer.visible = completed;
             SetActive(completeObject, completed);
@@ -391,7 +416,8 @@ namespace AreaSurvivors
             if (hammerRenderer == null || !ShouldShowHammer()) return;
             float swing = Mathf.Sin(Time.time * 16f);
             hammerRenderer.transform.localRotation = Quaternion.Euler(0f, 0f, -35f + swing * 32f);
-            hammerRenderer.transform.localPosition = spriteVisualOffset + new Vector3(0.12f, spriteVisualSize.y * 0.5f + 0.18f + Mathf.Abs(swing) * 0.05f, 0f);
+            var offset = gridVisual != null ? gridVisual.visualOffset : spriteVisualOffset;
+            hammerRenderer.transform.localPosition = offset + new Vector3(0.12f, spriteVisualSize.y * 0.5f + 0.18f + Mathf.Abs(swing) * 0.05f, 0f);
             ApplyToolVisualScale(hammerRenderer.transform);
         }
 
@@ -428,16 +454,6 @@ namespace AreaSurvivors
                 sparkleRenderer.transform.localScale = Vector3.one * (0.35f + pulse * 0.9f);
                 sparkleRenderer.transform.localRotation = Quaternion.Euler(0f, 0f, t * 210f);
                 sparkleRenderer.transform.localPosition = new Vector3(0.3f, 0.48f + pulse * 0.08f, 0f);
-            }
-        }
-
-        void SetPlayerPassThrough(bool ignore)
-        {
-            if (blockingCollider == null) return;
-            foreach (var player in FindObjectsOfType<PlayerController>())
-            {
-                var playerCollider = player.GetComponent<Collider2D>();
-                if (playerCollider != null) Physics2D.IgnoreCollision(blockingCollider, playerCollider, ignore);
             }
         }
 

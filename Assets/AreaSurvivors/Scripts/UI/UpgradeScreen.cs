@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -92,8 +92,8 @@ namespace AreaSurvivors
             Add(UpgradeType.InitialTerritory, UpgradeType.TowerMaxHp, 340, 105, "初期青エリア", "ゲーム開始時の中心塔周囲の青エリアを広げます。", "Generated/PaintTile");
             Add(UpgradeType.PaintRadius, UpgradeType.InitialTerritory, 340, 0, "塗り範囲", "プレイヤーの塗り範囲を広げます。", "Generated/PaintTile");
             Add(UpgradeType.TowerAutoRegen, UpgradeType.TowerMaxHp, 450, 105, "中心塔自動回復", "中心塔が一定間隔でHPを回復します。", "Generated/Orb");
-            Add(UpgradeType.UnlockTowerCannon, UpgradeType.TowerMaxHp, 450, 0, "中心塔大砲", "中心塔から大砲を発射可能にします。", "Generated/Fireball", false);
-            Add(UpgradeType.UnlockTowerUpgrade, UpgradeType.UnlockTowerCannon, 450, -105, "中心塔アップグレード", "ゲーム中に中心塔をアップグレード可能にします。", "Generated/Tower", false);
+            Add(UpgradeType.UnlockTowerCannon, UpgradeType.TowerMaxHp, 450, 0, "中心塔大砲", "中心塔から大砲を発射可能にします。", "Generated/Cannonball");
+            Add(UpgradeType.UnlockTowerUpgrade, UpgradeType.UnlockTowerCannon, 450, -105, "中心塔アップグレード", "ゲーム中に中心塔をアップグレード可能にします。", "Generated/UpgradeBuildingIcon");
 
             // Challenge / reward branch
             Add(UpgradeType.EndTokenGain, null, 560, 210, "終了時トークン", "ラン終了時に獲得するトークン数を増やします。", "Generated/Token");

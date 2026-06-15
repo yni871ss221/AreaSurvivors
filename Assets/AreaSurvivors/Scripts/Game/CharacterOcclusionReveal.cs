@@ -112,9 +112,15 @@ namespace AreaSurvivors
                 renderer.transform.IsChildOf(transform) || !renderer.enabled) return false;
 
             var sort = renderer.GetComponentInParent<YSort>();
-            bool inFrontByPivot = sort != null &&
-                sort.transform.position.y + sort.sortPivotOffsetY < transform.position.y - 0.02f;
-            if (renderer.sortingOrder <= sourceOrder && !inFrontByPivot) return false;
+            if (sort != null)
+            {
+                bool inFrontByPivot = sort.transform.position.y + sort.sortPivotOffsetY < transform.position.y - 0.02f;
+                if (!inFrontByPivot) return false;
+            }
+            else if (renderer.sortingOrder <= sourceOrder)
+            {
+                return false;
+            }
 
             return sourceScreenRect.Overlaps(ScreenRect(renderer.bounds));
         }
@@ -161,8 +167,7 @@ namespace AreaSurvivors
         static bool IsOccludingBodyRenderer(Renderer renderer)
         {
             if (renderer == null || renderer.GetComponent<OcclusionMaskSource>() == null) return false;
-            if (renderer.GetComponent<PreserveSortingOrder>() != null ||
-                renderer.GetComponentInParent<PlayerController>() != null ||
+            if (renderer.GetComponentInParent<PlayerController>() != null ||
                 renderer.GetComponentInParent<EnemyController>() != null) return false;
 
             return renderer.GetComponentInParent<YSort>() != null;

@@ -36,6 +36,7 @@ namespace AreaSurvivors
         Health health;
         KnockbackReceiver knockback;
         Collider2D[] colliders;
+        GridObjectVisual gridVisual;
         PaperMeshVisual visual;
         RuntimeSpriteOutline outline;
         float contactTimer;
@@ -62,6 +63,9 @@ namespace AreaSurvivors
             knockback = GetComponent<KnockbackReceiver>();
             if (knockback == null) knockback = gameObject.AddComponent<KnockbackReceiver>();
             colliders = GetComponents<Collider2D>();
+            gridVisual = GetComponent<GridObjectVisual>();
+            if (gridVisual == null) gridVisual = gameObject.AddComponent<GridObjectVisual>();
+            gridVisual.ConfigureCharacter(1f);
             visual = GetComponentInChildren<PaperMeshVisual>();
             outline = visual != null ? visual.GetComponent<RuntimeSpriteOutline>() : GetComponentInChildren<RuntimeSpriteOutline>();
             if (outline == null && visual != null) outline = visual.gameObject.AddComponent<RuntimeSpriteOutline>();
@@ -141,18 +145,7 @@ namespace AreaSurvivors
             speedMultiplier = Mathf.Max(0.05f, definition.speedMultiplier);
             obstacleAvoidanceRadius = Mathf.Max(0.45f, 0.8f + cellScale * 0.8f);
             obstacleAvoidanceWeight = Mathf.Max(1.65f, 1.45f + cellScale * 0.45f);
-
-            foreach (var col in colliders)
-            {
-                if (col is CircleCollider2D circle)
-                {
-                    circle.radius = Mathf.Max(0.18f, (0.28f + cellScale * 0.12f) / cellScale);
-                }
-                else if (col is BoxCollider2D box)
-                {
-                    box.size = Vector2.one * (Mathf.Max(0.35f, cellScale * 0.5f) / cellScale);
-                }
-            }
+            ConfigureFootCollider(cellScale);
 
             desiredOutlineColor = definition.outlineColor;
             desiredOutlineThickness = Mathf.Max(0.004f, definition.outlineThickness);
@@ -160,6 +153,19 @@ namespace AreaSurvivors
             if (definition.boss) desiredOutlineThickness = Mathf.Max(desiredOutlineThickness, 0.075f);
             ApplyOutlineStyle();
             if (ignoresNaturalObstacles) IgnoreNaturalObstacleCollisions();
+        }
+
+        void ConfigureFootCollider(float cellScale)
+        {
+            if (gridVisual == null) return;
+            gridVisual.ConfigureCharacter(Mathf.Max(1f, cellScale));
+            foreach (var box in GetComponents<BoxCollider2D>())
+            {
+                if (box != null) Destroy(box);
+            }
+            var circle = GetComponent<CircleCollider2D>();
+            gridVisual.ConfigureCharacterCircle(circle);
+            colliders = GetComponents<Collider2D>();
         }
 
         void LateUpdate()

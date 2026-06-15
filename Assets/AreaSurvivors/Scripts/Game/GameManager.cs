@@ -18,6 +18,7 @@ namespace AreaSurvivors
         public TowerController sceneTower;
         public EnemySpawner spawner;
         public BuildPlacementController buildPlacement;
+        public BuildingUpgradeController buildingUpgrade;
         public NaturalLandmarkSpawner naturalLandmarks;
         public GameHudController gameHud;
         public Text timerText;
@@ -69,7 +70,6 @@ namespace AreaSurvivors
             if (grid != null)
             {
                 grid.Build();
-                grid.RegisterSceneObjects();
             }
 
             Tower = sceneTower != null ? sceneTower : FindObjectOfType<TowerController>();
@@ -80,18 +80,19 @@ namespace AreaSurvivors
                 return;
             }
 
-            Tower.transform.position = grid.GridToWorld(grid.width / 2, grid.height / 2);
+            var towerMarker = Tower.GetComponent<GridObjectMarker>();
+            var towerOriginCell = grid.GridToCell(grid.width / 2, grid.height / 2);
+            Tower.AlignToGridFootprint(grid, towerOriginCell);
+            RemoveGroundShadows();
             Tower.Configure(config.towerMaxHp + ProgressionStore.GetLevel(UpgradeType.TowerMaxHp) * config.towerMaxHpPerUpgradeLevel);
             ConfigureTowerRegeneration();
+            ConfigureTowerCannon();
             if (Tower.hpBar != null) Tower.hpBar.gameObject.SetActive(false);
-            var towerMarker = Tower.GetComponent<GridObjectMarker>();
             if (towerMarker != null) towerMarker.Register(grid);
-            var towerRootCell = grid.WorldToCell(Tower.transform.position) + Vector3Int.down * 5;
-            var towerRootWorld = grid.groundTilemap.GetCellCenterWorld(towerRootCell);
-            Tower.ConfigureEnemyTarget(towerRootWorld);
+            var towerRootWorld = GridObjectVisual.FootprintOriginToWorld(grid, towerOriginCell);
             int initialTerritoryRadius = InitialTowerTerritoryRadius + ProgressionStore.GetLevel(UpgradeType.InitialTerritory) * config.initialTerritoryRadiusPerUpgradeLevel;
             grid.PaintImmediate(towerRootWorld, TileOwner.Player, initialTerritoryRadius);
-            SpawnNaturalLandmarks(towerRootCell);
+            SpawnNaturalLandmarks(towerOriginCell);
 
             Player = Instantiate(playerPrefab, grid.GridToWorld(grid.width / 2, grid.height / 2 - 6), Quaternion.identity);
             if (spawner != null) Player.damagePopupPrefab = spawner.damagePopupPrefab;
@@ -107,6 +108,18 @@ namespace AreaSurvivors
             UpdateHud();
         }
 
+        static void RemoveGroundShadows()
+        {
+            var transforms = FindObjectsOfType<Transform>(true);
+            foreach (var target in transforms)
+            {
+                if (target != null && target.name == "Ground Shadow")
+                {
+                    Destroy(target.gameObject);
+                }
+            }
+        }
+
         void ConfigureTowerRegeneration()
         {
             if (Tower == null) return;
@@ -116,6 +129,14 @@ namespace AreaSurvivors
             regeneration.intervalSeconds = config.autoRegenIntervalSeconds;
             regeneration.popupPrefab = spawner != null ? spawner.damagePopupPrefab : null;
             regeneration.popupOffset = new Vector3(0f, 0.7f, 0f);
+        }
+
+        void ConfigureTowerCannon()
+        {
+            if (Tower == null) return;
+            var cannon = Tower.GetComponent<TowerCannonController>();
+            if (cannon == null) cannon = Tower.gameObject.AddComponent<TowerCannonController>();
+            cannon.Configure(config);
         }
 
         void SpawnNaturalLandmarks(Vector3Int centerCell)
@@ -137,7 +158,7 @@ namespace AreaSurvivors
         {
             elapsed += Time.deltaTime * currentStageSpeedMultiplier;
             hudElapsed = bossActive ? Mathf.Min(StageStartDisplaySeconds() + config.bossTimeSeconds, hudElapsed) : elapsed;
-            if (buildPlacement != null) buildPlacement.Tick();
+            if (buildPlacement != null && (buildingUpgrade == null || !buildingUpgrade.IsActive)) buildPlacement.Tick();
             UpdateLevelUpButtonHover();
             UpdateHud();
         }
@@ -475,7 +496,7 @@ namespace AreaSurvivors
                 timerText.text = $"{span.Minutes:00}:{span.Seconds:00}";
                 if (!bossActive) timerText.color = Color.white;
             }
-            if (killText != null) killText.text = $"\u6483\u7834 {kills}";
+            if (killText != null) killText.text = kills.ToString();
             if (levelText != null) levelText.text = $"Lv {level}";
             if (xpBar != null) xpBar.value = xpToNext <= 0 ? 0f : (float)xp / xpToNext;
             gameHud?.SetStage(currentStage);
@@ -509,6 +530,13 @@ namespace AreaSurvivors
             if (gameHud == null) gameHud = GetComponent<GameHudController>();
             if (gameHud == null) gameHud = gameObject.AddComponent<GameHudController>();
             gameHud.Initialize(buildPlacement, Tower, this);
+        }
+
+        public void ConfigureBuildingUpgrade(Canvas hudCanvas)
+        {
+            if (buildingUpgrade == null) buildingUpgrade = GetComponent<BuildingUpgradeController>();
+            if (buildingUpgrade == null) buildingUpgrade = gameObject.AddComponent<BuildingUpgradeController>();
+            buildingUpgrade.Initialize(this, config, grid, Tower, hudCanvas);
         }
 
         void HideLegacyPlayerProgressHud()
@@ -582,10 +610,14 @@ namespace AreaSurvivors
         const float BuildSlotSpacing = 70f;
 
         BuildPlacementController buildPlacement;
+        BuildingUpgradeController buildingUpgrade;
         GameManager gameManager;
         PlayerController player;
+        TowerController towerController;
         Health towerHealth;
+        Image towerImage;
         Sprite towerIconSprite;
+        Button upgradeButton;
         RectTransform towerPanel;
         RectTransform playerPanel;
         RectTransform playerStatsPanel;
@@ -633,9 +665,11 @@ namespace AreaSurvivors
             buildPlacement = placement;
             gameManager = owner;
             player = owner != null ? owner.Player : null;
+            towerController = tower;
             towerHealth = tower != null ? tower.GetComponent<Health>() : null;
             towerIconSprite = Resources.Load<Sprite>("Generated/Tower") ?? CreateTowerSpriteFromRenderer(tower);
             if (towerHealth != null) towerHealth.Damaged += OnTowerDamaged;
+            if (towerController != null) towerController.Upgraded += OnTowerUpgraded;
 
             var canvas = FindHudCanvas();
             if (canvas == null) canvas = CreateCanvas();
@@ -648,6 +682,12 @@ namespace AreaSurvivors
             BuildPlayerPanel(canvas.transform);
             BuildConstructionMenu(canvas.transform);
             BuildTowerPanel(canvas.transform);
+            if (gameManager != null)
+            {
+                gameManager.ConfigureBuildingUpgrade(canvas);
+                buildingUpgrade = gameManager.buildingUpgrade;
+                BindUpgradeButton(canvas.transform);
+            }
             UpdatePlayerPanel();
             UpdateResourceHud();
             UpdateBuildSlots();
@@ -658,6 +698,7 @@ namespace AreaSurvivors
         void OnDestroy()
         {
             if (towerHealth != null) towerHealth.Damaged -= OnTowerDamaged;
+            if (towerController != null) towerController.Upgraded -= OnTowerUpgraded;
             if (bossHealth != null) bossHealth.Died -= OnBossDied;
         }
 
@@ -688,6 +729,7 @@ namespace AreaSurvivors
                 if (gameManager.killText != null && gameManager.killText != kills) gameManager.killText.gameObject.SetActive(false);
                 gameManager.killText = kills;
             }
+            SetResourceIcon(parent, "Kill Panel/Icon", "SkullIcon");
         }
 
         public void SetStage(int stage)
@@ -1039,13 +1081,13 @@ namespace AreaSurvivors
             {
                 root = CreatePanel(parent, "Stage Panel", new Vector2(-222f, -28f), new Vector2(118f, 34f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
                 AddFrame(root, root.sizeDelta);
+                root.anchorMin = new Vector2(0.5f, 1f);
+                root.anchorMax = new Vector2(0.5f, 1f);
+                root.pivot = new Vector2(0.5f, 1f);
+                root.anchoredPosition = new Vector2(-222f, -28f);
+                root.sizeDelta = new Vector2(118f, 34f);
             }
 
-            root.anchorMin = new Vector2(0.5f, 1f);
-            root.anchorMax = new Vector2(0.5f, 1f);
-            root.pivot = new Vector2(0.5f, 1f);
-            root.anchoredPosition = new Vector2(-222f, -28f);
-            root.sizeDelta = new Vector2(118f, 34f);
             var label = FindText(root, "Label");
             if (label == null) label = CreateText(root, "Label", "", 18, Vector2.zero, root.sizeDelta, TextAnchor.MiddleCenter);
             label.rectTransform.anchorMin = Vector2.zero;
@@ -1220,7 +1262,7 @@ namespace AreaSurvivors
             if (towerSprite != null)
             {
                 var towerImageTransform = towerPanel.Find("Tower Image");
-                var towerImage = towerImageTransform != null ? towerImageTransform.GetComponent<Image>() : null;
+                towerImage = towerImageTransform != null ? towerImageTransform.GetComponent<Image>() : null;
                 if (towerImage == null) towerImage = new GameObject("Tower Image").AddComponent<Image>();
                 towerImage.transform.SetParent(towerPanel, false);
                 towerImage.sprite = towerSprite;
@@ -1252,6 +1294,63 @@ namespace AreaSurvivors
             {
                 hpText = CreateText(towerPanel, "Tower HP Text", "", 13, TowerHpTextPosition, new Vector2(88f, 20f), TextAnchor.MiddleCenter);
                 AnchorTopCenter(hpText.rectTransform);
+            }
+        }
+
+        void BindUpgradeButton(Transform parent)
+        {
+            if (parent == null) return;
+            var buttonTransform = parent.Find("Upgrade Building Button");
+            upgradeButton = buttonTransform != null ? buttonTransform.GetComponent<Button>() : null;
+            if (upgradeButton == null) upgradeButton = CreateUpgradeButton(parent);
+            upgradeButton.onClick.RemoveAllListeners();
+            upgradeButton.onClick.AddListener(() =>
+            {
+                if (buildingUpgrade != null) buildingUpgrade.Toggle();
+            });
+            upgradeButton.interactable = ProgressionStore.IsUnlocked(UpgradeType.UnlockTowerUpgrade);
+            var icon = upgradeButton.transform.Find("Icon")?.GetComponent<Image>();
+            if (icon != null)
+            {
+                icon.sprite = LoadHudSprite("UpgradeBuildingIcon", null);
+                icon.preserveAspect = true;
+                icon.color = upgradeButton.interactable ? Color.white : new Color(0.35f, 0.38f, 0.36f, 1f);
+            }
+        }
+
+        Button CreateUpgradeButton(Transform parent)
+        {
+            var image = new GameObject("Upgrade Building Button").AddComponent<Image>();
+            image.transform.SetParent(parent, false);
+            image.color = new Color(0.10f, 0.19f, 0.14f, 0.94f);
+            var rect = image.rectTransform;
+            rect.anchorMin = Vector2.one;
+            rect.anchorMax = Vector2.one;
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = new Vector2(-69f, -354f);
+            rect.sizeDelta = new Vector2(54f, 54f);
+            var button = image.gameObject.AddComponent<Button>();
+            button.targetGraphic = image;
+
+            var icon = new GameObject("Icon").AddComponent<Image>();
+            icon.transform.SetParent(image.transform, false);
+            icon.sprite = LoadHudSprite("UpgradeBuildingIcon", null);
+            icon.preserveAspect = true;
+            icon.raycastTarget = false;
+            icon.rectTransform.anchorMin = Vector2.zero;
+            icon.rectTransform.anchorMax = Vector2.one;
+            icon.rectTransform.offsetMin = new Vector2(7f, 7f);
+            icon.rectTransform.offsetMax = new Vector2(-7f, -7f);
+            return button;
+        }
+
+        void OnTowerUpgraded(Sprite sprite)
+        {
+            var nextSprite = sprite != null ? sprite : LoadHudSprite("TowerUpgrade", null);
+            if (towerImage != null && nextSprite != null)
+            {
+                towerImage.sprite = nextSprite;
+                towerImage.preserveAspect = true;
             }
         }
 

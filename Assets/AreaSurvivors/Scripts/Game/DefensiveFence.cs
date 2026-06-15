@@ -25,6 +25,7 @@ namespace AreaSurvivors
 
         Health health;
         TileGrid grid;
+        GridObjectVisual gridVisual;
         float buildProgress;
         float assistedBuildTimer;
         float visualHeight = 1f;
@@ -59,7 +60,10 @@ namespace AreaSurvivors
 
         void Awake()
         {
+            transform.localScale = Vector3.one;
             health = GetComponent<Health>();
+            EnsureGridObjectVisual();
+            EnsureFootprintColliders();
             health.Died += _ => Break();
             EnsureSpriteVisuals();
             ConfigureHammerVisual();
@@ -70,6 +74,8 @@ namespace AreaSurvivors
             grid = tileGrid;
             registeredCell = originCell;
             hasRegisteredCell = true;
+            EnsureGridObjectVisual();
+            EnsureFootprintColliders();
         }
 
         void Start()
@@ -186,16 +192,39 @@ namespace AreaSurvivors
             if (visual.GetComponent<OcclusionMaskSource>() == null)
                 visual.gameObject.AddComponent<OcclusionMaskSource>();
             ConfigureOutline(visual.gameObject);
-            var bounds = fenceSprite != null ? fenceSprite.bounds.size : Vector3.one;
-            float x = Mathf.Abs(bounds.x) > 0.001f ? spriteVisualSize.x / bounds.x : 1f;
-            float y = Mathf.Abs(bounds.y) > 0.001f ? spriteVisualSize.y / bounds.y : 1f;
-            visual.transform.localScale = new Vector3(x, y, 1f);
-            visual.transform.localPosition = SpriteVisualOffset();
+            EnsureGridObjectVisual();
+            gridVisual.ApplyToVisual(visual, fenceSprite, spriteVisualSize);
         }
 
         Vector3 SpriteVisualOffset()
         {
-            return new Vector3(0f, vertical ? -1.2f : -0.22f, 0f);
+            EnsureGridObjectVisual();
+            return gridVisual != null ? gridVisual.visualOffset : Vector3.zero;
+        }
+
+        void EnsureGridObjectVisual()
+        {
+            if (gridVisual == null) gridVisual = GetComponent<GridObjectVisual>();
+            if (gridVisual == null) gridVisual = gameObject.AddComponent<GridObjectVisual>();
+            gridVisual.ConfigureFootprint(Footprint);
+            gridVisual.fitVisualWidthToFootprint = true;
+            gridVisual.resetVisualOffset = true;
+        }
+
+        void EnsureFootprintColliders()
+        {
+            EnsureGridObjectVisual();
+            var trigger = default(BoxCollider2D);
+            var blocker = blockingCollider as BoxCollider2D;
+            foreach (var box in GetComponents<BoxCollider2D>())
+            {
+                if (box.isTrigger && trigger == null) trigger = box;
+                else if (!box.isTrigger && blocker == null) blocker = box;
+            }
+
+            gridVisual.ConfigureFootprintBox(trigger, true);
+            blocker = gridVisual.ConfigureFootprintBox(blocker, false);
+            blockingCollider = blocker;
         }
 
         static void ConfigureOutline(GameObject target)
@@ -219,11 +248,6 @@ namespace AreaSurvivors
             if (hammerRenderer.GetComponent<PreserveSortingOrder>() == null) hammerRenderer.gameObject.AddComponent<PreserveSortingOrder>();
             outline.outlineColor = Color.black;
             outline.thickness = 0.022f;
-        }
-
-        void OnDestroy()
-        {
-            SetPlayerPassThrough(false);
         }
 
         void Update()
@@ -289,7 +313,6 @@ namespace AreaSurvivors
             buildProgress = 1f;
             sparkleTimer = SparkleDuration;
             health.SetMax(maxHp);
-            SetPlayerPassThrough(true);
             ApplyVisuals();
             AnimateCompletionSparkle();
             if (sparkleRenderer != null)
@@ -306,19 +329,7 @@ namespace AreaSurvivors
             {
                 grid.ClearObject(hasRegisteredCell ? registeredCell : grid.WorldToCell(transform.position));
             }
-            SetPlayerPassThrough(false);
             Destroy(gameObject);
-        }
-
-        void SetPlayerPassThrough(bool ignore)
-        {
-            if (blockingCollider == null) return;
-            var players = FindObjectsOfType<PlayerController>();
-            foreach (var player in players)
-            {
-                var playerCollider = player.GetComponent<Collider2D>();
-                if (playerCollider != null) Physics2D.IgnoreCollision(blockingCollider, playerCollider, ignore);
-            }
         }
 
         void ApplyVisuals()

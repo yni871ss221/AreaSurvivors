@@ -29,6 +29,7 @@ namespace AreaSurvivors
 
         Health health;
         GridObjectMarker marker;
+        GridObjectVisual gridVisual;
         float buildProgress;
         float attackTimer;
         float assistedBuildTimer;
@@ -61,6 +62,7 @@ namespace AreaSurvivors
             health = GetComponent<Health>();
             if (health == null) health = gameObject.AddComponent<Health>();
             marker = GetComponent<GridObjectMarker>();
+            EnsureGridObjectVisual();
             health.Died += _ => Break();
             EnsureBlockingCollider();
             EnsureSpriteVisuals();
@@ -72,6 +74,7 @@ namespace AreaSurvivors
             grid = tileGrid;
             registeredCell = originCell;
             hasRegisteredCell = true;
+            EnsureGridObjectVisual();
         }
 
         void Start()
@@ -105,28 +108,24 @@ namespace AreaSurvivors
             ApplyBuildVisuals();
         }
 
-        void OnDestroy()
-        {
-            SetPlayerPassThrough(false);
-        }
-
         void EnsureBlockingCollider()
         {
-            if (blockingCollider != null) return;
-            var colliders = GetComponents<Collider2D>();
-            foreach (var col in colliders)
+            EnsureGridObjectVisual();
+            var trigger = default(BoxCollider2D);
+            var blocker = blockingCollider as BoxCollider2D;
+            foreach (var circle in GetComponents<CircleCollider2D>())
             {
-                if (col != null && !col.isTrigger)
-                {
-                    blockingCollider = col;
-                    return;
-                }
+                if (circle != null && circle.isTrigger) Destroy(circle);
             }
 
-            var blocker = gameObject.AddComponent<BoxCollider2D>();
-            blocker.size = new Vector2(1.28f, 1f);
-            blocker.offset = new Vector2(0f, -0.1f);
-            blocker.isTrigger = false;
+            foreach (var box in GetComponents<BoxCollider2D>())
+            {
+                if (box.isTrigger && trigger == null) trigger = box;
+                else if (!box.isTrigger && blocker == null) blocker = box;
+            }
+
+            gridVisual.ConfigureFootprintBox(trigger, true);
+            blocker = gridVisual.ConfigureFootprintBox(blocker, false);
             blockingCollider = blocker;
         }
 
@@ -208,17 +207,24 @@ namespace AreaSurvivors
             if (visual.GetComponent<OcclusionMaskSource>() == null)
                 visual.gameObject.AddComponent<OcclusionMaskSource>();
             ConfigureOutline(visual.gameObject);
-            var bounds = ballistaSprite.bounds.size;
-            float x = Mathf.Abs(bounds.x) > 0.001f ? spriteVisualSize.x / bounds.x : 1f;
-            float y = Mathf.Abs(bounds.y) > 0.001f ? spriteVisualSize.y / bounds.y : 1f;
-            visual.transform.localScale = new Vector3(x, y, 1f);
-            visual.transform.localPosition = SpriteVisualOffset();
+            EnsureGridObjectVisual();
+            gridVisual.ApplyToVisual(visual, ballistaSprite, spriteVisualSize);
             visual.visible = false;
         }
 
         Vector3 SpriteVisualOffset()
         {
-            return new Vector3(0f, -1f, 0f);
+            EnsureGridObjectVisual();
+            return gridVisual != null ? gridVisual.visualOffset : Vector3.zero;
+        }
+
+        void EnsureGridObjectVisual()
+        {
+            if (gridVisual == null) gridVisual = GetComponent<GridObjectVisual>();
+            if (gridVisual == null) gridVisual = gameObject.AddComponent<GridObjectVisual>();
+            gridVisual.ConfigureFootprint(Footprint);
+            gridVisual.fitVisualWidthToFootprint = true;
+            gridVisual.resetVisualOffset = true;
         }
 
         static void ConfigureOutline(GameObject target)
@@ -358,7 +364,6 @@ namespace AreaSurvivors
             attackTimer = 0.25f;
             sparkleTimer = sparkleDuration;
             health.SetMax(maxHp);
-            SetPlayerPassThrough(true);
             ApplyBuildVisuals();
             AnimateCompletionSparkle();
             if (sparkleRenderer != null)
@@ -375,19 +380,7 @@ namespace AreaSurvivors
             {
                 grid.ClearObject(hasRegisteredCell ? registeredCell : grid.WorldToCell(transform.position));
             }
-            SetPlayerPassThrough(false);
             Destroy(gameObject);
-        }
-
-        void SetPlayerPassThrough(bool ignore)
-        {
-            if (blockingCollider == null) return;
-            var players = FindObjectsOfType<PlayerController>();
-            foreach (var player in players)
-            {
-                var playerCollider = player.GetComponent<Collider2D>();
-                if (playerCollider != null) Physics2D.IgnoreCollision(blockingCollider, playerCollider, ignore);
-            }
         }
 
         void AnimateCompletionSparkle()

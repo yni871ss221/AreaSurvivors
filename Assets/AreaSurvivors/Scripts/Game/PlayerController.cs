@@ -36,6 +36,7 @@ namespace AreaSurvivors
         PlayerStats stats;
         AutoRegeneration autoRegen;
         Collider2D hitCollider;
+        GridObjectVisual gridVisual;
         Vector2 facing = Vector2.down;
         float moveSpeed;
         int paintRadius;
@@ -49,6 +50,9 @@ namespace AreaSurvivors
             autoRegen = GetComponent<AutoRegeneration>();
             if (autoRegen == null) autoRegen = gameObject.AddComponent<AutoRegeneration>();
             hitCollider = GetComponent<Collider2D>();
+            gridVisual = GetComponent<GridObjectVisual>();
+            if (gridVisual == null) gridVisual = gameObject.AddComponent<GridObjectVisual>();
+            gridVisual.ConfigureCharacter(1f);
             if (GetComponent<CharacterOcclusionReveal>() == null) gameObject.AddComponent<CharacterOcclusionReveal>();
             health.Died += OnDied;
         }
