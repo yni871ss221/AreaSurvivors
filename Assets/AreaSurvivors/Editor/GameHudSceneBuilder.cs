@@ -33,13 +33,13 @@ namespace AreaSurvivors.Editor
             var characterFrame = EnsurePanel(root, "Character Frame", new Vector2(18f, -36f), new Vector2(70f, 70f), Vector2.up, SlotColor);
             EnsureFrame(characterFrame, characterFrame.sizeDelta);
             var characterImage = EnsureImage(characterFrame, "Character Image", new Vector2(58f, 58f));
-            characterImage.sprite = Resources.Load<Sprite>("Generated/Knight");
+            characterImage.sprite = LoadGeneratedSprite("Knight");
             characterImage.preserveAspect = true;
 
             var weaponFrame = EnsurePanel(root, "Weapon Frame", new Vector2(96f, -42f), new Vector2(58f, 58f), Vector2.up, SlotColor);
             EnsureFrame(weaponFrame, weaponFrame.sizeDelta);
             var weaponImage = EnsureImage(weaponFrame, "Weapon Image", new Vector2(48f, 48f));
-            weaponImage.sprite = Resources.Load<Sprite>("Generated/Slash_0");
+            weaponImage.sprite = LoadGeneratedSprite("Slash_0");
             weaponImage.preserveAspect = true;
 
             EnsureBar(root, "Player HP Bar", new Vector2(174f, -36f), new Vector2(190f, 24f), HpGreen, "45/45");
@@ -103,9 +103,9 @@ namespace AreaSurvivors.Editor
             EnsureFrame(kills, kills.sizeDelta);
             ConfigureKillPanel(kills);
 
-            var wood = EnsureResourcePanel(canvas.transform, "Wood Resource", new Vector2(222f, -28f), Resources.Load<Sprite>("Generated/WoodIcon"), "100");
-            var stone = EnsureResourcePanel(canvas.transform, "Stone Resource", new Vector2(332f, -28f), Resources.Load<Sprite>("Generated/StoneIcon"), "100");
-            var token = EnsureResourcePanel(canvas.transform, "Token Resource", new Vector2(442f, -28f), Resources.Load<Sprite>("Generated/Token"), "0");
+            var wood = EnsureResourcePanel(canvas.transform, "Wood Resource", new Vector2(222f, -28f), LoadGeneratedSprite("WoodIcon"), "100");
+            var stone = EnsureResourcePanel(canvas.transform, "Stone Resource", new Vector2(332f, -28f), LoadGeneratedSprite("StoneIcon"), "100");
+            var token = EnsureResourcePanel(canvas.transform, "Token Resource", new Vector2(442f, -28f), LoadGeneratedSprite("Token"), "0");
             EnsureFrame(wood, wood.sizeDelta);
             EnsureFrame(stone, stone.sizeDelta);
             EnsureFrame(token, token.sizeDelta);
@@ -162,7 +162,7 @@ namespace AreaSurvivors.Editor
             button.image.color = new Color(0.10f, 0.19f, 0.14f, 0.94f);
             EnsureFrame(button.transform, button.image.rectTransform.sizeDelta);
             var icon = EnsureImage(button.transform, "Icon", new Vector2(40f, 40f));
-            icon.sprite = Resources.Load<Sprite>("Generated/UpgradeBuildingIcon");
+            icon.sprite = LoadGeneratedSprite("UpgradeBuildingIcon");
             icon.preserveAspect = true;
             AddIconOutline(icon);
 
@@ -193,7 +193,7 @@ namespace AreaSurvivors.Editor
                 return;
             }
 
-            var token = EnsureResourcePanel(canvas.transform, "Token Resource", new Vector2(442f, -28f), Resources.Load<Sprite>("Generated/Token"), "0");
+            var token = EnsureResourcePanel(canvas.transform, "Token Resource", new Vector2(442f, -28f), LoadGeneratedSprite("Token"), "0");
             EnsureFrame(token, token.sizeDelta);
             var stage = EnsurePanel(canvas.transform, "Stage Panel", new Vector2(-222f, -28f), new Vector2(118f, 34f), new Vector2(0.5f, 1f));
             SetAnchored(stage, new Vector2(-222f, -28f), new Vector2(118f, 34f), new Vector2(0.5f, 1f));
@@ -306,7 +306,7 @@ namespace AreaSurvivors.Editor
         static void ConfigureKillPanel(RectTransform root)
         {
             var icon = EnsureImage(root, "Icon", new Vector2(24f, 24f));
-            icon.sprite = Resources.Load<Sprite>("Generated/SkullIcon");
+            icon.sprite = LoadGeneratedSprite("SkullIcon");
             icon.preserveAspect = true;
             AddIconOutline(icon);
             icon.rectTransform.anchorMin = new Vector2(0f, 0.5f);
@@ -558,7 +558,7 @@ namespace AreaSurvivors.Editor
 
         static void ImportGeneratedSprite(string name)
         {
-            var path = "Assets/AreaSurvivors/Resources/Generated/" + name + ".png";
+            var path = "Assets/AreaSurvivors/Sprites/Generated/" + name + ".png";
             var importer = AssetImporter.GetAtPath(path) as TextureImporter;
             if (importer == null) return;
             importer.textureType = TextureImporterType.Sprite;
@@ -569,6 +569,11 @@ namespace AreaSurvivors.Editor
             importer.alphaIsTransparency = true;
             importer.mipmapEnabled = false;
             importer.SaveAndReimport();
+        }
+
+        static Sprite LoadGeneratedSprite(string name)
+        {
+            return AssetDatabase.LoadAssetAtPath<Sprite>("Assets/AreaSurvivors/Sprites/Generated/" + name + ".png");
         }
     }
 }

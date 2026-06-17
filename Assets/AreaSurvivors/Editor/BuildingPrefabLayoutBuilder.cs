@@ -1,0 +1,461 @@
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+
+namespace AreaSurvivors.EditorTools
+{
+    public static class BuildingPrefabLayoutBuilder
+    {
+        const string PrefabRoot = "Assets/AreaSurvivors/Prefabs";
+
+        [MenuItem("AreaSurvivors/Setup Building Prefab Layouts")]
+        public static void SetupBuildingPrefabLayouts()
+        {
+            NormalizeBuildingSpriteImports();
+
+            SetupWoodenBarrierPrefab(
+                $"{PrefabRoot}/WoodenWall.prefab",
+                "WoodenWall",
+                false,
+                "WoodenWall",
+                null,
+                "WoodenWallUpgrade",
+                null);
+
+            SetupWoodenBarrierPrefab(
+                $"{PrefabRoot}/WoodenGate.prefab",
+                "WoodenGate",
+                true,
+                "WoodenGateClosed",
+                "WoodenGateOpen",
+                "WoodenGateUpgradeClosed",
+                "WoodenGateUpgradeOpen",
+                $"{PrefabRoot}/WoodenWall.prefab");
+
+            SetupBallistaPrefab($"{PrefabRoot}/BallistaTower.prefab");
+            SetupWatchTowerPrefab($"{PrefabRoot}/WatchTower.prefab");
+            SetupCenterTowerPrefab($"{PrefabRoot}/CenterTower.prefab");
+            UpdateGameSceneReferences();
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+        }
+
+        static void SetupWoodenBarrierPrefab(string path, string rootName, bool gate, string baseSpriteName, string openSpriteName, string upgradeSpriteName, string upgradeOpenSpriteName, string sourcePrefabPath = null)
+        {
+            EnsurePrefabExists(path, sourcePrefabPath);
+            var root = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                root.name = rootName;
+                var marker = Ensure<GridObjectMarker>(root);
+                marker.footprint = new Vector2Int(3, 1);
+                var gridVisual = Ensure<GridObjectVisual>(root);
+                gridVisual.ConfigureFootprint(marker.footprint);
+                gridVisual.footprint = marker.footprint;
+                gridVisual.fitVisualWidthToFootprint = false;
+                gridVisual.resetVisualOffset = false;
+
+                var barrier = Ensure<WoodenBarrier>(root);
+                barrier.gate = gate;
+                barrier.barrierSprite = LoadGeneratedSprite(baseSpriteName);
+                barrier.openGateSprite = !string.IsNullOrEmpty(openSpriteName) ? LoadGeneratedSprite(openSpriteName) : null;
+
+                var set = Ensure<BuildingPrefabVisualSet>(root);
+                ConfigureVisualSet(root, set, marker.footprint, barrier.barrierSprite, LoadGeneratedSprite(upgradeSpriteName), 0.026f);
+                set.upgradedOpenSprite = !string.IsNullOrEmpty(upgradeOpenSpriteName) ? LoadGeneratedSprite(upgradeOpenSpriteName) : null;
+                if (barrier.openGateSprite != null) set.ApplySpriteToBase(barrier.barrierSprite);
+
+                barrier.ghostRenderer = set.ghostVisual;
+                barrier.buildRenderer = set.buildFillVisual;
+                barrier.completeRenderer = set.completeVisual;
+                barrier.hammerRenderer = set.hammerVisual;
+                barrier.sparkleRenderer = set.sparkleVisual;
+                barrier.ghostObject = set.ghostVisual != null ? set.ghostVisual.gameObject : null;
+                barrier.buildObject = set.buildFillVisual != null ? set.buildFillVisual.gameObject : null;
+                barrier.completeObject = set.completeVisual != null ? set.completeVisual.gameObject : null;
+                barrier.blockingCollider = ConfigureCollider(root, marker.footprint, false);
+                ConfigureCollider(root, marker.footprint, true);
+                CleanMissingScripts(root);
+                PrefabUtility.SaveAsPrefabAsset(root, path);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
+        }
+
+        static void SetupBallistaPrefab(string path)
+        {
+            var root = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                var marker = Ensure<GridObjectMarker>(root);
+                marker.footprint = new Vector2Int(2, 2);
+                var gridVisual = Ensure<GridObjectVisual>(root);
+                gridVisual.ConfigureFootprint(marker.footprint);
+                gridVisual.footprint = marker.footprint;
+                gridVisual.fitVisualWidthToFootprint = false;
+                gridVisual.resetVisualOffset = false;
+
+                var ballista = Ensure<BallistaTower>(root);
+                ballista.ballistaSprite = LoadGeneratedSprite("Ballista");
+                var set = Ensure<BuildingPrefabVisualSet>(root);
+                ConfigureVisualSet(root, set, marker.footprint, ballista.ballistaSprite, LoadGeneratedSprite("BallistaUpgrade"), 0.035f);
+                ballista.ghostRenderer = set.ghostVisual;
+                ballista.buildRenderer = set.buildFillVisual;
+                ballista.completeRenderer = set.completeVisual;
+                ballista.hammerRenderer = set.hammerVisual;
+                ballista.sparkleRenderer = set.sparkleVisual;
+                ballista.ghostObject = set.ghostVisual != null ? set.ghostVisual.gameObject : null;
+                ballista.buildObject = set.buildFillVisual != null ? set.buildFillVisual.gameObject : null;
+                ballista.completeObject = set.completeVisual != null ? set.completeVisual.gameObject : null;
+                ballista.blockingCollider = ConfigureCollider(root, marker.footprint, false);
+                ConfigureCollider(root, marker.footprint, true);
+                CleanMissingScripts(root);
+                PrefabUtility.SaveAsPrefabAsset(root, path);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
+        }
+
+        static void SetupWatchTowerPrefab(string path)
+        {
+            var root = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                var marker = Ensure<GridObjectMarker>(root);
+                marker.footprint = new Vector2Int(2, 2);
+                var gridVisual = Ensure<GridObjectVisual>(root);
+                gridVisual.ConfigureFootprint(marker.footprint);
+                gridVisual.footprint = marker.footprint;
+                gridVisual.fitVisualWidthToFootprint = false;
+                gridVisual.resetVisualOffset = false;
+
+                var watchTower = Ensure<WatchTower>(root);
+                watchTower.towerSprite = LoadGeneratedSprite("WatchTower");
+                var set = Ensure<BuildingPrefabVisualSet>(root);
+                ConfigureVisualSet(root, set, marker.footprint, watchTower.towerSprite, LoadGeneratedSprite("WatchTowerUpgrade"), 0.03f);
+                watchTower.ghostRenderer = set.ghostVisual;
+                watchTower.buildRenderer = set.buildFillVisual;
+                watchTower.completeRenderer = set.completeVisual;
+                watchTower.hammerRenderer = set.hammerVisual;
+                watchTower.sparkleRenderer = set.sparkleVisual;
+                watchTower.ghostObject = set.ghostVisual != null ? set.ghostVisual.gameObject : null;
+                watchTower.buildObject = set.buildFillVisual != null ? set.buildFillVisual.gameObject : null;
+                watchTower.completeObject = set.completeVisual != null ? set.completeVisual.gameObject : null;
+                watchTower.blockingCollider = ConfigureCollider(root, marker.footprint, false);
+                ConfigureCollider(root, marker.footprint, true);
+                CleanMissingScripts(root);
+                PrefabUtility.SaveAsPrefabAsset(root, path);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
+        }
+
+        static void SetupCenterTowerPrefab(string path)
+        {
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            GameObject root;
+            if (prefab == null)
+            {
+                root = new GameObject("CenterTower");
+                PrefabUtility.SaveAsPrefabAsset(root, path);
+                Object.DestroyImmediate(root);
+            }
+
+            root = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                ConfigureCenterTowerObject(root);
+                CleanMissingScripts(root);
+                PrefabUtility.SaveAsPrefabAsset(root, path);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
+        }
+
+        static void ConfigureCenterTowerObject(GameObject root)
+        {
+            root.name = "CenterTower";
+            var marker = Ensure<GridObjectMarker>(root);
+            marker.type = GridObjectType.Tower;
+            marker.flags = GridCellFlags.BlocksMovement | GridCellFlags.BlocksBuilding | GridCellFlags.Defensive;
+            marker.footprint = new Vector2Int(3, 3);
+
+            var gridVisual = Ensure<GridObjectVisual>(root);
+            gridVisual.ConfigureFootprint(marker.footprint);
+            gridVisual.footprint = marker.footprint;
+            gridVisual.fitVisualWidthToFootprint = false;
+            gridVisual.resetVisualOffset = false;
+
+            var rb = Ensure<Rigidbody2D>(root);
+            rb.gravityScale = 0f;
+            rb.freezeRotation = true;
+            rb.bodyType = RigidbodyType2D.Static;
+            ConfigureCollider(root, marker.footprint, false);
+            ConfigureCollider(root, marker.footprint, true);
+
+            Ensure<Health>(root);
+            var tower = Ensure<TowerController>(root);
+            tower.upgradedVisualScale = Vector3.one;
+            tower.upgradedVisualOffset = Vector3.zero;
+
+            var baseVisual = ConfigureVisual(root.transform, "Base Tower Image", LoadGeneratedSprite("Tower"), Color.white, 1003, marker.footprint, 0.018f);
+            var ghost = ConfigureVisual(root.transform, "Upgrade Ghost", LoadGeneratedSprite("TowerUpgrade"), new Color(0.30f, 0.82f, 1f, 0.36f), 22000, marker.footprint, 0.018f);
+            var build = ConfigureVisual(root.transform, "Upgrade Build Fill", LoadGeneratedSprite("TowerUpgrade"), Color.white, 22001, marker.footprint, 0.018f);
+            var complete = ConfigureVisual(root.transform, "Upgraded Tower Image", LoadGeneratedSprite("TowerUpgrade"), Color.white, 22002, marker.footprint, 0.018f);
+            var hammer = ConfigureOverlay(root.transform, "Upgrade Hammer", LoadGeneratedSprite("Hammer"), 22020, new Vector3(0.42f, 1.4f, 0f), 0.58f);
+            var sparkle = ConfigureOverlay(root.transform, "Upgrade Sparkle", LoadGeneratedSprite("Sparkle"), 22030, new Vector3(0.18f, 2.2f, 0f), 0.7f);
+
+            if (baseVisual != null) baseVisual.visible = true;
+            if (ghost != null) ghost.visible = false;
+            if (build != null)
+            {
+                build.visible = false;
+                build.SetVerticalFill(1f);
+            }
+            if (complete != null) complete.visible = false;
+            if (hammer != null) hammer.visible = false;
+            if (sparkle != null) sparkle.visible = false;
+
+            var ySort = Ensure<YSort>(root);
+            ySort.baseOrder = 1000;
+            ySort.sortPivotOffsetY = 0f;
+            ySort.Refresh();
+        }
+
+        static void ConfigureVisualSet(GameObject root, BuildingPrefabVisualSet set, Vector2Int footprint, Sprite baseSprite, Sprite upgradeSprite, float outlineThickness)
+        {
+            set.usePrefabLayout = true;
+            set.ghostVisual = ConfigureVisual(root.transform, "Ghost Image", baseSprite, new Color(1f, 1f, 1f, 0.34f), 1000, footprint, outlineThickness);
+            set.buildFillVisual = ConfigureVisual(root.transform, "Build Fill Image", baseSprite, Color.white, 1001, footprint, outlineThickness);
+            set.completeVisual = ConfigureVisual(root.transform, "Complete Image", baseSprite, Color.white, 1002, footprint, outlineThickness);
+            set.upgradedGhostVisual = ConfigureVisual(root.transform, "Upgrade Ghost", upgradeSprite, new Color(0.30f, 0.82f, 1f, 0.36f), 22000, footprint, outlineThickness);
+            set.upgradedBuildFillVisual = ConfigureVisual(root.transform, "Upgrade Build Fill", upgradeSprite, Color.white, 22001, footprint, outlineThickness);
+            set.upgradedCompleteVisual = ConfigureVisual(root.transform, "Upgraded Building Image", upgradeSprite, Color.white, 22002, footprint, outlineThickness);
+            set.hammerVisual = ConfigureOverlay(root.transform, "Hammer", LoadGeneratedSprite("Hammer"), 22020, new Vector3(0.22f, footprint.y * GridObjectVisual.CellHeight + 0.28f, 0f), 0.58f);
+            set.sparkleVisual = ConfigureOverlay(root.transform, "Completion Sparkle", LoadGeneratedSprite("Sparkle"), 22030, new Vector3(0.32f, footprint.y * GridObjectVisual.CellHeight + 0.36f, 0f), 0.7f);
+            set.ApplyInitialVisibility();
+        }
+
+        static PaperMeshVisual ConfigureVisual(Transform parent, string name, Sprite sprite, Color color, int sortingOrder, Vector2Int footprint, float outlineThickness)
+        {
+            var go = FindOrCreateChild(parent, name);
+            var billboard = Ensure<PaperBillboard>(go);
+            billboard.faceCamera = false;
+            var visual = Ensure<PaperMeshVisual>(go);
+            visual.useBottomCenterAnchor = true;
+            visual.Configure(sprite, color, sortingOrder);
+            FitWidthPreserveAspect(go.transform, sprite, footprint);
+            var outline = Ensure<RuntimeSpriteOutline>(go);
+            outline.outlineColor = Color.black;
+            outline.thickness = outlineThickness;
+            Ensure<OcclusionMaskSource>(go);
+            return visual;
+        }
+
+        static PaperMeshVisual ConfigureOverlay(Transform parent, string name, Sprite sprite, int sortingOrder, Vector3 localPosition, float scale)
+        {
+            var go = FindOrCreateChild(parent, name);
+            go.transform.localPosition = localPosition;
+            go.transform.localScale = Vector3.one * scale;
+            var billboard = Ensure<PaperBillboard>(go);
+            billboard.faceCamera = true;
+            var visual = Ensure<PaperMeshVisual>(go);
+            visual.Configure(sprite, Color.white, sortingOrder);
+            Ensure<PreserveSortingOrder>(go);
+            var outline = Ensure<RuntimeSpriteOutline>(go);
+            outline.outlineColor = Color.black;
+            outline.thickness = 0.022f;
+            return visual;
+        }
+
+        static void FitWidthPreserveAspect(Transform transform, Sprite sprite, Vector2Int footprint)
+        {
+            transform.localPosition = Vector3.zero;
+            transform.localRotation = Quaternion.identity;
+            if (sprite == null || Mathf.Abs(sprite.bounds.size.x) <= 0.001f)
+            {
+                transform.localScale = Vector3.one;
+                return;
+            }
+
+            float targetWidth = Mathf.Max(0.01f, footprint.x * GridObjectVisual.CellWidth);
+            float scale = targetWidth / sprite.bounds.size.x;
+            transform.localScale = new Vector3(scale, scale, 1f);
+        }
+
+        static BoxCollider2D ConfigureCollider(GameObject root, Vector2Int footprint, bool trigger)
+        {
+            BoxCollider2D candidate = null;
+            foreach (var box in root.GetComponents<BoxCollider2D>())
+            {
+                if (box.isTrigger == trigger)
+                {
+                    candidate = box;
+                    break;
+                }
+            }
+
+            if (candidate == null) candidate = root.AddComponent<BoxCollider2D>();
+            var size = new Vector2(footprint.x * GridObjectVisual.CellWidth, footprint.y * GridObjectVisual.CellHeight);
+            candidate.isTrigger = trigger;
+            candidate.size = size;
+            candidate.offset = new Vector2(0f, size.y * 0.5f);
+            return candidate;
+        }
+
+        static GameObject FindOrCreateChild(Transform parent, string name)
+        {
+            var existing = parent.Find(name);
+            if (existing != null) return existing.gameObject;
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            return go;
+        }
+
+        static T Ensure<T>(GameObject go) where T : Component
+        {
+            var component = go.GetComponent<T>();
+            return component != null ? component : go.AddComponent<T>();
+        }
+
+        static int CleanMissingScripts(GameObject root)
+        {
+            var removed = GameObjectUtility.RemoveMonoBehavioursWithMissingScript(root);
+            foreach (Transform child in root.transform)
+            {
+                removed += CleanMissingScripts(child.gameObject);
+            }
+
+            return removed;
+        }
+
+        static Sprite LoadGeneratedSprite(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return null;
+            return AssetDatabase.LoadAssetAtPath<Sprite>($"Assets/AreaSurvivors/Sprites/Generated/{name}.png");
+        }
+
+        static void NormalizeBuildingSpriteImports()
+        {
+            var generated = new[]
+            {
+                "Ballista",
+                "BallistaUpgrade",
+                "CarpenterHut",
+                "Tower",
+                "TowerUpgrade",
+                "WatchTower",
+                "WatchTowerUpgrade",
+                "WoodenGateClosed",
+                "WoodenGateOpen",
+                "WoodenGateUpgradeClosed",
+                "WoodenGateUpgradeOpen",
+                "WoodenWall",
+                "WoodenWallUpgrade",
+                "WorkerHut",
+            };
+            foreach (var name in generated)
+            {
+                NormalizeGeneratedSpriteImport(name);
+            }
+
+            var externalSources = new[]
+            {
+                "BallistaSource_20260616_122017",
+                "BallistaUpgradeSource_20260615_154348",
+                "CarpenterHutSource",
+                "TowerSquareSource_20260614_211704",
+                "TowerUpgradeSquareSource_20260614_234350",
+                "WatchTowerSquareSource_20260615_000239",
+                "WatchTowerUpgradeSource_20260615_154952",
+                "WoodenGateClosedSource_20260616_210514",
+                "WoodenGateOpenSource_20260616_210906",
+                "WoodenGateUpgradeClosedSource_20260616_215543",
+                "WoodenGateUpgradeOpenSource_20260616_220654",
+                "WoodenWallSource_20260616_204904",
+                "WoodenWallUpgradeSource_20260616_221042",
+                "WorkerHutSource",
+            };
+            foreach (var name in externalSources)
+            {
+                NormalizeExternalSpriteImport(name);
+            }
+        }
+
+        static void NormalizeGeneratedSpriteImport(string name)
+        {
+            NormalizeSpriteImport($"Assets/AreaSurvivors/Sprites/Generated/{name}.png");
+        }
+
+        static void NormalizeExternalSpriteImport(string name)
+        {
+            NormalizeSpriteImport($"Assets/AreaSurvivors/Sprites/External/{name}.png");
+        }
+
+        static void NormalizeSpriteImport(string path)
+        {
+            if (AssetDatabase.LoadAssetAtPath<Texture2D>(path) == null && AssetImporter.GetAtPath(path) == null) return;
+            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+            var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (importer == null) return;
+
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.spritePixelsPerUnit = 128f;
+            importer.mipmapEnabled = false;
+            importer.filterMode = FilterMode.Point;
+            importer.alphaIsTransparency = true;
+
+            var settings = new TextureImporterSettings();
+            importer.ReadTextureSettings(settings);
+            settings.spriteMeshType = SpriteMeshType.FullRect;
+            importer.SetTextureSettings(settings);
+            importer.SaveAndReimport();
+        }
+
+        static void EnsurePrefabExists(string targetPath, string sourcePath)
+        {
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(targetPath) != null) return;
+            if (!string.IsNullOrEmpty(sourcePath) && AssetDatabase.LoadAssetAtPath<GameObject>(sourcePath) != null)
+            {
+                AssetDatabase.CopyAsset(sourcePath, targetPath);
+                AssetDatabase.ImportAsset(targetPath, ImportAssetOptions.ForceUpdate);
+            }
+        }
+
+        static void UpdateGameSceneReferences()
+        {
+            var scene = EditorSceneManager.OpenScene("Assets/AreaSurvivors/Scenes/05_Game.unity", OpenSceneMode.Single);
+            var placement = Object.FindObjectOfType<BuildPlacementController>();
+            if (placement != null)
+            {
+                placement.woodenWallPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabRoot}/WoodenWall.prefab");
+                placement.woodenGatePrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabRoot}/WoodenGate.prefab");
+                placement.ballistaPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabRoot}/BallistaTower.prefab");
+                placement.watchTowerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabRoot}/WatchTower.prefab");
+                placement.woodenWallPreviewSprite = LoadGeneratedSprite("WoodenWall");
+                placement.woodenGatePreviewSprite = LoadGeneratedSprite("WoodenGateClosed");
+                placement.woodenGateOpenSprite = LoadGeneratedSprite("WoodenGateOpen");
+                EditorUtility.SetDirty(placement);
+            }
+
+            var tower = Object.FindObjectOfType<TowerController>();
+            if (tower != null)
+            {
+                ConfigureCenterTowerObject(tower.gameObject);
+                EditorUtility.SetDirty(tower.gameObject);
+            }
+
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene);
+        }
+    }
+}

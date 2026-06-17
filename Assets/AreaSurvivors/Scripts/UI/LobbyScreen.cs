@@ -193,8 +193,8 @@ namespace AreaSurvivors
 
         static Sprite BossSprite(int stage)
         {
-            if (stage == 1) return Resources.Load<Sprite>("Generated/Walk/EnemyOrcKing/Down_1");
-            if (stage == 2) return Resources.Load<Sprite>("Generated/Walk/EnemyGoblinLord/Down_1");
+            if (stage == 1) return GeneratedSpriteLoader.Load("Walk/EnemyOrcKing/Down_1");
+            if (stage == 2) return GeneratedSpriteLoader.Load("Walk/EnemyGoblinLord/Down_1");
             return null;
         }
 

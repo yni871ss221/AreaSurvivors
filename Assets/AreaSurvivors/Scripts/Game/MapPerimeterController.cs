@@ -12,6 +12,7 @@ namespace AreaSurvivors
 
         [Header("Provisional Visuals")]
         public bool showVisuals = true;
+        public string perimeterChunkResourcePath = "Generated/MapChunks/PerimeterChunk";
         public string forestResourcePath = "Generated/Landmarks/Forest8";
         public string mountainResourcePath = "Generated/Landmarks/Rock8";
         [Min(1f)]
@@ -103,6 +104,13 @@ namespace AreaSurvivors
 
         void CreateVisuals(Transform parent, Vector3 center, Vector2 mapSize, Vector3 rightStep, Vector3 upStep)
         {
+            var perimeterChunk = LoadSprite(perimeterChunkResourcePath);
+            if (perimeterChunk != null)
+            {
+                CreatePerimeterChunkVisuals(parent, perimeterChunk, center, mapSize, rightStep, upStep);
+                return;
+            }
+
             var forest = LoadSprite(forestResourcePath);
             var mountain = LoadSprite(mountainResourcePath);
             if (forest == null && mountain == null) return;
@@ -141,6 +149,43 @@ namespace AreaSurvivors
             }
         }
 
+        void CreatePerimeterChunkVisuals(Transform parent, Sprite sprite, Vector3 center, Vector2 mapSize, Vector3 rightStep, Vector3 upStep)
+        {
+            if (sprite == null || grid == null) return;
+
+            var visualRoot = new GameObject("Visuals");
+            visualRoot.transform.SetParent(parent, false);
+
+            int chunkCells = Mathf.Max(1, grid.groundChunkCells);
+            float chunkWidth = Mathf.Abs(rightStep.x) * chunkCells;
+            float chunkHeight = Mathf.Abs(upStep.y) * chunkCells;
+            int mapColumns = Mathf.Max(1, Mathf.CeilToInt(grid.width / (float)chunkCells));
+            int mapRows = Mathf.Max(1, Mathf.CeilToInt(grid.height / (float)chunkCells));
+            int rows = Mathf.Max(1, visualRows);
+
+            int horizontalCount = mapColumns + rows * 2;
+            for (int layer = 0; layer < rows; layer++)
+            {
+                float yNorth = center.y + mapSize.y * 0.5f + chunkHeight * (0.5f + layer);
+                float ySouth = center.y - mapSize.y * 0.5f - chunkHeight * (0.5f + layer);
+                for (int i = 0; i < horizontalCount; i++)
+                {
+                    float x = center.x + (i - (horizontalCount - 1) * 0.5f) * chunkWidth;
+                    CreateChunkVisual(visualRoot.transform, $"North Chunk {layer} {i}", sprite, new Vector3(x, yNorth, center.z), chunkWidth, chunkHeight);
+                    CreateChunkVisual(visualRoot.transform, $"South Chunk {layer} {i}", sprite, new Vector3(x, ySouth, center.z), chunkWidth, chunkHeight);
+                }
+
+                float xEast = center.x + mapSize.x * 0.5f + chunkWidth * (0.5f + layer);
+                float xWest = center.x - mapSize.x * 0.5f - chunkWidth * (0.5f + layer);
+                for (int i = 0; i < mapRows; i++)
+                {
+                    float y = center.y + (i - (mapRows - 1) * 0.5f) * chunkHeight;
+                    CreateChunkVisual(visualRoot.transform, $"East Chunk {layer} {i}", sprite, new Vector3(xEast, y, center.z), chunkWidth, chunkHeight);
+                    CreateChunkVisual(visualRoot.transform, $"West Chunk {layer} {i}", sprite, new Vector3(xWest, y, center.z), chunkWidth, chunkHeight);
+                }
+            }
+        }
+
         float VisualStep(Sprite forest, Sprite mountain, bool horizontal, float fallback)
         {
             float forestSize = SpriteSize(forest, horizontal);
@@ -172,6 +217,22 @@ namespace AreaSurvivors
             billboard.faceCamera = true;
         }
 
+        void CreateChunkVisual(Transform parent, string visualName, Sprite sprite, Vector3 position, float width, float height)
+        {
+            if (sprite == null) return;
+            var root = new GameObject(visualName);
+            root.transform.SetParent(parent, true);
+            root.transform.position = position;
+
+            var visual = root.AddComponent<PaperMeshVisual>();
+            visual.Configure(sprite, Color.white, visualSortingOrder);
+            var bounds = sprite.bounds.size;
+            if (bounds.x > 0.001f && bounds.y > 0.001f)
+            {
+                root.transform.localScale = new Vector3(width / bounds.x, height / bounds.y, 1f);
+            }
+        }
+
         static Sprite PickSprite(Sprite forest, Sprite mountain, int index)
         {
             if (forest == null) return mountain;
@@ -182,10 +243,18 @@ namespace AreaSurvivors
         static Sprite LoadSprite(string resourcePath)
         {
             if (string.IsNullOrEmpty(resourcePath)) return null;
+            if (GeneratedSpriteLoader.IsGeneratedPath(resourcePath))
+            {
+                var generatedSprite = GeneratedSpriteLoader.Load(resourcePath);
+                if (generatedSprite != null) return generatedSprite;
+            }
+
             var importedSprite = Resources.Load<Sprite>(resourcePath);
             if (importedSprite != null) return importedSprite;
 
-            var texture = Resources.Load<Texture2D>(resourcePath);
+            var texture = GeneratedSpriteLoader.IsGeneratedPath(resourcePath)
+                ? GeneratedSpriteLoader.LoadTexture(resourcePath)
+                : Resources.Load<Texture2D>(resourcePath);
             if (texture == null) return null;
             texture.filterMode = FilterMode.Point;
             texture.wrapMode = TextureWrapMode.Clamp;

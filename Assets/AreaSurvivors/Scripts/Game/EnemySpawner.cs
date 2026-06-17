@@ -13,6 +13,10 @@ namespace AreaSurvivors
         public GameObject xpOrbPrefab;
         public GameObject damagePopupPrefab;
         public float radius = 34f;
+        [Header("Vertical Map Spawn")]
+        public bool useUpperChunkSpawn = true;
+        public int spawnChunkOffsetY = 3;
+        public int spawnChunkCells = TileGrid.DefaultChunkCells;
 
         public float ElapsedSeconds => elapsed;
         public float StageElapsedSeconds => stageElapsed;
@@ -30,6 +34,8 @@ namespace AreaSurvivors
         float directionDegrees;
         int directionChangeIndex;
         int lastDirectionSector = -1;
+        Vector3Int currentSpawnCell;
+        bool hasCurrentSpawnCell;
         bool running;
         bool[] timedSpawned;
         string currentBossAnnouncement = "オークキング出現！";
@@ -140,10 +146,7 @@ namespace AreaSurvivors
             kind = ApplyEliteSpawnChance(kind);
             var definition = config.GetEnemyDefinition(kind);
             if (definition == null) return;
-            float halfArc = Mathf.Max(0.5f, config.spawnDirectionArcDegrees * 0.5f);
-            float angle = directionDegrees + Random.Range(-halfArc, halfArc);
-            var dir = new Vector2(Mathf.Cos(angle * Mathf.Deg2Rad), Mathf.Sin(angle * Mathf.Deg2Rad));
-            var spawnPosition = ClampSpawnInsideGrid(target.position + (Vector3)(dir * radius), definition.cellSize);
+            var spawnPosition = ResolveSpawnPosition(definition);
             var go = Instantiate(enemyPrefab, spawnPosition, Quaternion.identity);
             go.name = definition.displayName;
             var enemy = go.GetComponent<EnemyController>();
@@ -195,11 +198,64 @@ namespace AreaSurvivors
 
         void ChooseNextDirection()
         {
+            if (useUpperChunkSpawn && TryChooseUpperChunkSpawnCell())
+            {
+                return;
+            }
+
             const int sectors = 8;
             int sector = Random.Range(0, sectors);
             if (sector == lastDirectionSector) sector = (sector + Random.Range(1, sectors)) % sectors;
             lastDirectionSector = sector;
             directionDegrees = sector * (360f / sectors);
+        }
+
+        Vector3 ResolveSpawnPosition(EnemyDefinition definition)
+        {
+            if (useUpperChunkSpawn)
+            {
+                if (!hasCurrentSpawnCell) TryChooseUpperChunkSpawnCell();
+                if (hasCurrentSpawnCell && grid != null)
+                {
+                    var basePosition = grid.groundTilemap.GetCellCenterWorld(currentSpawnCell);
+                    var jitter = Random.insideUnitCircle * Mathf.Max(0.05f, grid.cellSize * 0.35f);
+                    return ClampSpawnInsideGrid(basePosition + new Vector3(jitter.x, jitter.y, 0f), definition.cellSize);
+                }
+            }
+
+            float halfArc = Mathf.Max(0.5f, config.spawnDirectionArcDegrees * 0.5f);
+            float angle = directionDegrees + Random.Range(-halfArc, halfArc);
+            var dir = new Vector2(Mathf.Cos(angle * Mathf.Deg2Rad), Mathf.Sin(angle * Mathf.Deg2Rad));
+            return ClampSpawnInsideGrid(target.position + (Vector3)(dir * radius), definition.cellSize);
+        }
+
+        bool TryChooseUpperChunkSpawnCell()
+        {
+            if (grid == null || grid.width <= 0 || grid.height <= 0) return false;
+            int chunkCells = Mathf.Max(1, spawnChunkCells > 0 ? spawnChunkCells : grid.groundChunkCells);
+            int columns = Mathf.Max(1, Mathf.CeilToInt(grid.width / (float)chunkCells));
+            int rows = Mathf.Max(1, Mathf.CeilToInt(grid.height / (float)chunkCells));
+            int centerColumn = columns / 2;
+            int centerRow = rows / 2;
+            int spawnRow = Mathf.Clamp(centerRow + Mathf.Max(1, spawnChunkOffsetY), 0, rows - 1);
+            int startX = centerColumn * chunkCells;
+            int endX = Mathf.Min(grid.width, startX + chunkCells);
+            int startY = spawnRow * chunkCells;
+            int endY = Mathf.Min(grid.height, startY + chunkCells);
+            if (startX >= endX || startY >= endY) return false;
+
+            var selected = grid.GridToCell(Random.Range(startX, endX), Random.Range(startY, endY));
+            for (int i = 0; i < 20; i++)
+            {
+                var candidate = grid.GridToCell(Random.Range(startX, endX), Random.Range(startY, endY));
+                if (grid.IsOccupied(candidate)) continue;
+                selected = candidate;
+                break;
+            }
+
+            currentSpawnCell = selected;
+            hasCurrentSpawnCell = true;
+            return true;
         }
 
         public void StopAndClearEnemies(EnemyController except = null)

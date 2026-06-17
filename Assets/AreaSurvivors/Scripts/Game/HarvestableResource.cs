@@ -288,9 +288,9 @@ namespace AreaSurvivors
 
         static Sprite LoadGeneratedSprite(string name)
         {
-            var sprite = Resources.Load<Sprite>("Generated/" + name);
+            var sprite = GeneratedSpriteLoader.Load(name);
             if (sprite != null) return sprite;
-            var texture = Resources.Load<Texture2D>("Generated/" + name);
+            var texture = GeneratedSpriteLoader.LoadTexture(name);
             if (texture == null) return null;
             texture.filterMode = FilterMode.Point;
             texture.wrapMode = TextureWrapMode.Clamp;

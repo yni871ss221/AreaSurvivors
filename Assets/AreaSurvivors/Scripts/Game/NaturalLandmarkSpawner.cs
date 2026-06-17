@@ -44,6 +44,10 @@ namespace AreaSurvivors
         public int clearRouteCount = 6;
         public float clearRouteHalfWidthCells = 2.5f;
         public float clearRouteAngleOffsetDegrees;
+        [Header("Vertical Map Resources")]
+        public bool useVerticalMapResourceLayout = true;
+        public int upperTree1CountPerChunk = 3;
+        public int upperRock1CountPerChunk = 3;
         public bool addOutline = true;
         public Color outlineColor = Color.black;
         public float outlineThickness = 0.018f;
@@ -149,6 +153,12 @@ namespace AreaSurvivors
             lastUsedSeed = ResolveSeed();
             var random = new System.Random(lastUsedSeed);
             var specsByName = BuildSpecLookup();
+            if (useVerticalMapResourceLayout)
+            {
+                SpawnVerticalMapResources(grid, random, specsByName);
+                return;
+            }
+
             foreach (var band in placementBands)
             {
                 SpawnBand(grid, random, specsByName, band);
@@ -241,6 +251,133 @@ namespace AreaSurvivors
             if (!HasSeparation(grid, originCell, footprint)) return false;
 
             return true;
+        }
+
+        void SpawnVerticalMapResources(TileGrid grid, System.Random random, Dictionary<string, LandmarkSpec> specsByName)
+        {
+            SpawnCenterChunkResources(grid, random, specsByName);
+            SpawnChunkResources(grid, random, specsByName, -1, new[]
+            {
+                Entry("Tree1", 3), Entry("Rock1", 3), Entry("Forest2", 1), Entry("Rock2", 1)
+            });
+            SpawnChunkResources(grid, random, specsByName, -2, new[]
+            {
+                Entry("Tree1", 3), Entry("Rock1", 3), Entry("Forest2", 3), Entry("Rock2", 3)
+            });
+            SpawnChunkResources(grid, random, specsByName, -3, new[]
+            {
+                Entry("Tree1", 1), Entry("Rock1", 1), Entry("Forest2", 3), Entry("Rock2", 3), Entry("Forest4", 1), Entry("Rock4", 1)
+            });
+            SpawnChunkResources(grid, random, specsByName, -4, new[]
+            {
+                Entry("Forest2", 5), Entry("Rock2", 5), Entry("Forest4", 3), Entry("Rock4", 3)
+            });
+            SpawnChunkResources(grid, random, specsByName, -5, new[]
+            {
+                Entry("Forest4", 3), Entry("Rock4", 3), Entry("Forest8", 1), Entry("Rock8", 1)
+            });
+
+            var upperEntries = new[]
+            {
+                Entry("Tree1", upperTree1CountPerChunk),
+                Entry("Rock1", upperRock1CountPerChunk)
+            };
+            for (int i = 1; i <= 5; i++)
+            {
+                SpawnChunkResources(grid, random, specsByName, i, upperEntries);
+            }
+        }
+
+        void SpawnCenterChunkResources(TileGrid grid, System.Random random, Dictionary<string, LandmarkSpec> specsByName)
+        {
+            SpawnCenterBandEntry(grid, random, specsByName, "Tree1", 3, 10, 20);
+            SpawnCenterBandEntry(grid, random, specsByName, "Rock1", 3, 10, 20);
+        }
+
+        void SpawnCenterBandEntry(TileGrid grid, System.Random random, Dictionary<string, LandmarkSpec> specsByName, string landmarkName, int count, int minDistance, int maxDistance)
+        {
+            if (grid == null || specsByName == null || !specsByName.TryGetValue(landmarkName, out var spec)) return;
+            var sprite = LoadSprite(spec.resourcePath);
+            if (sprite == null) return;
+
+            var footprint = NormalizeFootprint(spec.footprint);
+            int placed = 0;
+            int attempts = 0;
+            int maxAttempts = Mathf.Max(1, count * Mathf.Max(1, maxPlacementAttemptsPerObject));
+            while (placed < count && attempts++ < maxAttempts)
+            {
+                var cell = RandomCellInChunk(grid, random, 0, footprint);
+                var band = new PlacementBand { minDistanceCells = minDistance, maxDistanceCells = maxDistance };
+                if (!CanUseCell(grid, cell, footprint, band)) continue;
+                CreateLandmark(grid, spec, sprite, cell, footprint);
+                placed++;
+            }
+        }
+
+        void SpawnChunkResources(TileGrid grid, System.Random random, Dictionary<string, LandmarkSpec> specsByName, int chunkOffsetY, PlacementEntry[] entries)
+        {
+            if (grid == null || specsByName == null || entries == null) return;
+            var sorted = new List<(PlacementEntry entry, LandmarkSpec spec)>();
+            foreach (var entry in entries)
+            {
+                if (entry == null || entry.count <= 0 || string.IsNullOrEmpty(entry.landmarkName)) continue;
+                if (specsByName.TryGetValue(entry.landmarkName, out var spec)) sorted.Add((entry, spec));
+            }
+
+            sorted.Sort((a, b) => Mathf.Max(b.spec.footprint.x, b.spec.footprint.y)
+                .CompareTo(Mathf.Max(a.spec.footprint.x, a.spec.footprint.y)));
+            foreach (var pair in sorted)
+            {
+                SpawnChunkEntry(grid, random, pair.spec, chunkOffsetY, pair.entry.count);
+            }
+        }
+
+        void SpawnChunkEntry(TileGrid grid, System.Random random, LandmarkSpec spec, int chunkOffsetY, int count)
+        {
+            if (spec == null || count <= 0) return;
+            var sprite = LoadSprite(spec.resourcePath);
+            if (sprite == null) return;
+
+            var footprint = NormalizeFootprint(spec.footprint);
+            int placed = 0;
+            int attempts = 0;
+            int maxAttempts = Mathf.Max(1, count * Mathf.Max(1, maxPlacementAttemptsPerObject));
+            while (placed < count && attempts++ < maxAttempts)
+            {
+                var cell = RandomCellInChunk(grid, random, chunkOffsetY, footprint);
+                if (!CanUseChunkCell(grid, cell, footprint)) continue;
+                CreateLandmark(grid, spec, sprite, cell, footprint);
+                placed++;
+            }
+        }
+
+        Vector3Int RandomCellInChunk(TileGrid grid, System.Random random, int chunkOffsetY, Vector2Int footprint)
+        {
+            int chunkCells = Mathf.Max(1, grid.groundChunkCells);
+            int columns = Mathf.Max(1, Mathf.CeilToInt(grid.width / (float)chunkCells));
+            int rows = Mathf.Max(1, Mathf.CeilToInt(grid.height / (float)chunkCells));
+            int centerColumn = columns / 2;
+            int centerRow = rows / 2;
+            int row = Mathf.Clamp(centerRow + chunkOffsetY, 0, rows - 1);
+            int pad = Mathf.Max(0, edgePaddingCells) + Mathf.Max(0, Mathf.Max(footprint.x, footprint.y) - 1);
+            int minX = Mathf.Clamp(centerColumn * chunkCells + pad, 0, grid.width - 1);
+            int maxX = Mathf.Clamp(Mathf.Min(grid.width, centerColumn * chunkCells + chunkCells) - pad, minX + 1, grid.width);
+            int minY = Mathf.Clamp(row * chunkCells + pad, 0, grid.height - 1);
+            int maxY = Mathf.Clamp(Mathf.Min(grid.height, row * chunkCells + chunkCells) - pad, minY + 1, grid.height);
+            return grid.GridToCell(random.Next(minX, maxX), random.Next(minY, maxY));
+        }
+
+        bool CanUseChunkCell(TileGrid grid, Vector3Int originCell, Vector2Int footprint)
+        {
+            if (!grid.CanPlaceObject(originCell, footprint)) return false;
+            if (OverlapsClearRoute(grid, originCell, footprint)) return false;
+            if (!HasSeparation(grid, originCell, footprint)) return false;
+            return true;
+        }
+
+        static PlacementEntry Entry(string landmarkName, int count)
+        {
+            return new PlacementEntry { landmarkName = landmarkName, count = count };
         }
 
         bool OverlapsClearRoute(TileGrid grid, Vector3Int originCell, Vector2Int footprint)
@@ -366,7 +503,15 @@ namespace AreaSurvivors
 
         static Sprite LoadSprite(string resourcePath)
         {
-            var texture = Resources.Load<Texture2D>(resourcePath);
+            if (GeneratedSpriteLoader.IsGeneratedPath(resourcePath))
+            {
+                var sprite = GeneratedSpriteLoader.Load(resourcePath);
+                if (sprite != null) return sprite;
+            }
+
+            var texture = GeneratedSpriteLoader.IsGeneratedPath(resourcePath)
+                ? GeneratedSpriteLoader.LoadTexture(resourcePath)
+                : Resources.Load<Texture2D>(resourcePath);
             if (texture == null) return null;
             texture.filterMode = FilterMode.Point;
             texture.wrapMode = TextureWrapMode.Clamp;

@@ -6,7 +6,7 @@ namespace AreaSurvivors.Editor
     {
         void OnPreprocessTexture()
         {
-            if (!assetPath.Contains("/Resources/Generated/Walk/")) return;
+            if (!assetPath.Contains("/Sprites/Generated/Walk/")) return;
 
             var importer = (TextureImporter)assetImporter;
             importer.textureType = TextureImporterType.Sprite;

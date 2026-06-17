@@ -40,7 +40,7 @@ namespace AreaSurvivors
 
         static void CreateBackground(Transform parent)
         {
-            var sprite = Resources.Load<Sprite>("Generated/UI/LobbyBackground");
+            var sprite = GeneratedSpriteLoader.Load("UI/LobbyBackground");
             if (sprite != null)
             {
                 var background = Image(parent, "Background", Color.white, Vector2.zero, Vector2.zero);
@@ -195,7 +195,9 @@ namespace AreaSurvivors
 
         static void Icon(Transform parent, string name, string resource, Vector2 pos, Vector2 size)
         {
-            var sprite = Resources.Load<Sprite>(resource);
+            var sprite = GeneratedSpriteLoader.IsGeneratedPath(resource)
+                ? GeneratedSpriteLoader.Load(resource)
+                : Resources.Load<Sprite>(resource);
             if (sprite == null) return;
             var image = Image(parent, name, Color.white, pos, size);
             image.sprite = sprite;

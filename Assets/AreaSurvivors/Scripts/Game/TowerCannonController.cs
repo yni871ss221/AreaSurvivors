@@ -16,8 +16,8 @@ namespace AreaSurvivors
         public void Configure(GameConfig gameConfig)
         {
             config = gameConfig;
-            cannonballSprite = Resources.Load<Sprite>("Generated/Cannonball");
-            explosionSprite = Resources.Load<Sprite>("Generated/CannonExplosion");
+            cannonballSprite = GeneratedSpriteLoader.Load("Cannonball");
+            explosionSprite = GeneratedSpriteLoader.Load("CannonExplosion");
             cooldown = Mathf.Min(0.75f, CooldownSeconds());
             configured = true;
         }

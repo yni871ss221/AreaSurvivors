@@ -297,7 +297,7 @@ namespace AreaSurvivors
         {
             var go = new GameObject(objectName);
             go.transform.SetParent(transform, false);
-            go.AddComponent<PaperBillboard>();
+            go.AddComponent<PaperBillboard>().faceCamera = false;
             var visual = go.AddComponent<PaperMeshVisual>();
             visual.Configure(hutSprite, color, sortingOrder);
             ConfigureSpriteVisual(visual, color);
@@ -397,10 +397,12 @@ namespace AreaSurvivors
             if (buildRenderer != null)
             {
                 buildRenderer.visible = !completed && buildProgress > 0f;
-                buildRenderer.transform.localScale = new Vector3(buildVisualScale.x, buildVisualScale.y * Mathf.Max(0.02f, buildProgress), buildVisualScale.z);
+                buildRenderer.transform.localScale = buildVisualScale;
+                buildRenderer.SetVerticalFill(buildProgress);
                 buildRenderer.transform.localPosition = gridVisual != null ? gridVisual.visualOffset : spriteVisualOffset;
             }
             if (completeRenderer != null) completeRenderer.visible = completed;
+            if (completeRenderer != null) completeRenderer.SetVerticalFill(1f);
             SetActive(completeObject, completed);
             if (sparkleRenderer != null && !completed) sparkleRenderer.visible = false;
             if (buildGauge != null)
@@ -474,9 +476,9 @@ namespace AreaSurvivors
 
         static Sprite LoadGeneratedSprite(string name)
         {
-            var sprite = Resources.Load<Sprite>("Generated/" + name);
+            var sprite = GeneratedSpriteLoader.Load(name);
             if (sprite != null) return sprite;
-            var texture = Resources.Load<Texture2D>("Generated/" + name);
+            var texture = GeneratedSpriteLoader.LoadTexture(name);
             if (texture == null) return null;
             texture.filterMode = FilterMode.Point;
             texture.wrapMode = TextureWrapMode.Clamp;

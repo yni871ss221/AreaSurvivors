@@ -25,14 +25,13 @@ namespace AreaSurvivors
         PaperMeshVisual upgradeSparkleVisual;
         TowerUpgradeConstruction pendingUpgrade;
         Sprite upgradedSprite;
-        Transform texturedModel;
-        Renderer[] modelRenderers;
-        Color[][] modelColors;
         Vector3 groundAnchorWorld;
         bool collapsing;
         bool isUpgraded;
         bool hasGroundAnchor;
         bool upgradeVisualsPrepared;
+        bool baseTowerUsesPrefabLayout;
+        bool upgradeUsesPrefabLayout;
         Vector3 upgradeBuildBaseScale = Vector3.one;
         Vector3 upgradedCompleteBaseScale = Vector3.one;
         const float UpgradeSparkleDuration = 0.75f;
@@ -45,12 +44,8 @@ namespace AreaSurvivors
             EnsureGridObjectVisual();
             EnsureFootprintCollider();
             colliders = GetComponents<Collider2D>();
-            texturedModel = transform.Find("Textured Model");
-            if (texturedModel != null) texturedModel.gameObject.SetActive(false);
             EnsureBaseTowerVisual();
             visual = baseTowerVisual != null ? baseTowerVisual : GetComponentInChildren<PaperMeshVisual>();
-            modelRenderers = GetComponentsInChildren<Renderer>(true);
-            modelColors = CaptureColors(modelRenderers);
             health.Died += _ => StartCollapse();
         }
 
@@ -65,6 +60,15 @@ namespace AreaSurvivors
         public Vector3 GroundAnchorWorld => hasGroundAnchor ? groundAnchorWorld : enemyTargetPoint != null ? enemyTargetPoint.position : transform.position;
 
         public Transform EnemyTarget => enemyTargetPoint != null ? enemyTargetPoint : transform;
+
+        public Sprite GetConfiguredUpgradeSprite()
+        {
+            BindPrefabUpgradeVisuals();
+            if (upgradedCompleteVisual != null && upgradedCompleteVisual.sprite != null) return upgradedCompleteVisual.sprite;
+            if (upgradeGhostVisual != null && upgradeGhostVisual.sprite != null) return upgradeGhostVisual.sprite;
+            if (upgradeBuildVisual != null && upgradeBuildVisual.sprite != null) return upgradeBuildVisual.sprite;
+            return upgradedSprite;
+        }
 
         public void AlignToGridFootprint(TileGrid grid, Vector3Int originCell)
         {
@@ -100,10 +104,27 @@ namespace AreaSurvivors
             return !isUpgraded && pendingUpgrade == null && !collapsing && health != null && !health.IsDead;
         }
 
+        public bool ContainsUpgradePointer(Vector3 world)
+        {
+            EnsureBaseTowerVisual();
+            var renderer = ActiveTowerVisualRenderer();
+            if (renderer != null)
+            {
+                var bounds = renderer.bounds;
+                return world.x >= bounds.min.x &&
+                    world.x <= bounds.max.x &&
+                    world.y >= bounds.min.y &&
+                    world.y <= bounds.max.y;
+            }
+
+            return footprintCollider != null && footprintCollider.OverlapPoint(world);
+        }
+
         public bool BeginUpgradeReservation(GameConfig config, TileGrid grid, GameManager owner, Sprite sprite)
         {
             if (!CanStartUpgrade()) return false;
-            upgradedSprite = sprite != null ? sprite : LoadGeneratedSprite("TowerUpgrade");
+            upgradedSprite = sprite != null ? sprite : GetConfiguredUpgradeSprite();
+            if (upgradedSprite == null) upgradedSprite = LoadGeneratedSprite("TowerUpgrade");
             pendingUpgrade = gameObject.AddComponent<TowerUpgradeConstruction>();
             pendingUpgrade.Configure(this, config, grid, owner, upgradedSprite);
             SetBaseTowerVisible(false);
@@ -127,7 +148,8 @@ namespace AreaSurvivors
         public void ShowUpgradePreview(Sprite sprite, bool allowed)
         {
             if (isUpgraded || pendingUpgrade != null) return;
-            upgradedSprite = sprite != null ? sprite : LoadGeneratedSprite("TowerUpgrade");
+            upgradedSprite = sprite != null ? sprite : GetConfiguredUpgradeSprite();
+            if (upgradedSprite == null) upgradedSprite = LoadGeneratedSprite("TowerUpgrade");
             EnsureUpgradeVisuals(upgradedSprite);
             if (upgradeGhostVisual == null) return;
             upgradeGhostVisual.color = allowed ? new Color(0.30f, 0.82f, 1f, 0.42f) : new Color(1f, 0.20f, 0.16f, 0.42f);
@@ -142,7 +164,7 @@ namespace AreaSurvivors
 
         public void ShowUpgradeConstruction(float progress, bool active, bool showHammer)
         {
-            EnsureUpgradeVisuals(upgradedSprite != null ? upgradedSprite : LoadGeneratedSprite("TowerUpgrade"));
+            EnsureUpgradeVisuals(upgradedSprite != null ? upgradedSprite : GetConfiguredUpgradeSprite() ?? LoadGeneratedSprite("TowerUpgrade"));
             progress = Mathf.Clamp01(progress);
             if (upgradeGhostVisual != null)
             {
@@ -152,7 +174,8 @@ namespace AreaSurvivors
             if (upgradeBuildVisual != null)
             {
                 upgradeBuildVisual.visible = active && !isUpgraded && progress > 0f;
-                upgradeBuildVisual.transform.localScale = new Vector3(upgradeBuildBaseScale.x, upgradeBuildBaseScale.y * Mathf.Max(0.02f, progress), upgradeBuildBaseScale.z);
+                upgradeBuildVisual.transform.localScale = upgradeBuildBaseScale;
+                upgradeBuildVisual.SetVerticalFill(progress);
             }
             if (upgradeHammerVisual != null)
             {
@@ -166,6 +189,7 @@ namespace AreaSurvivors
         {
             if (upgradeGhostVisual != null) upgradeGhostVisual.visible = false;
             if (upgradeBuildVisual != null) upgradeBuildVisual.visible = false;
+            if (upgradeBuildVisual != null) upgradeBuildVisual.SetVerticalFill(1f);
             if (upgradeHammerVisual != null) upgradeHammerVisual.visible = false;
         }
 
@@ -174,7 +198,8 @@ namespace AreaSurvivors
             if (isUpgraded) return;
             isUpgraded = true;
             pendingUpgrade = null;
-            upgradedSprite = sprite != null ? sprite : LoadGeneratedSprite("TowerUpgrade");
+            upgradedSprite = sprite != null ? sprite : GetConfiguredUpgradeSprite();
+            if (upgradedSprite == null) upgradedSprite = LoadGeneratedSprite("TowerUpgrade");
             EnsureUpgradeVisuals(upgradedSprite);
             SetBaseTowerVisible(false);
             if (upgradeGhostVisual != null) upgradeGhostVisual.visible = false;
@@ -215,7 +240,14 @@ namespace AreaSurvivors
         void SetBaseTowerVisible(bool visible)
         {
             if (baseTowerVisual != null) baseTowerVisual.visible = visible;
-            if (texturedModel != null) texturedModel.gameObject.SetActive(false);
+        }
+
+        Renderer ActiveTowerVisualRenderer()
+        {
+            if (!isUpgraded && baseTowerVisual != null) return baseTowerVisual.Renderer;
+            if (upgradedCompleteVisual != null && upgradedCompleteVisual.visible) return upgradedCompleteVisual.Renderer;
+            if (upgradeGhostVisual != null && upgradeGhostVisual.visible) return upgradeGhostVisual.Renderer;
+            return baseTowerVisual != null ? baseTowerVisual.Renderer : null;
         }
 
         void EnsureGridObjectVisual()
@@ -224,9 +256,10 @@ namespace AreaSurvivors
             if (gridVisual == null) gridVisual = gameObject.AddComponent<GridObjectVisual>();
             var marker = GetComponent<GridObjectMarker>();
             gridVisual.ConfigureFootprint(marker != null ? marker.footprint : new Vector2Int(3, 3));
-            gridVisual.fitVisualWidthToFootprint = true;
-            gridVisual.resetVisualOffset = true;
-            gridVisual.visualOffset = Vector3.zero;
+            bool hasPrefabVisuals = transform.Find("Base Tower Image") != null;
+            gridVisual.fitVisualWidthToFootprint = !hasPrefabVisuals;
+            gridVisual.resetVisualOffset = !hasPrefabVisuals;
+            if (!hasPrefabVisuals) gridVisual.visualOffset = Vector3.zero;
         }
 
         void EnsureFootprintCollider()
@@ -255,7 +288,11 @@ namespace AreaSurvivors
             if (baseTowerVisual == null)
             {
                 var existing = transform.Find("Base Tower Image");
-                if (existing != null) baseTowerVisual = existing.GetComponent<PaperMeshVisual>();
+                if (existing != null)
+                {
+                    baseTowerVisual = existing.GetComponent<PaperMeshVisual>();
+                    baseTowerUsesPrefabLayout = baseTowerVisual != null;
+                }
                 if (baseTowerVisual == null)
                 {
                     var go = new GameObject("Base Tower Image");
@@ -266,10 +303,18 @@ namespace AreaSurvivors
                 }
             }
 
-            var sprite = LoadGeneratedSprite("Tower");
+            var sprite = baseTowerVisual.sprite != null ? baseTowerVisual.sprite : LoadGeneratedSprite("Tower");
             if (sprite == null) return;
             baseTowerVisual.Configure(sprite, Color.white, 1003);
-            gridVisual.ApplyToVisual(baseTowerVisual, sprite, sprite.bounds.size);
+            if (baseTowerUsesPrefabLayout)
+            {
+                baseTowerVisual.useBottomCenterAnchor = true;
+                baseTowerVisual.transform.localRotation = Quaternion.identity;
+            }
+            else
+            {
+                gridVisual.ApplyFootprintWidthPreserveAspect(baseTowerVisual, sprite);
+            }
             baseTowerVisual.visible = !isUpgraded && pendingUpgrade == null;
             var preserveSortingOrder = baseTowerVisual.GetComponent<PreserveSortingOrder>();
             if (preserveSortingOrder != null) Destroy(preserveSortingOrder);
@@ -283,6 +328,7 @@ namespace AreaSurvivors
         void EnsureUpgradeVisuals(Sprite sprite)
         {
             if (sprite == null) return;
+            BindPrefabUpgradeVisuals();
             if (upgradeVisualsPrepared)
             {
                 ConfigureUpgradeVisual(upgradeGhostVisual, sprite, upgradeGhostVisual != null ? upgradeGhostVisual.color : Color.white);
@@ -291,11 +337,20 @@ namespace AreaSurvivors
                 return;
             }
 
-            upgradeGhostVisual = CreateUpgradeVisual("Upgrade Ghost", sprite, new Color(0.30f, 0.82f, 1f, 0.36f), 22000);
-            upgradeBuildVisual = CreateUpgradeVisual("Upgrade Build Fill", sprite, Color.white, 22001);
-            upgradedCompleteVisual = CreateUpgradeVisual("Upgraded Tower Image", sprite, Color.white, 22002);
-            upgradeHammerVisual = CreateOverlayVisual("Upgrade Hammer", LoadGeneratedSprite("Hammer"), 22020);
-            upgradeSparkleVisual = CreateOverlayVisual("Upgrade Sparkle", LoadGeneratedSprite("Sparkle"), 22030);
+            if (upgradeUsesPrefabLayout)
+            {
+                ConfigureUpgradeVisual(upgradeGhostVisual, sprite, new Color(0.30f, 0.82f, 1f, 0.36f));
+                ConfigureUpgradeVisual(upgradeBuildVisual, sprite, Color.white);
+                ConfigureUpgradeVisual(upgradedCompleteVisual, sprite, Color.white);
+            }
+            else
+            {
+                upgradeGhostVisual = CreateUpgradeVisual("Upgrade Ghost", sprite, new Color(0.30f, 0.82f, 1f, 0.36f), 22000);
+                upgradeBuildVisual = CreateUpgradeVisual("Upgrade Build Fill", sprite, Color.white, 22001);
+                upgradedCompleteVisual = CreateUpgradeVisual("Upgraded Tower Image", sprite, Color.white, 22002);
+                upgradeHammerVisual = CreateOverlayVisual("Upgrade Hammer", LoadGeneratedSprite("Hammer"), 22020);
+                upgradeSparkleVisual = CreateOverlayVisual("Upgrade Sparkle", LoadGeneratedSprite("Sparkle"), 22030);
+            }
             if (upgradeBuildVisual != null) upgradeBuildBaseScale = upgradeBuildVisual.transform.localScale;
             if (upgradedCompleteVisual != null) upgradedCompleteBaseScale = upgradedCompleteVisual.transform.localScale;
             if (upgradeGhostVisual != null) upgradeGhostVisual.visible = false;
@@ -304,6 +359,22 @@ namespace AreaSurvivors
             if (upgradeHammerVisual != null) upgradeHammerVisual.visible = false;
             if (upgradeSparkleVisual != null) upgradeSparkleVisual.visible = false;
             upgradeVisualsPrepared = true;
+        }
+
+        void BindPrefabUpgradeVisuals()
+        {
+            if (upgradeGhostVisual == null) upgradeGhostVisual = FindVisual("Upgrade Ghost");
+            if (upgradeBuildVisual == null) upgradeBuildVisual = FindVisual("Upgrade Build Fill");
+            if (upgradedCompleteVisual == null) upgradedCompleteVisual = FindVisual("Upgraded Tower Image");
+            if (upgradeHammerVisual == null) upgradeHammerVisual = FindVisual("Upgrade Hammer");
+            if (upgradeSparkleVisual == null) upgradeSparkleVisual = FindVisual("Upgrade Sparkle");
+            upgradeUsesPrefabLayout = upgradeGhostVisual != null && upgradeBuildVisual != null && upgradedCompleteVisual != null;
+        }
+
+        PaperMeshVisual FindVisual(string childName)
+        {
+            var child = transform.Find(childName);
+            return child != null ? child.GetComponent<PaperMeshVisual>() : null;
         }
 
         PaperMeshVisual CreateUpgradeVisual(string objectName, Sprite sprite, Color color, int sortingOrder)
@@ -345,14 +416,15 @@ namespace AreaSurvivors
             mesh.transform.localRotation = Quaternion.identity;
             EnsureGridObjectVisual();
             mesh.useBottomCenterAnchor = true;
-            var bounds = sprite.bounds.size;
-            float fitScale = Mathf.Abs(bounds.x) > 0.001f ? gridVisual.FootprintWorldSize.x / bounds.x : 1f;
-            mesh.transform.localScale = new Vector3(fitScale, fitScale, 1f);
-            mesh.transform.localScale = new Vector3(
-                mesh.transform.localScale.x * upgradedVisualScale.x,
-                mesh.transform.localScale.y * upgradedVisualScale.y,
-                mesh.transform.localScale.z * upgradedVisualScale.z);
-            mesh.transform.localPosition = UpgradeVisualOffset;
+            if (!upgradeUsesPrefabLayout)
+            {
+                gridVisual.ApplyFootprintWidthPreserveAspect(mesh, sprite);
+                mesh.transform.localScale = new Vector3(
+                    mesh.transform.localScale.x * upgradedVisualScale.x,
+                    mesh.transform.localScale.y * upgradedVisualScale.y,
+                    mesh.transform.localScale.z * upgradedVisualScale.z);
+                mesh.transform.localPosition = UpgradeVisualOffset;
+            }
             var outline = mesh.GetComponent<RuntimeSpriteOutline>();
             if (outline == null) outline = mesh.gameObject.AddComponent<RuntimeSpriteOutline>();
             outline.outlineColor = Color.black;
@@ -415,9 +487,9 @@ namespace AreaSurvivors
 
         static Sprite LoadGeneratedSprite(string name)
         {
-            var sprite = Resources.Load<Sprite>("Generated/" + name);
+            var sprite = GeneratedSpriteLoader.Load(name);
             if (sprite != null) return sprite;
-            var texture = Resources.Load<Texture2D>("Generated/" + name);
+            var texture = GeneratedSpriteLoader.LoadTexture(name);
             if (texture == null) return null;
             texture.filterMode = FilterMode.Point;
             texture.wrapMode = TextureWrapMode.Clamp;
@@ -428,23 +500,6 @@ namespace AreaSurvivors
         {
             if (collapsing) return;
             StartCoroutine(CollapseRoutine());
-        }
-
-        void EnsureModelOutlines()
-        {
-            var renderers = GetComponentsInChildren<MeshRenderer>(true);
-            foreach (var renderer in renderers)
-            {
-                if (renderer == null || renderer.name.Contains("Shadow")) continue;
-                var texture = renderer.sharedMaterial != null ? renderer.sharedMaterial.mainTexture : null;
-                if (texture == null || !texture.name.Contains("Tower")) continue;
-                if (renderer.GetComponent<OcclusionMaskSource>() == null)
-                    renderer.gameObject.AddComponent<OcclusionMaskSource>();
-                var outline = renderer.GetComponent<RuntimeSpriteOutline>();
-                if (outline == null) outline = renderer.gameObject.AddComponent<RuntimeSpriteOutline>();
-                outline.outlineColor = Color.black;
-                outline.thickness = 0.013f;
-            }
         }
 
         IEnumerator CollapseRoutine()
@@ -472,52 +527,10 @@ namespace AreaSurvivors
                     color.a = Mathf.Lerp(1f, 0.18f, t);
                     visual.color = color;
                 }
-                SetColor(modelRenderers, modelColors, new Color(1f, 1f, 1f, Mathf.Lerp(1f, 0.18f, t)));
                 yield return null;
             }
 
             GameManager.Instance?.GameOver();
-        }
-
-        static Color[][] CaptureColors(Renderer[] renderers)
-        {
-            if (renderers == null) return null;
-            var colors = new Color[renderers.Length][];
-            for (int i = 0; i < renderers.Length; i++)
-            {
-                if (renderers[i] == null)
-                {
-                    colors[i] = new[] { Color.white };
-                    continue;
-                }
-
-                var materials = renderers[i].materials;
-                colors[i] = new Color[materials.Length];
-                for (int j = 0; j < materials.Length; j++)
-                {
-                    colors[i][j] = materials[j] != null ? materials[j].color : Color.white;
-                }
-            }
-
-            return colors;
-        }
-
-        static void SetColor(Renderer[] renderers, Color[][] baseColors, Color tint)
-        {
-            if (renderers == null) return;
-            for (int i = 0; i < renderers.Length; i++)
-            {
-                var target = renderers[i];
-                if (target == null) continue;
-                var materials = target.materials;
-                for (int j = 0; j < materials.Length; j++)
-                {
-                    var baseColor = baseColors != null && i < baseColors.Length && baseColors[i] != null && j < baseColors[i].Length ? baseColors[i][j] : Color.white;
-                    materials[j].color = new Color(baseColor.r * tint.r, baseColor.g * tint.g, baseColor.b * tint.b, baseColor.a * tint.a);
-                }
-
-                target.materials = materials;
-            }
         }
     }
 }

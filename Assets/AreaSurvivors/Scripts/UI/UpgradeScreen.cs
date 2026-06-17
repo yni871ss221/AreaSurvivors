@@ -150,7 +150,9 @@ namespace AreaSurvivors
                 if (ProgressionStore.TryBuy(node.type)) UnityEngine.SceneManagement.SceneManager.LoadScene(SceneNames.Upgrades);
             });
 
-            var iconSprite = Resources.Load<Sprite>(node.iconResource);
+            var iconSprite = GeneratedSpriteLoader.IsGeneratedPath(node.iconResource)
+                ? GeneratedSpriteLoader.Load(node.iconResource)
+                : Resources.Load<Sprite>(node.iconResource);
             if (iconSprite != null)
             {
                 var icon = new GameObject("Icon").AddComponent<Image>();

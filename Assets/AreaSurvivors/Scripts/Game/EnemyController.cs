@@ -74,7 +74,6 @@ namespace AreaSurvivors
             reveal.silhouetteColor = new Color(1f, 0.52f, 0.28f, 0.56f);
             reveal.outlineColor = elite ? Color.yellow : boss ? Color.red : Color.white;
             ApplyOutlineStyle();
-            IgnoreOtherEnemyCollisions();
             health.Damaged += OnDamaged;
             health.Died += OnDied;
         }
@@ -94,25 +93,6 @@ namespace AreaSurvivors
             health.SetMax(hp);
             body.drag = 0f;
             speedMultiplier = Mathf.Max(0.05f, speedScale);
-        }
-
-        void IgnoreOtherEnemyCollisions()
-        {
-            if (colliders == null || colliders.Length == 0) return;
-            var enemies = FindObjectsOfType<EnemyController>();
-            foreach (var enemy in enemies)
-            {
-                if (enemy == null || enemy == this) continue;
-                var otherColliders = enemy.GetComponents<Collider2D>();
-                foreach (var own in colliders)
-                {
-                    if (own == null) continue;
-                    foreach (var other in otherColliders)
-                    {
-                        if (other != null) Physics2D.IgnoreCollision(own, other, true);
-                    }
-                }
-            }
         }
 
         void ApplyDefinition(EnemyDefinition definition)
@@ -383,14 +363,14 @@ namespace AreaSurvivors
             if (contactTimer > 0f) return;
             var otherHealth = collision.collider.GetComponentInParent<Health>();
             if (otherHealth == null) return;
-            var fence = collision.collider.GetComponentInParent<DefensiveFence>();
+            var barrier = collision.collider.GetComponentInParent<WoodenBarrier>();
             var ballista = collision.collider.GetComponentInParent<BallistaTower>();
             var carpenterHut = collision.collider.GetComponentInParent<CarpenterHut>();
             var workerHut = collision.collider.GetComponentInParent<WorkerHut>();
             var watchTower = collision.collider.GetComponentInParent<WatchTower>();
             if (collision.collider.GetComponentInParent<PlayerController>() == null &&
                 collision.collider.GetComponentInParent<TowerController>() == null &&
-                (fence == null || !fence.IsBuilt) &&
+                (barrier == null || !barrier.IsBuilt) &&
                 (ballista == null || !ballista.IsBuilt) &&
                 (carpenterHut == null || !carpenterHut.IsBuilt) &&
                 (workerHut == null || !workerHut.IsBuilt) &&
@@ -406,7 +386,7 @@ namespace AreaSurvivors
         static bool IsNaturalObstacle(Collider2D collider)
         {
             if (collider == null || collider.GetComponentInParent<Obstacle>() == null) return false;
-            return collider.GetComponentInParent<DefensiveFence>() == null &&
+            return collider.GetComponentInParent<WoodenBarrier>() == null &&
                    collider.GetComponentInParent<BallistaTower>() == null &&
                    collider.GetComponentInParent<CarpenterHut>() == null &&
                    collider.GetComponentInParent<WorkerHut>() == null &&

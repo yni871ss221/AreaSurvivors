@@ -30,6 +30,7 @@ namespace AreaSurvivors
         Health health;
         GridObjectMarker marker;
         GridObjectVisual gridVisual;
+        BuildingPrefabVisualSet prefabVisualSet;
         float buildProgress;
         float attackTimer;
         float assistedBuildTimer;
@@ -45,6 +46,7 @@ namespace AreaSurvivors
         Transform activeBuilder;
         bool completed;
         bool usingSpriteVisuals;
+        bool usingPrefabLayout;
         bool breaking;
         bool hasRegisteredCell;
         Vector3Int registeredCell;
@@ -65,8 +67,10 @@ namespace AreaSurvivors
             EnsureGridObjectVisual();
             health.Died += _ => Break();
             EnsureBlockingCollider();
+            UsePrefabVisualSetIfAvailable();
             EnsureSpriteVisuals();
             ConfigureHammerVisual();
+            EnsureUpgradeTarget();
         }
 
         public void RegisterBuildPlacement(TileGrid tileGrid, Vector3Int originCell)
@@ -75,6 +79,25 @@ namespace AreaSurvivors
             registeredCell = originCell;
             hasRegisteredCell = true;
             EnsureGridObjectVisual();
+        }
+
+        public void ApplyBuildingUpgrade(Sprite upgradedSprite, int hpBonus, int damageBonus)
+        {
+            if (upgradedSprite != null) ballistaSprite = upgradedSprite;
+            maxHp += Mathf.Max(0, hpBonus);
+            damage += Mathf.Max(0, damageBonus);
+            if (health != null) health.SetMax(maxHp);
+            EnsureSpriteVisuals();
+            ApplyConfiguredSpriteToVisuals();
+            ConfigureHammerVisual();
+            CacheVisualScales();
+            ApplyBuildVisuals();
+        }
+
+        public void SetCompletedVisualVisible(bool visible)
+        {
+            if (completeRenderer != null) completeRenderer.visible = completed && visible;
+            SetActive(completeObject, completed && visible);
         }
 
         void Start()
@@ -91,12 +114,7 @@ namespace AreaSurvivors
                 maxHp = config.ballistaMaxHp;
             }
 
-            if (completeRenderer != null && completeRenderer.sprite != null)
-            {
-                completeVisualScale = completeRenderer.transform.localScale;
-                visualHeight = completeRenderer.sprite.bounds.size.y * completeVisualScale.y;
-            }
-            if (buildRenderer != null) buildVisualScale = buildRenderer.transform.localScale;
+            CacheVisualScales();
             if (buildObject != null) buildObjectScale = buildObject.transform.localScale;
             if (completeObject != null)
             {
@@ -132,6 +150,20 @@ namespace AreaSurvivors
         void EnsureSpriteVisuals()
         {
             if (ballistaSprite == null) return;
+            UsePrefabVisualSetIfAvailable();
+            if (usingPrefabLayout && prefabVisualSet != null && prefabVisualSet.HasBaseVisuals)
+            {
+                usingSpriteVisuals = true;
+                prefabVisualSet.ApplySpriteToBase(ballistaSprite);
+                ConfigureSpriteVisual(ghostRenderer, new Color(1f, 1f, 1f, 0.34f));
+                ConfigureSpriteVisual(buildRenderer, Color.white);
+                ConfigureSpriteVisual(completeRenderer, Color.white);
+                ghostObject = ghostRenderer.gameObject;
+                buildObject = buildRenderer.gameObject;
+                completeObject = completeRenderer.gameObject;
+                RefreshSortRenderers();
+                return;
+            }
             if (ghostRenderer != null && buildRenderer != null && completeRenderer != null)
             {
                 usingSpriteVisuals = true;
@@ -167,6 +199,20 @@ namespace AreaSurvivors
             usingSpriteVisuals = true;
         }
 
+        void EnsureUpgradeTarget()
+        {
+            var target = GetComponent<BuildingUpgradeTarget>();
+            if (target == null) target = gameObject.AddComponent<BuildingUpgradeTarget>();
+            target.Configure(BuildingUpgradeKind.Ballista, 20, 50, "BallistaUpgrade", null, 100, 5);
+        }
+
+        void ApplyConfiguredSpriteToVisuals()
+        {
+            ConfigureSpriteVisual(ghostRenderer, ghostRenderer != null ? ghostRenderer.color : new Color(1f, 1f, 1f, 0.34f));
+            ConfigureSpriteVisual(buildRenderer, Color.white);
+            ConfigureSpriteVisual(completeRenderer, Color.white);
+        }
+
         void DestroyLegacyObject(GameObject legacyObject, GameObject replacementObject)
         {
             if (legacyObject == null || legacyObject == replacementObject) return;
@@ -191,7 +237,7 @@ namespace AreaSurvivors
         {
             var go = new GameObject(objectName);
             go.transform.SetParent(transform, false);
-            go.AddComponent<PaperBillboard>();
+            go.AddComponent<PaperBillboard>().faceCamera = false;
             var visual = go.AddComponent<PaperMeshVisual>();
             visual.Configure(ballistaSprite, color, sortingOrder);
             ConfigureSpriteVisual(visual, color);
@@ -201,15 +247,28 @@ namespace AreaSurvivors
         void ConfigureSpriteVisual(PaperMeshVisual visual, Color color)
         {
             if (visual == null || ballistaSprite == null) return;
-            visual.useBottomCenterAnchor = true;
             visual.sprite = ballistaSprite;
             visual.color = color;
             if (visual.GetComponent<OcclusionMaskSource>() == null)
                 visual.gameObject.AddComponent<OcclusionMaskSource>();
             ConfigureOutline(visual.gameObject);
             EnsureGridObjectVisual();
-            gridVisual.ApplyToVisual(visual, ballistaSprite, spriteVisualSize);
+            if (!usingPrefabLayout)
+            {
+                visual.useBottomCenterAnchor = true;
+                gridVisual.ApplyFootprintWidthPreserveAspect(visual, ballistaSprite);
+            }
             visual.visible = false;
+        }
+
+        void CacheVisualScales()
+        {
+            if (completeRenderer != null && completeRenderer.sprite != null)
+            {
+                completeVisualScale = completeRenderer.transform.localScale;
+                visualHeight = completeRenderer.sprite.bounds.size.y * completeVisualScale.y;
+            }
+            if (buildRenderer != null) buildVisualScale = buildRenderer.transform.localScale;
         }
 
         Vector3 SpriteVisualOffset()
@@ -239,7 +298,7 @@ namespace AreaSurvivors
         void ConfigureHammerVisual()
         {
             if (hammerRenderer == null) return;
-            var hammer = Resources.Load<Sprite>("Generated/Hammer");
+            var hammer = GeneratedSpriteLoader.Load("Hammer");
             if (hammer != null) hammerRenderer.sprite = hammer;
             hammerRenderer.order = 22020;
             ApplyToolVisualScale(hammerRenderer.transform);
@@ -320,15 +379,18 @@ namespace AreaSurvivors
             if (buildRenderer != null)
             {
                 buildRenderer.visible = !completed && buildProgress > 0f;
-                buildRenderer.transform.localScale = new Vector3(buildVisualScale.x, buildVisualScale.y * Mathf.Max(0.02f, buildProgress), buildVisualScale.z);
-                buildRenderer.transform.localPosition = SpriteVisualOffset();
+                buildRenderer.transform.localScale = usingPrefabLayout
+                    ? buildVisualScale
+                    : buildVisualScale;
+                buildRenderer.SetVerticalFill(buildProgress);
+                if (!usingPrefabLayout) buildRenderer.transform.localPosition = SpriteVisualOffset();
             }
             if (!usingSpriteVisuals && buildObject != null)
             {
                 buildObject.SetActive(!completed && buildProgress > 0f);
-                buildObject.transform.localScale = new Vector3(buildObjectScale.x, buildObjectScale.y, buildObjectScale.z * Mathf.Max(0.02f, buildProgress));
             }
             if (completeRenderer != null) completeRenderer.visible = completed;
+            if (completeRenderer != null) completeRenderer.SetVerticalFill(1f);
             if (!usingSpriteVisuals || completeObject == null || (completeRenderer != null && completeObject == completeRenderer.gameObject))
             {
                 SetActive(completeObject, completed);
@@ -348,7 +410,10 @@ namespace AreaSurvivors
             if (hammerRenderer == null || !ShouldShowHammer()) return;
             float swing = Mathf.Sin(Time.time * 16f);
             hammerRenderer.transform.localRotation = Quaternion.Euler(0f, 0f, -35f + swing * 32f);
-            hammerRenderer.transform.localPosition = new Vector3(0.24f, 0.28f + Mathf.Abs(swing) * 0.08f, 0f);
+            if (!usingPrefabLayout)
+            {
+                hammerRenderer.transform.localPosition = new Vector3(0.24f, 0.28f + Mathf.Abs(swing) * 0.08f, 0f);
+            }
             ApplyToolVisualScale(hammerRenderer.transform);
         }
 
@@ -454,6 +519,18 @@ namespace AreaSurvivors
                 ToolVisualScale.x / Mathf.Max(0.001f, Mathf.Abs(parentScale.x)),
                 ToolVisualScale.y / Mathf.Max(0.001f, Mathf.Abs(parentScale.y)),
                 ToolVisualScale.z);
+        }
+
+        void UsePrefabVisualSetIfAvailable()
+        {
+            if (prefabVisualSet == null) prefabVisualSet = GetComponent<BuildingPrefabVisualSet>();
+            usingPrefabLayout = prefabVisualSet != null && prefabVisualSet.usePrefabLayout && prefabVisualSet.HasBaseVisuals;
+            if (!usingPrefabLayout) return;
+            ghostRenderer = prefabVisualSet.ghostVisual;
+            buildRenderer = prefabVisualSet.buildFillVisual;
+            completeRenderer = prefabVisualSet.completeVisual;
+            if (prefabVisualSet.hammerVisual != null) hammerRenderer = prefabVisualSet.hammerVisual;
+            if (prefabVisualSet.sparkleVisual != null) sparkleRenderer = prefabVisualSet.sparkleVisual;
         }
 
         static Color[][] CaptureColors(Renderer[] renderers)

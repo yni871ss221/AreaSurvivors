@@ -15,8 +15,6 @@ namespace AreaSurvivors.Editor
         const string Root = "Assets/AreaSurvivors";
         const string Scenes = Root + "/Scenes";
         const string Prefabs = Root + "/Prefabs";
-        const string Materials = Root + "/Materials";
-        const string Meshes = Root + "/Meshes";
         const string Sprites = Root + "/Sprites";
         const string GeneratedSprites = Root + "/Sprites/Generated";
         const string ResourcesPath = Root + "/Resources";
@@ -59,8 +57,7 @@ namespace AreaSurvivors.Editor
             }
 
             SavePrefab(CreateBallista(arrow), Prefabs + "/BallistaTower.prefab");
-            SavePrefab(CreateFence(false), Prefabs + "/DefensiveFenceHorizontal.prefab");
-            SavePrefab(CreateFence(true), Prefabs + "/DefensiveFenceVertical.prefab");
+            SavePrefab(CreateWoodenWall(), Prefabs + "/WoodenWall.prefab");
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log("Area Survivors build prefabs rebuilt.");
@@ -136,7 +133,7 @@ namespace AreaSurvivors.Editor
 
         static void EnsureFolders()
         {
-            foreach (var path in new[] { Root, Scenes, Prefabs, Materials, Meshes, Sprites, GeneratedSprites, ResourcesPath, TilePalette, Root + "/Resources/Config", Root + "/Resources/Generated" })
+            foreach (var path in new[] { Root, Scenes, Prefabs, Sprites, GeneratedSprites, ResourcesPath, TilePalette, Root + "/Resources/Config" })
             {
                 if (!AssetDatabase.IsValidFolder(path))
                 {
@@ -243,17 +240,17 @@ namespace AreaSurvivors.Editor
             config.spawnDirectionArcDegrees = 60f;
             config.maxAliveEnemies = 160;
             config.bossTimeSeconds = 300f;
-            config.bossAnnouncement = "オークキング出現！";
+            config.bossAnnouncement = "\u30aa\u30fc\u30af\u30ad\u30f3\u30b0\u51fa\u73fe\uff01";
             config.EnsureEnemySpawnDefaults();
             config.startingBallistaStock = 4;
-            config.startingFenceStock = 4;
+            config.startingWallStock = 4;
             EditorUtility.SetDirty(config);
         }
 
         static void CreateTilePalette()
         {
             ImportGeneratedSprites();
-            foreach (var name in new[] { "Ground", "Paint", "Tower", "Ballista", "FenceHorizontal", "FenceVertical" })
+            foreach (var name in new[] { "Ground", "Paint", "Tower", "Ballista", "WoodenWall", "WoodenGateClosed" })
             {
                 CreateTileAsset(name);
             }
@@ -262,7 +259,7 @@ namespace AreaSurvivors.Editor
             var grid = palette.AddComponent<Grid>();
             grid.cellSize = new Vector3(TileCellWidth, TileCellHeight, 0f);
             var tilemap = CreateTilemap(palette.transform, "Palette Tiles", 0);
-            var tiles = new[] { "Ground", "Paint", "Tower", "Ballista", "FenceHorizontal", "FenceVertical" };
+            var tiles = new[] { "Ground", "Paint", "Tower", "Ballista", "WoodenWall", "WoodenGateClosed" };
             for (int i = 0; i < tiles.Length; i++)
             {
                 tilemap.SetTile(new Vector3Int(i, 0, 0), LoadTile(tiles[i]));
@@ -312,15 +309,15 @@ namespace AreaSurvivors.Editor
             var arrow = SavePrefab(CreateProjectile("Arrow", LoadSprite("Arrow"), new Color(0.85f, 0.72f, 0.35f), config), Prefabs + "/Arrow.prefab");
             var fireball = SavePrefab(CreateProjectile("Fireball", LoadSprite("Fireball"), new Color(1f, 0.35f, 0.16f), config), Prefabs + "/Fireball.prefab");
             var ballista = SavePrefab(CreateBallista(arrow), Prefabs + "/BallistaTower.prefab");
-            var horizontalFence = SavePrefab(CreateFence(false), Prefabs + "/DefensiveFenceHorizontal.prefab");
-            var verticalFence = SavePrefab(CreateFence(true), Prefabs + "/DefensiveFenceVertical.prefab");
+            var woodenWall = SavePrefab(CreateWoodenWall(), Prefabs + "/WoodenWall.prefab");
+            var woodenGate = AssetDatabase.LoadAssetAtPath<GameObject>(Prefabs + "/WoodenGate.prefab") ?? woodenWall;
             var set = new PrefabSet
             {
                 arrow = arrow,
                 fireball = fireball,
                 ballista = ballista,
-                horizontalFence = horizontalFence,
-                verticalFence = verticalFence,
+                woodenWall = woodenWall,
+                woodenGate = woodenGate,
                 player = SavePrefab(CreatePlayer(arrow, fireball), Prefabs + "/Player.prefab").GetComponent<PlayerController>(),
                 enemy = SavePrefab(CreateEnemy(), Prefabs + "/Enemy.prefab"),
                 xpOrb = SavePrefab(CreateXpOrb(), Prefabs + "/ExperienceOrb.prefab"),
@@ -423,11 +420,11 @@ namespace AreaSurvivors.Editor
             return go;
         }
 
-        static GameObject CreateFence(bool vertical)
+        static GameObject CreateWoodenWall()
         {
-            var go = new GameObject(vertical ? "DefensiveFenceVertical" : "DefensiveFenceHorizontal");
-            var footprint = vertical ? new Vector2Int(1, 2) : new Vector2Int(2, 1);
-            ConfigureGridMarker(go, GridObjectType.Fence, GridCellFlags.BlocksMovement | GridCellFlags.BlocksBuilding | GridCellFlags.Defensive, footprint);
+            var go = new GameObject("WoodenWall");
+            var footprint = new Vector2Int(3, 1);
+            ConfigureGridMarker(go, GridObjectType.WoodenWall, GridCellFlags.BlocksMovement | GridCellFlags.BlocksBuilding | GridCellFlags.Defensive, footprint);
             var gridVisual = go.AddComponent<GridObjectVisual>();
             gridVisual.ConfigureFootprint(footprint);
             var rb = go.AddComponent<Rigidbody2D>();
@@ -439,10 +436,10 @@ namespace AreaSurvivors.Editor
             var blocker = go.AddComponent<BoxCollider2D>();
             gridVisual.ConfigureFootprintBox(blocker, false);
 
-            var fenceSprite = LoadGeneratedSprite(vertical ? "FenceVertical" : "FenceHorizontal") ?? LoadSprite(vertical ? "FenceVertical" : "FenceHorizontal");
-            var ghost = CreateFenceSpriteVisual(go.transform, "Ghost Image", fenceSprite, vertical, new Color(1f, 1f, 1f, 0.34f), 1000);
-            var build = CreateFenceSpriteVisual(go.transform, "Build Fill Image", fenceSprite, vertical, Color.white, 1001);
-            var complete = CreateFenceSpriteVisual(go.transform, "Complete Image", fenceSprite, vertical, Color.white, 1002);
+            var barrierSprite = LoadGeneratedSprite("WoodenWall") ?? LoadSprite("WoodenWall");
+            var ghost = CreateWoodenBarrierSpriteVisual(go.transform, "Ghost Image", barrierSprite, new Color(1f, 1f, 1f, 0.34f), 1000);
+            var build = CreateWoodenBarrierSpriteVisual(go.transform, "Build Fill Image", barrierSprite, Color.white, 1001);
+            var complete = CreateWoodenBarrierSpriteVisual(go.transform, "Complete Image", barrierSprite, Color.white, 1002);
             SetVisualOffset(Vector3.zero, ghost, build, complete);
             var hammer = MeshChild(go.transform, "Hammer", LoadGeneratedSprite("Hammer") ?? LoadSprite("Hammer"), Color.white, 2200);
             hammer.transform.localPosition = new Vector3(0.24f, -0.06f, 0f);
@@ -458,26 +455,24 @@ namespace AreaSurvivors.Editor
             renderers.AddRange(complete.GetComponentsInChildren<Renderer>(true));
             ySort.renderers = renderers.ToArray();
 
-            var fence = go.AddComponent(GetRuntimeType("AreaSurvivors.DefensiveFence"));
-            SetBool(fence, "vertical", vertical);
-            SetObjectReference(fence, "blockingCollider", blocker);
-            SetObjectReference(fence, "ghostRenderer", ghost);
-            SetObjectReference(fence, "buildRenderer", build);
-            SetObjectReference(fence, "completeRenderer", complete);
-            SetObjectReference(fence, "ghostObject", ghost.gameObject);
-            SetObjectReference(fence, "completeObject", complete.gameObject);
-            SetObjectReference(fence, "hammerRenderer", hammer);
-            SetObjectReference(fence, "sparkleRenderer", sparkle);
-            SetObjectReference(fence, "fenceSprite", fenceSprite);
-            SetVector2(fence, "spriteVisualSize", vertical ? new Vector2(0.36f, 1.55f) : new Vector2(1.34f, 0.58f));
-            SetObjectReference(fence, "buildGauge", AddWorldBuildGauge(go.transform, new Vector3(vertical ? 0.42f : 0f, vertical ? 0f : 0.42f, 0f), vertical ? new Vector2(0.12f, 1.2f) : new Vector2(1.2f, 0.12f)));
+            var barrier = go.AddComponent(GetRuntimeType("AreaSurvivors.WoodenBarrier"));
+            SetObjectReference(barrier, "blockingCollider", blocker);
+            SetObjectReference(barrier, "ghostRenderer", ghost);
+            SetObjectReference(barrier, "buildRenderer", build);
+            SetObjectReference(barrier, "completeRenderer", complete);
+            SetObjectReference(barrier, "ghostObject", ghost.gameObject);
+            SetObjectReference(barrier, "completeObject", complete.gameObject);
+            SetObjectReference(barrier, "hammerRenderer", hammer);
+            SetObjectReference(barrier, "sparkleRenderer", sparkle);
+            SetObjectReference(barrier, "barrierSprite", barrierSprite);
+            SetVector2(barrier, "spriteVisualSize", new Vector2(1.34f, 0.58f));
+            SetObjectReference(barrier, "buildGauge", AddWorldBuildGauge(go.transform, new Vector3(0f, 0.42f, 0f), new Vector2(1.2f, 0.12f)));
             return go;
         }
 
-        static PaperMeshVisual CreateFenceSpriteVisual(Transform parent, string name, Sprite sprite, bool vertical, Color color, int sortingOrder)
+        static PaperMeshVisual CreateWoodenBarrierSpriteVisual(Transform parent, string name, Sprite sprite, Color color, int sortingOrder)
         {
-            var size = vertical ? new Vector2(0.36f, 1.55f) : new Vector2(1.34f, 0.58f);
-            return CreateSpriteVisual(parent, name, sprite, size, color, sortingOrder);
+            return CreateSpriteVisual(parent, name, sprite, new Vector2(1.34f, 0.58f), color, sortingOrder);
         }
 
         static PaperMeshVisual CreateSpriteVisual(Transform parent, string name, Sprite sprite, Vector2 size, Color color, int sortingOrder)
@@ -498,323 +493,6 @@ namespace AreaSurvivors.Editor
             foreach (var visual in visuals)
             {
                 if (visual != null) visual.transform.localPosition = offset;
-            }
-        }
-
-        static GameObject CreateFenceModel(Transform parent, string name, bool vertical, Vector2 footprint, FencePalette palette)
-        {
-            var root = new GameObject(name);
-            root.transform.SetParent(parent, false);
-            float length = vertical ? footprint.y : footprint.x;
-            float thickness = Mathf.Max(0.18f, (vertical ? footprint.x : footprint.y) * 0.58f);
-            const float height = 0.88f;
-            const float postWidth = 0.16f;
-            const float postDepth = 0.16f;
-            const int postCount = 10;
-            for (int i = 0; i < postCount; i++)
-            {
-                float t = postCount == 1 ? 0f : i / (float)(postCount - 1);
-                float along = Mathf.Lerp(-length * 0.5f, length * 0.5f, t);
-                var position = vertical ? new Vector3(0f, along, height * 0.5f) : new Vector3(along, 0f, height * 0.5f);
-                var scale = vertical ? new Vector3(postDepth, postWidth, height) : new Vector3(postWidth, postDepth, height);
-                Box(root.transform, "Post", position, scale, palette.Post);
-                var postEdgeScale = vertical ? new Vector3(0.03f, postWidth * 1.12f, height * 0.72f) : new Vector3(postWidth * 1.12f, 0.03f, height * 0.72f);
-                var postEdgeOffset = vertical ? new Vector3(-postDepth * 0.58f, 0f, 0.02f) : new Vector3(0f, -postDepth * 0.58f, 0.02f);
-                Cube(root.transform, "Post Edge", position + postEdgeOffset, postEdgeScale, palette.Edge);
-                if (i % 2 == 0)
-                {
-                    var grainOffset = vertical ? new Vector3(postDepth * 0.58f, 0f, 0.06f) : new Vector3(0f, postDepth * 0.58f, 0.06f);
-                    var grainScale = vertical ? new Vector3(0.018f, postWidth * 0.72f, height * 0.36f) : new Vector3(postWidth * 0.72f, 0.018f, height * 0.36f);
-                    Cube(root.transform, "Post Grain", position + grainOffset, grainScale, palette.Grain);
-                }
-                Box(root.transform, "Post Cap", position + new Vector3(0f, 0f, height * 0.55f), new Vector3(scale.x * 1.35f, scale.y * 1.35f, 0.12f), palette.Cap);
-                var bracePosition = vertical ? new Vector3(0f, along, 0.52f) : new Vector3(along, 0f, 0.52f);
-                var braceScale = vertical ? new Vector3(thickness * 1.1f, 0.07f, 0.1f) : new Vector3(0.07f, thickness * 1.1f, 0.1f);
-                Box(root.transform, "Post Brace", bracePosition, braceScale, palette.Brace);
-                Cube(root.transform, "Nail", bracePosition + new Vector3(0f, 0f, 0.075f), new Vector3(0.055f, 0.055f, 0.035f), palette.Metal);
-            }
-
-            for (int i = 0; i < 2; i++)
-            {
-                float z = i == 0 ? 0.36f : 0.64f;
-                float offset = i == 0 ? -thickness * 0.52f : thickness * 0.52f;
-                var position = vertical ? new Vector3(offset, 0f, z) : new Vector3(0f, offset, z);
-                var scale = vertical ? new Vector3(0.06f, length, 0.1f) : new Vector3(length, 0.06f, 0.1f);
-                Box(root.transform, "Rail", position, scale, palette.Rail);
-                var edgeScale = vertical ? new Vector3(0.075f, length, 0.025f) : new Vector3(length, 0.075f, 0.025f);
-                Cube(root.transform, "Rail Top Edge", position + new Vector3(0f, 0f, 0.064f), edgeScale, palette.Edge);
-                Cube(root.transform, "Rail Bottom Edge", position + new Vector3(0f, 0f, -0.064f), edgeScale, palette.Edge);
-                for (int g = 0; g < 4; g++)
-                {
-                    float t = (g + 0.5f) / 4f;
-                    float along = Mathf.Lerp(-length * 0.38f, length * 0.38f, t);
-                    var grainPosition = vertical ? new Vector3(offset, along, z + 0.075f) : new Vector3(along, offset, z + 0.075f);
-                    var grainScale = vertical ? new Vector3(0.082f, length * 0.055f, 0.018f) : new Vector3(length * 0.055f, 0.082f, 0.018f);
-                    Cube(root.transform, "Rail Grain", grainPosition, grainScale, palette.Grain);
-                }
-            }
-
-            for (int i = 0; i < 4; i++)
-            {
-                float along = Mathf.Lerp(-length * 0.36f, length * 0.36f, i / 3f);
-                float tilt = i % 2 == 0 ? 22f : -22f;
-                var position = vertical ? new Vector3(0f, along, 0.52f) : new Vector3(along, 0f, 0.52f);
-                var scale = vertical ? new Vector3(0.07f, length * 0.13f, 0.1f) : new Vector3(length * 0.13f, 0.07f, 0.1f);
-                var rotation = vertical ? Quaternion.Euler(tilt, 0f, 0f) : Quaternion.Euler(0f, -tilt, 0f);
-                Box(root.transform, "Diagonal Brace", position, scale, palette.Brace, rotation);
-            }
-
-            return root;
-        }
-
-        static GameObject Cube(Transform parent, string name, Vector3 localPosition, Vector3 localScale, Material material)
-        {
-            return Cube(parent, name, localPosition, localScale, material, Quaternion.identity);
-        }
-
-        static GameObject Cube(Transform parent, string name, Vector3 localPosition, Vector3 localScale, Material material, Quaternion localRotation)
-        {
-            var cube = new GameObject(name);
-            cube.name = name;
-            cube.transform.SetParent(parent, false);
-            cube.transform.localPosition = localPosition;
-            cube.transform.localRotation = localRotation;
-            cube.transform.localScale = localScale;
-            var filter = cube.AddComponent<MeshFilter>();
-            filter.sharedMesh = FenceCubeMesh();
-            var renderer = cube.AddComponent<MeshRenderer>();
-            renderer.sharedMaterial = material;
-            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            renderer.receiveShadows = false;
-            return cube;
-        }
-
-        static GameObject Box(Transform parent, string name, Vector3 localPosition, Vector3 localScale, FencePartMaterials materials)
-        {
-            return Box(parent, name, localPosition, localScale, materials, Quaternion.identity);
-        }
-
-        static GameObject Box(Transform parent, string name, Vector3 localPosition, Vector3 localScale, FencePartMaterials materials, Quaternion localRotation)
-        {
-            var box = new GameObject(name);
-            box.transform.SetParent(parent, false);
-            box.transform.localPosition = localPosition;
-            box.transform.localRotation = localRotation;
-            box.transform.localScale = localScale;
-            var filter = box.AddComponent<MeshFilter>();
-            filter.sharedMesh = FenceShadedBoxMesh();
-            var renderer = box.AddComponent<MeshRenderer>();
-            renderer.sharedMaterials = new[] { materials.Top, materials.Side, materials.Bottom };
-            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            renderer.receiveShadows = false;
-            return box;
-        }
-
-        static Mesh FenceCubeMesh()
-        {
-            const string path = Meshes + "/FenceCube.asset";
-            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
-            if (mesh != null) return mesh;
-
-            mesh = new Mesh { name = "FenceCube" };
-            mesh.vertices = new[]
-            {
-                new Vector3(-0.5f, -0.5f, -0.5f), new Vector3(0.5f, -0.5f, -0.5f), new Vector3(0.5f, 0.5f, -0.5f), new Vector3(-0.5f, 0.5f, -0.5f),
-                new Vector3(-0.5f, -0.5f, 0.5f), new Vector3(0.5f, -0.5f, 0.5f), new Vector3(0.5f, 0.5f, 0.5f), new Vector3(-0.5f, 0.5f, 0.5f)
-            };
-            mesh.triangles = new[]
-            {
-                0, 2, 1, 0, 3, 2,
-                4, 5, 6, 4, 6, 7,
-                0, 1, 5, 0, 5, 4,
-                1, 2, 6, 1, 6, 5,
-                2, 3, 7, 2, 7, 6,
-                3, 0, 4, 3, 4, 7
-            };
-            mesh.RecalculateNormals();
-            mesh.RecalculateBounds();
-            AssetDatabase.CreateAsset(mesh, path);
-            return mesh;
-        }
-
-        static Mesh FenceShadedBoxMesh()
-        {
-            const string path = Meshes + "/FenceShadedBox.asset";
-            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
-            if (mesh != null) return mesh;
-
-            mesh = new Mesh { name = "FenceShadedBox" };
-            mesh.vertices = new[]
-            {
-                new Vector3(-0.5f, -0.5f, -0.5f), new Vector3(0.5f, -0.5f, -0.5f), new Vector3(0.5f, 0.5f, -0.5f), new Vector3(-0.5f, 0.5f, -0.5f),
-                new Vector3(-0.5f, -0.5f, 0.5f), new Vector3(0.5f, -0.5f, 0.5f), new Vector3(0.5f, 0.5f, 0.5f), new Vector3(-0.5f, 0.5f, 0.5f)
-            };
-            mesh.subMeshCount = 3;
-            mesh.SetTriangles(new[] { 4, 5, 6, 4, 6, 7 }, 0);
-            mesh.SetTriangles(new[] { 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7 }, 1);
-            mesh.SetTriangles(new[] { 0, 2, 1, 0, 3, 2 }, 2);
-            mesh.RecalculateNormals();
-            mesh.RecalculateBounds();
-            AssetDatabase.CreateAsset(mesh, path);
-            return mesh;
-        }
-
-        static Mesh TexturedQuadMesh()
-        {
-            const string path = Meshes + "/TexturedQuad.asset";
-            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(path);
-            if (mesh != null) return mesh;
-
-            mesh = new Mesh { name = "TexturedQuad" };
-            mesh.vertices = new[]
-            {
-                new Vector3(-0.5f, -0.5f, 0f),
-                new Vector3(0.5f, -0.5f, 0f),
-                new Vector3(0.5f, 0.5f, 0f),
-                new Vector3(-0.5f, 0.5f, 0f)
-            };
-            mesh.uv = new[]
-            {
-                new Vector2(0f, 0f),
-                new Vector2(1f, 0f),
-                new Vector2(1f, 1f),
-                new Vector2(0f, 1f)
-            };
-            mesh.triangles = new[] { 0, 1, 2, 0, 2, 3 };
-            mesh.RecalculateNormals();
-            mesh.RecalculateBounds();
-            AssetDatabase.CreateAsset(mesh, path);
-            return mesh;
-        }
-
-        static Material TexturedMaterial(string name, Sprite sprite, Color color)
-        {
-            var safeName = name.Replace("/", "_").Replace("\\", "_");
-            var path = $"{Materials}/{safeName}.mat";
-            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
-            if (material == null)
-            {
-                material = new Material(Shader.Find("Sprites/Default"));
-                AssetDatabase.CreateAsset(material, path);
-            }
-
-            material.shader = Shader.Find("Sprites/Default");
-            material.mainTexture = sprite != null ? sprite.texture : null;
-            material.color = color;
-            material.renderQueue = 3000;
-            EditorUtility.SetDirty(material);
-            return material;
-        }
-
-        static Material FenceMaterial(string name, Color color, bool transparent)
-        {
-            var path = $"{Materials}/{name}.mat";
-            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
-            if (material == null)
-            {
-                material = new Material(Shader.Find("Sprites/Default"));
-                AssetDatabase.CreateAsset(material, path);
-            }
-
-            material.shader = Shader.Find("Sprites/Default");
-            material.color = color;
-            material.renderQueue = 3000;
-            EditorUtility.SetDirty(material);
-            return material;
-        }
-
-        static FencePartMaterials FencePart(string name, Color baseColor, bool transparent)
-        {
-            return new FencePartMaterials(
-                FenceMaterial($"{name} Top", Shade(baseColor, 1.18f), transparent),
-                FenceMaterial($"{name} Side", Shade(baseColor, 0.88f), transparent),
-                FenceMaterial($"{name} Bottom", Shade(baseColor, 0.64f), transparent));
-        }
-
-        static Color Shade(Color color, float multiplier)
-        {
-            return new Color(
-                Mathf.Clamp01(color.r * multiplier),
-                Mathf.Clamp01(color.g * multiplier),
-                Mathf.Clamp01(color.b * multiplier),
-                color.a);
-        }
-
-        readonly struct FencePartMaterials
-        {
-            public readonly Material Top;
-            public readonly Material Side;
-            public readonly Material Bottom;
-
-            public FencePartMaterials(Material top, Material side, Material bottom)
-            {
-                Top = top;
-                Side = side;
-                Bottom = bottom;
-            }
-        }
-
-        readonly struct FencePalette
-        {
-            public readonly FencePartMaterials Post;
-            public readonly FencePartMaterials Rail;
-            public readonly FencePartMaterials Brace;
-            public readonly FencePartMaterials Cap;
-            public readonly Material Edge;
-            public readonly Material Grain;
-            public readonly Material Metal;
-
-            FencePalette(string prefix, Color post, Color rail, Color brace, Color cap, Color edge, Color grain, Color metal, bool transparent)
-            {
-                Post = FencePart($"{prefix} Post", post, transparent);
-                Rail = FencePart($"{prefix} Rail", rail, transparent);
-                Brace = FencePart($"{prefix} Brace", brace, transparent);
-                Cap = FencePart($"{prefix} Cap", cap, transparent);
-                Edge = FenceMaterial($"{prefix} Edge", edge, transparent);
-                Grain = FenceMaterial($"{prefix} Grain", grain, transparent);
-                Metal = FenceMaterial($"{prefix} Nail", metal, transparent);
-            }
-
-            public static FencePalette Ghost()
-            {
-                return new FencePalette(
-                    "Fence Ghost",
-                    new Color(0.72f, 0.58f, 0.28f, 0.32f),
-                    new Color(0.92f, 0.70f, 0.34f, 0.32f),
-                    new Color(0.62f, 0.45f, 0.22f, 0.32f),
-                    new Color(1f, 0.82f, 0.42f, 0.34f),
-                    new Color(0.34f, 0.25f, 0.12f, 0.28f),
-                    new Color(0.25f, 0.18f, 0.09f, 0.26f),
-                    new Color(0.16f, 0.13f, 0.10f, 0.26f),
-                    true);
-            }
-
-            public static FencePalette Build()
-            {
-                return new FencePalette(
-                    "Fence Build",
-                    new Color(0.78f, 0.48f, 0.20f, 1f),
-                    new Color(0.92f, 0.62f, 0.28f, 1f),
-                    new Color(0.62f, 0.35f, 0.16f, 1f),
-                    new Color(1.0f, 0.74f, 0.36f, 1f),
-                    new Color(0.36f, 0.20f, 0.10f, 1f),
-                    new Color(0.46f, 0.26f, 0.12f, 1f),
-                    new Color(0.13f, 0.11f, 0.09f, 1f),
-                    false);
-            }
-
-            public static FencePalette Complete()
-            {
-                return new FencePalette(
-                    "Fence Wood",
-                    new Color(0.58f, 0.34f, 0.15f, 1f),
-                    new Color(0.72f, 0.43f, 0.18f, 1f),
-                    new Color(0.43f, 0.25f, 0.12f, 1f),
-                    new Color(0.83f, 0.55f, 0.25f, 1f),
-                    new Color(0.24f, 0.13f, 0.07f, 1f),
-                    new Color(0.34f, 0.19f, 0.09f, 1f),
-                    new Color(0.08f, 0.07f, 0.06f, 1f),
-                    false);
             }
         }
 
@@ -847,10 +525,25 @@ namespace AreaSurvivors.Editor
             ConfigureGridMarker(go, GridObjectType.Tower, GridCellFlags.BlocksMovement | GridCellFlags.BlocksBuilding | GridCellFlags.Defensive, new Vector2Int(3, 3));
             var gridVisual = go.AddComponent<GridObjectVisual>();
             gridVisual.ConfigureFootprint(new Vector2Int(3, 3));
-            var visual = CreateTexturedSpriteModel(go.transform, "Textured Model", "Tower", 2.05f, 0.24f, 2.9f, Color.white, 1000);
+            gridVisual.fitVisualWidthToFootprint = false;
+            gridVisual.resetVisualOffset = false;
+            var towerSprite = LoadGeneratedSprite("Tower") ?? LoadSprite("Tower");
+            var visual = MeshChild(go.transform, "Base Tower Image", towerSprite, Color.white, 1003);
+            visual.useBottomCenterAnchor = true;
+            if (towerSprite != null && Mathf.Abs(towerSprite.bounds.size.x) > 0.001f)
+            {
+                float targetWidth = 3 * GridObjectVisual.CellWidth;
+                float scale = targetWidth / towerSprite.bounds.size.x;
+                visual.transform.localScale = new Vector3(scale, scale, 1f);
+            }
+            visual.visible = true;
+            visual.gameObject.AddComponent<OcclusionMaskSource>();
+            var outline = visual.gameObject.AddComponent<RuntimeSpriteOutline>();
+            outline.outlineColor = Color.black;
+            outline.thickness = 0.018f;
             var ySort = go.AddComponent<YSort>();
             ySort.baseOrder = 1000;
-            ySort.sortPivotOffsetY = -1.2f;
+            ySort.sortPivotOffsetY = 0f;
             ySort.renderers = visual.GetComponentsInChildren<Renderer>(true);
             var rb = go.AddComponent<Rigidbody2D>();
             rb.gravityScale = 0f;
@@ -862,43 +555,6 @@ namespace AreaSurvivors.Editor
             var tower = go.AddComponent<TowerController>();
             tower.hpBar = AddWorldHpBar(go.transform, new Vector3(0, -0.82f, 0), 0.9f);
             return go;
-        }
-
-        static GameObject CreateTexturedTowerModel(Transform parent, string name, string spritePrefix, float width, float depth, float height, Color color, int sortingOrder)
-        {
-            return CreateTexturedSpriteModel(parent, name, $"{spritePrefix}Front", width, depth, height, color, sortingOrder);
-        }
-
-        static GameObject CreateTexturedSpriteModel(Transform parent, string name, string spriteName, float width, float depth, float height, Color color, int sortingOrder)
-        {
-            var root = new GameObject(name);
-            root.transform.SetParent(parent, false);
-            var front = LoadGeneratedSprite(spriteName) ?? LoadSprite(spriteName);
-            var material = TexturedMaterial($"{name} {spriteName} Front", front, color);
-            var shadowColor = new Color(0f, 0f, 0f, Mathf.Clamp01(color.a * 0.24f));
-            var shadowMaterial = TexturedMaterial($"{name} {spriteName} Thin Shadow", front, shadowColor);
-            float z = height * 0.5f;
-            AddTexturedPanel(root.transform, "Thin Shadow", shadowMaterial, new Vector3(width * 0.06f, depth * 0.32f, z * 0.98f), new Vector2(width * 1.03f, height * 0.98f), Quaternion.identity, sortingOrder - 1, true);
-            AddTexturedPanel(root.transform, "Front", material, new Vector3(0f, -depth * 0.18f, z), new Vector2(width, height), Quaternion.identity, sortingOrder + 3, true);
-            return root;
-        }
-
-        static GameObject AddTexturedPanel(Transform parent, string name, Material material, Vector3 localPosition, Vector2 size, Quaternion localRotation, int sortingOrder, bool billboard = false)
-        {
-            var panel = new GameObject(name);
-            panel.transform.SetParent(parent, false);
-            panel.transform.localPosition = localPosition;
-            panel.transform.localRotation = localRotation;
-            panel.transform.localScale = new Vector3(size.x, size.y, 1f);
-            var filter = panel.AddComponent<MeshFilter>();
-            filter.sharedMesh = TexturedQuadMesh();
-            var renderer = panel.AddComponent<MeshRenderer>();
-            renderer.sharedMaterial = material;
-            renderer.sortingOrder = sortingOrder;
-            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            renderer.receiveShadows = false;
-            if (billboard) panel.AddComponent<PaperBillboard>();
-            return panel;
         }
 
         static GameObject Actor(string name, Sprite sprite, Color color, float colliderRadius)
@@ -1123,6 +779,7 @@ namespace AreaSurvivors.Editor
             grid.objectTilemap = objectTilemap;
             grid.groundTile = LoadTile("Ground");
             grid.paintTile = LoadTile("Paint");
+            grid.ApplyVerticalMapLayout();
             grid.Build();
             var perimeter = new GameObject("Map Perimeter").AddComponent(GetRuntimeType("AreaSurvivors.MapPerimeterController"));
             SetObjectReference(perimeter, "grid", grid);
@@ -1157,14 +814,15 @@ namespace AreaSurvivors.Editor
         {
             if (buildPlacement == null) return;
             buildPlacement.ballistaPrefab = prefabs.ballista;
-            buildPlacement.horizontalFencePrefab = prefabs.horizontalFence;
-            buildPlacement.verticalFencePrefab = prefabs.verticalFence;
+            buildPlacement.woodenWallPrefab = prefabs.woodenWall;
+            buildPlacement.woodenGatePrefab = prefabs.woodenGate != null ? prefabs.woodenGate : prefabs.woodenWall;
             buildPlacement.ballistaPreviewSprite = LoadGeneratedSprite("Ballista") ?? LoadSprite("Ballista");
-            buildPlacement.horizontalFencePreviewSprite = LoadGeneratedSprite("FenceHorizontal") ?? LoadSprite("FenceHorizontal");
-            buildPlacement.verticalFencePreviewSprite = LoadGeneratedSprite("FenceVertical") ?? LoadSprite("FenceVertical");
+            buildPlacement.woodenWallPreviewSprite = LoadGeneratedSprite("WoodenWall") ?? LoadSprite("WoodenWall");
+            buildPlacement.woodenGatePreviewSprite = LoadGeneratedSprite("WoodenGateClosed");
+            buildPlacement.woodenGateOpenSprite = LoadGeneratedSprite("WoodenGateOpen");
             buildPlacement.ballistaTile = LoadTile("Ballista");
-            buildPlacement.horizontalFenceTile = LoadTile("FenceHorizontal");
-            buildPlacement.verticalFenceTile = LoadTile("FenceVertical");
+            buildPlacement.woodenWallTile = LoadTile("WoodenWall");
+            buildPlacement.woodenGateTile = LoadTile("WoodenGateClosed");
         }
 
         static Vector3 CellToWorld(TileGrid grid, Vector2Int cell)
@@ -1192,7 +850,7 @@ namespace AreaSurvivors.Editor
 
             manager.xpBar = HudSlider(canvas.transform, new Vector2(0, 338), new Vector2(560, 10), new Color(0.25f, 0.55f, 1f, 0.9f));
             manager.timerText = HudText(canvas.transform, "00:00", 22, new Vector2(-86, 304), new Vector2(140, 30));
-            manager.killText = HudText(canvas.transform, "撃破 0", 22, new Vector2(92, 304), new Vector2(160, 30));
+            manager.killText = HudText(canvas.transform, "\u6483\u7834 0", 22, new Vector2(92, 304), new Vector2(160, 30));
             manager.levelText = HudText(canvas.transform, "Lv 1", 20, new Vector2(-548, 334), new Vector2(92, 26));
             CreateEditableHudWidgets(canvas.transform, buildPlacement);
 
@@ -1202,7 +860,7 @@ namespace AreaSurvivors.Editor
             image.color = new Color(0.06f, 0.07f, 0.08f, 0.92f);
             image.rectTransform.sizeDelta = new Vector2(560, 310);
             SimpleUi.Panel(panel.transform, "Level Up Frame", Vector2.zero, new Vector2(560, 310), new Color(0.06f, 0.07f, 0.08f, 0.16f));
-            SimpleUi.Label(panel.transform, "レベルアップ", 32, new Vector2(0, 105), new Vector2(420, 56));
+            SimpleUi.Label(panel.transform, "\u30ec\u30d9\u30eb\u30a2\u30c3\u30d7", 32, new Vector2(0, 105), new Vector2(420, 56));
             manager.upgradeButtons = new Button[3];
             for (int i = 0; i < 3; i++)
             {
@@ -1221,9 +879,9 @@ namespace AreaSurvivors.Editor
 
             var construction = HudPanel(canvas, "Construction Menu", new Vector2(16, 16), new Vector2(276, 96), Vector2.zero, Vector2.zero, new Color(0.035f, 0.05f, 0.045f, 0.72f));
             CreateEditableBuildSlot(construction, "Build Slot 1", "1", LoadGeneratedSprite("Ballista"), new Vector2(42, 48), new Vector2(46, 44));
-            CreateEditableBuildSlot(construction, "Build Slot 2", "2", LoadGeneratedSprite("FenceHorizontal"), new Vector2(112, 48), new Vector2(46, 44));
-            CreateEditableBuildSlot(construction, "Build Slot 3", "3", LoadGeneratedSprite("FenceVertical"), new Vector2(182, 48), new Vector2(30, 48));
-            var status = HudText(construction, "1 バリスタ x4", 14, new Vector2(238, 48), new Vector2(64, 58));
+            CreateEditableBuildSlot(construction, "Build Slot 2", "2", LoadGeneratedSprite("WoodenWall"), new Vector2(112, 48), new Vector2(46, 44));
+            CreateEditableBuildSlot(construction, "Build Slot 3", "3", LoadGeneratedSprite("WoodenGateClosed"), new Vector2(182, 48), new Vector2(46, 44));
+            var status = HudText(construction, "1 \u30d0\u30ea\u30b9\u30bf x4", 14, new Vector2(238, 48), new Vector2(64, 58));
             status.name = "Build Status";
             if (buildPlacement != null) buildPlacement.buildText = status;
 
@@ -1311,7 +969,7 @@ namespace AreaSurvivors.Editor
             foreach (var label in labels)
             {
                 if (label == null || label.name == "Build Status") continue;
-                if (label.text.Contains("Ballista") || label.text.Contains("バリスタ"))
+                if (label.text.Contains("Ballista") || label.text.Contains("\u30d0\u30ea\u30b9\u30bf"))
                 {
                     Object.DestroyImmediate(label.gameObject);
                 }
@@ -1363,11 +1021,8 @@ namespace AreaSurvivors.Editor
         static void CreateSprites()
         {
             ImportGeneratedSprites();
-            ConfigureSpriteImporter($"{Sprites}/FenceTwentyHorizontal.png", 128);
-            ConfigureSpriteImporter($"{Sprites}/FenceTwentyVertical.png", 128);
             CreatePaintTileSprite();
             Pixel("Tile", 16, 16, new[] { "................", "..,,,,,,,,,,,,..", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", ".,,,,,,,,,,,,,,.", "..,,,,,,,,,,,,..", "................" }, Palette());
-            Pixel("Shadow", 16, 8, new[] { "................", "....ssssssss....", "..ssssssssssss..", ".ssssssssssssss.", ".ssssssssssssss.", "..ssssssssssss..", "....ssssssss....", "................" }, Palette());
             Pixel("Knight", 16, 16, new[] { "......HHHH......", ".....HhhhhH.....", ".....HhhhhH.....", "......BBBB......", ".....BbbbbB.....", "....BbbbbbbB....", "...SBBBBBBBB....", "..SS..BBBB......", ".SS...B..B......", "......B..B......", ".....FF..FF.....", "....FF....FF....", "................", "................", "................", "................" }, Palette());
             Pixel("Knight", 16, 16, new[] { "......HHHH......", ".....HhhhhH.....", ".....HhhhhH.....", "......BBBB......", ".....BbbbbB.....", "....BbbbbbbB....", "...SBBBBBBBB....", "..SS..BBBB......", ".SS...B..B......", "......B..B......", ".....FF..FF.....", "....FF....FF....", "................", "................", "................", "................" }, Palette(), ResourcesPath + "/Knight.png");
             Pixel("Archer", 16, 16, new[] { "......HHHH......", ".....HhhhhH.....", ".....HhhhhH.....", "......GGGG......", ".....GggggG.....", "....GggggggG....", "...yGggggggG....", "..yy..GGGG......", ".yy...G..G......", "......G..G......", ".....FF..FF.....", "....FF....FF....", "................", "................", "................", "................" }, Palette(), ResourcesPath + "/Archer.png");
@@ -1375,25 +1030,11 @@ namespace AreaSurvivors.Editor
             Pixel("EnemyBoar", 16, 16, new[] { "................", "................", "....rrrrrr......", "...rRRRRRRr.....", "..rRRRrrRRRr....", ".rRRRoRRoRRr....", ".rRRRRRRRRRr....", "..rRRRRRRRr.....", "...tt....tt.....", "..tt......tt....", "................", "................", "................", "................", "................", "................" }, Palette());
             Pixel("Tower", 24, 24, new[] { ".........CCCCCC.........", "........CccccccC........", "........CccccccC........", ".......CccccccccC.......", ".......CccWWWWccC.......", ".......CccW..WccC.......", ".......CccWWWWccC.......", ".......CccccccccC.......", ".......CccccccccC.......", "......CccccccccccC......", "......CccccccccccC......", "......CcccWWWWcccC......", "......CcccW..WcccC......", "......CcccWWWWcccC......", ".....CccccccccccccC.....", ".....CccccccccccccC.....", "....CccccccccccccccC....", "....CccccccccccccccC....", "...CccccccccccccccccC...", "...CCCCCCCCCCCCCCCCCC...", "....BBBBBBBBBBBBBBBB....", "....BBBBBBBBBBBBBBBB....", ".........................", "........................." }, Palette());
             Pixel("Ballista", 24, 24, new[] { "........................", "........................", "..........kkkk..........", ".........kKKKKk.........", "........kKKKKKKk........", ".......kkKyyyyKkk.......", "......kk..yyyy..kk......", ".....kk....yy....kk.....", "....kk.....yy.....kk....", "...kk......yy......kk...", ".........CCCCCC.........", "........CccccccC........", ".......CccccccccC.......", ".......CCcWWcCC........", ".........cWWc..........", ".........cWWc..........", "........ccWWcc.........", ".......ccWWWWcc........", "......ccWWWWWWcc.......", "......CCCCCCCCCC.......", ".......BBBBBBBB........", ".......BbbbbbbB........", "........................", "........................" }, Palette());
-            Pixel("Tower3DFront", 24, 28, new[] { "........................", ".........CCCCCC.........", "........CccccccC........", ".......CccccccccC.......", "......CccWWWWccC........", "......CccW..WccC........", "......CccWWWWccC........", "......CccccccccC........", ".....CccccccccccC.......", ".....CccccccccccC.......", ".....CccWWWWcccC........", ".....CccW..WcccC........", ".....CccWWWWcccC........", "....CccccccccccccC......", "....CccccccccccccC......", "...CccccccccccccccC.....", "...CccccccccccccccC.....", "..CccccccccccccccccC....", "..CCCCCCCCCCCCCCCCCC....", "...BBBBBBBBBBBBBBBB.....", "...BbbbbbbbbbbbbbbB.....", "....BbbbbbbbbbbbbB......", "........................", "........................", "........................", "........................", "........................", "........................" }, Palette());
-            Pixel("Ballista3DFront", 28, 24, new[] { "............................", "............................", "...........kkkkkk...........", ".........kkKKKKKKkk.........", ".......kkKKyyyyKKkk.........", ".....kkKK..yyyy..KKkk.......", "...kkKK....yyyy....KKkk.....", "..kkK......yyyy......Kkk....", "...........yyyy.............", ".........CCCCCCCC...........", "........CccccccccC..........", ".......CCcWWWWcCC..........", ".........cWWWWc............", ".........cWWWWc............", "........ccWWWWcc...........", ".......ccWWWWWWcc..........", "......CCCCCCCCCCCC.........", "......BbbbbbbbbbbB.........", ".......Bbbbbbbbbb..........", "............................", "............................", "............................", "............................", "............................" }, Palette());
             Pixel("Hammer", 16, 16, new[] { "................", "....kkkkkk......", "...kKKKKKKk.....", "....kkkkkk......", "......WW........", ".....WW.........", ".....WW.........", "....WW..........", "....WW..........", "...WW...........", "...WW...........", "..WW............", "................", "................", "................", "................" }, Palette());
             Pixel("Arrow", 12, 4, new[] { "....yyyyYYYY", "yyyyYYYY>>>>", "yyyyYYYY>>>>", "....yyyyYYYY" }, Palette());
             Pixel("Fireball", 12, 12, new[] { "....oooo....", "...oOOOOo...", "..oOOYYOOo..", ".oOOYYYYOOo.", ".oOYYYYYYOo.", ".oOYYYYYYOo.", ".oOOYYYYOOo.", "..oOOYYOOo..", "...oOOOOo...", "....oooo....", "............", "............" }, Palette());
             Pixel("Orb", 8, 8, new[] { "..AAAA..", ".AaaaaA.", "AaaWWaaA", "AaaWWaaA", ".AaaaaA.", "..AAAA..", "........", "........" }, Palette());
             Pixel("Sparkle", 16, 16, new[] { "................", ".......Y........", ".......Y........", "......YYY.......", ".......Y........", "...Y...Y...Y....", "....YYYYYYY.....", "...YYYYYYYYY....", "....YYYYYYY.....", "...Y...Y...Y....", ".......Y........", "......YYY.......", ".......Y........", ".......Y........", "................", "................" }, Palette());
-            Pixel("FenceHorizontal", 32, 8, new[] { "................................", "..WWWWWWWWWWWWWWWWWWWWWWWWWW..", ".WccccWccccWccccWccccWccccWcW.", ".WbbbbWbbbbWbbbbWbbbbWbbbbWbW.", ".WccccWccccWccccWccccWccccWcW.", "..WWWWWWWWWWWWWWWWWWWWWWWWWW..", "................................", "................................" }, Palette());
-            Pixel("FenceVertical", 8, 32, new[] { "........", "..WWWW..", ".WcccbW.", ".WcccbW.", ".WbbbbW.", ".WcccbW.", ".WcccbW.", "..WWWW..", "..WWWW..", ".WcccbW.", ".WcccbW.", ".WbbbbW.", ".WcccbW.", ".WcccbW.", "..WWWW..", "..WWWW..", ".WcccbW.", ".WcccbW.", ".WbbbbW.", ".WcccbW.", ".WcccbW.", "..WWWW..", "..WWWW..", ".WcccbW.", ".WcccbW.", ".WbbbbW.", ".WcccbW.", ".WcccbW.", "..WWWW..", "........", "........", "........" }, Palette());
-            Pixel("Knight", 16, 16, new[] { "......HHHH......", ".....HhhhhH.....", ".....HhhhhH.....", "......BBBB......", ".....BbbbbB.....", "....BbbbbbbB....", "...SBBBBBBBB....", "..SS..BBBB......", ".SS...B..B......", "......B..B......", ".....FF..FF.....", "....FF....FF....", "................", "................", "................", "................" }, Palette(), ResourcesPath + "/Generated/Knight.png");
-            Pixel("Archer", 16, 16, new[] { "......HHHH......", ".....HhhhhH.....", ".....HhhhhH.....", "......GGGG......", ".....GggggG.....", "....GggggggG....", "...yGggggggG....", "..yy..GGGG......", ".yy...G..G......", "......G..G......", ".....FF..FF.....", "....FF....FF....", "................", "................", "................", "................" }, Palette(), ResourcesPath + "/Generated/Archer.png");
-            Pixel("Mage", 16, 16, new[] { "......AAAA......", ".....AaaaaA.....", "....AaaaaaaA....", "......hhhh......", ".....OooooO.....", "....OooooooO....", "...YOOOOOOOO....", "..YY..OOOO......", ".YY...O..O......", "......O..O......", ".....FF..FF.....", "....FF....FF....", "................", "................", "................", "................" }, Palette(), ResourcesPath + "/Generated/Mage.png");
-            Pixel("Tower", 24, 24, new[] { ".........CCCCCC.........", "........CccccccC........", "........CccccccC........", ".......CccccccccC.......", ".......CccWWWWccC.......", ".......CccW..WccC.......", ".......CccWWWWccC.......", ".......CccccccccC.......", ".......CccccccccC.......", "......CccccccccccC......", "......CccccccccccC......", "......CcccWWWWcccC......", "......CcccW..WcccC......", "......CcccWWWWcccC......", ".....CccccccccccccC.....", ".....CccccccccccccC.....", "....CccccccccccccccC....", "....CccccccccccccccC....", "...CccccccccccccccccC...", "...CCCCCCCCCCCCCCCCCC...", "....BBBBBBBBBBBBBBBB....", "....BBBBBBBBBBBBBBBB....", ".........................", "........................." }, Palette(), ResourcesPath + "/Generated/Tower.png");
-            Pixel("Arrow", 12, 4, new[] { "....yyyyYYYY", "yyyyYYYY>>>>", "yyyyYYYY>>>>", "....yyyyYYYY" }, Palette(), ResourcesPath + "/Generated/Arrow.png");
-            Pixel("Orb", 8, 8, new[] { "..AAAA..", ".AaaaaA.", "AaaWWaaA", "AaaWWaaA", ".AaaaaA.", "..AAAA..", "........", "........" }, Palette(), ResourcesPath + "/Generated/Orb.png");
-            Pixel("Sparkle", 16, 16, new[] { "................", ".......Y........", ".......Y........", "......YYY.......", ".......Y........", "...Y...Y...Y....", "....YYYYYYY.....", "...YYYYYYYYY....", "....YYYYYYY.....", "...Y...Y...Y....", ".......Y........", "......YYY.......", ".......Y........", ".......Y........", "................", "................" }, Palette(), ResourcesPath + "/Generated/Sparkle.png");
-            Pixel("Slash_0", 18, 12, new[] { ".............YY...", "..........YYYYY...", ".......YYYYYY.....", ".....YYYYY........", "...YYYY...........", "..YYY.............", ".YY...............", "..................", "..................", "..................", "..................", ".................." }, Palette(), ResourcesPath + "/Generated/Slash_0.png");
-            Pixel("Slash_1", 18, 12, new[] { "...............Y..", "............YYYY..", ".........YYYYYY...", "......YYYYYY......", "....YYYYY.........", "..YYYY............", ".YY...............", "..................", "..................", "..................", "..................", ".................." }, Palette(), ResourcesPath + "/Generated/Slash_1.png");
-            Pixel("Slash_2", 18, 12, new[] { "..................", "...............Y..", "............YYYY..", ".........YYYYY....", "......YYYYY.......", "...YYYYY..........", ".YYY..............", ".Y................", "..................", "..................", "..................", ".................." }, Palette(), ResourcesPath + "/Generated/Slash_2.png");
             Pixel("Slash", 18, 12, new[] { ".............YY...", "..........YYYYY...", ".......YYYYYY.....", ".....YYYYY........", "...YYYY...........", "..YYY.............", ".YY...............", "..................", "..................", "..................", "..................", ".................." }, Palette(), ResourcesPath + "/Slash.png");
         }
 
@@ -1545,8 +1186,6 @@ namespace AreaSurvivors.Editor
         {
             if (assetPath.EndsWith("/Arrow.png")) return 256;
             if (assetPath.EndsWith("/Fireball.png")) return 96;
-            if (assetPath.EndsWith("/FenceHorizontal.png")) return 256;
-            if (assetPath.EndsWith("/FenceVertical.png")) return 256;
             if (assetPath.Contains("/Walk/")) return 256;
             if (assetPath.Contains("/Slash_")) return 256;
             return 128;
@@ -1576,7 +1215,7 @@ namespace AreaSurvivors.Editor
 
         static Sprite LoadWalkFrame(string character, string direction, int index)
         {
-            return AssetDatabase.LoadAssetAtPath<Sprite>($"{ResourcesPath}/Generated/Walk/{character}/{direction}_{index}.png");
+            return AssetDatabase.LoadAssetAtPath<Sprite>($"{GeneratedSprites}/Walk/{character}/{direction}_{index}.png");
         }
 
         static void ConfigureSpriteImporter(string assetPath, float pixelsPerUnit)
@@ -1587,14 +1226,6 @@ namespace AreaSurvivors.Editor
             importer.textureType = TextureImporterType.Sprite;
             importer.spriteImportMode = SpriteImportMode.Single;
             importer.spritePixelsPerUnit = pixelsPerUnit;
-            if (assetPath.EndsWith("/FenceHorizontal.png"))
-            {
-                importer.spritePivot = new Vector2(0.5f, 0f);
-            }
-            else if (assetPath.EndsWith("/FenceVertical.png"))
-            {
-                importer.spritePivot = new Vector2(0.5f, 0f);
-            }
             importer.filterMode = FilterMode.Point;
             importer.mipmapEnabled = false;
             importer.alphaIsTransparency = true;
@@ -1656,8 +1287,8 @@ namespace AreaSurvivors.Editor
             public GameObject arrow;
             public GameObject fireball;
             public GameObject ballista;
-            public GameObject horizontalFence;
-            public GameObject verticalFence;
+            public GameObject woodenWall;
+            public GameObject woodenGate;
             public GameObject damagePopup;
         }
 

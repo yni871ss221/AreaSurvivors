@@ -111,18 +111,39 @@ namespace AreaSurvivors
             if (renderer == null || renderer == sourceRenderer ||
                 renderer.transform.IsChildOf(transform) || !renderer.enabled) return false;
 
+            if (!IsOccluderInFrontOfCharacter(renderer, transform.position.y, sourceOrder)) return false;
+
+            return sourceScreenRect.Overlaps(ScreenRect(renderer.bounds));
+        }
+
+        public static bool IsOccluderInFrontOfCharacter(Renderer renderer, float characterY, int sourceOrder)
+        {
+            if (renderer == null) return false;
+
             var sort = renderer.GetComponentInParent<YSort>();
             if (sort != null)
             {
-                bool inFrontByPivot = sort.transform.position.y + sort.sortPivotOffsetY < transform.position.y - 0.02f;
-                if (!inFrontByPivot) return false;
-            }
-            else if (renderer.sortingOrder <= sourceOrder)
-            {
-                return false;
+                return ComputeOccluderFrontY(renderer) < characterY - 0.02f;
             }
 
-            return sourceScreenRect.Overlaps(ScreenRect(renderer.bounds));
+            return renderer.sortingOrder > sourceOrder;
+        }
+
+        public static float ComputeOccluderFrontY(Renderer renderer)
+        {
+            if (renderer == null) return float.PositiveInfinity;
+
+            var gridVisual = renderer.GetComponentInParent<GridObjectVisual>();
+            if (gridVisual != null && gridVisual.kind == GridObjectVisualKind.FootprintObject)
+            {
+                // Grid objects are positioned at their footprint bottom-center. Occlusion should
+                // use that physical front edge, while YSort.sortPivotOffsetY remains render-order only.
+                return gridVisual.transform.position.y;
+            }
+
+            var sort = renderer.GetComponentInParent<YSort>();
+            if (sort != null) return sort.transform.position.y + sort.sortPivotOffsetY;
+            return float.PositiveInfinity;
         }
 
         Rect ScreenRect(Bounds bounds)

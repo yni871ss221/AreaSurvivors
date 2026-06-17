@@ -51,10 +51,10 @@ namespace AreaSurvivors
 
         static Sprite LoadSprite()
         {
-            var sprite = Resources.Load<Sprite>("Generated/Token");
+            var sprite = GeneratedSpriteLoader.Load("Token");
             if (sprite != null) return sprite;
-            var texture = Resources.Load<Texture2D>("Generated/Token");
-            if (texture == null) return Resources.Load<Sprite>("Generated/ExperienceOrb");
+            var texture = GeneratedSpriteLoader.LoadTexture("Token");
+            if (texture == null) return GeneratedSpriteLoader.Load("ExperienceOrb");
             texture.filterMode = FilterMode.Point;
             texture.wrapMode = TextureWrapMode.Clamp;
             return Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 128f);

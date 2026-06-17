@@ -17,7 +17,7 @@ namespace AreaSurvivors
         Tower = 1,
         Ballista = 2,
         CarpenterHut = 3,
-        Fence = 4,
+        WoodenWall = 4,
         Tree = 5,
         Rock = 6,
         Pond = 7,
@@ -47,6 +47,10 @@ namespace AreaSurvivors
 
     public sealed class TileGrid : MonoBehaviour
     {
+        public const int DefaultChunkCells = 24;
+        public const int VerticalMapChunkColumns = 1;
+        public const int VerticalMapChunkRows = 11;
+
         public int width = 96;
         public int height = 136;
         public float cellSize = 0.7f;
@@ -96,6 +100,14 @@ namespace AreaSurvivors
         TileBase[] dirtDetailTiles;
         TileBase[] pathDetailTiles;
         readonly List<TileBase> generatedGroundTiles = new List<TileBase>();
+
+        public void ApplyVerticalMapLayout()
+        {
+            int chunkCells = Mathf.Max(1, groundChunkCells > 0 ? groundChunkCells : DefaultChunkCells);
+            groundChunkCells = chunkCells;
+            width = chunkCells * VerticalMapChunkColumns;
+            height = chunkCells * VerticalMapChunkRows;
+        }
 
         void Awake()
         {
@@ -169,7 +181,9 @@ namespace AreaSurvivors
                 return;
             }
 
-            var texture = Resources.Load<Texture2D>(groundChunkResourcePath);
+            var texture = GeneratedSpriteLoader.IsGeneratedPath(groundChunkResourcePath)
+                ? GeneratedSpriteLoader.LoadTexture(groundChunkResourcePath)
+                : Resources.Load<Texture2D>(groundChunkResourcePath);
             if (texture == null)
             {
                 if (groundRenderer != null) groundRenderer.enabled = true;
@@ -258,18 +272,15 @@ namespace AreaSurvivors
         {
             if (!useGroundVariants || HasTiles(grassDetailTiles) || HasTiles(dirtDetailTiles) || HasTiles(pathDetailTiles)) return;
 
-            var textures = Resources.LoadAll<Texture2D>("Generated/GroundVariants");
-            if (textures == null || textures.Length == 0) return;
+            var sprites = GeneratedSpriteLoader.LoadAll("GroundVariants");
+            if (sprites == null || sprites.Length == 0) return;
 
             var grass = new List<TileBase>();
             var dirt = new List<TileBase>();
             var paths = new List<TileBase>();
-            foreach (var texture in textures)
+            foreach (var sprite in sprites)
             {
-                if (texture == null || texture.name.Contains("Preview")) continue;
-                var sprite = Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 128f);
-                sprite.name = texture.name;
-                sprite.hideFlags = HideFlags.HideAndDontSave;
+                if (sprite == null || sprite.name.Contains("Preview")) continue;
                 var tile = ScriptableObject.CreateInstance<Tile>();
                 tile.name = "Ground Variant " + sprite.name;
                 tile.sprite = sprite;

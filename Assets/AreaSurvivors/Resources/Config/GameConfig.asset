@@ -46,8 +46,8 @@ MonoBehaviour:
   ballistaCooldown: 1.15
   ballistaDamage: 5
   ballistaMaxHp: 90
-  fenceBuildSeconds: 1.8
-  fenceMaxHp: 70
+  woodenWallBuildSeconds: 1.8
+  woodenWallMaxHp: 70
   carpenterHutBuildSeconds: 2.4
   carpenterHutMaxHp: 50
   carpenterHutAutoBuildSpeedMultiplier: 0.1
@@ -58,13 +58,15 @@ MonoBehaviour:
   watchTowerAutoPaintIntervalSeconds: 2
   watchTowerAutoPaintRadiusCells: 10
   startingBallistaStock: 4
-  startingFenceStock: 4
+  startingWallStock: 4
   startingWood: 100
   startingStone: 100
   startingWoodPerUpgradeLevel: 25
   startingStonePerUpgradeLevel: 25
-  fenceWoodCost: 10
-  fenceStoneCost: 0
+  woodenWallWoodCost: 10
+  woodenWallStoneCost: 0
+  woodenGateWoodCost: 20
+  woodenGateStoneCost: 0
   ballistaWoodCost: 50
   ballistaStoneCost: 30
   carpenterHutWoodCost: 30

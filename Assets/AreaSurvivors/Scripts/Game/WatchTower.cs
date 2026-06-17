@@ -29,6 +29,7 @@ namespace AreaSurvivors
         Health health;
         GridObjectMarker marker;
         GridObjectVisual gridVisual;
+        BuildingPrefabVisualSet prefabVisualSet;
         float buildProgress;
         float assistedBuildTimer;
         float visualHeight = 1f;
@@ -39,6 +40,7 @@ namespace AreaSurvivors
         Transform activeBuilder;
         bool completed;
         bool spriteVisualsPrepared;
+        bool usingPrefabLayout;
         bool breaking;
         bool hasRegisteredCell;
         Vector3Int registeredCell;
@@ -57,9 +59,11 @@ namespace AreaSurvivors
             marker = GetComponent<GridObjectMarker>();
             EnsureGridObjectVisual();
             EnsureFootprintColliders();
+            UsePrefabVisualSetIfAvailable();
             health.Died += _ => Break();
             EnsureSpriteVisuals();
             ConfigureHammerVisual();
+            EnsureUpgradeTarget();
         }
 
         public void RegisterBuildPlacement(TileGrid tileGrid, Vector3Int originCell)
@@ -69,6 +73,25 @@ namespace AreaSurvivors
             hasRegisteredCell = true;
             EnsureGridObjectVisual();
             EnsureFootprintColliders();
+        }
+
+        public void ApplyBuildingUpgrade(Sprite upgradedSprite, int hpBonus, int paintRadiusBonus)
+        {
+            if (upgradedSprite != null) towerSprite = upgradedSprite;
+            maxHp += Mathf.Max(0, hpBonus);
+            autoPaintRadiusCells += Mathf.Max(0, paintRadiusBonus);
+            if (health != null) health.SetMax(maxHp);
+            spriteVisualsPrepared = false;
+            EnsureSpriteVisuals();
+            ConfigureHammerVisual();
+            CacheVisualScales();
+            ApplyVisuals();
+        }
+
+        public void SetCompletedVisualVisible(bool visible)
+        {
+            if (completeRenderer != null) completeRenderer.visible = completed && visible;
+            SetActive(completeObject, completed && visible);
         }
 
         void Start()
@@ -83,12 +106,7 @@ namespace AreaSurvivors
             EnsureSpriteVisuals();
             ConfigureHammerVisual();
 
-            if (completeRenderer != null && completeRenderer.sprite != null)
-            {
-                completeVisualScale = completeRenderer.transform.localScale;
-                visualHeight = completeRenderer.sprite.bounds.size.y * completeVisualScale.y;
-            }
-            if (buildRenderer != null) buildVisualScale = buildRenderer.transform.localScale;
+            CacheVisualScales();
             ApplyVisuals();
         }
 
@@ -216,11 +234,25 @@ namespace AreaSurvivors
         void EnsureSpriteVisuals()
         {
             if (towerSprite == null || spriteVisualsPrepared) return;
+            UsePrefabVisualSetIfAvailable();
+            if (usingPrefabLayout && prefabVisualSet != null && prefabVisualSet.HasBaseVisuals)
+            {
+                prefabVisualSet.ApplySpriteToBase(towerSprite);
+                ConfigureSpriteVisual(ghostRenderer, new Color(1f, 1f, 1f, 0.34f));
+                ConfigureSpriteVisual(buildRenderer, Color.white);
+                ConfigureSpriteVisual(completeRenderer, Color.white);
+                ghostObject = ghostRenderer.gameObject;
+                buildObject = buildRenderer.gameObject;
+                completeObject = completeRenderer.gameObject;
+                RefreshSortRenderers();
+                spriteVisualsPrepared = true;
+                return;
+            }
             if (ghostRenderer == null) ghostRenderer = CreateSpriteVisual("Ghost Image", new Color(1f, 1f, 1f, 0.34f), 1000);
             if (buildRenderer == null) buildRenderer = CreateSpriteVisual("Build Fill Image", Color.white, 1001);
             if (completeRenderer == null) completeRenderer = CreateSpriteVisual("Complete Image", Color.white, 1002);
-            if (hammerRenderer == null) hammerRenderer = CreateOverlayVisual("Hammer", Resources.Load<Sprite>("Generated/Hammer"), 22020);
-            if (sparkleRenderer == null) sparkleRenderer = CreateOverlayVisual("Completion Sparkle", Resources.Load<Sprite>("Generated/Sparkle"), 22030);
+            if (hammerRenderer == null) hammerRenderer = CreateOverlayVisual("Hammer", GeneratedSpriteLoader.Load("Hammer"), 22020);
+            if (sparkleRenderer == null) sparkleRenderer = CreateOverlayVisual("Completion Sparkle", GeneratedSpriteLoader.Load("Sparkle"), 22030);
             ConfigureSpriteVisual(ghostRenderer, new Color(1f, 1f, 1f, 0.34f));
             ConfigureSpriteVisual(buildRenderer, Color.white);
             ConfigureSpriteVisual(completeRenderer, Color.white);
@@ -231,11 +263,18 @@ namespace AreaSurvivors
             spriteVisualsPrepared = true;
         }
 
+        void EnsureUpgradeTarget()
+        {
+            var target = GetComponent<BuildingUpgradeTarget>();
+            if (target == null) target = gameObject.AddComponent<BuildingUpgradeTarget>();
+            target.Configure(BuildingUpgradeKind.WatchTower, 20, 50, "WatchTowerUpgrade", null, 100, 0, 5);
+        }
+
         PaperMeshVisual CreateSpriteVisual(string objectName, Color color, int sortingOrder)
         {
             var go = new GameObject(objectName);
             go.transform.SetParent(transform, false);
-            go.AddComponent<PaperBillboard>();
+            go.AddComponent<PaperBillboard>().faceCamera = false;
             var visual = go.AddComponent<PaperMeshVisual>();
             visual.Configure(towerSprite, color, sortingOrder);
             ConfigureSpriteVisual(visual, color);
@@ -256,14 +295,27 @@ namespace AreaSurvivors
         void ConfigureSpriteVisual(PaperMeshVisual visual, Color color)
         {
             if (visual == null || towerSprite == null) return;
-            visual.useBottomCenterAnchor = true;
             visual.sprite = towerSprite;
             visual.color = color;
             if (visual.GetComponent<OcclusionMaskSource>() == null) visual.gameObject.AddComponent<OcclusionMaskSource>();
             ConfigureOutline(visual.gameObject);
             EnsureGridObjectVisual();
-            gridVisual.ApplyToVisual(visual, towerSprite, spriteVisualSize);
+            if (!usingPrefabLayout)
+            {
+                visual.useBottomCenterAnchor = true;
+                gridVisual.ApplyFootprintWidthPreserveAspect(visual, towerSprite);
+            }
             visual.visible = false;
+        }
+
+        void CacheVisualScales()
+        {
+            if (completeRenderer != null && completeRenderer.sprite != null)
+            {
+                completeVisualScale = completeRenderer.transform.localScale;
+                visualHeight = completeRenderer.sprite.bounds.size.y * completeVisualScale.y;
+            }
+            if (buildRenderer != null) buildVisualScale = buildRenderer.transform.localScale;
         }
 
         void EnsureGridObjectVisual()
@@ -303,7 +355,7 @@ namespace AreaSurvivors
         void ConfigureHammerVisual()
         {
             if (hammerRenderer == null) return;
-            var hammer = Resources.Load<Sprite>("Generated/Hammer");
+            var hammer = GeneratedSpriteLoader.Load("Hammer");
             if (hammer != null) hammerRenderer.sprite = hammer;
             hammerRenderer.order = 22020;
             ApplyToolVisualScale(hammerRenderer.transform);
@@ -335,10 +387,14 @@ namespace AreaSurvivors
             if (buildRenderer != null)
             {
                 buildRenderer.visible = !completed && buildProgress > 0f;
-                buildRenderer.transform.localScale = new Vector3(buildVisualScale.x, buildVisualScale.y * Mathf.Max(0.02f, buildProgress), buildVisualScale.z);
-                buildRenderer.transform.localPosition = gridVisual != null ? gridVisual.visualOffset : spriteVisualOffset;
+                buildRenderer.transform.localScale = usingPrefabLayout
+                    ? buildVisualScale
+                    : buildVisualScale;
+                buildRenderer.SetVerticalFill(buildProgress);
+                if (!usingPrefabLayout) buildRenderer.transform.localPosition = gridVisual != null ? gridVisual.visualOffset : spriteVisualOffset;
             }
             if (completeRenderer != null) completeRenderer.visible = completed;
+            if (completeRenderer != null) completeRenderer.SetVerticalFill(1f);
             SetActive(completeObject, completed);
             if (sparkleRenderer != null && !completed) sparkleRenderer.visible = false;
             if (buildGauge != null)
@@ -355,7 +411,10 @@ namespace AreaSurvivors
             float swing = Mathf.Sin(Time.time * 16f);
             hammerRenderer.transform.localRotation = Quaternion.Euler(0f, 0f, -35f + swing * 32f);
             var offset = gridVisual != null ? gridVisual.visualOffset : spriteVisualOffset;
-            hammerRenderer.transform.localPosition = offset + new Vector3(0.18f, spriteVisualSize.y * 0.5f + 0.42f + Mathf.Abs(swing) * 0.08f, 0f);
+            if (!usingPrefabLayout)
+            {
+                hammerRenderer.transform.localPosition = offset + new Vector3(0.18f, spriteVisualSize.y * 0.5f + 0.42f + Mathf.Abs(swing) * 0.08f, 0f);
+            }
             ApplyToolVisualScale(hammerRenderer.transform);
         }
 
@@ -408,6 +467,18 @@ namespace AreaSurvivors
                 ToolVisualScale.x / Mathf.Max(0.001f, Mathf.Abs(parentScale.x)),
                 ToolVisualScale.y / Mathf.Max(0.001f, Mathf.Abs(parentScale.y)),
                 ToolVisualScale.z);
+        }
+
+        void UsePrefabVisualSetIfAvailable()
+        {
+            if (prefabVisualSet == null) prefabVisualSet = GetComponent<BuildingPrefabVisualSet>();
+            usingPrefabLayout = prefabVisualSet != null && prefabVisualSet.usePrefabLayout && prefabVisualSet.HasBaseVisuals;
+            if (!usingPrefabLayout) return;
+            ghostRenderer = prefabVisualSet.ghostVisual;
+            buildRenderer = prefabVisualSet.buildFillVisual;
+            completeRenderer = prefabVisualSet.completeVisual;
+            if (prefabVisualSet.hammerVisual != null) hammerRenderer = prefabVisualSet.hammerVisual;
+            if (prefabVisualSet.sparkleVisual != null) sparkleRenderer = prefabVisualSet.sparkleVisual;
         }
     }
 }

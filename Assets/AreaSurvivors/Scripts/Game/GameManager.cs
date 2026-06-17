@@ -69,7 +69,9 @@ namespace AreaSurvivors
             Stone = Mathf.Max(0, config.startingStone + ProgressionStore.GetLevel(UpgradeType.StartingStone) * config.startingStonePerUpgradeLevel);
             if (grid != null)
             {
+                grid.ApplyVerticalMapLayout();
                 grid.Build();
+                RebuildMapPerimeter();
             }
 
             Tower = sceneTower != null ? sceneTower : FindObjectOfType<TowerController>();
@@ -83,7 +85,6 @@ namespace AreaSurvivors
             var towerMarker = Tower.GetComponent<GridObjectMarker>();
             var towerOriginCell = grid.GridToCell(grid.width / 2, grid.height / 2);
             Tower.AlignToGridFootprint(grid, towerOriginCell);
-            RemoveGroundShadows();
             Tower.Configure(config.towerMaxHp + ProgressionStore.GetLevel(UpgradeType.TowerMaxHp) * config.towerMaxHpPerUpgradeLevel);
             ConfigureTowerRegeneration();
             ConfigureTowerCannon();
@@ -108,16 +109,12 @@ namespace AreaSurvivors
             UpdateHud();
         }
 
-        static void RemoveGroundShadows()
+        void RebuildMapPerimeter()
         {
-            var transforms = FindObjectsOfType<Transform>(true);
-            foreach (var target in transforms)
-            {
-                if (target != null && target.name == "Ground Shadow")
-                {
-                    Destroy(target.gameObject);
-                }
-            }
+            var perimeter = FindObjectOfType<MapPerimeterController>();
+            if (perimeter == null || grid == null) return;
+            perimeter.grid = grid;
+            perimeter.Rebuild();
         }
 
         void ConfigureTowerRegeneration()
@@ -667,7 +664,7 @@ namespace AreaSurvivors
             player = owner != null ? owner.Player : null;
             towerController = tower;
             towerHealth = tower != null ? tower.GetComponent<Health>() : null;
-            towerIconSprite = Resources.Load<Sprite>("Generated/Tower") ?? CreateTowerSpriteFromRenderer(tower);
+            towerIconSprite = CreateTowerSpriteFromRenderer(tower) ?? GeneratedSpriteLoader.Load("Tower");
             if (towerHealth != null) towerHealth.Damaged += OnTowerDamaged;
             if (towerController != null) towerController.Upgraded += OnTowerUpgraded;
 
@@ -1015,9 +1012,9 @@ namespace AreaSurvivors
 
         static Sprite WeaponSprite(CharacterType type)
         {
-            if (type == CharacterType.Archer) return Resources.Load<Sprite>("Generated/Arrow") ?? Resources.Load<Sprite>("Arrow");
-            if (type == CharacterType.Mage) return Resources.Load<Sprite>("Generated/Fireball") ?? Resources.Load<Sprite>("Fireball");
-            return Resources.Load<Sprite>("Generated/Slash_0") ?? Resources.Load<Sprite>("Slash");
+            if (type == CharacterType.Archer) return GeneratedSpriteLoader.Load("Arrow") ?? Resources.Load<Sprite>("Arrow");
+            if (type == CharacterType.Mage) return GeneratedSpriteLoader.Load("Fireball") ?? Resources.Load<Sprite>("Fireball");
+            return GeneratedSpriteLoader.Load("Slash_0") ?? Resources.Load<Sprite>("Slash");
         }
 
         void BuildConstructionMenu(Transform parent)
@@ -1038,15 +1035,15 @@ namespace AreaSurvivors
             slotIcons = new Image[6];
             slotButtons = new Button[6];
             slotHighlights = new UiSelectionHighlight[6];
-            ConfigureBuildSlot(root, 0, "1", LoadHudSprite("FenceHorizontal", buildPlacement != null ? buildPlacement.horizontalFencePreviewSprite : null), slotPositions[0], () =>
+            ConfigureBuildSlot(root, 0, "1", LoadHudSprite("WoodenWall", buildPlacement != null ? buildPlacement.woodenWallPreviewSprite : null), slotPositions[0], () =>
             {
                 selectedSlot = 0;
-                buildPlacement?.SelectFence(false);
+                buildPlacement?.SelectWoodenWall();
             });
-            ConfigureBuildSlot(root, 1, "2", LoadHudSprite("FenceVertical", buildPlacement != null ? buildPlacement.verticalFencePreviewSprite : null), slotPositions[1], () =>
+            ConfigureBuildSlot(root, 1, "2", LoadHudSprite("WoodenGateClosed", buildPlacement != null ? buildPlacement.woodenGatePreviewSprite : null), slotPositions[1], () =>
             {
                 selectedSlot = 1;
-                buildPlacement?.SelectFence(true);
+                buildPlacement?.SelectWoodenGate();
             });
             ConfigureBuildSlot(root, 2, "3", LoadHudSprite("Ballista", buildPlacement != null ? buildPlacement.ballistaPreviewSprite : null), slotPositions[2], () =>
             {
@@ -1517,9 +1514,9 @@ namespace AreaSurvivors
         static Sprite LoadHudSprite(string name, Sprite fallback)
         {
             if (fallback != null) return fallback;
-            var sprite = Resources.Load<Sprite>("Generated/" + name);
+            var sprite = GeneratedSpriteLoader.Load(name);
             if (sprite != null) return sprite;
-            var texture = Resources.Load<Texture2D>("Generated/" + name);
+            var texture = GeneratedSpriteLoader.LoadTexture(name);
             if (texture != null)
             {
                 texture.filterMode = FilterMode.Point;

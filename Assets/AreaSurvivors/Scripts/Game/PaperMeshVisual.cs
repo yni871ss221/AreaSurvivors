@@ -9,6 +9,7 @@ namespace AreaSurvivors
         [SerializeField] Color tint = Color.white;
         [SerializeField] int sortingOrder;
         [SerializeField] bool anchorBottomCenter;
+        [SerializeField, Range(0f, 1f)] float verticalFill = 1f;
 
         MeshFilter meshFilter;
         MeshRenderer meshRenderer;
@@ -80,6 +81,16 @@ namespace AreaSurvivors
             }
         }
 
+        public float VerticalFill => verticalFill;
+
+        public void SetVerticalFill(float fill)
+        {
+            fill = Mathf.Clamp01(fill);
+            if (Mathf.Approximately(verticalFill, fill)) return;
+            verticalFill = fill;
+            ApplySprite();
+        }
+
         public void Configure(Sprite newSprite, Color newTint, int newSortingOrder)
         {
             sourceSprite = newSprite;
@@ -119,6 +130,9 @@ namespace AreaSurvivors
             float x1 = rect.xMax / texture.width;
             float y0 = rect.yMin / texture.height;
             float y1 = rect.yMax / texture.height;
+            float fill = Mathf.Clamp01(verticalFill);
+            float filledMaxY = Mathf.Lerp(min.y, max.y, fill);
+            float filledY1 = Mathf.Lerp(y0, y1, fill);
 
             var mesh = new Mesh
             {
@@ -129,15 +143,15 @@ namespace AreaSurvivors
             {
                 new Vector3(min.x, min.y, 0f),
                 new Vector3(max.x, min.y, 0f),
-                new Vector3(min.x, max.y, 0f),
-                new Vector3(max.x, max.y, 0f)
+                new Vector3(min.x, filledMaxY, 0f),
+                new Vector3(max.x, filledMaxY, 0f)
             };
             mesh.uv = new[]
             {
                 new Vector2(x0, y0),
                 new Vector2(x1, y0),
-                new Vector2(x0, y1),
-                new Vector2(x1, y1)
+                new Vector2(x0, filledY1),
+                new Vector2(x1, filledY1)
             };
             mesh.triangles = new[] { 0, 2, 1, 2, 3, 1 };
             mesh.RecalculateBounds();

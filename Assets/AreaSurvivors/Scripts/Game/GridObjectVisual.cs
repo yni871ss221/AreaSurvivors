@@ -61,6 +61,11 @@ namespace AreaSurvivors
 
         public void ApplyToVisual(PaperMeshVisual visual, Sprite sprite, Vector2 fallbackSize)
         {
+            ApplyToVisual(visual, sprite, fallbackSize, true);
+        }
+
+        public void ApplyToVisual(PaperMeshVisual visual, Sprite sprite, Vector2 fallbackSize, bool preserveAspect)
+        {
             if (visual == null || sprite == null) return;
             visual.useBottomCenterAnchor = true;
             if (resetVisualOffset) visual.transform.localPosition = visualOffset;
@@ -72,8 +77,23 @@ namespace AreaSurvivors
             float targetWidth = Mathf.Max(0.01f, FootprintWorldSize.x);
             float scale = targetWidth / bounds.x;
             float fallbackHeight = Mathf.Max(0.01f, fallbackSize.y);
-            float targetHeight = Mathf.Max(fallbackHeight, bounds.y * scale);
+            float targetHeight = preserveAspect ? Mathf.Max(fallbackHeight, bounds.y * scale) : fallbackHeight;
             visual.transform.localScale = new Vector3(scale, targetHeight / bounds.y, 1f);
+        }
+
+        public void ApplyFootprintWidthPreserveAspect(PaperMeshVisual visual, Sprite sprite)
+        {
+            if (visual == null || sprite == null) return;
+            visual.useBottomCenterAnchor = true;
+            if (resetVisualOffset) visual.transform.localPosition = visualOffset;
+            if (!fitVisualWidthToFootprint) return;
+
+            var bounds = sprite.bounds.size;
+            if (Mathf.Abs(bounds.x) <= 0.001f || Mathf.Abs(bounds.y) <= 0.001f) return;
+
+            float targetWidth = Mathf.Max(0.01f, FootprintWorldSize.x);
+            float scale = targetWidth / bounds.x;
+            visual.transform.localScale = new Vector3(scale, scale, 1f);
         }
 
         public BoxCollider2D ConfigureFootprintBox(BoxCollider2D collider, bool isTrigger)

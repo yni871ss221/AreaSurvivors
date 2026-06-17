@@ -32,7 +32,7 @@ namespace AreaSurvivors
 
             if (!string.IsNullOrEmpty(backgroundResource))
             {
-                var sprite = Resources.Load<Sprite>(backgroundResource);
+                var sprite = LoadSprite(backgroundResource);
                 if (sprite != null)
                 {
                     var image = new GameObject("Background").AddComponent<Image>();
@@ -164,7 +164,7 @@ namespace AreaSurvivors
 
         public static Sprite Sprite(string resource)
         {
-            return Resources.Load<Sprite>(resource);
+            return LoadSprite(resource);
         }
 
         static void CharacterCard(Transform parent, string title, string description, string spriteResource, CharacterType type, Vector2 pos)
@@ -185,7 +185,7 @@ namespace AreaSurvivors
 
         static void AddIcon(Transform parent, string resource, Vector2 pos, Vector2 size)
         {
-            var sprite = Resources.Load<Sprite>(resource);
+            var sprite = LoadSprite(resource);
             if (sprite == null) return;
             var image = new GameObject("Icon").AddComponent<Image>();
             image.transform.SetParent(parent, false);
@@ -193,6 +193,13 @@ namespace AreaSurvivors
             image.preserveAspect = true;
             image.rectTransform.anchoredPosition = pos;
             image.rectTransform.sizeDelta = size;
+        }
+
+        static Sprite LoadSprite(string resource)
+        {
+            return GeneratedSpriteLoader.IsGeneratedPath(resource)
+                ? GeneratedSpriteLoader.Load(resource)
+                : Resources.Load<Sprite>(resource);
         }
 
         static Image BarImage(Transform parent, string name, Color color, Vector2 anchorMin, Vector2 anchorMax)

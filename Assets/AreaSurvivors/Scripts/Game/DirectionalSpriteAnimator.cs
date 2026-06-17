@@ -129,7 +129,7 @@ namespace AreaSurvivors
             var frames = new Sprite[3];
             for (int i = 0; i < frames.Length; i++)
             {
-                frames[i] = Resources.Load<Sprite>($"Generated/Walk/{spriteKey}/{direction}_{i}");
+                frames[i] = GeneratedSpriteLoader.Load($"Walk/{spriteKey}/{direction}_{i}");
             }
             return frames;
         }

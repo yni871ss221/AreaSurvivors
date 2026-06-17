@@ -27,9 +27,9 @@ namespace AreaSurvivors
             if (frames != null) return;
             frames = new[]
             {
-                Resources.Load<Sprite>("Generated/Slash_0"),
-                Resources.Load<Sprite>("Generated/Slash_1"),
-                Resources.Load<Sprite>("Generated/Slash_2")
+                GeneratedSpriteLoader.Load("Slash_0"),
+                GeneratedSpriteLoader.Load("Slash_1"),
+                GeneratedSpriteLoader.Load("Slash_2")
             };
         }
 

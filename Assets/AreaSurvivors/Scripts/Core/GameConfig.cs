@@ -119,8 +119,8 @@ namespace AreaSurvivors
         public int upgradedTowerCannonDamageBonus = 10;
         public float upgradedTowerCannonExplosionRadiusMultiplier = 2f;
         public int upgradedTowerImmediatePaintRadiusCells = 15;
-        public float fenceBuildSeconds = 1.8f;
-        public int fenceMaxHp = 70;
+        public float woodenWallBuildSeconds = 1.8f;
+        public int woodenWallMaxHp = 70;
         public float carpenterHutBuildSeconds = 2.4f;
         public int carpenterHutMaxHp = 50;
         public float carpenterHutAutoBuildSpeedMultiplier = 0.1f;
@@ -131,15 +131,17 @@ namespace AreaSurvivors
         public float watchTowerAutoPaintIntervalSeconds = 2f;
         public int watchTowerAutoPaintRadiusCells = 10;
         public int startingBallistaStock = 4;
-        public int startingFenceStock = 4;
+        public int startingWallStock = 4;
 
         [Header("Resources")]
         public int startingWood = 100;
         public int startingStone = 100;
         public int startingWoodPerUpgradeLevel = 25;
         public int startingStonePerUpgradeLevel = 25;
-        public int fenceWoodCost = 10;
-        public int fenceStoneCost = 0;
+        public int woodenWallWoodCost = 10;
+        public int woodenWallStoneCost = 0;
+        public int woodenGateWoodCost = 20;
+        public int woodenGateStoneCost = 0;
         public int ballistaWoodCost = 50;
         public int ballistaStoneCost = 30;
         public int carpenterHutWoodCost = 30;

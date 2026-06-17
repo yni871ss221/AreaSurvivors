@@ -47,8 +47,8 @@ namespace AreaSurvivors.EditorTools
             menu.sizeDelta = new Vector2(Mathf.Max(menu.sizeDelta.x, 600f), Mathf.Max(menu.sizeDelta.y, 96f));
 
             var statusText = EnsureStatusPanel(menu);
-            ConfigureSlot(menu, 1, "FenceHorizontal", "1", "木10", new Vector2(46f, 44f), true);
-            ConfigureSlot(menu, 2, "FenceVertical", "2", "木10", new Vector2(30f, 48f), true);
+            ConfigureSlot(menu, 1, "WoodenWall", "1", "木10", new Vector2(46f, 44f), true);
+            ConfigureSlot(menu, 2, "WoodenGateClosed", "2", "木20", new Vector2(46f, 44f), true);
             ConfigureSlot(menu, 3, "Ballista", "3", "ロック", new Vector2(46f, 44f), false);
             ConfigureSlot(menu, 4, "WatchTower", "4", "ロック", new Vector2(46f, 44f), false);
             ConfigureSlot(menu, 5, "CarpenterHut", "5", "ロック", new Vector2(46f, 44f), false);
@@ -56,7 +56,7 @@ namespace AreaSurvivors.EditorTools
 
             if (statusText != null)
             {
-                statusText.text = "1 横柵\n木10\n選択待ち";
+                statusText.text = "1 木の城壁\n木10\n選択待ち";
                 statusText.transform.parent.SetAsLastSibling();
                 statusText.transform.SetAsLastSibling();
             }
@@ -149,7 +149,7 @@ namespace AreaSurvivors.EditorTools
 
             var icon = iconTransform.GetComponent<Image>();
             if (icon == null) icon = iconTransform.gameObject.AddComponent<Image>();
-            icon.sprite = Resources.Load<Sprite>("Generated/" + spriteName);
+            icon.sprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/AreaSurvivors/Sprites/Generated/" + spriteName + ".png");
             icon.preserveAspect = true;
             icon.raycastTarget = false;
             icon.enabled = iconVisible;
