@@ -71,6 +71,8 @@ namespace AreaSurvivors
                 case UpgradeType.AutoResourceInterval:
                 case UpgradeType.AutoResourceGain:
                     return 2;
+                case UpgradeType.StartingWeaponLevel:
+                    return 4;
                 default:
                     return 10;
             }
@@ -100,6 +102,7 @@ namespace AreaSurvivors
                 case UpgradeType.TowerAutoRegen:
                 case UpgradeType.EndTokenGain:
                 case UpgradeType.EliteSpawnRate:
+                case UpgradeType.StartingWeaponLevel:
                     return 6;
                 default:
                     return 4;

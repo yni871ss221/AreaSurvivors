@@ -54,4 +54,53 @@ namespace AreaSurvivors
             if (age >= lifetime) Destroy(gameObject);
         }
     }
+
+    public sealed class CompletionSparkleEffect : MonoBehaviour
+    {
+        PaperMeshVisual visual;
+        Vector3 startScale;
+        Color baseColor = Color.white;
+        float lifetime = 0.75f;
+        float age;
+
+        public static void Spawn(Sprite sprite, Vector3 position, float scale = 0.7f, int sortingOrder = 22030)
+        {
+            if (sprite == null) sprite = GeneratedSpriteLoader.Load("Sparkle");
+            if (sprite == null) return;
+
+            var go = new GameObject("Completion Sparkle Effect");
+            go.transform.position = position;
+            go.transform.localScale = Vector3.one * Mathf.Max(0.05f, scale);
+            go.AddComponent<PaperBillboard>();
+            var mesh = go.AddComponent<PaperMeshVisual>();
+            mesh.Configure(sprite, Color.white, sortingOrder);
+            var outline = go.AddComponent<RuntimeSpriteOutline>();
+            outline.outlineColor = Color.black;
+            outline.thickness = 0.022f;
+            go.AddComponent<PreserveSortingOrder>();
+            go.AddComponent<CompletionSparkleEffect>().Configure(mesh);
+        }
+
+        void Configure(PaperMeshVisual target)
+        {
+            visual = target;
+            startScale = transform.localScale;
+            baseColor = visual != null ? visual.color : Color.white;
+        }
+
+        void Update()
+        {
+            age += Time.deltaTime;
+            float t = Mathf.Clamp01(age / lifetime);
+            float pulse = Mathf.Sin(t * Mathf.PI);
+            transform.localScale = startScale * (0.7f + pulse * 1.35f);
+            transform.localRotation = Quaternion.Euler(0f, 0f, t * 230f);
+            transform.position += Vector3.up * (0.16f * Time.deltaTime);
+            if (visual != null)
+            {
+                visual.color = new Color(baseColor.r, baseColor.g, baseColor.b, Mathf.Lerp(1f, 0f, t));
+            }
+            if (age >= lifetime) Destroy(gameObject);
+        }
+    }
 }

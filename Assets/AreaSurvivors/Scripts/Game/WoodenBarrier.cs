@@ -17,7 +17,6 @@ namespace AreaSurvivors
         public GameObject ghostObject;
         public GameObject buildObject;
         public GameObject completeObject;
-        public Slider buildGauge;
         public float buildSeconds = 1.8f;
         public int maxHp = 70;
         public bool gate;
@@ -97,13 +96,10 @@ namespace AreaSurvivors
 
         public void ApplyBuildingUpgrade(Sprite upgradedSprite, Sprite upgradedOpenSprite, int hpBonus)
         {
-            if (upgradedSprite != null) barrierSprite = upgradedSprite;
-            if (gate && upgradedOpenSprite != null) openGateSprite = upgradedOpenSprite;
             maxHp += Mathf.Max(0, hpBonus);
             if (health != null) health.SetMax(maxHp);
             spriteVisualsPrepared = false;
             EnsureSpriteVisuals();
-            ApplyConfiguredSpriteToVisuals();
             ConfigureHammerVisual();
             CacheVisualScales();
             ApplyVisuals();
@@ -153,13 +149,11 @@ namespace AreaSurvivors
 
         void EnsureSpriteVisuals()
         {
-            if (barrierSprite == null) return;
             if (spriteVisualsPrepared) return;
             usingSpriteVisuals = true;
             UsePrefabVisualSetIfAvailable();
             if (usingPrefabLayout && prefabVisualSet != null && prefabVisualSet.HasBaseVisuals)
             {
-                prefabVisualSet.ApplySpriteToBase(barrierSprite);
                 ConfigureSpriteVisual(ghostRenderer, new Color(1f, 1f, 1f, 0.34f));
                 ConfigureSpriteVisual(buildRenderer, Color.white);
                 ConfigureSpriteVisual(completeRenderer, Color.white);
@@ -170,6 +164,7 @@ namespace AreaSurvivors
                 spriteVisualsPrepared = true;
                 return;
             }
+            if (barrierSprite == null) return;
             if (ghostRenderer != null && buildRenderer != null && completeRenderer != null)
             {
                 DestroyLegacyObject(ghostObject, ghostRenderer.gameObject);
@@ -264,7 +259,11 @@ namespace AreaSurvivors
         void ConfigureSpriteVisual(PaperMeshVisual visual, Color color)
         {
             if (visual == null) return;
-            visual.sprite = barrierSprite;
+            if (!usingPrefabLayout)
+            {
+                if (barrierSprite == null) return;
+                visual.sprite = barrierSprite;
+            }
             visual.color = color;
             if (visual.GetComponent<OcclusionMaskSource>() == null)
                 visual.gameObject.AddComponent<OcclusionMaskSource>();
@@ -330,8 +329,6 @@ namespace AreaSurvivors
         void ConfigureHammerVisual()
         {
             if (hammerRenderer == null) return;
-            var hammer = GeneratedSpriteLoader.Load("Hammer");
-            if (hammer != null) hammerRenderer.sprite = hammer;
             hammerRenderer.order = 22020;
             ApplyToolVisualScale(hammerRenderer.transform, false);
             var outline = hammerRenderer.GetComponent<RuntimeSpriteOutline>();
@@ -415,6 +412,7 @@ namespace AreaSurvivors
             }
             ApplyVisuals();
             AnimateCompletionSparkle();
+            CompletionSparkleEffect.Spawn(sparkleRenderer != null ? sparkleRenderer.sprite : null, transform.position + new Vector3(0f, 0.5f, 0f), 0.65f);
             if (sparkleRenderer != null)
             {
                 PixelBurstEffect.Spawn(sparkleRenderer.sprite, transform.position + new Vector3(0f, 0.5f, 0f), new Color(1f, 0.96f, 0.52f, 0.66f), 6, 0.22f, 0.26f, 3400);
@@ -455,11 +453,6 @@ namespace AreaSurvivors
                 SetActive(completeObject, completed);
             }
             if (sparkleRenderer != null && !completed) sparkleRenderer.visible = false;
-            if (buildGauge != null)
-            {
-                buildGauge.gameObject.SetActive(!completed && (touchingPlayers > 0 || buildProgress > 0f));
-                buildGauge.value = buildProgress;
-            }
             if (hammerRenderer != null) hammerRenderer.visible = ShouldShowHammer();
             ApplyGateVisualState();
         }
@@ -479,10 +472,15 @@ namespace AreaSurvivors
         void ApplyGateVisualState()
         {
             if (!gate || completeRenderer == null || openGateSprite == null || barrierSprite == null) return;
+            var upgradeTarget = GetComponent<BuildingUpgradeTarget>();
+            if (upgradeTarget != null && upgradeTarget.IsUpgraded)
+            {
+                upgradeTarget.SetUpgradedGateOpen(completed && touchingPlayers > 0);
+                return;
+            }
+
             var sprite = completed && touchingPlayers > 0 ? openGateSprite : barrierSprite;
             completeRenderer.sprite = sprite;
-            var upgradeTarget = GetComponent<BuildingUpgradeTarget>();
-            if (upgradeTarget != null && upgradeTarget.IsUpgraded) upgradeTarget.SetUpgradedCompleteSprite(sprite);
         }
 
         void SetPlayerGateCollision(Collider2D playerCollider, bool ignored)

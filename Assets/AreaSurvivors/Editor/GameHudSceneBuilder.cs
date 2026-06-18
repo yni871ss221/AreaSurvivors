@@ -14,7 +14,6 @@ namespace AreaSurvivors.Editor
         static readonly Color HpBlue = new Color(0.22f, 0.62f, 1f, 0.96f);
         static readonly Color HpGreen = new Color(0.36f, 0.88f, 0.36f, 0.98f);
 
-        [MenuItem("AreaSurvivors/HUD/Create Player Status Panel")]
         public static void CreatePlayerStatusPanel()
         {
             var canvas = FindHudCanvas();
@@ -52,24 +51,18 @@ namespace AreaSurvivors.Editor
             {
                 ConfigurePlayerStatColumn(statsRoot, splitPlayer != null);
                 EnsureAdvancedStatBoxes(statsRoot, splitPlayer != null);
+                HideWeaponStatBoxes(statsRoot);
             }
+
+            var weaponStats = EnsurePanel(canvas.transform, "Weapon Status", new Vector2(14f, -356f), new Vector2(124f, 218f), Vector2.up);
+            EnsureFrame(weaponStats, weaponStats.sizeDelta);
+            ConfigureWeaponStatColumn(weaponStats);
 
             EditorSceneManager.MarkSceneDirty(canvas.gameObject.scene);
             EditorSceneManager.SaveScene(canvas.gameObject.scene);
             Debug.Log("Player Status HUD panel was created in the scene.");
         }
 
-        [MenuItem("AreaSurvivors/HUD/Normalize Game Player Status Panel")]
-        public static void NormalizeGamePlayerStatusPanel()
-        {
-            var scene = EditorSceneManager.OpenScene(GameScenePath);
-            CreatePlayerStatusPanel();
-            EditorSceneManager.MarkSceneDirty(scene);
-            EditorSceneManager.SaveScene(scene);
-            Debug.Log("Game Player Status HUD panel was normalized in 05_Game.");
-        }
-
-        [MenuItem("AreaSurvivors/HUD/Create Run Resource Panels")]
         public static void CreateRunResourcePanels()
         {
             ImportGeneratedSprite("WoodIcon");
@@ -119,35 +112,6 @@ namespace AreaSurvivors.Editor
             Debug.Log("Run stats and resource HUD panels were created in the scene.");
         }
 
-        [MenuItem("AreaSurvivors/HUD/Normalize Stage And Kill HUD")]
-        public static void NormalizeStageAndKillHud()
-        {
-            ImportGeneratedSprite("SkullIcon");
-            var scene = EditorSceneManager.OpenScene(GameScenePath);
-            var canvas = FindHudCanvas();
-            if (canvas == null)
-            {
-                Debug.LogError("HUD Canvas was not found.");
-                return;
-            }
-
-            var stage = EnsurePanel(canvas.transform, "Stage Panel", new Vector2(-222f, -28f), new Vector2(118f, 34f), new Vector2(0.5f, 1f));
-            SetAnchored(stage, new Vector2(-222f, -28f), new Vector2(118f, 34f), new Vector2(0.5f, 1f));
-            EnsureFrame(stage, stage.sizeDelta);
-            var stageText = EnsureText(stage, "Label", "STAGE 1", 18, TextAnchor.MiddleCenter);
-            Stretch(stageText.rectTransform);
-
-            var kills = EnsurePanel(canvas.transform, "Kill Panel", new Vector2(82f, -28f), new Vector2(112f, 34f), new Vector2(0.5f, 1f));
-            SetAnchored(kills, new Vector2(82f, -28f), new Vector2(112f, 34f), new Vector2(0.5f, 1f));
-            EnsureFrame(kills, kills.sizeDelta);
-            ConfigureKillPanel(kills);
-
-            EditorSceneManager.MarkSceneDirty(scene);
-            EditorSceneManager.SaveScene(scene);
-            Debug.Log("Stage and kill HUD widgets were normalized in 05_Game.");
-        }
-
-        [MenuItem("AreaSurvivors/HUD/Create Tower Upgrade Button")]
         public static void CreateTowerUpgradeButton()
         {
             ImportGeneratedSprite("UpgradeBuildingIcon");
@@ -171,41 +135,6 @@ namespace AreaSurvivors.Editor
             Debug.Log("Tower upgrade HUD button was created in the scene.");
         }
 
-        [MenuItem("AreaSurvivors/HUD/Normalize Tower Upgrade Button")]
-        public static void NormalizeTowerUpgradeButton()
-        {
-            var scene = EditorSceneManager.OpenScene(GameScenePath);
-            CreateTowerUpgradeButton();
-            EditorSceneManager.MarkSceneDirty(scene);
-            EditorSceneManager.SaveScene(scene);
-            Debug.Log("Tower upgrade HUD button was normalized in 05_Game.");
-        }
-
-        [MenuItem("AreaSurvivors/HUD/Normalize Enemy Spawn HUD")]
-        public static void NormalizeEnemySpawnHud()
-        {
-            ImportGeneratedSprite("Token");
-            var scene = EditorSceneManager.OpenScene(GameScenePath);
-            var canvas = FindHudCanvas();
-            if (canvas == null)
-            {
-                Debug.LogError("HUD Canvas was not found.");
-                return;
-            }
-
-            var token = EnsureResourcePanel(canvas.transform, "Token Resource", new Vector2(442f, -28f), LoadGeneratedSprite("Token"), "0");
-            EnsureFrame(token, token.sizeDelta);
-            var stage = EnsurePanel(canvas.transform, "Stage Panel", new Vector2(-222f, -28f), new Vector2(118f, 34f), new Vector2(0.5f, 1f));
-            SetAnchored(stage, new Vector2(-222f, -28f), new Vector2(118f, 34f), new Vector2(0.5f, 1f));
-            EnsureFrame(stage, stage.sizeDelta);
-            var stageText = EnsureText(stage, "Label", "STAGE 1", 18, TextAnchor.MiddleCenter);
-            Stretch(stageText.rectTransform);
-            EnsureBossHud(canvas.transform);
-            EditorSceneManager.MarkSceneDirty(scene);
-            EditorSceneManager.SaveScene(scene);
-            Debug.Log("Enemy spawn HUD widgets were normalized in 05_Game.");
-        }
-
         [MenuItem("AreaSurvivors/Config/Normalize Enemy Spawn Defaults")]
         public static void NormalizeEnemySpawnDefaults()
         {
@@ -223,7 +152,6 @@ namespace AreaSurvivors.Editor
             Debug.Log("Enemy spawn defaults were normalized in GameConfig.asset.");
         }
 
-        [MenuItem("AreaSurvivors/HUD/Convert UI Frames To Outline Components")]
         public static void ConvertUiFramesToOutlineComponents()
         {
             int outlined = 0;
@@ -359,46 +287,62 @@ namespace AreaSurvivors.Editor
         {
             if (splitLayout)
             {
-                root.sizeDelta = new Vector2(Mathf.Max(root.sizeDelta.x, 112f), Mathf.Max(root.sizeDelta.y, 412f));
+                root.sizeDelta = new Vector2(124f, 246f);
                 EnsureFrame(root, root.sizeDelta);
-                EnsureStatBox(root, "Attack Text", new Vector2(56f, -18f), "攻撃: 10");
-                EnsureStatBox(root, "Cooldown Text", new Vector2(56f, -48f), "間隔: 0.9s");
-                EnsureStatBox(root, "Speed Text", new Vector2(56f, -78f), "速度: 2.5");
-                EnsureStatBox(root, "Paint Text", new Vector2(56f, -108f), "塗り: 3");
-                EnsureStatBox(root, "Revive Text", new Vector2(56f, -138f), "復活: 6.0s");
-                EnsureStatBox(root, "Projectile Text", new Vector2(56f, -168f), "弾速: 11.5");
-                EnsureStatBox(root, "Range Text", new Vector2(56f, -198f), "範囲: 1.1");
+                EnsureStatBox(root, "Speed Text", new Vector2(8f, -18f), "速度", "2.5");
+                EnsureStatBox(root, "Paint Text", new Vector2(8f, -48f), "塗り", "3");
+                EnsureStatBox(root, "Revive Text", new Vector2(8f, -78f), "復活", "6.0s");
                 return;
             }
 
-            EnsureStatBox(root, "Attack Text", new Vector2(58f, -102f), "攻撃: 10");
-            EnsureStatBox(root, "Cooldown Text", new Vector2(58f, -132f), "間隔: 0.9s");
-            EnsureStatBox(root, "Speed Text", new Vector2(58f, -162f), "速度: 2.5");
-            EnsureStatBox(root, "Paint Text", new Vector2(58f, -192f), "塗り: 3");
-            EnsureStatBox(root, "Revive Text", new Vector2(58f, -222f), "復活: 6.0s");
-            EnsureStatBox(root, "Projectile Text", new Vector2(58f, -252f), "弾速: 11.5");
-            EnsureStatBox(root, "Range Text", new Vector2(58f, -282f), "範囲: 1.1");
+            EnsureStatBox(root, "Speed Text", new Vector2(8f, -162f), "速度", "2.5");
+            EnsureStatBox(root, "Paint Text", new Vector2(8f, -192f), "塗り", "3");
+            EnsureStatBox(root, "Revive Text", new Vector2(8f, -222f), "復活", "6.0s");
         }
 
         static void EnsureAdvancedStatBoxes(RectTransform root, bool splitLayout)
         {
             if (splitLayout)
             {
-                EnsureStatBox(root, "Knockback Text", new Vector2(56f, -228f), "ノック: 1");
-                EnsureStatBox(root, "Defense Text", new Vector2(56f, -258f), "防御: 0");
-                EnsureStatBox(root, "Xp Gain Text", new Vector2(56f, -288f), "経験: 1.0x");
-                EnsureStatBox(root, "Regen Text", new Vector2(56f, -318f), "回復: 0");
-                EnsureStatBox(root, "Work Text", new Vector2(56f, -348f), "作業: 1.0x");
-                EnsureStatBox(root, "Resource Text", new Vector2(56f, -378f), "資源: +0");
+                EnsureStatBox(root, "Defense Text", new Vector2(8f, -108f), "防御", "0");
+                EnsureStatBox(root, "Xp Gain Text", new Vector2(8f, -138f), "経験", "1.0x");
+                EnsureStatBox(root, "Regen Text", new Vector2(8f, -168f), "回復", "0");
+                EnsureStatBox(root, "Work Text", new Vector2(8f, -198f), "作業", "1.0x");
+                EnsureStatBox(root, "Resource Text", new Vector2(8f, -228f), "資源", "+0");
                 return;
             }
 
-            EnsureStatBox(root, "Knockback Text", new Vector2(58f, -312f), "ノック: 1");
-            EnsureStatBox(root, "Defense Text", new Vector2(58f, -342f), "防御: 0");
-            EnsureStatBox(root, "Xp Gain Text", new Vector2(58f, -372f), "経験: 1.0x");
-            EnsureStatBox(root, "Regen Text", new Vector2(58f, -402f), "回復: 0");
-            EnsureStatBox(root, "Work Text", new Vector2(58f, -432f), "作業: 1.0x");
-            EnsureStatBox(root, "Resource Text", new Vector2(58f, -462f), "資源: +0");
+            EnsureStatBox(root, "Defense Text", new Vector2(8f, -342f), "防御", "0");
+            EnsureStatBox(root, "Xp Gain Text", new Vector2(8f, -372f), "経験", "1.0x");
+            EnsureStatBox(root, "Regen Text", new Vector2(8f, -402f), "回復", "0");
+            EnsureStatBox(root, "Work Text", new Vector2(8f, -432f), "作業", "1.0x");
+            EnsureStatBox(root, "Resource Text", new Vector2(8f, -462f), "資源", "+0");
+        }
+
+        static void ConfigureWeaponStatColumn(RectTransform root)
+        {
+            EnsureStatBox(root, "Weapon Level Text", new Vector2(8f, -18f), "武器Lv", "1");
+            EnsureStatBox(root, "Attack Text", new Vector2(8f, -48f), "攻撃", "10");
+            EnsureStatBox(root, "Cooldown Text", new Vector2(8f, -78f), "間隔", "0.9s");
+            EnsureStatBox(root, "Projectile Text", new Vector2(8f, -108f), "弾速", "11.5");
+            EnsureStatBox(root, "Range Text", new Vector2(8f, -138f), "範囲", "1.1");
+            EnsureStatBox(root, "Knockback Text", new Vector2(8f, -168f), "ノック", "1");
+        }
+
+        static void HideWeaponStatBoxes(RectTransform root)
+        {
+            HideChild(root, "Attack Text Box");
+            HideChild(root, "Cooldown Text Box");
+            HideChild(root, "Projectile Text Box");
+            HideChild(root, "Range Text Box");
+            HideChild(root, "Knockback Text Box");
+        }
+
+        static void HideChild(Transform parent, string name)
+        {
+            if (parent == null) return;
+            var child = parent.Find(name);
+            if (child != null) child.gameObject.SetActive(false);
         }
 
         static RectTransform EnsurePanel(Transform parent, string name, Vector2 position, Vector2 size, Vector2 anchor, Color? color = null)
@@ -489,16 +433,33 @@ namespace AreaSurvivors.Editor
             text.rectTransform.offsetMax = Vector2.zero;
         }
 
-        static void EnsureStatBox(RectTransform parent, string name, Vector2 position, string label)
+        static void EnsureStatBox(RectTransform parent, string name, Vector2 position, string label, string valueText)
         {
             var box = EnsurePanel(parent, name + " Box", position, new Vector2(104f, 26f), Vector2.up, SlotColor);
+            SetAnchored(box, position, new Vector2(104f, 26f), Vector2.up);
             EnsureFrame(box, box.sizeDelta);
-            var text = EnsureText(box, "Label", label, 13, TextAnchor.MiddleLeft);
-            text.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
-            text.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-            text.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            text.rectTransform.anchoredPosition = Vector2.zero;
-            text.rectTransform.sizeDelta = new Vector2(96f, 22f);
+            var oldLabel = box.Find("Label");
+            var nameText = EnsureText(box, oldLabel != null ? "Label" : "Name", label, 13, TextAnchor.MiddleLeft);
+            nameText.gameObject.name = "Name";
+            SetColumns(nameText.rectTransform, 0f, 0.62f, 5f, -2f);
+
+            var value = EnsureText(box, "Value", valueText, 13, TextAnchor.MiddleRight);
+            SetColumns(value.rectTransform, 0.62f, 1f, 2f, -5f);
+
+            var divider = box.Find("Divider");
+            if (divider == null)
+            {
+                var dividerObject = new GameObject("Divider");
+                dividerObject.transform.SetParent(box, false);
+                var image = dividerObject.AddComponent<Image>();
+                image.color = new Color(0.58f, 0.68f, 0.40f, 0.65f);
+                image.raycastTarget = false;
+                var rect = image.rectTransform;
+                rect.anchorMin = new Vector2(0.62f, 0.15f);
+                rect.anchorMax = new Vector2(0.62f, 0.85f);
+                rect.sizeDelta = new Vector2(1f, 0f);
+                rect.anchoredPosition = Vector2.zero;
+            }
         }
 
         static Text EnsureText(Transform parent, string name, string value, int fontSize, TextAnchor alignment)
@@ -545,6 +506,16 @@ namespace AreaSurvivors.Editor
             rect.anchorMax = Vector2.one;
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
+        }
+
+        static void SetColumns(RectTransform rect, float minX, float maxX, float left, float right)
+        {
+            rect.anchorMin = new Vector2(minX, 0f);
+            rect.anchorMax = new Vector2(maxX, 1f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.offsetMin = new Vector2(left, 0f);
+            rect.offsetMax = new Vector2(right, 0f);
         }
 
         static void SetAnchored(RectTransform rect, Vector2 position, Vector2 size, Vector2 anchor)

@@ -35,6 +35,7 @@ namespace AreaSurvivors
             if (upgradedCompleteVisual == null) upgradedCompleteVisual = FindVisual("Upgraded Building Image");
             if (hammerVisual == null) hammerVisual = FindVisual("Hammer");
             if (sparkleVisual == null) sparkleVisual = FindVisual("Completion Sparkle");
+            ConfigureSparkleVisual();
         }
 
         public void DisableBillboardsForBuildingVisuals()
@@ -65,24 +66,18 @@ namespace AreaSurvivors
             SetVisible(sparkleVisual, false);
         }
 
-        public void ApplySpriteToBase(Sprite sprite)
+        void ConfigureSparkleVisual()
         {
-            SetSprite(ghostVisual, sprite);
-            SetSprite(buildFillVisual, sprite);
-            SetSprite(completeVisual, sprite);
-        }
-
-        public void ApplySpriteToUpgrade(Sprite sprite)
-        {
-            SetSprite(upgradedGhostVisual, sprite);
-            SetSprite(upgradedBuildFillVisual, sprite);
-            SetSprite(upgradedCompleteVisual, sprite);
-        }
-
-        static void SetSprite(PaperMeshVisual visual, Sprite sprite)
-        {
-            if (visual == null || sprite == null) return;
-            visual.sprite = sprite;
+            if (sparkleVisual == null) return;
+            sparkleVisual.order = 22030;
+            var billboard = sparkleVisual.GetComponent<PaperBillboard>();
+            if (billboard != null) billboard.faceCamera = true;
+            if (sparkleVisual.GetComponent<PreserveSortingOrder>() == null)
+                sparkleVisual.gameObject.AddComponent<PreserveSortingOrder>();
+            var outline = sparkleVisual.GetComponent<RuntimeSpriteOutline>();
+            if (outline == null) outline = sparkleVisual.gameObject.AddComponent<RuntimeSpriteOutline>();
+            outline.outlineColor = Color.black;
+            outline.thickness = 0.022f;
         }
 
         static void SetVisible(PaperMeshVisual visual, bool visible)

@@ -47,7 +47,7 @@ namespace AreaSurvivors
 
     public sealed class TileGrid : MonoBehaviour
     {
-        public const int DefaultChunkCells = 24;
+        public const int DefaultChunkCells = 25;
         public const int VerticalMapChunkColumns = 1;
         public const int VerticalMapChunkRows = 11;
 
@@ -64,7 +64,7 @@ namespace AreaSurvivors
         [Header("Ground Details")]
         public bool useGroundChunkBackground = true;
         public string groundChunkResourcePath = "Generated/MapChunks/GrassChunk";
-        public int groundChunkCells = 24;
+        public int groundChunkCells = 25;
         public int groundChunkSortingOrder = -25;
         public bool useGroundVariants = true;
         [Range(0f, 1f)]

@@ -21,7 +21,6 @@ namespace AreaSurvivors
         public GameObject ghostObject;
         public GameObject buildObject;
         public GameObject completeObject;
-        public Slider buildGauge;
         public float buildSeconds = 3.2f;
         public int maxHp = 100;
         public int autoPaintRadiusCells = 10;
@@ -77,7 +76,6 @@ namespace AreaSurvivors
 
         public void ApplyBuildingUpgrade(Sprite upgradedSprite, int hpBonus, int paintRadiusBonus)
         {
-            if (upgradedSprite != null) towerSprite = upgradedSprite;
             maxHp += Mathf.Max(0, hpBonus);
             autoPaintRadiusCells += Mathf.Max(0, paintRadiusBonus);
             if (health != null) health.SetMax(maxHp);
@@ -217,6 +215,7 @@ namespace AreaSurvivors
             health.SetMax(maxHp);
             ApplyVisuals();
             AnimateCompletionSparkle();
+            CompletionSparkleEffect.Spawn(sparkleRenderer != null ? sparkleRenderer.sprite : null, transform.position + new Vector3(0f, 1.0f, 0f), 0.75f);
             if (sparkleRenderer != null)
             {
                 PixelBurstEffect.Spawn(sparkleRenderer.sprite, transform.position + new Vector3(0f, 1.0f, 0f), new Color(1f, 0.96f, 0.52f, 0.66f), 7, 0.24f, 0.28f, 3400);
@@ -233,11 +232,10 @@ namespace AreaSurvivors
 
         void EnsureSpriteVisuals()
         {
-            if (towerSprite == null || spriteVisualsPrepared) return;
+            if (spriteVisualsPrepared) return;
             UsePrefabVisualSetIfAvailable();
             if (usingPrefabLayout && prefabVisualSet != null && prefabVisualSet.HasBaseVisuals)
             {
-                prefabVisualSet.ApplySpriteToBase(towerSprite);
                 ConfigureSpriteVisual(ghostRenderer, new Color(1f, 1f, 1f, 0.34f));
                 ConfigureSpriteVisual(buildRenderer, Color.white);
                 ConfigureSpriteVisual(completeRenderer, Color.white);
@@ -248,11 +246,12 @@ namespace AreaSurvivors
                 spriteVisualsPrepared = true;
                 return;
             }
+            if (towerSprite == null) return;
             if (ghostRenderer == null) ghostRenderer = CreateSpriteVisual("Ghost Image", new Color(1f, 1f, 1f, 0.34f), 1000);
             if (buildRenderer == null) buildRenderer = CreateSpriteVisual("Build Fill Image", Color.white, 1001);
             if (completeRenderer == null) completeRenderer = CreateSpriteVisual("Complete Image", Color.white, 1002);
-            if (hammerRenderer == null) hammerRenderer = CreateOverlayVisual("Hammer", GeneratedSpriteLoader.Load("Hammer"), 22020);
-            if (sparkleRenderer == null) sparkleRenderer = CreateOverlayVisual("Completion Sparkle", GeneratedSpriteLoader.Load("Sparkle"), 22030);
+            if (hammerRenderer == null) hammerRenderer = CreateOverlayVisual("Hammer", null, 22020);
+            if (sparkleRenderer == null) sparkleRenderer = CreateOverlayVisual("Completion Sparkle", null, 22030);
             ConfigureSpriteVisual(ghostRenderer, new Color(1f, 1f, 1f, 0.34f));
             ConfigureSpriteVisual(buildRenderer, Color.white);
             ConfigureSpriteVisual(completeRenderer, Color.white);
@@ -294,8 +293,12 @@ namespace AreaSurvivors
 
         void ConfigureSpriteVisual(PaperMeshVisual visual, Color color)
         {
-            if (visual == null || towerSprite == null) return;
-            visual.sprite = towerSprite;
+            if (visual == null) return;
+            if (!usingPrefabLayout)
+            {
+                if (towerSprite == null) return;
+                visual.sprite = towerSprite;
+            }
             visual.color = color;
             if (visual.GetComponent<OcclusionMaskSource>() == null) visual.gameObject.AddComponent<OcclusionMaskSource>();
             ConfigureOutline(visual.gameObject);
@@ -355,8 +358,6 @@ namespace AreaSurvivors
         void ConfigureHammerVisual()
         {
             if (hammerRenderer == null) return;
-            var hammer = GeneratedSpriteLoader.Load("Hammer");
-            if (hammer != null) hammerRenderer.sprite = hammer;
             hammerRenderer.order = 22020;
             ApplyToolVisualScale(hammerRenderer.transform);
             var outline = hammerRenderer.GetComponent<RuntimeSpriteOutline>();
@@ -397,11 +398,6 @@ namespace AreaSurvivors
             if (completeRenderer != null) completeRenderer.SetVerticalFill(1f);
             SetActive(completeObject, completed);
             if (sparkleRenderer != null && !completed) sparkleRenderer.visible = false;
-            if (buildGauge != null)
-            {
-                buildGauge.gameObject.SetActive(!completed && (touchingPlayers > 0 || buildProgress > 0f));
-                buildGauge.value = buildProgress;
-            }
             if (hammerRenderer != null) hammerRenderer.visible = ShouldShowHammer();
         }
 

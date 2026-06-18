@@ -100,6 +100,8 @@ MonoBehaviour:
   sourceSprite: {fileID: 21300000, guid: aa8bf6dd46ed8de42a39a004acb9793a, type: 3}
   tint: {r: 1, g: 1, b: 1, a: 1}
   sortingOrder: 1000
+  anchorBottomCenter: 0
+  verticalFill: 1
 --- !u!114 &7531559792452884004
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -166,6 +168,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   baseOrder: 1000
   orderOffset: 0
+  sortPivotOffsetY: 0
   renderers:
   - {fileID: 5251144839327679340}
 --- !u!50 &5164798942061297997
@@ -244,6 +247,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxHp: 10
   currentHp: 10
+  defense: 0
 --- !u!114 &5480497435905261421
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -294,3 +298,17 @@ MonoBehaviour:
   obstacleAvoidanceRadius: 1.45
   obstacleAvoidanceWeight: 1.65
   xpValue: 1
+  tokenValue: 0
+  attackDamage: 3
+  enemyKind: 0
+  displayName: "\u30A4\u30CE\u30B7\u30B7"
+  elite: 0
+  boss: 0
+  stuckDetectionSeconds: 1.5
+  stuckMinimumProgress: 0.08
+  stuckPositionThreshold: 0.14
+  stuckRecoverySeconds: 2
+  stuckRecoveryMinimumSeconds: 0.65
+  stuckRecoveryAbsoluteLimitSeconds: 8
+  stuckRecoveryCooldownSeconds: 2.5
+  stuckMinimumTargetDistance: 2.5

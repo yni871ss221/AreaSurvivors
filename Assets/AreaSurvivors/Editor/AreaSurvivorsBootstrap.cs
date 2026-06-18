@@ -43,6 +43,23 @@ namespace AreaSurvivors.Editor
             Debug.Log("Area Survivors initial project generated.");
         }
 
+        [MenuItem("Area Survivors/Config/Apply Weapon Level Defaults")]
+        public static void ApplyWeaponLevelDefaults()
+        {
+            var config = AssetDatabase.LoadAssetAtPath<GameConfig>(ResourcesPath + "/Config/GameConfig.asset");
+            if (config == null)
+            {
+                Debug.LogWarning("GameConfig.asset was not found.");
+                return;
+            }
+
+            config.EnsureWeaponLevelDefaults();
+            EditorUtility.SetDirty(config);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            Debug.Log("Weapon level defaults were applied to GameConfig.asset.");
+        }
+
         [MenuItem("Area Survivors/Rebuild Build Prefabs")]
         public static void RebuildBuildPrefabs()
         {
@@ -86,28 +103,6 @@ namespace AreaSurvivors.Editor
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log("Area Survivors player prefab rebuilt.");
-        }
-
-        [MenuItem("Area Survivors/Rebuild HUD Layout")]
-        public static void RebuildHudLayout()
-        {
-            var manager = Object.FindObjectOfType<GameManager>();
-            var buildPlacement = Object.FindObjectOfType<BuildPlacementController>();
-            var canvas = Object.FindObjectOfType<Canvas>();
-            if (canvas == null)
-            {
-                canvas = new GameObject("HUD").AddComponent<Canvas>();
-                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-                var scaler = canvas.gameObject.AddComponent<CanvasScaler>();
-                scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-                scaler.referenceResolution = new Vector2(1280, 720);
-                canvas.gameObject.AddComponent<GraphicRaycaster>();
-            }
-
-            CreateEditableHudWidgets(canvas.transform, buildPlacement);
-            if (manager != null) EditorUtility.SetDirty(manager);
-            EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
-            Debug.Log("Area Survivors HUD layout rebuilt.");
         }
 
         [MenuItem("Area Survivors/Map/Rebuild Map Perimeter")]
@@ -197,8 +192,6 @@ namespace AreaSurvivors.Editor
             config.knightCooldown = 1.05f;
             config.archerCooldown = 0.75f;
             config.mageCooldown = 1.45f;
-            config.attackPowerPerUpgradeLevel = 1;
-            config.attackCooldownReductionPerUpgradeLevel = 0.06f;
             config.minAttackCooldownMultiplier = 0.45f;
             config.runAttackPowerBonus = 2;
             config.runAttackCooldownMultiplier = 0.92f;
@@ -215,7 +208,6 @@ namespace AreaSurvivors.Editor
             config.autoRegenIntervalSeconds = 2f;
             config.baseWorkSpeedMultiplier = 1f;
             config.baseResourceGainBonus = 0;
-            config.knockbackPerUpgradeLevel = 1f;
             config.defensePerUpgradeLevel = 1;
             config.xpGainMultiplierPerUpgradeLevel = 0.1f;
             config.autoRegenPerUpgradeLevel = 1;
@@ -416,7 +408,6 @@ namespace AreaSurvivors.Editor
             SetObjectReference(ballista, "completeObject", complete.gameObject);
             SetObjectReference(ballista, "hammerRenderer", hammer);
             SetObjectReference(ballista, "sparkleRenderer", sparkle);
-            SetObjectReference(ballista, "buildGauge", AddWorldBuildGauge(go.transform, new Vector3(0f, -0.82f, 0f), new Vector2(0.88f, 0.09f)));
             return go;
         }
 
@@ -466,7 +457,6 @@ namespace AreaSurvivors.Editor
             SetObjectReference(barrier, "sparkleRenderer", sparkle);
             SetObjectReference(barrier, "barrierSprite", barrierSprite);
             SetVector2(barrier, "spriteVisualSize", new Vector2(1.34f, 0.58f));
-            SetObjectReference(barrier, "buildGauge", AddWorldBuildGauge(go.transform, new Vector3(0f, 0.42f, 0f), new Vector2(1.2f, 0.12f)));
             return go;
         }
 
@@ -628,36 +618,6 @@ namespace AreaSurvivors.Editor
             return image;
         }
 
-        static Slider AddWorldBuildGauge(Transform parent, Vector3 localPos, Vector2 size)
-        {
-            var canvas = new GameObject("Build Gauge").AddComponent<Canvas>();
-            canvas.transform.SetParent(parent, false);
-            canvas.transform.localPosition = localPos;
-            canvas.renderMode = RenderMode.WorldSpace;
-            canvas.sortingOrder = 3100;
-            canvas.gameObject.AddComponent<PaperBillboard>();
-            canvas.GetComponent<RectTransform>().sizeDelta = size;
-            var slider = canvas.gameObject.AddComponent<Slider>();
-            slider.transition = Selectable.Transition.None;
-            slider.minValue = 0f;
-            slider.maxValue = 1f;
-            slider.value = 0f;
-            slider.direction = size.x >= size.y ? Slider.Direction.LeftToRight : Slider.Direction.BottomToTop;
-            var bg = StretchImageChild(canvas.transform, "Background", new Color(0.02f, 0.03f, 0.03f, 0.72f), Vector2.zero, Vector2.one);
-            var fillArea = new GameObject("Fill Area").AddComponent<RectTransform>();
-            fillArea.SetParent(canvas.transform, false);
-            fillArea.anchorMin = Vector2.zero;
-            fillArea.anchorMax = Vector2.one;
-            fillArea.offsetMin = Vector2.zero;
-            fillArea.offsetMax = Vector2.zero;
-            var fill = StretchImageChild(fillArea, "Fill", new Color(0.35f, 0.78f, 1f, 0.92f), Vector2.zero, Vector2.one);
-            fill.rectTransform.pivot = size.x >= size.y ? new Vector2(0f, 0.5f) : new Vector2(0.5f, 0f);
-            slider.targetGraphic = bg;
-            slider.fillRect = fill.rectTransform;
-            canvas.gameObject.SetActive(false);
-            return slider;
-        }
-
         static PaperMeshVisual MeshChild(Transform parent, string name, Sprite sprite, Color color, int sortingOrder, bool faceCamera = true)
         {
             var child = new GameObject(name);
@@ -679,6 +639,8 @@ namespace AreaSurvivors.Editor
             col.isTrigger = true;
             col.radius = 0.16f;
             var projectile = go.AddComponent<Projectile>();
+            projectile.fallbackSprite = sprite;
+            projectile.fallbackColor = color;
             projectile.lifetime = config.projectileLifetime;
             projectile.visualScale = config.projectileVisualScale;
             return go;

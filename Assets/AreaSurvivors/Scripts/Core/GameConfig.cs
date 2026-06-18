@@ -58,9 +58,23 @@ namespace AreaSurvivors
         public string announcement;
     }
 
+    [System.Serializable]
+    public sealed class WeaponLevelDefinition
+    {
+        [Range(1, GameConfig.MaxWeaponLevel)]
+        public int level = 1;
+        public int attackPower = 6;
+        public float cooldownSeconds = 1f;
+        public float projectileSpeed = 11.5f;
+        public float range = 1f;
+        public float knockback = 1f;
+    }
+
     [CreateAssetMenu(menuName = "Area Survivors/Game Config")]
     public sealed class GameConfig : ScriptableObject
     {
+        public const int MaxWeaponLevel = 10;
+
         [Header("Player")]
         public float playerMoveSpeed = 2.1f;
         public int playerMaxHp = 40;
@@ -160,18 +174,12 @@ namespace AreaSurvivors
         public int harvestAmount2Cell = 200;
         public int harvestAmount4Cell = 400;
         public int harvestAmount8Cell = 800;
-        public float woodcuttingSpeedPerUpgradeLevel = 0.1f;
-        public int woodcuttingGainPerUpgradeLevel = 1;
-        public float miningSpeedPerUpgradeLevel = 0.1f;
-        public int miningGainPerUpgradeLevel = 1;
 
         [Header("Combat")]
         public int baseAttackPower = 6;
         public float knightCooldown = 1.05f;
         public float archerCooldown = 0.75f;
         public float mageCooldown = 1.45f;
-        public int attackPowerPerUpgradeLevel = 1;
-        public float attackCooldownReductionPerUpgradeLevel = 0.06f;
         public float minAttackCooldownMultiplier = 0.45f;
         public int runAttackPowerBonus = 2;
         public float runAttackCooldownMultiplier = 0.92f;
@@ -179,6 +187,10 @@ namespace AreaSurvivors
         public float knightSlashRange = 1.05f;
         public float knightSlashOffset = 1.05f;
         public float mageExplosionRadius = 1.1f;
+        [Header("Weapon Levels")]
+        public WeaponLevelDefinition[] knightWeaponLevels;
+        public WeaponLevelDefinition[] archerWeaponLevels;
+        public WeaponLevelDefinition[] mageWeaponLevels;
         [Header("Player Advanced Stats")]
         public float baseKnockback = 1f;
         public float knockbackForceUnit = 2.2f;
@@ -189,7 +201,6 @@ namespace AreaSurvivors
         public float autoRegenIntervalSeconds = 2f;
         public float baseWorkSpeedMultiplier = 1f;
         public int baseResourceGainBonus = 0;
-        public float knockbackPerUpgradeLevel = 1f;
         public int defensePerUpgradeLevel = 1;
         public float xpGainMultiplierPerUpgradeLevel = 0.1f;
         public int autoRegenPerUpgradeLevel = 1;
@@ -203,13 +214,10 @@ namespace AreaSurvivors
         public int runResourceGainBonus = 1;
         [Header("Permanent Skill Effects")]
         public float ballistaRangePerUpgradeLevel = 0.75f;
-        public int initialTerritoryRadiusPerUpgradeLevel = 1;
         public int towerAutoRegenPerUpgradeLevel = 1;
         public float endTokenGainMultiplierPerUpgradeLevel = 0.1f;
         public float eliteSpawnRatePerUpgradeLevel = 0.1f;
         public float autoBuildSpeedPerUpgradeLevel = 0.1f;
-        public float autoWoodcuttingSpeedPerUpgradeLevel = 0.1f;
-        public float autoMiningSpeedPerUpgradeLevel = 0.1f;
         public float projectileSpeed = 11.5f;
         public float projectileLifetime = 4.2f;
         public float projectileVisualScale = 1.35f;
@@ -236,6 +244,114 @@ namespace AreaSurvivors
         [Header("Progression")]
         public int xpPerEnemy = 1;
         public int tokenKillsDivisor = 8;
+
+        public void EnsureWeaponLevelDefaults()
+        {
+            knightWeaponLevels = EnsureWeaponLevels(
+                knightWeaponLevels,
+                knightCooldown,
+                0f,
+                knightSlashRange,
+                baseKnockback,
+                false);
+            archerWeaponLevels = EnsureWeaponLevels(
+                archerWeaponLevels,
+                archerCooldown,
+                projectileSpeed,
+                projectileSpeed * projectileLifetime,
+                baseKnockback,
+                true);
+            mageWeaponLevels = EnsureWeaponLevels(
+                mageWeaponLevels,
+                mageCooldown,
+                projectileSpeed,
+                mageExplosionRadius,
+                baseKnockback,
+                true);
+        }
+
+        public WeaponStatBlock GetWeaponStats(CharacterType type, int level)
+        {
+            EnsureWeaponLevelDefaults();
+            var source = type == CharacterType.Archer
+                ? archerWeaponLevels
+                : type == CharacterType.Mage
+                    ? mageWeaponLevels
+                    : knightWeaponLevels;
+            int index = Mathf.Clamp(level, 1, MaxWeaponLevel) - 1;
+            var definition = source[index];
+            return new WeaponStatBlock
+            {
+                level = definition.level,
+                attackPower = definition.attackPower,
+                cooldownSeconds = Mathf.Max(0.05f, definition.cooldownSeconds),
+                projectileSpeed = Mathf.Max(0f, definition.projectileSpeed),
+                range = Mathf.Max(0f, definition.range),
+                knockback = Mathf.Max(0f, definition.knockback)
+            };
+        }
+
+        WeaponLevelDefinition[] EnsureWeaponLevels(
+            WeaponLevelDefinition[] source,
+            float baseCooldown,
+            float baseProjectileSpeed,
+            float baseRange,
+            float baseKnockbackValue,
+            bool usesProjectile)
+        {
+            var result = new WeaponLevelDefinition[MaxWeaponLevel];
+            for (int i = 0; i < MaxWeaponLevel; i++)
+            {
+                var existing = FindWeaponLevel(source, i + 1);
+                result[i] = existing ?? CreateDefaultWeaponLevel(
+                    i + 1,
+                    baseCooldown,
+                    baseProjectileSpeed,
+                    baseRange,
+                    baseKnockbackValue,
+                    usesProjectile);
+                result[i].level = i + 1;
+            }
+
+            return result;
+        }
+
+        static WeaponLevelDefinition FindWeaponLevel(WeaponLevelDefinition[] source, int level)
+        {
+            if (source == null) return null;
+            for (int i = 0; i < source.Length; i++)
+            {
+                if (source[i] != null && source[i].level == level) return source[i];
+            }
+            return null;
+        }
+
+        WeaponLevelDefinition CreateDefaultWeaponLevel(
+            int level,
+            float baseCooldown,
+            float baseProjectileSpeed,
+            float baseRange,
+            float baseKnockbackValue,
+            bool usesProjectile)
+        {
+            int bonusLevel = Mathf.Max(0, level - 1);
+            return new WeaponLevelDefinition
+            {
+                level = level,
+                attackPower = baseAttackPower + bonusLevel,
+                cooldownSeconds = Mathf.Max(0.05f, baseCooldown * Mathf.Max(minAttackCooldownMultiplier, 1f - bonusLevel * 0.06f)),
+                projectileSpeed = usesProjectile ? baseProjectileSpeed + bonusLevel * 0.25f : 0f,
+                range = baseRange + bonusLevel * (usesProjectile ? 0.75f : 0.08f),
+                knockback = baseKnockbackValue + bonusLevel
+            };
+        }
+
+#if UNITY_EDITOR
+        void OnValidate()
+        {
+            EnsureWeaponLevelDefaults();
+        }
+#endif
 
         public void EnsureEnemySpawnDefaults()
         {

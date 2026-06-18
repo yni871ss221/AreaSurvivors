@@ -20,7 +20,6 @@ namespace AreaSurvivors
         public GameObject ghostObject;
         public GameObject buildObject;
         public GameObject completeObject;
-        public Slider buildGauge;
         public float buildSeconds = 2.2f;
         public float attackRange = 7.5f;
         public float attackCooldown = 1.15f;
@@ -83,12 +82,10 @@ namespace AreaSurvivors
 
         public void ApplyBuildingUpgrade(Sprite upgradedSprite, int hpBonus, int damageBonus)
         {
-            if (upgradedSprite != null) ballistaSprite = upgradedSprite;
             maxHp += Mathf.Max(0, hpBonus);
             damage += Mathf.Max(0, damageBonus);
             if (health != null) health.SetMax(maxHp);
             EnsureSpriteVisuals();
-            ApplyConfiguredSpriteToVisuals();
             ConfigureHammerVisual();
             CacheVisualScales();
             ApplyBuildVisuals();
@@ -149,12 +146,10 @@ namespace AreaSurvivors
 
         void EnsureSpriteVisuals()
         {
-            if (ballistaSprite == null) return;
             UsePrefabVisualSetIfAvailable();
             if (usingPrefabLayout && prefabVisualSet != null && prefabVisualSet.HasBaseVisuals)
             {
                 usingSpriteVisuals = true;
-                prefabVisualSet.ApplySpriteToBase(ballistaSprite);
                 ConfigureSpriteVisual(ghostRenderer, new Color(1f, 1f, 1f, 0.34f));
                 ConfigureSpriteVisual(buildRenderer, Color.white);
                 ConfigureSpriteVisual(completeRenderer, Color.white);
@@ -164,6 +159,7 @@ namespace AreaSurvivors
                 RefreshSortRenderers();
                 return;
             }
+            if (ballistaSprite == null) return;
             if (ghostRenderer != null && buildRenderer != null && completeRenderer != null)
             {
                 usingSpriteVisuals = true;
@@ -246,8 +242,12 @@ namespace AreaSurvivors
 
         void ConfigureSpriteVisual(PaperMeshVisual visual, Color color)
         {
-            if (visual == null || ballistaSprite == null) return;
-            visual.sprite = ballistaSprite;
+            if (visual == null) return;
+            if (!usingPrefabLayout)
+            {
+                if (ballistaSprite == null) return;
+                visual.sprite = ballistaSprite;
+            }
             visual.color = color;
             if (visual.GetComponent<OcclusionMaskSource>() == null)
                 visual.gameObject.AddComponent<OcclusionMaskSource>();
@@ -298,8 +298,6 @@ namespace AreaSurvivors
         void ConfigureHammerVisual()
         {
             if (hammerRenderer == null) return;
-            var hammer = GeneratedSpriteLoader.Load("Hammer");
-            if (hammer != null) hammerRenderer.sprite = hammer;
             hammerRenderer.order = 22020;
             ApplyToolVisualScale(hammerRenderer.transform);
             var outline = hammerRenderer.GetComponent<RuntimeSpriteOutline>();
@@ -396,11 +394,6 @@ namespace AreaSurvivors
                 SetActive(completeObject, completed);
             }
             if (sparkleRenderer != null && !completed) sparkleRenderer.visible = false;
-            if (buildGauge != null)
-            {
-                buildGauge.gameObject.SetActive(!completed && (touchingPlayers > 0 || buildProgress > 0f));
-                buildGauge.value = buildProgress;
-            }
             if (hammerRenderer != null) hammerRenderer.visible = ShouldShowHammer();
             if (blockingCollider != null) blockingCollider.enabled = completed;
         }
@@ -431,6 +424,7 @@ namespace AreaSurvivors
             health.SetMax(maxHp);
             ApplyBuildVisuals();
             AnimateCompletionSparkle();
+            CompletionSparkleEffect.Spawn(sparkleRenderer != null ? sparkleRenderer.sprite : null, transform.position + new Vector3(0f, 0.62f, 0f), 0.7f);
             if (sparkleRenderer != null)
             {
                 PixelBurstEffect.Spawn(sparkleRenderer.sprite, transform.position + new Vector3(0f, 0.62f, 0f), new Color(1f, 0.96f, 0.52f, 0.72f), 7, 0.24f, 0.28f, 3400);

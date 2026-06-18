@@ -21,7 +21,6 @@ namespace AreaSurvivors
         public GameObject ghostObject;
         public GameObject buildObject;
         public GameObject completeObject;
-        public Slider buildGauge;
         public float buildSeconds = 2.4f;
         public int maxHp = 50;
         public float autoBuildSpeedMultiplier = 0.1f;
@@ -227,6 +226,7 @@ namespace AreaSurvivors
             health.SetMax(maxHp);
             ApplyVisuals();
             AnimateCompletionSparkle();
+            CompletionSparkleEffect.Spawn(sparkleRenderer != null ? sparkleRenderer.sprite : null, transform.position + new Vector3(0f, 0.48f, 0f), 0.6f);
             if (sparkleRenderer != null)
             {
                 PixelBurstEffect.Spawn(sparkleRenderer.sprite, transform.position + new Vector3(0f, 0.48f, 0f), new Color(1f, 0.96f, 0.52f, 0.66f), 6, 0.22f, 0.26f, 3400);
@@ -243,12 +243,14 @@ namespace AreaSurvivors
 
         void EnsureSpriteVisuals()
         {
-            if (hutSprite == null || spriteVisualsPrepared) return;
+            if (spriteVisualsPrepared) return;
+            bool hasPrefabVisuals = ghostRenderer != null && buildRenderer != null && completeRenderer != null;
+            if (!hasPrefabVisuals && hutSprite == null) return;
             if (ghostRenderer == null) ghostRenderer = CreateSpriteVisual("Ghost Image", new Color(1f, 1f, 1f, 0.34f), 1000);
             if (buildRenderer == null) buildRenderer = CreateSpriteVisual("Build Fill Image", Color.white, 1001);
             if (completeRenderer == null) completeRenderer = CreateSpriteVisual("Complete Image", Color.white, 1002);
-            if (hammerRenderer == null) hammerRenderer = CreateOverlayVisual("Hammer", LoadGeneratedSprite("Hammer"), 22020);
-            if (sparkleRenderer == null) sparkleRenderer = CreateOverlayVisual("Completion Sparkle", LoadGeneratedSprite("Sparkle"), 22030);
+            if (hammerRenderer == null) hammerRenderer = CreateOverlayVisual("Hammer", null, 22020);
+            if (sparkleRenderer == null) sparkleRenderer = CreateOverlayVisual("Completion Sparkle", null, 22030);
             ConfigureSpriteVisual(ghostRenderer, new Color(1f, 1f, 1f, 0.34f));
             ConfigureSpriteVisual(buildRenderer, Color.white);
             ConfigureSpriteVisual(completeRenderer, Color.white);
@@ -283,14 +285,15 @@ namespace AreaSurvivors
 
         void ConfigureSpriteVisual(PaperMeshVisual visual, Color color)
         {
-            if (visual == null || hutSprite == null) return;
+            if (visual == null) return;
             visual.useBottomCenterAnchor = true;
-            visual.sprite = hutSprite;
+            if (visual.sprite == null && hutSprite != null) visual.sprite = hutSprite;
             visual.color = color;
             if (visual.GetComponent<OcclusionMaskSource>() == null) visual.gameObject.AddComponent<OcclusionMaskSource>();
             ConfigureOutline(visual.gameObject);
             EnsureGridObjectVisual();
-            gridVisual.ApplyToVisual(visual, hutSprite, spriteVisualSize);
+            var sprite = visual.sprite != null ? visual.sprite : hutSprite;
+            if (sprite != null) gridVisual.ApplyToVisual(visual, sprite, spriteVisualSize);
             visual.visible = false;
         }
 
@@ -331,8 +334,6 @@ namespace AreaSurvivors
         void ConfigureHammerVisual()
         {
             if (hammerRenderer == null) return;
-            var hammer = LoadGeneratedSprite("Hammer");
-            if (hammer != null) hammerRenderer.sprite = hammer;
             hammerRenderer.order = 22020;
             ApplyToolVisualScale(hammerRenderer.transform);
             var outline = hammerRenderer.GetComponent<RuntimeSpriteOutline>();
@@ -371,11 +372,6 @@ namespace AreaSurvivors
             if (completeRenderer != null) completeRenderer.SetVerticalFill(1f);
             SetActive(completeObject, completed);
             if (sparkleRenderer != null && !completed) sparkleRenderer.visible = false;
-            if (buildGauge != null)
-            {
-                buildGauge.gameObject.SetActive(!completed && (touchingPlayers > 0 || buildProgress > 0f));
-                buildGauge.value = buildProgress;
-            }
             if (hammerRenderer != null) hammerRenderer.visible = ShouldShowHammer();
         }
 
@@ -440,15 +436,5 @@ namespace AreaSurvivors
                 ToolVisualScale.z);
         }
 
-        static Sprite LoadGeneratedSprite(string name)
-        {
-            var sprite = GeneratedSpriteLoader.Load(name);
-            if (sprite != null) return sprite;
-            var texture = GeneratedSpriteLoader.LoadTexture(name);
-            if (texture == null) return null;
-            texture.filterMode = FilterMode.Point;
-            texture.wrapMode = TextureWrapMode.Clamp;
-            return Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 128f);
-        }
     }
 }

@@ -31,7 +31,6 @@ namespace AreaSurvivors
             upgradeIcon = LoadGeneratedSprite("UpgradeBuildingIcon");
             cancelIcon = LoadGeneratedSprite("CancelUpgradeIcon");
             upgradedTowerSprite = centerTower != null ? centerTower.GetConfiguredUpgradeSprite() : null;
-            if (upgradedTowerSprite == null) upgradedTowerSprite = LoadGeneratedSprite("TowerUpgrade");
             EnsureCursorIcon(hudCanvas);
             SetActive(false);
         }
@@ -519,6 +518,7 @@ namespace AreaSurvivors
         {
             if (!isUpgraded || sprite == null) return;
             EnsureUpgradeVisuals();
+            if (upgradedCompleteVisual != null) upgradedCompleteVisual.sprite = sprite;
             ConfigureUpgradeVisual(upgradedCompleteVisual, sprite, Color.white);
             if (upgradedCompleteVisual != null)
             {
@@ -527,6 +527,14 @@ namespace AreaSurvivors
                 upgradedCompleteBaseScale = upgradedCompleteVisual.transform.localScale;
             }
             RefreshYSortRenderers();
+        }
+
+        public void SetUpgradedGateOpen(bool open)
+        {
+            if (!isUpgraded) return;
+            EnsureSprites();
+            var sprite = open && upgradedOpenSprite != null ? upgradedOpenSprite : upgradedSprite;
+            SetUpgradedCompleteSprite(sprite);
         }
 
         void EnsureSprites()
@@ -540,8 +548,6 @@ namespace AreaSurvivors
             {
                 upgradedOpenSprite = prefabVisualSet.upgradedOpenSprite;
             }
-            if (upgradedSprite == null) upgradedSprite = LoadGeneratedSprite(upgradedSpriteResource);
-            if (upgradedOpenSprite == null && !string.IsNullOrEmpty(upgradedOpenSpriteResource)) upgradedOpenSprite = LoadGeneratedSprite(upgradedOpenSpriteResource);
         }
 
         void EnsureGridObjectVisual()
@@ -571,7 +577,6 @@ namespace AreaSurvivors
                 upgradedCompleteVisual = prefabVisualSet.upgradedCompleteVisual;
                 upgradeHammerVisual = prefabVisualSet.hammerVisual;
                 upgradeSparkleVisual = prefabVisualSet.sparkleVisual;
-                prefabVisualSet.ApplySpriteToUpgrade(upgradedSprite);
                 ConfigureUpgradeVisual(upgradeGhostVisual, upgradedSprite, new Color(0.30f, 0.82f, 1f, 0.36f));
                 ConfigureUpgradeVisual(upgradeBuildVisual, upgradedSprite, Color.white);
                 ConfigureUpgradeVisual(upgradedCompleteVisual, upgradedSprite, Color.white);
@@ -581,8 +586,8 @@ namespace AreaSurvivors
                 upgradeGhostVisual = CreateUpgradeVisual("Upgrade Ghost", upgradedSprite, new Color(0.30f, 0.82f, 1f, 0.36f), 22000);
                 upgradeBuildVisual = CreateUpgradeVisual("Upgrade Build Fill", upgradedSprite, Color.white, 22001);
                 upgradedCompleteVisual = CreateUpgradeVisual("Upgraded Building Image", upgradedSprite, Color.white, 22002);
-                upgradeHammerVisual = CreateOverlayVisual("Upgrade Hammer", LoadGeneratedSprite("Hammer"), 22020);
-                upgradeSparkleVisual = CreateOverlayVisual("Upgrade Sparkle", LoadGeneratedSprite("Sparkle"), 22030);
+                upgradeHammerVisual = CreateOverlayVisual("Upgrade Hammer", null, 22020);
+                upgradeSparkleVisual = CreateOverlayVisual("Upgrade Sparkle", null, 22030);
             }
             if (upgradeBuildVisual != null) upgradeBuildBaseScale = upgradeBuildVisual.transform.localScale;
             if (upgradedCompleteVisual != null) upgradedCompleteBaseScale = upgradedCompleteVisual.transform.localScale;
@@ -636,9 +641,13 @@ namespace AreaSurvivors
 
         void ConfigureUpgradeVisual(PaperMeshVisual mesh, Sprite sprite, Color color)
         {
-            if (mesh == null || sprite == null) return;
+            if (mesh == null) return;
             mesh.useBottomCenterAnchor = true;
-            mesh.sprite = sprite;
+            if (!usingPrefabLayout)
+            {
+                if (sprite == null) return;
+                mesh.sprite = sprite;
+            }
             mesh.color = color;
             mesh.transform.localRotation = Quaternion.identity;
             EnsureGridObjectVisual();
@@ -716,17 +725,6 @@ namespace AreaSurvivors
             ySort.Apply();
         }
 
-        static Sprite LoadGeneratedSprite(string name)
-        {
-            if (string.IsNullOrEmpty(name)) return null;
-            var sprite = GeneratedSpriteLoader.Load(name);
-            if (sprite != null) return sprite;
-            var texture = GeneratedSpriteLoader.LoadTexture(name);
-            if (texture == null) return null;
-            texture.filterMode = FilterMode.Point;
-            texture.wrapMode = TextureWrapMode.Clamp;
-            return Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 128f);
-        }
     }
 
     public sealed class BuildingUpgradeConstruction : MonoBehaviour, IBuildableConstruction

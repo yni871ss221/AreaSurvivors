@@ -1,3 +1,5 @@
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace AreaSurvivors
@@ -5,6 +7,8 @@ namespace AreaSurvivors
     [RequireComponent(typeof(Rigidbody2D))]
     public sealed class Projectile : MonoBehaviour
     {
+        public Sprite fallbackSprite;
+        public Color fallbackColor = Color.white;
         public float lifetime = 3f;
         public float visualScale = 1f;
         public float knockback;
@@ -16,6 +20,12 @@ namespace AreaSurvivors
         bool explosive;
         float explosionRadius = 1.1f;
         float trailTimer;
+        const float ArrowVisualScaleMultiplier = 0.5f;
+
+        void Awake()
+        {
+            EnsureVisibleProjectile();
+        }
 
         void Update()
         {
@@ -32,13 +42,14 @@ namespace AreaSurvivors
 
         public void Launch(Vector2 direction, int amount, float speed, bool isExplosive, float radius, float seconds, float scale)
         {
+            EnsureVisibleProjectile();
             damage = amount;
             explosive = isExplosive;
             explosionRadius = Mathf.Max(0.05f, radius);
             lifetime = Mathf.Max(0.05f, seconds);
             visualScale = Mathf.Max(0.05f, scale);
             ApplyWeaponSortingOrder(WeaponSortingOrders.Projectile);
-            if (visualScale > 0f) transform.localScale = Vector3.one * visualScale;
+            if (visualScale > 0f) transform.localScale = Vector3.one * (visualScale * (isExplosive ? 1f : ArrowVisualScaleMultiplier));
             var normalizedDirection = direction.normalized;
             GetComponent<Rigidbody2D>().velocity = normalizedDirection * speed;
             transform.right = normalizedDirection;
@@ -57,17 +68,7 @@ namespace AreaSurvivors
             ImpactFlash();
             if (explosive)
             {
-                var hits = Physics2D.OverlapCircleAll(transform.position, explosionRadius);
-                foreach (var hit in hits)
-                {
-                    var hitEnemy = hit.GetComponent<EnemyController>();
-                    if (hitEnemy != null)
-                    {
-                        var dealt = hit.GetComponent<Health>()?.Damage(damage, hit.ClosestPoint(transform.position)) ?? 0;
-                        ApplyKnockback(hitEnemy, ((Vector2)hit.transform.position - (Vector2)transform.position).normalized);
-                        GameManager.Instance?.RegisterDamageDealt(dealt);
-                    }
-                }
+                ProjectileExplosionHitbox.Spawn(transform.position, explosionRadius, damage, knockback, knockbackDuration);
             }
             else
             {
@@ -94,13 +95,19 @@ namespace AreaSurvivors
 
             var go = new GameObject(explosive ? "Fireball Impact" : "Arrow Impact");
             go.transform.position = transform.position;
-            go.transform.localScale = Vector3.one * (impactSprite != null ? Mathf.Max(0.05f, impactVisualScale) : explosive ? 1.15f : 0.72f);
+            go.transform.localScale = Vector3.one * ImpactScale();
             go.AddComponent<PaperBillboard>();
             var visual = go.AddComponent<PaperMeshVisual>();
             var color = impactSprite != null ? impactColor : explosive ? new Color(1f, 0.62f, 0.22f, 0.9f) : new Color(1f, 0.92f, 0.45f, 0.78f);
             visual.Configure(flashSprite, color, WeaponSortingOrders.Impact);
             go.AddComponent<ProjectileImpactFlash>().Configure(visual, impactSprite != null ? 0.26f : explosive ? 0.18f : 0.12f);
-            PixelBurstEffect.Spawn(flashSprite, transform.position, color, explosive ? 10 : 4, explosive ? 0.46f : 0.24f, explosive ? 0.28f : 0.18f, WeaponSortingOrders.ImpactBurst);
+        }
+
+        float ImpactScale()
+        {
+            if (impactSprite != null) return Mathf.Max(0.05f, impactVisualScale);
+            if (explosive) return Mathf.Max(0.05f, explosionRadius);
+            return 0.72f;
         }
 
         void TrailFleck()
@@ -118,6 +125,32 @@ namespace AreaSurvivors
             {
                 if (visual != null) visual.order = sortingOrder;
             }
+        }
+
+        void EnsureVisibleProjectile()
+        {
+            var visual = GetComponentInChildren<PaperMeshVisual>(true);
+            if (visual == null)
+            {
+                var child = new GameObject("Paper Visual");
+                child.transform.SetParent(transform, false);
+                child.AddComponent<PaperBillboard>();
+                visual = child.AddComponent<PaperMeshVisual>();
+            }
+
+            if (visual.sprite == null)
+            {
+                var sprite = fallbackSprite;
+                if (sprite == null) sprite = GeneratedSpriteLoader.Load(name.Contains("Fireball") ? "Fireball" : "Arrow");
+                if (sprite != null) visual.Configure(sprite, fallbackColor, WeaponSortingOrders.Projectile);
+            }
+            else
+            {
+                visual.Configure(visual.sprite, visual.color, WeaponSortingOrders.Projectile);
+            }
+
+            visual.visible = true;
+            visual.order = WeaponSortingOrders.Projectile;
         }
     }
 
@@ -147,6 +180,80 @@ namespace AreaSurvivors
                 visual.color = color;
             }
             if (age >= lifetime) Destroy(gameObject);
+        }
+    }
+
+    sealed class ProjectileExplosionHitbox : MonoBehaviour
+    {
+        readonly List<Collider2D> hits = new List<Collider2D>(24);
+        readonly HashSet<EnemyController> damaged = new HashSet<EnemyController>();
+        CircleCollider2D hitbox;
+        Vector3 origin;
+        int damage;
+        float knockback;
+        float knockbackDuration;
+
+        public static void Spawn(Vector3 position, float radius, int damage, float knockback, float knockbackDuration)
+        {
+            var go = new GameObject("Projectile Explosion Hitbox");
+            go.transform.position = position;
+
+            var hitbox = go.AddComponent<CircleCollider2D>();
+            hitbox.isTrigger = true;
+            hitbox.radius = Mathf.Max(0.05f, radius);
+
+            var body = go.AddComponent<Rigidbody2D>();
+            body.bodyType = RigidbodyType2D.Kinematic;
+            body.simulated = true;
+
+            go.AddComponent<ProjectileExplosionHitbox>().Configure(hitbox, position, damage, knockback, knockbackDuration);
+        }
+
+        void Configure(CircleCollider2D source, Vector3 hitOrigin, int hitDamage, float knockbackStrength, float knockbackSeconds)
+        {
+            hitbox = source;
+            origin = hitOrigin;
+            damage = hitDamage;
+            knockback = knockbackStrength;
+            knockbackDuration = knockbackSeconds;
+            StartCoroutine(DamageAfterPhysicsSync());
+        }
+
+        IEnumerator DamageAfterPhysicsSync()
+        {
+            yield return new WaitForFixedUpdate();
+            DamageOverlaps();
+            Destroy(gameObject);
+        }
+
+        void DamageOverlaps()
+        {
+            if (hitbox == null) return;
+            Physics2D.SyncTransforms();
+            hits.Clear();
+            damaged.Clear();
+            var filter = new ContactFilter2D();
+            filter.NoFilter();
+            hitbox.OverlapCollider(filter, hits);
+            for (int i = 0; i < hits.Count; i++)
+            {
+                var enemy = hits[i] != null ? hits[i].GetComponent<EnemyController>() : null;
+                if (enemy == null || damaged.Contains(enemy)) continue;
+                damaged.Add(enemy);
+                var health = enemy.GetComponent<Health>();
+                var dealt = health != null ? health.Damage(damage, hits[i].ClosestPoint(origin)) : 0;
+                ApplyKnockback(enemy);
+                GameManager.Instance?.RegisterDamageDealt(dealt);
+            }
+        }
+
+        void ApplyKnockback(EnemyController enemy)
+        {
+            if (enemy == null || knockback <= 0f) return;
+            var receiver = enemy.GetComponent<KnockbackReceiver>();
+            if (receiver == null) return;
+            var direction = ((Vector2)enemy.transform.position - (Vector2)origin).normalized;
+            receiver.Apply(direction, knockback, knockbackDuration);
         }
     }
 }

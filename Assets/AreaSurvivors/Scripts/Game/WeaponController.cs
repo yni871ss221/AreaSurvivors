@@ -8,28 +8,25 @@ namespace AreaSurvivors
         public GameObject arrowPrefab;
         public GameObject fireballPrefab;
         public Transform slashOrigin;
+        const float MageProjectileVisualScale = 0.38f;
         GameConfig config;
         PlayerController player;
-        int attackPower;
-        float cooldownMultiplier;
-        public int AttackPower => attackPower;
-        public float CurrentCooldown => config == null || player == null ? 0f : GetCooldown();
-        public float ProjectileSpeed => config != null ? config.projectileSpeed : 0f;
-        public float WeaponRange
-        {
-            get
-            {
-                if (config == null || player == null) return 0f;
-                if (player.characterType == CharacterType.Knight) return config.knightSlashRange;
-                if (player.characterType == CharacterType.Mage) return config.mageExplosionRadius;
-                return config.projectileSpeed * config.projectileLifetime;
-            }
-        }
+        WeaponStatBlock currentStats;
+        int weaponLevel = 1;
+        public int WeaponLevel => weaponLevel;
+        public bool CanLevelUp => weaponLevel < GameConfig.MaxWeaponLevel;
+        public int AttackPower => currentStats.attackPower;
+        public float CurrentCooldown => currentStats.cooldownSeconds;
+        public float ProjectileSpeed => currentStats.projectileSpeed;
+        public float WeaponRange => currentStats.range;
+        public float Knockback => currentStats.knockback;
 
         public void Configure(GameConfig gameConfig, PlayerController owner)
         {
             config = gameConfig;
             player = owner;
+            if (config != null) config.EnsureWeaponLevelDefaults();
+            weaponLevel = Mathf.Clamp(1 + ProgressionStore.GetLevel(UpgradeType.StartingWeaponLevel), 1, GameConfig.MaxWeaponLevel);
             RefreshFromStats();
             StopAllCoroutines();
             StartCoroutine(AttackLoop());
@@ -38,9 +35,15 @@ namespace AreaSurvivors
         public void RefreshFromStats()
         {
             if (config == null || player == null) return;
-            var stats = player.Stats;
-            attackPower = stats.attackPower;
-            cooldownMultiplier = Mathf.Max(config.minAttackCooldownMultiplier, stats.attackCooldownMultiplier);
+            currentStats = config.GetWeaponStats(player.characterType, weaponLevel);
+        }
+
+        public bool LevelUp()
+        {
+            if (!CanLevelUp) return false;
+            weaponLevel++;
+            RefreshFromStats();
+            return true;
         }
 
         IEnumerator AttackLoop()
@@ -60,27 +63,17 @@ namespace AreaSurvivors
 
         float GetCooldown()
         {
-            if (player.characterType == CharacterType.Knight) return config.knightCooldown * cooldownMultiplier;
-            if (player.characterType == CharacterType.Archer) return config.archerCooldown * cooldownMultiplier;
-            return config.mageCooldown * cooldownMultiplier;
+            return Mathf.Max(0.05f, currentStats.cooldownSeconds);
         }
 
         void KnightSlash()
         {
             var direction = player.Facing.sqrMagnitude > 0.01f ? player.Facing.normalized : Vector2.down;
-            var center = transform.position + (Vector3)(direction * config.knightSlashOffset);
-            var hits = Physics2D.OverlapCircleAll(center, config.knightSlashRange);
-            for (int i = 0; i < hits.Length; i++)
-            {
-                var enemy = hits[i].GetComponent<EnemyController>();
-                if (enemy == null) continue;
-                var dealt = hits[i].GetComponent<Health>()?.Damage(
-                    attackPower + config.knightDamageBonus,
-                    hits[i].ClosestPoint(transform.position)) ?? 0;
-                ApplyKnockback(enemy, direction);
-                GameManager.Instance?.RegisterDamageDealt(dealt);
-            }
-            SlashView.Flash(transform.position, direction);
+            float range = Mathf.Max(0.01f, currentStats.range);
+            float baseRange = config != null ? Mathf.Max(0.01f, config.knightSlashRange) : range;
+            int damage = currentStats.attackPower + config.knightDamageBonus;
+            float knockback = currentStats.knockback * config.knockbackForceUnit;
+            SlashView.Flash(transform.position, direction, range, baseRange, damage, knockback, config.knockbackDuration);
         }
 
         void ShootAtNearest(GameObject prefab, bool explosive)
@@ -101,21 +94,29 @@ namespace AreaSurvivors
 
             var dir = nearest == null ? player.Facing : (Vector2)(nearest.transform.position - transform.position);
             var go = Instantiate(prefab, transform.position, Quaternion.identity);
-            go.GetComponent<Projectile>().Launch(dir.normalized, attackPower, config.projectileSpeed, explosive, config.mageExplosionRadius, config.projectileLifetime, config.projectileVisualScale);
+            float projectileSpeed = Mathf.Max(0.01f, currentStats.projectileSpeed);
+            float lifetime = player.characterType == CharacterType.Archer
+                ? Mathf.Max(0.05f, currentStats.range / projectileSpeed)
+                : config.projectileLifetime;
+            float radius = player.characterType == CharacterType.Mage ? currentStats.range : config.mageExplosionRadius;
             var projectile = go.GetComponent<Projectile>();
             if (projectile != null)
             {
-                projectile.knockback = player.Stats.knockback * config.knockbackForceUnit;
+                if (player.characterType == CharacterType.Mage)
+                {
+                    projectile.impactSprite = GeneratedSpriteLoader.Load("CannonExplosion");
+                    projectile.impactColor = new Color(1f, 0.76f, 0.24f, 0.96f);
+                    projectile.impactVisualScale = Mathf.Clamp(radius * 0.55f, 0.55f, 1.2f);
+                }
+
+                float projectileVisualScale = player.characterType == CharacterType.Mage
+                    ? MageProjectileVisualScale
+                    : config.projectileVisualScale;
+                projectile.Launch(dir.normalized, currentStats.attackPower, projectileSpeed, explosive, radius, lifetime, projectileVisualScale);
+                projectile.knockback = currentStats.knockback * config.knockbackForceUnit;
                 projectile.knockbackDuration = config.knockbackDuration;
             }
         }
 
-        void ApplyKnockback(EnemyController enemy, Vector2 direction)
-        {
-            if (enemy == null || config == null || player == null) return;
-            var receiver = enemy.GetComponent<KnockbackReceiver>();
-            if (receiver == null) return;
-            receiver.Apply(direction, player.Stats.knockback * config.knockbackForceUnit, config.knockbackDuration);
-        }
     }
 }

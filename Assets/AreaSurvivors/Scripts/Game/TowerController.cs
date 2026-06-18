@@ -124,7 +124,7 @@ namespace AreaSurvivors
         {
             if (!CanStartUpgrade()) return false;
             upgradedSprite = sprite != null ? sprite : GetConfiguredUpgradeSprite();
-            if (upgradedSprite == null) upgradedSprite = LoadGeneratedSprite("TowerUpgrade");
+            if (upgradedSprite == null) return false;
             pendingUpgrade = gameObject.AddComponent<TowerUpgradeConstruction>();
             pendingUpgrade.Configure(this, config, grid, owner, upgradedSprite);
             SetBaseTowerVisible(false);
@@ -149,7 +149,7 @@ namespace AreaSurvivors
         {
             if (isUpgraded || pendingUpgrade != null) return;
             upgradedSprite = sprite != null ? sprite : GetConfiguredUpgradeSprite();
-            if (upgradedSprite == null) upgradedSprite = LoadGeneratedSprite("TowerUpgrade");
+            if (upgradedSprite == null) return;
             EnsureUpgradeVisuals(upgradedSprite);
             if (upgradeGhostVisual == null) return;
             upgradeGhostVisual.color = allowed ? new Color(0.30f, 0.82f, 1f, 0.42f) : new Color(1f, 0.20f, 0.16f, 0.42f);
@@ -164,7 +164,7 @@ namespace AreaSurvivors
 
         public void ShowUpgradeConstruction(float progress, bool active, bool showHammer)
         {
-            EnsureUpgradeVisuals(upgradedSprite != null ? upgradedSprite : GetConfiguredUpgradeSprite() ?? LoadGeneratedSprite("TowerUpgrade"));
+            EnsureUpgradeVisuals(upgradedSprite != null ? upgradedSprite : GetConfiguredUpgradeSprite());
             progress = Mathf.Clamp01(progress);
             if (upgradeGhostVisual != null)
             {
@@ -199,7 +199,7 @@ namespace AreaSurvivors
             isUpgraded = true;
             pendingUpgrade = null;
             upgradedSprite = sprite != null ? sprite : GetConfiguredUpgradeSprite();
-            if (upgradedSprite == null) upgradedSprite = LoadGeneratedSprite("TowerUpgrade");
+            if (upgradedSprite == null) return;
             EnsureUpgradeVisuals(upgradedSprite);
             SetBaseTowerVisible(false);
             if (upgradeGhostVisual != null) upgradeGhostVisual.visible = false;
@@ -303,7 +303,7 @@ namespace AreaSurvivors
                 }
             }
 
-            var sprite = baseTowerVisual.sprite != null ? baseTowerVisual.sprite : LoadGeneratedSprite("Tower");
+            var sprite = baseTowerVisual.sprite;
             if (sprite == null) return;
             baseTowerVisual.Configure(sprite, Color.white, 1003);
             if (baseTowerUsesPrefabLayout)
@@ -348,8 +348,8 @@ namespace AreaSurvivors
                 upgradeGhostVisual = CreateUpgradeVisual("Upgrade Ghost", sprite, new Color(0.30f, 0.82f, 1f, 0.36f), 22000);
                 upgradeBuildVisual = CreateUpgradeVisual("Upgrade Build Fill", sprite, Color.white, 22001);
                 upgradedCompleteVisual = CreateUpgradeVisual("Upgraded Tower Image", sprite, Color.white, 22002);
-                upgradeHammerVisual = CreateOverlayVisual("Upgrade Hammer", LoadGeneratedSprite("Hammer"), 22020);
-                upgradeSparkleVisual = CreateOverlayVisual("Upgrade Sparkle", LoadGeneratedSprite("Sparkle"), 22030);
+                upgradeHammerVisual = CreateOverlayVisual("Upgrade Hammer", null, 22020);
+                upgradeSparkleVisual = CreateOverlayVisual("Upgrade Sparkle", null, 22030);
             }
             if (upgradeBuildVisual != null) upgradeBuildBaseScale = upgradeBuildVisual.transform.localScale;
             if (upgradedCompleteVisual != null) upgradedCompleteBaseScale = upgradedCompleteVisual.transform.localScale;
@@ -408,9 +408,13 @@ namespace AreaSurvivors
 
         void ConfigureUpgradeVisual(PaperMeshVisual mesh, Sprite sprite, Color color)
         {
-            if (mesh == null || sprite == null) return;
+            if (mesh == null) return;
             mesh.useBottomCenterAnchor = true;
-            mesh.sprite = sprite;
+            if (!upgradeUsesPrefabLayout)
+            {
+                if (sprite == null) return;
+                mesh.sprite = sprite;
+            }
             mesh.color = color;
             mesh.order = mesh.order;
             mesh.transform.localRotation = Quaternion.identity;
@@ -483,17 +487,6 @@ namespace AreaSurvivors
                 ToolVisualScale.x / Mathf.Max(0.001f, Mathf.Abs(parentScale.x)),
                 ToolVisualScale.y / Mathf.Max(0.001f, Mathf.Abs(parentScale.y)),
                 ToolVisualScale.z);
-        }
-
-        static Sprite LoadGeneratedSprite(string name)
-        {
-            var sprite = GeneratedSpriteLoader.Load(name);
-            if (sprite != null) return sprite;
-            var texture = GeneratedSpriteLoader.LoadTexture(name);
-            if (texture == null) return null;
-            texture.filterMode = FilterMode.Point;
-            texture.wrapMode = TextureWrapMode.Clamp;
-            return Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 128f);
         }
 
         void StartCollapse()

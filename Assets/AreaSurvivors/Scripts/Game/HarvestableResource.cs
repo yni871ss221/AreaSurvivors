@@ -255,29 +255,13 @@ namespace AreaSurvivors
         float WorkSpeedMultiplier()
         {
             var player = GameManager.Instance != null ? GameManager.Instance.Player : null;
-            float multiplier = player != null ? Mathf.Max(0.05f, player.Stats.workSpeedMultiplier) : 1f;
-            var config = player != null ? player.config : null;
-            if (config == null) return multiplier;
-            if (resourceType == ResourceType.Wood)
-            {
-                multiplier += ProgressionStore.GetLevel(UpgradeType.WoodcuttingSpeed) * config.woodcuttingSpeedPerUpgradeLevel;
-            }
-            else
-            {
-                multiplier += ProgressionStore.GetLevel(UpgradeType.MiningSpeed) * config.miningSpeedPerUpgradeLevel;
-            }
-            return multiplier;
+            return player != null ? Mathf.Max(0.05f, player.Stats.workSpeedMultiplier) : 1f;
         }
 
         int ResourceGainBonus()
         {
             var player = GameManager.Instance != null ? GameManager.Instance.Player : null;
-            int bonus = player != null ? Mathf.Max(0, player.Stats.resourceGainBonus) : 0;
-            var config = player != null ? player.config : null;
-            if (config == null) return bonus;
-            return bonus + (resourceType == ResourceType.Wood
-                ? ProgressionStore.GetLevel(UpgradeType.WoodcuttingGain) * config.woodcuttingGainPerUpgradeLevel
-                : ProgressionStore.GetLevel(UpgradeType.MiningGain) * config.miningGainPerUpgradeLevel);
+            return player != null ? Mathf.Max(0, player.Stats.resourceGainBonus) : 0;
         }
 
         static Vector3Int MinCell(Vector3Int origin, Vector2Int size)

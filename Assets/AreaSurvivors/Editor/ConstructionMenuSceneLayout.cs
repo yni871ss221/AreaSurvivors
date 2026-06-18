@@ -18,7 +18,6 @@ namespace AreaSurvivors.EditorTools
         const float SlotY = 15f;
         const float SlotSpacing = 70f;
 
-        [MenuItem("Area Survivors/HUD/Apply Construction Menu Layout")]
         public static void ApplyToGameScene()
         {
             var previousScene = SceneManager.GetActiveScene().path;
@@ -31,6 +30,40 @@ namespace AreaSurvivors.EditorTools
             {
                 EditorSceneManager.OpenScene(previousScene, OpenSceneMode.Single);
             }
+        }
+
+        public static void ApplyIconSpritesToGameScene()
+        {
+            var previousScene = SceneManager.GetActiveScene().path;
+            var scene = EditorSceneManager.OpenScene(GameScenePath, OpenSceneMode.Single);
+            ApplyIconSpritesToOpenScene();
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene);
+
+            if (!string.IsNullOrEmpty(previousScene) && previousScene != GameScenePath)
+            {
+                EditorSceneManager.OpenScene(previousScene, OpenSceneMode.Single);
+            }
+        }
+
+        public static void ApplyIconSpritesToOpenScene()
+        {
+            var menuObject = GameObject.Find("Construction Menu");
+            if (menuObject == null)
+            {
+                Debug.LogWarning("Construction Menu was not found in the active scene.");
+                return;
+            }
+
+            var menu = menuObject.GetComponent<RectTransform>();
+            if (menu == null) return;
+
+            SetSlotIconSprite(menu, 1, "WoodenWall");
+            SetSlotIconSprite(menu, 2, "WoodenGateClosed");
+            SetSlotIconSprite(menu, 3, "Ballista");
+            SetSlotIconSprite(menu, 4, "WatchTower");
+            SetSlotIconSprite(menu, 5, "CarpenterHut");
+            SetSlotIconSprite(menu, 6, "WorkerHut");
         }
 
         public static void ApplyToOpenScene()
@@ -155,6 +188,21 @@ namespace AreaSurvivors.EditorTools
             icon.enabled = iconVisible;
             iconTransform.anchoredPosition = new Vector2(0f, -2f);
             iconTransform.sizeDelta = iconSize;
+        }
+
+        static void SetSlotIconSprite(RectTransform menu, int number, string spriteName)
+        {
+            var slot = menu.Find("Build Slot " + number) as RectTransform;
+            if (slot == null) return;
+
+            var iconTransform = slot.Find("Icon") as RectTransform;
+            if (iconTransform == null) return;
+
+            var icon = iconTransform.GetComponent<Image>();
+            if (icon == null) icon = iconTransform.gameObject.AddComponent<Image>();
+            icon.sprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/AreaSurvivors/Sprites/Generated/" + spriteName + ".png");
+            icon.preserveAspect = true;
+            icon.raycastTarget = false;
         }
 
         static void SetText(RectTransform parent, string childName, string value, int fontSize, Vector2 position, Vector2 size)

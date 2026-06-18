@@ -1,8 +1,13 @@
 using UnityEngine;
 
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
 namespace AreaSurvivors
 {
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
+    [ExecuteAlways]
     public sealed class PaperMeshVisual : MonoBehaviour
     {
         [SerializeField] Sprite sourceSprite;
@@ -14,6 +19,9 @@ namespace AreaSurvivors
         MeshFilter meshFilter;
         MeshRenderer meshRenderer;
         Material material;
+#if UNITY_EDITOR
+        bool editorApplyQueued;
+#endif
 
         public Sprite sprite
         {
@@ -101,7 +109,21 @@ namespace AreaSurvivors
 
         void Awake()
         {
+            EnsureRenderer();
+        }
+
+        void OnEnable()
+        {
             ApplySprite();
+        }
+
+        void OnValidate()
+        {
+#if UNITY_EDITOR
+            QueueEditorApplySprite();
+#else
+            ApplySprite();
+#endif
         }
 
         void OnDestroy()
@@ -191,5 +213,21 @@ namespace AreaSurvivors
             if (Application.isPlaying) Destroy(generated);
             else DestroyImmediate(generated);
         }
+
+#if UNITY_EDITOR
+        void QueueEditorApplySprite()
+        {
+            if (editorApplyQueued) return;
+            editorApplyQueued = true;
+            EditorApplication.delayCall += ApplySpriteFromEditorDelay;
+        }
+
+        void ApplySpriteFromEditorDelay()
+        {
+            editorApplyQueued = false;
+            if (this == null) return;
+            ApplySprite();
+        }
+#endif
     }
 }

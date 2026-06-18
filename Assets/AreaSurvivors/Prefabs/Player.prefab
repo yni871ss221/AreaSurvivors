@@ -651,6 +651,7 @@ MonoBehaviour:
   tint: {r: 1, g: 1, b: 1, a: 1}
   sortingOrder: 1000
   anchorBottomCenter: 0
+  verticalFill: 1
 --- !u!114 &1270828196143006062
 MonoBehaviour:
   m_ObjectHideFlags: 0

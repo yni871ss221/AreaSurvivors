@@ -65,6 +65,7 @@ namespace AreaSurvivors
             Time.timeScale = 1f;
             config = Instantiate(config);
             config.EnsureEnemySpawnDefaults();
+            config.EnsureWeaponLevelDefaults();
             Wood = Mathf.Max(0, config.startingWood + ProgressionStore.GetLevel(UpgradeType.StartingWood) * config.startingWoodPerUpgradeLevel);
             Stone = Mathf.Max(0, config.startingStone + ProgressionStore.GetLevel(UpgradeType.StartingStone) * config.startingStonePerUpgradeLevel);
             if (grid != null)
@@ -91,8 +92,7 @@ namespace AreaSurvivors
             if (Tower.hpBar != null) Tower.hpBar.gameObject.SetActive(false);
             if (towerMarker != null) towerMarker.Register(grid);
             var towerRootWorld = GridObjectVisual.FootprintOriginToWorld(grid, towerOriginCell);
-            int initialTerritoryRadius = InitialTowerTerritoryRadius + ProgressionStore.GetLevel(UpgradeType.InitialTerritory) * config.initialTerritoryRadiusPerUpgradeLevel;
-            grid.PaintImmediate(towerRootWorld, TileOwner.Player, initialTerritoryRadius);
+            grid.PaintImmediate(towerRootWorld, TileOwner.Player, InitialTowerTerritoryRadius);
             SpawnNaturalLandmarks(towerOriginCell);
 
             Player = Instantiate(playerPrefab, grid.GridToWorld(grid.width / 2, grid.height / 2 - 6), Quaternion.identity);
@@ -227,8 +227,10 @@ namespace AreaSurvivors
             {
                 int index = i;
                 EnsureSelectionHighlight(upgradeButtons[i]);
-                var label = upgradeButtons[i].GetComponentInChildren<Text>();
-                label.text = choices[index].label;
+                upgradeButtons[i].gameObject.SetActive(index < choices.Count);
+                if (index >= choices.Count) continue;
+                var label = ConfigureLevelUpButtonIcon(upgradeButtons[i], choices[index].iconResource);
+                if (label != null) label.text = choices[index].label;
                 upgradeButtons[i].onClick.RemoveAllListeners();
                 upgradeButtons[i].onClick.AddListener(() => ApplyRunUpgrade(choices[index]));
             }
@@ -260,19 +262,23 @@ namespace AreaSurvivors
         {
             var pool = new List<RunUpgradeChoice>
             {
-                new RunUpgradeChoice("\u653b\u6483\u529b +" + config.runAttackPowerBonus, () => Player.StatsSource.AddAttackPower(config.runAttackPowerBonus)),
-                new RunUpgradeChoice("\u653b\u6483\u9593\u9694 -" + Mathf.RoundToInt((1f - config.runAttackCooldownMultiplier) * 100f) + "%", () => Player.StatsSource.MultiplyAttackCooldown(config.runAttackCooldownMultiplier)),
-                new RunUpgradeChoice("\u79fb\u52d5\u901f\u5ea6 +" + Mathf.RoundToInt((config.runMoveSpeedMultiplier - 1f) * 100f) + "%", () => Player.StatsSource.MultiplyMoveSpeed(config.runMoveSpeedMultiplier)),
-                new RunUpgradeChoice("\u5857\u308a\u7bc4\u56f2 +" + config.runPaintRadiusBonus, () => Player.StatsSource.AddPaintRadius(config.runPaintRadiusBonus)),
-                new RunUpgradeChoice("\u6700\u5927HP +" + config.runMaxHpBonus, () => Player.StatsSource.AddMaxHp(config.runMaxHpBonus)),
-                new RunUpgradeChoice("\u30ce\u30c3\u30af\u30d0\u30c3\u30af +" + config.runKnockbackBonus, () => Player.StatsSource.AddKnockback(config.runKnockbackBonus)),
-                new RunUpgradeChoice("\u9632\u5fa1 +" + config.runDefenseBonus, () => Player.StatsSource.AddDefense(config.runDefenseBonus)),
-                new RunUpgradeChoice("\u7d4c\u9a13\u5024 +" + config.runXpGainMultiplierBonus.ToString("0.0") + "x", () => Player.StatsSource.AddXpGainMultiplier(config.runXpGainMultiplierBonus)),
-                new RunUpgradeChoice("\u81ea\u52d5\u56de\u5fa9 +" + config.runAutoRegenBonus, () => Player.StatsSource.AddAutoRegen(config.runAutoRegenBonus)),
-                new RunUpgradeChoice("\u4f5c\u696d\u901f\u5ea6 +" + config.runWorkSpeedMultiplierBonus.ToString("0.0") + "x", () => Player.StatsSource.AddWorkSpeedMultiplier(config.runWorkSpeedMultiplierBonus)),
-                new RunUpgradeChoice("\u8cc7\u6e90\u7372\u5f97 +" + config.runResourceGainBonus, () => Player.StatsSource.AddResourceGain(config.runResourceGainBonus))
+                new RunUpgradeChoice("\u79fb\u52d5\u901f\u5ea6 +" + Mathf.RoundToInt((config.runMoveSpeedMultiplier - 1f) * 100f) + "%", StatIconCatalog.MoveSpeed, () => Player.StatsSource.MultiplyMoveSpeed(config.runMoveSpeedMultiplier)),
+                new RunUpgradeChoice("\u5857\u308a\u7bc4\u56f2 +" + config.runPaintRadiusBonus, StatIconCatalog.Paint, () => Player.StatsSource.AddPaintRadius(config.runPaintRadiusBonus)),
+                new RunUpgradeChoice("\u6700\u5927HP +" + config.runMaxHpBonus, StatIconCatalog.MaxHp, () => Player.StatsSource.AddMaxHp(config.runMaxHpBonus)),
+                new RunUpgradeChoice("\u9632\u5fa1 +" + config.runDefenseBonus, StatIconCatalog.Defense, () => Player.StatsSource.AddDefense(config.runDefenseBonus)),
+                new RunUpgradeChoice("\u7d4c\u9a13\u5024 +" + config.runXpGainMultiplierBonus.ToString("0.0") + "x", StatIconCatalog.Xp, () => Player.StatsSource.AddXpGainMultiplier(config.runXpGainMultiplierBonus)),
+                new RunUpgradeChoice("\u81ea\u52d5\u56de\u5fa9 +" + config.runAutoRegenBonus, StatIconCatalog.Regen, () => Player.StatsSource.AddAutoRegen(config.runAutoRegenBonus)),
+                new RunUpgradeChoice("\u4f5c\u696d\u901f\u5ea6 +" + config.runWorkSpeedMultiplierBonus.ToString("0.0") + "x", StatIconCatalog.Work, () => Player.StatsSource.AddWorkSpeedMultiplier(config.runWorkSpeedMultiplierBonus)),
+                new RunUpgradeChoice("\u8cc7\u6e90\u7372\u5f97 +" + config.runResourceGainBonus, StatIconCatalog.Resource, () => Player.StatsSource.AddResourceGain(config.runResourceGainBonus))
             };
             var result = new List<RunUpgradeChoice>();
+            var weapon = Player != null ? Player.weapon : null;
+            if (weapon != null && weapon.CanLevelUp)
+            {
+                int nextLevel = Mathf.Min(GameConfig.MaxWeaponLevel, weapon.WeaponLevel + 1);
+                result.Add(new RunUpgradeChoice("\u6b66\u5668Lv " + weapon.WeaponLevel + " > " + nextLevel, StatIconCatalog.WeaponLevel, () => weapon.LevelUp()));
+            }
+
             while (result.Count < 3 && pool.Count > 0)
             {
                 int index = UnityEngine.Random.Range(0, pool.Count);
@@ -304,6 +310,65 @@ namespace AreaSurvivors
             highlight.forceSelected = false;
             highlight.enabled = true;
             if (button.GetComponent<SelectOnPointerEnter>() == null) button.gameObject.AddComponent<SelectOnPointerEnter>();
+        }
+
+        static Text ConfigureLevelUpButtonIcon(Button button, string iconResource)
+        {
+            if (button == null) return null;
+            var label = GetLevelUpButtonLabel(button);
+            var sprite = StatIconCatalog.Load(iconResource);
+            var iconTransform = button.transform.Find("Upgrade Icon");
+            var icon = iconTransform != null ? iconTransform.GetComponent<Image>() : null;
+            if (sprite == null)
+            {
+                if (icon != null) icon.gameObject.SetActive(false);
+                ConfigureLevelUpButtonLabel(label, false);
+                return label;
+            }
+
+            if (icon == null)
+            {
+                icon = new GameObject("Upgrade Icon").AddComponent<Image>();
+                icon.transform.SetParent(button.transform, false);
+                icon.raycastTarget = false;
+                icon.preserveAspect = true;
+                icon.rectTransform.anchorMin = new Vector2(0f, 0.5f);
+                icon.rectTransform.anchorMax = new Vector2(0f, 0.5f);
+                icon.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+                icon.rectTransform.anchoredPosition = new Vector2(28f, 0f);
+                icon.rectTransform.sizeDelta = new Vector2(28f, 28f);
+                var outline = icon.gameObject.AddComponent<Outline>();
+                outline.effectColor = Color.black;
+                outline.effectDistance = new Vector2(2f, -2f);
+                outline.useGraphicAlpha = true;
+            }
+
+            icon.gameObject.SetActive(true);
+            icon.sprite = sprite;
+            icon.color = Color.white;
+
+            ConfigureLevelUpButtonLabel(label, true);
+            return label;
+        }
+
+        static Text GetLevelUpButtonLabel(Button button)
+        {
+            var labelTransform = button.transform.Find("Label");
+            var label = labelTransform != null ? labelTransform.GetComponent<Text>() : null;
+            if (label != null) return label;
+
+            return button.GetComponentInChildren<Text>();
+        }
+
+        static void ConfigureLevelUpButtonLabel(Text label, bool hasIcon)
+        {
+            if (label == null) return;
+            label.alignment = TextAnchor.MiddleLeft;
+            label.rectTransform.anchorMin = new Vector2(0f, 0f);
+            label.rectTransform.anchorMax = new Vector2(1f, 1f);
+            label.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            label.rectTransform.offsetMin = new Vector2(hasIcon ? 72f : 18f, 0f);
+            label.rectTransform.offsetMax = new Vector2(-12f, 0f);
         }
 
         void UpdateLevelUpButtonHover()
@@ -572,11 +637,13 @@ namespace AreaSurvivors
         sealed class RunUpgradeChoice
         {
             public readonly string label;
+            public readonly string iconResource;
             public readonly Action apply;
 
-            public RunUpgradeChoice(string label, Action apply)
+            public RunUpgradeChoice(string label, string iconResource, Action apply)
             {
                 this.label = label;
+                this.iconResource = iconResource;
                 this.apply = apply;
             }
         }
@@ -599,6 +666,7 @@ namespace AreaSurvivors
         static readonly Vector2 TowerHpBarSize = new Vector2(38f, 136f);
         static readonly Vector2 TowerHpTextPosition = new Vector2(0f, -286f);
         static readonly Vector2 PlayerPanelSize = new Vector2(390f, 318f);
+        static readonly Vector2 WeaponPanelSize = new Vector2(124f, 218f);
         static readonly Vector2 PlayerIconSize = new Vector2(58f, 58f);
         static readonly Vector2 WeaponIconSize = new Vector2(48f, 48f);
         static readonly Vector2 BuildStatusPanelPosition = new Vector2(14f, 15f);
@@ -613,17 +681,18 @@ namespace AreaSurvivors
         TowerController towerController;
         Health towerHealth;
         Image towerImage;
-        Sprite towerIconSprite;
         Button upgradeButton;
         RectTransform towerPanel;
         RectTransform playerPanel;
         RectTransform playerStatsPanel;
+        RectTransform weaponStatsPanel;
         Image hpFill;
         Image playerHpFill;
         Image playerXpFill;
         Text hpText;
         Text playerHpText;
         Text playerLevelText;
+        Text weaponLevelText;
         Text playerAttackText;
         Text playerCooldownText;
         Text playerSpeedText;
@@ -664,7 +733,6 @@ namespace AreaSurvivors
             player = owner != null ? owner.Player : null;
             towerController = tower;
             towerHealth = tower != null ? tower.GetComponent<Health>() : null;
-            towerIconSprite = CreateTowerSpriteFromRenderer(tower) ?? GeneratedSpriteLoader.Load("Tower");
             if (towerHealth != null) towerHealth.Damaged += OnTowerDamaged;
             if (towerController != null) towerController.Upgraded += OnTowerUpgraded;
 
@@ -726,7 +794,7 @@ namespace AreaSurvivors
                 if (gameManager.killText != null && gameManager.killText != kills) gameManager.killText.gameObject.SetActive(false);
                 gameManager.killText = kills;
             }
-            SetResourceIcon(parent, "Kill Panel/Icon", "SkullIcon");
+            ConfigureStaticHudIcon(parent, "Kill Panel/Icon");
         }
 
         public void SetStage(int stage)
@@ -739,9 +807,9 @@ namespace AreaSurvivors
             woodText = FindText(parent, "Wood Resource/Amount");
             stoneText = FindText(parent, "Stone Resource/Amount");
             tokenText = FindText(parent, "Token Resource/Amount");
-            SetResourceIcon(parent, "Wood Resource/Icon", "WoodIcon");
-            SetResourceIcon(parent, "Stone Resource/Icon", "StoneIcon");
-            SetResourceIcon(parent, "Token Resource/Icon", "Token");
+            ConfigureStaticHudIcon(parent, "Wood Resource/Icon");
+            ConfigureStaticHudIcon(parent, "Stone Resource/Icon");
+            ConfigureStaticHudIcon(parent, "Token Resource/Icon");
         }
 
         void UpdateResourceHud()
@@ -824,6 +892,14 @@ namespace AreaSurvivors
             playerStatsPanel = statsRoot != null ? statsRoot.GetComponent<RectTransform>() : playerPanel;
             if (splitPlayerRoot != null) HideLegacyPlayerTiles(playerStatsPanel);
 
+            weaponStatsPanel = parent.Find("Weapon Status") as RectTransform;
+            if (weaponStatsPanel == null)
+            {
+                weaponStatsPanel = CreatePanel(parent, "Weapon Status", new Vector2(14f, -356f), WeaponPanelSize, Vector2.up, Vector2.up);
+                AddFrame(weaponStatsPanel, WeaponPanelSize);
+            }
+            if (weaponStatsPanel != playerStatsPanel) HideWeaponStatTiles(playerStatsPanel);
+
             var portraitFrame = EnsureIconFrame(playerPanel, "Character Frame", new Vector2(18f, -36f), new Vector2(70f, 70f));
             var portrait = EnsureImage(portraitFrame, "Character Image", PlayerIconSize);
             portrait.sprite = player != null ? player.PortraitSprite : LoadHudSprite("Knight", null);
@@ -836,19 +912,20 @@ namespace AreaSurvivors
 
             playerHpFill = EnsureHorizontalBar(playerPanel, "Player HP Bar", new Vector2(174f, -36f), new Vector2(190f, 24f), HpRed, out playerHpText);
             playerXpFill = EnsureHorizontalBar(playerPanel, "Player XP Bar", new Vector2(174f, -72f), new Vector2(190f, 20f), HpBlue, out playerLevelText);
-            playerAttackText = BindStatText(playerStatsPanel, "Attack Text");
-            playerCooldownText = BindStatText(playerStatsPanel, "Cooldown Text");
-            playerSpeedText = BindStatText(playerStatsPanel, "Speed Text");
-            playerPaintText = BindStatText(playerStatsPanel, "Paint Text");
-            playerReviveText = BindStatText(playerStatsPanel, "Revive Text");
-            playerProjectileText = BindStatText(playerStatsPanel, "Projectile Text");
-            playerRangeText = BindStatText(playerStatsPanel, "Range Text");
-            playerKnockbackText = BindStatText(playerStatsPanel, "Knockback Text");
-            playerDefenseText = BindStatText(playerStatsPanel, "Defense Text");
-            playerXpGainText = BindStatText(playerStatsPanel, "Xp Gain Text");
-            playerRegenText = BindStatText(playerStatsPanel, "Regen Text");
-            playerWorkText = BindStatText(playerStatsPanel, "Work Text");
-            playerResourceText = BindStatText(playerStatsPanel, "Resource Text");
+            weaponLevelText = BindStatText(weaponStatsPanel, "Weapon Level Text") ?? EnsureStatText(weaponStatsPanel, "Weapon Level Text", new Vector2(8f, -18f));
+            playerAttackText = BindStatText(weaponStatsPanel, "Attack Text") ?? EnsureStatText(weaponStatsPanel, "Attack Text", new Vector2(8f, -48f));
+            playerCooldownText = BindStatText(weaponStatsPanel, "Cooldown Text") ?? EnsureStatText(weaponStatsPanel, "Cooldown Text", new Vector2(8f, -78f));
+            playerSpeedText = BindStatText(playerStatsPanel, "Speed Text") ?? EnsureStatText(playerStatsPanel, "Speed Text", new Vector2(8f, -18f));
+            playerPaintText = BindStatText(playerStatsPanel, "Paint Text") ?? EnsureStatText(playerStatsPanel, "Paint Text", new Vector2(8f, -48f));
+            playerReviveText = BindStatText(playerStatsPanel, "Revive Text") ?? EnsureStatText(playerStatsPanel, "Revive Text", new Vector2(8f, -78f));
+            playerProjectileText = BindStatText(weaponStatsPanel, "Projectile Text") ?? EnsureStatText(weaponStatsPanel, "Projectile Text", new Vector2(8f, -108f));
+            playerRangeText = BindStatText(weaponStatsPanel, "Range Text") ?? EnsureStatText(weaponStatsPanel, "Range Text", new Vector2(8f, -138f));
+            playerKnockbackText = BindStatText(weaponStatsPanel, "Knockback Text") ?? EnsureStatText(weaponStatsPanel, "Knockback Text", new Vector2(8f, -168f));
+            playerDefenseText = BindStatText(playerStatsPanel, "Defense Text") ?? EnsureStatText(playerStatsPanel, "Defense Text", new Vector2(8f, -108f));
+            playerXpGainText = BindStatText(playerStatsPanel, "Xp Gain Text") ?? EnsureStatText(playerStatsPanel, "Xp Gain Text", new Vector2(8f, -138f));
+            playerRegenText = BindStatText(playerStatsPanel, "Regen Text") ?? EnsureStatText(playerStatsPanel, "Regen Text", new Vector2(8f, -168f));
+            playerWorkText = BindStatText(playerStatsPanel, "Work Text") ?? EnsureStatText(playerStatsPanel, "Work Text", new Vector2(8f, -198f));
+            playerResourceText = BindStatText(playerStatsPanel, "Resource Text") ?? EnsureStatText(playerStatsPanel, "Resource Text", new Vector2(8f, -228f));
         }
 
         static void HideLegacyPlayerTiles(RectTransform statsRoot)
@@ -858,6 +935,16 @@ namespace AreaSurvivors
             HideHudChild(statsRoot, "Weapon Frame");
             HideHudChild(statsRoot, "Player HP Bar");
             HideHudChild(statsRoot, "Player XP Bar");
+        }
+
+        static void HideWeaponStatTiles(RectTransform statsRoot)
+        {
+            if (statsRoot == null) return;
+            HideHudChild(statsRoot, "Attack Text Box");
+            HideHudChild(statsRoot, "Cooldown Text Box");
+            HideHudChild(statsRoot, "Projectile Text Box");
+            HideHudChild(statsRoot, "Range Text Box");
+            HideHudChild(statsRoot, "Knockback Text Box");
         }
 
         static void HideHudChild(Transform parent, string name)
@@ -890,15 +977,16 @@ namespace AreaSurvivors
             if (weapon != null) weapon.sprite = WeaponSprite(player.characterType);
 
             var weaponController = player.weapon;
+            if (weaponLevelText != null) weaponLevelText.text = weaponController != null ? weaponController.WeaponLevel.ToString() : "-";
             if (playerAttackText != null) playerAttackText.text = weaponController != null ? weaponController.AttackPower.ToString() : "-";
             if (playerCooldownText != null) playerCooldownText.text = weaponController != null ? weaponController.CurrentCooldown.ToString("0.0") + "s" : "-";
             if (playerSpeedText != null) playerSpeedText.text = player.MoveSpeed.ToString("0.0");
             if (playerPaintText != null) playerPaintText.text = player.PaintRadius.ToString();
             if (playerReviveText != null) playerReviveText.text = player.ReviveSeconds.ToString("0.0") + "s";
-            if (playerProjectileText != null) playerProjectileText.text = weaponController != null ? weaponController.ProjectileSpeed.ToString("0.0") : "-";
+            if (playerProjectileText != null) playerProjectileText.text = weaponController != null && weaponController.ProjectileSpeed > 0f ? weaponController.ProjectileSpeed.ToString("0.0") : "-";
             if (playerRangeText != null) playerRangeText.text = weaponController != null ? weaponController.WeaponRange.ToString("0.0") : "-";
             var stats = player.Stats;
-            if (playerKnockbackText != null) playerKnockbackText.text = stats.knockback.ToString("0.#");
+            if (playerKnockbackText != null) playerKnockbackText.text = weaponController != null ? weaponController.Knockback.ToString("0.#") : "-";
             if (playerDefenseText != null) playerDefenseText.text = stats.defense.ToString();
             if (playerXpGainText != null) playerXpGainText.text = stats.xpGainMultiplier.ToString("0.0") + "x";
             if (playerRegenText != null) playerRegenText.text = stats.autoRegen.ToString();
@@ -923,17 +1011,21 @@ namespace AreaSurvivors
         {
             var existing = parent.Find(name);
             var image = existing != null ? existing.GetComponent<Image>() : null;
-            if (image == null)
+            bool createdImage = image == null;
+            if (createdImage)
             {
                 image = new GameObject(name).AddComponent<Image>();
                 image.transform.SetParent(parent, false);
             }
             image.raycastTarget = false;
-            image.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
-            image.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-            image.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            image.rectTransform.anchoredPosition = Vector2.zero;
-            image.rectTransform.sizeDelta = size;
+            if (createdImage)
+            {
+                image.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+                image.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+                image.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+                image.rectTransform.anchoredPosition = Vector2.zero;
+                image.rectTransform.sizeDelta = size;
+            }
             return image;
         }
 
@@ -979,10 +1071,7 @@ namespace AreaSurvivors
             if (parent == null) return null;
             var value = parent.Find(name + " Box/Value");
             if (value != null && value.GetComponent<Text>() != null) return value.GetComponent<Text>();
-            var boxed = parent.Find(name + " Box/Label");
-            if (boxed != null && boxed.GetComponent<Text>() != null) return boxed.GetComponent<Text>();
-            var direct = parent.Find(name);
-            return direct != null ? direct.GetComponent<Text>() : null;
+            return null;
         }
 
         static Text EnsureStatText(RectTransform parent, string name, Vector2 position)
@@ -999,15 +1088,68 @@ namespace AreaSurvivors
                 AddFrame(box, box.sizeDelta);
             }
 
-            var existing = box.Find("Label");
-            var text = existing != null ? existing.GetComponent<Text>() : null;
-            if (text == null) text = CreateText(box, "Label", "", 13, Vector2.zero, new Vector2(96f, 22f), TextAnchor.MiddleLeft);
-            text.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
-            text.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-            text.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            text.rectTransform.anchoredPosition = Vector2.zero;
-            text.rectTransform.sizeDelta = new Vector2(96f, 22f);
-            return text;
+            var labelTransform = box.Find("Name") ?? box.Find("Label");
+            var label = labelTransform != null ? labelTransform.GetComponent<Text>() : null;
+            if (label == null) label = CreateText(box, "Name", "", 13, Vector2.zero, new Vector2(64f, 22f), TextAnchor.MiddleLeft);
+            label.gameObject.name = "Name";
+            label.text = StatLabel(name);
+            label.alignment = TextAnchor.MiddleLeft;
+            SetStatColumns(label.rectTransform, 0f, 0.62f, 5f, -2f);
+
+            var valueTransform = box.Find("Value");
+            var value = valueTransform != null ? valueTransform.GetComponent<Text>() : null;
+            if (value == null) value = CreateText(box, "Value", "-", 13, Vector2.zero, new Vector2(38f, 22f), TextAnchor.MiddleRight);
+            value.alignment = TextAnchor.MiddleRight;
+            SetStatColumns(value.rectTransform, 0.62f, 1f, 2f, -5f);
+
+            var divider = box.Find("Divider");
+            if (divider == null)
+            {
+                var dividerObject = new GameObject("Divider");
+                dividerObject.transform.SetParent(box, false);
+                var image = dividerObject.AddComponent<Image>();
+                image.color = new Color(0.58f, 0.68f, 0.40f, 0.65f);
+                image.raycastTarget = false;
+                var rect = image.rectTransform;
+                rect.anchorMin = new Vector2(0.62f, 0.15f);
+                rect.anchorMax = new Vector2(0.62f, 0.85f);
+                rect.sizeDelta = new Vector2(1f, 0f);
+                rect.anchoredPosition = Vector2.zero;
+            }
+
+            return value;
+        }
+
+        static string StatLabel(string name)
+        {
+            switch (name)
+            {
+                case "Weapon Level Text": return "武器Lv";
+                case "Attack Text": return "攻撃";
+                case "Cooldown Text": return "間隔";
+                case "Speed Text": return "速度";
+                case "Paint Text": return "塗り";
+                case "Revive Text": return "復活";
+                case "Projectile Text": return "弾速";
+                case "Range Text": return "範囲";
+                case "Knockback Text": return "ノック";
+                case "Defense Text": return "防御";
+                case "Xp Gain Text": return "経験";
+                case "Regen Text": return "回復";
+                case "Work Text": return "作業";
+                case "Resource Text": return "資源";
+                default: return name;
+            }
+        }
+
+        static void SetStatColumns(RectTransform rect, float minX, float maxX, float left, float right)
+        {
+            rect.anchorMin = new Vector2(minX, 0f);
+            rect.anchorMax = new Vector2(maxX, 1f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.offsetMin = new Vector2(left, 0f);
+            rect.offsetMax = new Vector2(right, 0f);
         }
 
         static Sprite WeaponSprite(CharacterType type)
@@ -1035,32 +1177,32 @@ namespace AreaSurvivors
             slotIcons = new Image[6];
             slotButtons = new Button[6];
             slotHighlights = new UiSelectionHighlight[6];
-            ConfigureBuildSlot(root, 0, "1", LoadHudSprite("WoodenWall", buildPlacement != null ? buildPlacement.woodenWallPreviewSprite : null), slotPositions[0], () =>
+            ConfigureBuildSlot(root, 0, "1", slotPositions[0], () =>
             {
                 selectedSlot = 0;
                 buildPlacement?.SelectWoodenWall();
             });
-            ConfigureBuildSlot(root, 1, "2", LoadHudSprite("WoodenGateClosed", buildPlacement != null ? buildPlacement.woodenGatePreviewSprite : null), slotPositions[1], () =>
+            ConfigureBuildSlot(root, 1, "2", slotPositions[1], () =>
             {
                 selectedSlot = 1;
                 buildPlacement?.SelectWoodenGate();
             });
-            ConfigureBuildSlot(root, 2, "3", LoadHudSprite("Ballista", buildPlacement != null ? buildPlacement.ballistaPreviewSprite : null), slotPositions[2], () =>
+            ConfigureBuildSlot(root, 2, "3", slotPositions[2], () =>
             {
                 selectedSlot = 2;
                 buildPlacement?.SelectBallista();
             });
-            ConfigureBuildSlot(root, 3, "4", LoadHudSprite("WatchTower", buildPlacement != null ? buildPlacement.watchTowerPreviewSprite : null), slotPositions[3], () =>
+            ConfigureBuildSlot(root, 3, "4", slotPositions[3], () =>
             {
                 selectedSlot = 3;
                 buildPlacement?.SelectWatchTower();
             });
-            ConfigureBuildSlot(root, 4, "5", LoadHudSprite("CarpenterHut", buildPlacement != null ? buildPlacement.carpenterHutPreviewSprite : null), slotPositions[4], () =>
+            ConfigureBuildSlot(root, 4, "5", slotPositions[4], () =>
             {
                 selectedSlot = 4;
                 buildPlacement?.SelectCarpenterHut();
             });
-            ConfigureBuildSlot(root, 5, "6", LoadHudSprite("WorkerHut", buildPlacement != null ? buildPlacement.workerHutPreviewSprite : null), slotPositions[5], () =>
+            ConfigureBuildSlot(root, 5, "6", slotPositions[5], () =>
             {
                 selectedSlot = 5;
                 buildPlacement?.SelectWorkerHut();
@@ -1176,10 +1318,11 @@ namespace AreaSurvivors
             return status;
         }
 
-        void ConfigureBuildSlot(RectTransform parent, int index, string key, Sprite sprite, Vector2 position, UnityEngine.Events.UnityAction onClick)
+        void ConfigureBuildSlot(RectTransform parent, int index, string key, Vector2 position, UnityEngine.Events.UnityAction onClick)
         {
             var slotName = "Build Slot " + key;
             var slot = parent.Find(slotName);
+            bool createdSlot = slot == null;
             var buttonObject = slot != null ? slot.gameObject : new GameObject(slotName);
             buttonObject.transform.SetParent(parent, false);
             var image = buttonObject.GetComponent<Image>();
@@ -1210,12 +1353,12 @@ namespace AreaSurvivors
             };
 
             var rect = buttonObject.GetComponent<RectTransform>();
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.zero;
-            rect.pivot = Vector2.zero;
-            rect.anchoredPosition = position;
-            if (slot == null)
+            if (createdSlot)
             {
+                rect.anchorMin = Vector2.zero;
+                rect.anchorMax = Vector2.zero;
+                rect.pivot = Vector2.zero;
+                rect.anchoredPosition = position;
                 image.color = SlotColor;
                 rect.sizeDelta = new Vector2(58f, 66f);
                 AddFrame(rect, rect.sizeDelta);
@@ -1223,13 +1366,16 @@ namespace AreaSurvivors
 
             var iconTransform = rect.Find("Icon");
             var icon = iconTransform != null ? iconTransform.GetComponent<Image>() : null;
-            if (icon == null) icon = new GameObject("Icon").AddComponent<Image>();
+            bool createdIcon = icon == null;
+            if (createdIcon) icon = new GameObject("Icon").AddComponent<Image>();
             icon.transform.SetParent(rect, false);
-            icon.sprite = sprite;
             icon.preserveAspect = true;
             icon.raycastTarget = false;
-            icon.rectTransform.anchoredPosition = new Vector2(0f, -2f);
-            icon.rectTransform.sizeDelta = index == 1 ? new Vector2(30f, 48f) : new Vector2(46f, 44f);
+            if (createdIcon)
+            {
+                icon.rectTransform.anchoredPosition = new Vector2(0f, -2f);
+                icon.rectTransform.sizeDelta = new Vector2(46f, 44f);
+            }
             slotIcons[index] = icon;
 
             var keyTransform = rect.Find("Key");
@@ -1255,19 +1401,23 @@ namespace AreaSurvivors
                 AddFrame(towerPanel, TowerPanelSize);
             }
 
-            var towerSprite = LoadHudSprite("Tower", towerIconSprite);
-            if (towerSprite != null)
+            var towerImageTransform = towerPanel.Find("Tower Image");
+            towerImage = towerImageTransform != null ? towerImageTransform.GetComponent<Image>() : null;
+            bool createdTowerImage = towerImage == null;
+            if (createdTowerImage)
             {
-                var towerImageTransform = towerPanel.Find("Tower Image");
-                towerImage = towerImageTransform != null ? towerImageTransform.GetComponent<Image>() : null;
-                if (towerImage == null) towerImage = new GameObject("Tower Image").AddComponent<Image>();
+                towerImage = new GameObject("Tower Image").AddComponent<Image>();
                 towerImage.transform.SetParent(towerPanel, false);
-                towerImage.sprite = towerSprite;
-                towerImage.preserveAspect = true;
-                towerImage.raycastTarget = false;
+                towerImage.sprite = LoadHudSprite("Tower", CreateTowerSpriteFromRenderer(towerController));
                 AnchorTopCenter(towerImage.rectTransform);
                 towerImage.rectTransform.anchoredPosition = TowerIconPosition;
                 towerImage.rectTransform.sizeDelta = TowerIconSize;
+            }
+
+            if (towerImage != null)
+            {
+                towerImage.preserveAspect = true;
+                towerImage.raycastTarget = false;
             }
 
             var barTransform = towerPanel.Find("Tower HP Bar");
@@ -1309,7 +1459,6 @@ namespace AreaSurvivors
             var icon = upgradeButton.transform.Find("Icon")?.GetComponent<Image>();
             if (icon != null)
             {
-                icon.sprite = LoadHudSprite("UpgradeBuildingIcon", null);
                 icon.preserveAspect = true;
                 icon.color = upgradeButton.interactable ? Color.white : new Color(0.35f, 0.38f, 0.36f, 1f);
             }
@@ -1331,7 +1480,6 @@ namespace AreaSurvivors
 
             var icon = new GameObject("Icon").AddComponent<Image>();
             icon.transform.SetParent(image.transform, false);
-            icon.sprite = LoadHudSprite("UpgradeBuildingIcon", null);
             icon.preserveAspect = true;
             icon.raycastTarget = false;
             icon.rectTransform.anchorMin = Vector2.zero;
@@ -1462,13 +1610,12 @@ namespace AreaSurvivors
             return target != null ? target.GetComponent<Text>() : null;
         }
 
-        static void SetResourceIcon(Transform parent, string path, string spriteName)
+        static void ConfigureStaticHudIcon(Transform parent, string path)
         {
             if (parent == null) return;
             var target = parent.Find(path);
             var image = target != null ? target.GetComponent<Image>() : null;
             if (image == null) return;
-            image.sprite = LoadHudSprite(spriteName, null);
             image.preserveAspect = true;
             image.color = Color.white;
             AddUiIconOutline(image);
@@ -1529,6 +1676,9 @@ namespace AreaSurvivors
         static Sprite CreateTowerSpriteFromRenderer(TowerController tower)
         {
             if (tower == null) return null;
+            var baseImage = tower.transform.Find("Base Tower Image")?.GetComponent<PaperMeshVisual>();
+            if (baseImage != null && baseImage.sprite != null) return baseImage.sprite;
+
             var renderers = tower.GetComponentsInChildren<Renderer>(true);
             Texture2D bestTexture = null;
             int bestPixels = 0;

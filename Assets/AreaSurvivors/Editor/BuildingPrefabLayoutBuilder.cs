@@ -34,6 +34,8 @@ namespace AreaSurvivors.EditorTools
 
             SetupBallistaPrefab($"{PrefabRoot}/BallistaTower.prefab");
             SetupWatchTowerPrefab($"{PrefabRoot}/WatchTower.prefab");
+            SetupCarpenterHutPrefab($"{PrefabRoot}/CarpenterHut.prefab");
+            SetupWorkerHutPrefab($"{PrefabRoot}/WorkerHut.prefab");
             SetupCenterTowerPrefab($"{PrefabRoot}/CenterTower.prefab");
             UpdateGameSceneReferences();
             AssetDatabase.SaveAssets();
@@ -63,7 +65,6 @@ namespace AreaSurvivors.EditorTools
                 var set = Ensure<BuildingPrefabVisualSet>(root);
                 ConfigureVisualSet(root, set, marker.footprint, barrier.barrierSprite, LoadGeneratedSprite(upgradeSpriteName), 0.026f);
                 set.upgradedOpenSprite = !string.IsNullOrEmpty(upgradeOpenSpriteName) ? LoadGeneratedSprite(upgradeOpenSpriteName) : null;
-                if (barrier.openGateSprite != null) set.ApplySpriteToBase(barrier.barrierSprite);
 
                 barrier.ghostRenderer = set.ghostVisual;
                 barrier.buildRenderer = set.buildFillVisual;
@@ -75,6 +76,7 @@ namespace AreaSurvivors.EditorTools
                 barrier.completeObject = set.completeVisual != null ? set.completeVisual.gameObject : null;
                 barrier.blockingCollider = ConfigureCollider(root, marker.footprint, false);
                 ConfigureCollider(root, marker.footprint, true);
+                DestroyChild(root.transform, "Build Gauge");
                 CleanMissingScripts(root);
                 PrefabUtility.SaveAsPrefabAsset(root, path);
             }
@@ -111,6 +113,7 @@ namespace AreaSurvivors.EditorTools
                 ballista.completeObject = set.completeVisual != null ? set.completeVisual.gameObject : null;
                 ballista.blockingCollider = ConfigureCollider(root, marker.footprint, false);
                 ConfigureCollider(root, marker.footprint, true);
+                DestroyChild(root.transform, "Build Gauge");
                 CleanMissingScripts(root);
                 PrefabUtility.SaveAsPrefabAsset(root, path);
             }
@@ -147,6 +150,77 @@ namespace AreaSurvivors.EditorTools
                 watchTower.completeObject = set.completeVisual != null ? set.completeVisual.gameObject : null;
                 watchTower.blockingCollider = ConfigureCollider(root, marker.footprint, false);
                 ConfigureCollider(root, marker.footprint, true);
+                DestroyChild(root.transform, "Build Gauge");
+                CleanMissingScripts(root);
+                PrefabUtility.SaveAsPrefabAsset(root, path);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
+        }
+
+        static void SetupCarpenterHutPrefab(string path)
+        {
+            SetupHutPrefab(path, GridObjectType.CarpenterHut, LoadGeneratedSprite("CarpenterHut"), true);
+        }
+
+        static void SetupWorkerHutPrefab(string path)
+        {
+            SetupHutPrefab(path, GridObjectType.WorkerHut, LoadGeneratedSprite("WorkerHut"), false);
+        }
+
+        static void SetupHutPrefab(string path, GridObjectType type, Sprite sprite, bool carpenter)
+        {
+            var root = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                var marker = Ensure<GridObjectMarker>(root);
+                marker.type = type;
+                marker.flags = GridCellFlags.BlocksMovement | GridCellFlags.BlocksBuilding | GridCellFlags.Defensive;
+                marker.footprint = Vector2Int.one;
+                var gridVisual = Ensure<GridObjectVisual>(root);
+                gridVisual.ConfigureFootprint(marker.footprint);
+                gridVisual.footprint = marker.footprint;
+                gridVisual.fitVisualWidthToFootprint = false;
+                gridVisual.resetVisualOffset = false;
+
+                if (carpenter)
+                {
+                    var hut = Ensure<CarpenterHut>(root);
+                    hut.hutSprite = sprite;
+                    hut.spriteVisualSize = VisualSizeForWidth(sprite, GridObjectVisual.CellWidth);
+                    hut.spriteVisualOffset = Vector3.zero;
+                    hut.ghostRenderer = ConfigureVisual(root.transform, "Ghost Image", sprite, new Color(1f, 1f, 1f, 0.34f), 1000, marker.footprint, 0.026f);
+                    hut.buildRenderer = ConfigureVisual(root.transform, "Build Fill Image", sprite, Color.white, 1001, marker.footprint, 0.026f);
+                    hut.completeRenderer = ConfigureVisual(root.transform, "Complete Image", sprite, Color.white, 1002, marker.footprint, 0.026f);
+                    hut.hammerRenderer = ConfigureOverlay(root.transform, "Hammer", LoadGeneratedSprite("Hammer"), 22020, new Vector3(0.12f, GridObjectVisual.CellHeight + 0.18f, 0f), 0.58f);
+                    hut.sparkleRenderer = ConfigureOverlay(root.transform, "Completion Sparkle", LoadGeneratedSprite("Sparkle"), 22030, new Vector3(0.3f, 0.48f, 0f), 0.7f);
+                    hut.ghostObject = hut.ghostRenderer != null ? hut.ghostRenderer.gameObject : null;
+                    hut.buildObject = hut.buildRenderer != null ? hut.buildRenderer.gameObject : null;
+                    hut.completeObject = hut.completeRenderer != null ? hut.completeRenderer.gameObject : null;
+                    hut.blockingCollider = ConfigureCollider(root, marker.footprint, false);
+                    ConfigureCollider(root, marker.footprint, true);
+                }
+                else
+                {
+                    var hut = Ensure<WorkerHut>(root);
+                    hut.hutSprite = sprite;
+                    hut.spriteVisualSize = VisualSizeForWidth(sprite, GridObjectVisual.CellWidth);
+                    hut.spriteVisualOffset = Vector3.zero;
+                    hut.ghostRenderer = ConfigureVisual(root.transform, "Ghost Image", sprite, new Color(1f, 1f, 1f, 0.34f), 1000, marker.footprint, 0.026f);
+                    hut.buildRenderer = ConfigureVisual(root.transform, "Build Fill Image", sprite, Color.white, 1001, marker.footprint, 0.026f);
+                    hut.completeRenderer = ConfigureVisual(root.transform, "Complete Image", sprite, Color.white, 1002, marker.footprint, 0.026f);
+                    hut.hammerRenderer = ConfigureOverlay(root.transform, "Hammer", LoadGeneratedSprite("Hammer"), 22020, new Vector3(0.12f, GridObjectVisual.CellHeight + 0.18f, 0f), 0.58f);
+                    hut.sparkleRenderer = ConfigureOverlay(root.transform, "Completion Sparkle", LoadGeneratedSprite("Sparkle"), 22030, new Vector3(0.3f, 0.48f, 0f), 0.7f);
+                    hut.ghostObject = hut.ghostRenderer != null ? hut.ghostRenderer.gameObject : null;
+                    hut.buildObject = hut.buildRenderer != null ? hut.buildRenderer.gameObject : null;
+                    hut.completeObject = hut.completeRenderer != null ? hut.completeRenderer.gameObject : null;
+                    hut.blockingCollider = ConfigureCollider(root, marker.footprint, false);
+                    ConfigureCollider(root, marker.footprint, true);
+                }
+
+                DestroyChild(root.transform, "Build Gauge");
                 CleanMissingScripts(root);
                 PrefabUtility.SaveAsPrefabAsset(root, path);
             }
@@ -318,6 +392,18 @@ namespace AreaSurvivors.EditorTools
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
             return go;
+        }
+
+        static Vector2 VisualSizeForWidth(Sprite sprite, float width)
+        {
+            if (sprite == null || sprite.bounds.size.x <= 0.001f) return new Vector2(width, width);
+            return new Vector2(width, sprite.bounds.size.y * (width / sprite.bounds.size.x));
+        }
+
+        static void DestroyChild(Transform parent, string name)
+        {
+            var child = parent.Find(name);
+            if (child != null) Object.DestroyImmediate(child.gameObject);
         }
 
         static T Ensure<T>(GameObject go) where T : Component
