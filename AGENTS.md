@@ -115,6 +115,10 @@ AreaSurvivors リポジトリで作業するエージェント向けの運用ル
 - スクリーンショットが必要な場合も、可能なら低解像度または必要範囲だけで確認し、2560x1440など高解像度画像の反復確認を避ける。
 - Unity Scene YAMLや巨大Prefabに対して不用意に `git diff --check` をかけない。Unity生成の空フィールドで大量出力になりやすい。基本はコード対象に限定し、SceneはUnity検証・専用Validator・最終スクリーンショットで確認する。
 - `git diff`、`rg`、`Get-Content`、UniCLI出力は対象ファイル、検索語、行数を絞る。巨大なScene全文、広すぎる検索結果、長大な警告一覧を読み込まない。
+- RTKが使える環境では、広い `git status`、`git diff`、`git log`、`rg`/`grep`、長いテスト/ログ確認は `rtk git status`、`rtk git diff`、`rtk grep`、`rtk test` のようにRTK経由を優先する。
+- RTK出力は要約されるため、Scene/Prefab/YAMLの精査や正確な差分確認が必要な場合は、対象ファイルを絞って通常の `git diff -- <path>` や専用Validatorで確認する。
+- 広い `git diff` / `git status` / `rg` / `Get-Content`、Scene/Prefab/YAML全文、Unityログ、Obsidian長文、スクリーンショット反復などでトークン消費が大きくなりそうな場合は、実行前に軽量ルートを自動で選ぶか、必要なら短く提案してから進める。
+- 高トークン化を検知した場合の優先順は、`Compact Project Snapshot`、RTK、対象パス指定、専用Validator/Reporter、必要範囲だけのログ/差分確認、最後に限定的な全文確認とする。
 - UI配置変更は、個別に動かして都度スクリーンショットを見るのではなく、座標表やグリッド定義をまとめて決めて一括反映し、その後Validatorと最終スクリーンショットで確認する。
 - スキルツリーは `SkillTreeLayoutValidator` のようなEditor検証を先に使い、ノード重なり・リンク角度・重複ID・前提不整合を検出してから目視確認する。
 - UniCLI `Eval` に複雑なC#コードや引用符を多く含む処理を直接渡さない。Scene操作、Validator実行、移行処理などは、最初から短い一時Editor Runner/Migratorを作成し、`AreaSurvivors.SomeRunner.Run();` のような単純なEvalで呼び出す。作業後はRunner/Migratorと `.meta` を削除する。
