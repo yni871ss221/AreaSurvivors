@@ -9,6 +9,8 @@ namespace AreaSurvivors
         Transform graphRoot;
         Text tooltipTitle;
         Text tooltipDescription;
+        Text tokenLabel;
+        SkillNodeView[] sceneNodes;
 
         void Start()
         {
@@ -22,14 +24,13 @@ namespace AreaSurvivors
         {
             var uiObject = GameObject.Find("Upgrade UI");
             if (uiObject == null) return false;
-            var sceneNodes = uiObject.GetComponentsInChildren<SkillNodeView>(true);
+            sceneNodes = uiObject.GetComponentsInChildren<SkillNodeView>(true);
             if (sceneNodes == null || sceneNodes.Length == 0) return false;
 
             graphRoot = FindDeep(uiObject.transform, "Skill Tree");
             tooltipTitle = FindDeep(uiObject.transform, "Tooltip Title")?.GetComponent<Text>();
             tooltipDescription = FindDeep(uiObject.transform, "Tooltip Description")?.GetComponent<Text>();
-            var tokenLabel = FindDeep(uiObject.transform, "TokenLabel")?.GetComponent<Text>();
-            if (tokenLabel != null) tokenLabel.text = $"所持トークン {ProgressionStore.Data.tokens}";
+            tokenLabel = FindDeep(uiObject.transform, "TokenLabel")?.GetComponent<Text>();
 
             BindSceneButton(uiObject.transform, "スキル初期化", ResetUpgradesForTesting);
             BindSceneButton(uiObject.transform, "トークン+99999", AddTestTokens);
@@ -37,7 +38,7 @@ namespace AreaSurvivors
             if (nav == null) nav = gameObject.AddComponent<SceneNavigator>();
             BindSceneButton(uiObject.transform, "ロビーへ", nav.LoadLobby);
 
-            DrawSceneTree(sceneNodes);
+            RefreshSceneTree();
             return true;
         }
 
@@ -62,9 +63,10 @@ namespace AreaSurvivors
             if (action != null) button.onClick.AddListener(action);
         }
 
-        void DrawSceneTree(SkillNodeView[] sceneNodes)
+        void RefreshSceneTree()
         {
             if (graphRoot == null) return;
+            if (tokenLabel != null) tokenLabel.text = $"所持トークン {ProgressionStore.Data.tokens}";
 
             foreach (var node in sceneNodes)
             {
@@ -125,9 +127,12 @@ namespace AreaSurvivors
             {
                 node.button.onClick.RemoveAllListeners();
                 node.button.interactable = node.implemented && prerequisiteMet && affordable && !maxed;
+                var colors = node.button.colors;
+                colors.disabledColor = Color.white;
+                node.button.colors = colors;
                 node.button.onClick.AddListener(() =>
                 {
-                    if (ProgressionStore.TryBuy(node.type)) UnityEngine.SceneManagement.SceneManager.LoadScene(SceneNames.Upgrades);
+                    if (ProgressionStore.TryBuy(node.type)) RefreshSceneTree();
                 });
             }
 
@@ -158,13 +163,13 @@ namespace AreaSurvivors
         void ResetUpgradesForTesting()
         {
             ProgressionStore.ResetUpgradesForTesting();
-            UnityEngine.SceneManagement.SceneManager.LoadScene(SceneNames.Upgrades);
+            RefreshSceneTree();
         }
 
         void AddTestTokens()
         {
             ProgressionStore.AddTokensForTesting(99999);
-            UnityEngine.SceneManagement.SceneManager.LoadScene(SceneNames.Upgrades);
+            RefreshSceneTree();
         }
 
     }
