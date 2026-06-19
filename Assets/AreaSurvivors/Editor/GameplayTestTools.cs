@@ -244,16 +244,15 @@ namespace AreaSurvivors.Editor
 
             scenario = ScriptableObject.CreateInstance<GameplayTestScenario>();
             scenario.name = "Gameplay_Map_Perimeter";
-            scenario.targetCellOffset = new Vector2Int(60, 0);
+            scenario.targetCellOffset = Vector2Int.zero;
             scenario.enemies = new[]
             {
                 new GameplayTestScenario.EnemyPlacement
                 {
                     kind = EnemyKind.Boar,
-                    cellOffset = new Vector2Int(44, 0),
+                    cellOffset = new Vector2Int(34, 0),
                     monitorForStall = true,
-                    requireReachTarget = false,
-                    suppressStuckRecovery = true
+                    requireReachTarget = false
                 }
             };
             scenario.simulationTimeScale = 4f;

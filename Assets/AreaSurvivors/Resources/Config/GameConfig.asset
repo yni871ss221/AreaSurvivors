@@ -41,7 +41,6 @@ MonoBehaviour:
   cameraBoundsPadding: 0.25
   towerMaxHp: 160
   towerMaxHpPerUpgradeLevel: 12
-  ballistaBuildSeconds: 2.2
   ballistaRange: 9.5
   ballistaCooldown: 1.15
   ballistaDamage: 5
@@ -56,20 +55,14 @@ MonoBehaviour:
   towerCannonKnockback: 2.2
   towerUpgradeWoodCost: 300
   towerUpgradeStoneCost: 300
-  towerUpgradeBuildSeconds: 5
   upgradedTowerMaxHp: 450
   upgradedTowerRegenBonus: 3
   upgradedTowerCannonDamageBonus: 10
   upgradedTowerCannonExplosionRadiusMultiplier: 2
   upgradedTowerImmediatePaintRadiusCells: 15
-  woodenWallBuildSeconds: 1.8
   woodenWallMaxHp: 70
-  carpenterHutBuildSeconds: 2.4
   carpenterHutMaxHp: 50
-  carpenterHutAutoBuildSpeedMultiplier: 0.1
-  workerHutBuildSeconds: 2.4
   workerHutMaxHp: 50
-  watchTowerBuildSeconds: 3.2
   watchTowerMaxHp: 100
   watchTowerAutoPaintIntervalSeconds: 2
   watchTowerAutoPaintRadiusCells: 10

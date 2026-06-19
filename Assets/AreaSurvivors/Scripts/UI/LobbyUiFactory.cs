@@ -71,6 +71,10 @@ namespace AreaSurvivors
         static void BuildStageCard(Transform parent, int stage, Vector2 position)
         {
             var panel = Panel(parent, "Stage " + stage + " Panel", position, new Vector2(184, 126), StagePanelColor);
+            var button = panel.gameObject.AddComponent<Button>();
+            button.targetGraphic = panel;
+            button.transition = Selectable.Transition.None;
+            panel.gameObject.AddComponent<SelectOnPointerEnter>();
             Label(panel.transform, "Stage Label", "STAGE " + stage, 18, new Vector2(0, 46), new Vector2(150, 24), AccentText);
             var boss = Image(panel.transform, "Boss Image", Color.white, new Vector2(0, 4), new Vector2(74, 70));
             boss.preserveAspect = true;
@@ -117,9 +121,9 @@ namespace AreaSurvivors
 
         static void BuildFooterButtons(Transform parent)
         {
-            Button(parent, "Start Stage 2 Test Button", "\u30b9\u30c6\u30fc\u30b82\u30c6\u30b9\u30c8", new Vector2(-470, -300), new Vector2(230, 52), "Generated/Arrow");
-            Button(parent, "Start Game Button", "\u30b2\u30fc\u30e0\u30b9\u30bf\u30fc\u30c8", new Vector2(-180, -300), new Vector2(310, 58), "Generated/Arrow");
-            Button(parent, "Upgrade Button", "\u5f37\u5316", new Vector2(150, -300), new Vector2(250, 58), "Generated/Orb");
+            Button(parent, "Start Game Button", "\u30b2\u30fc\u30e0\u30b9\u30bf\u30fc\u30c8", new Vector2(-330, -300), new Vector2(260, 58), "Generated/Arrow");
+            Button(parent, "Build Button", "\u5efa\u9020", new Vector2(-60, -300), new Vector2(220, 58), "Generated/Hammer");
+            Button(parent, "Upgrade Button", "\u5f37\u5316", new Vector2(190, -300), new Vector2(220, 58), "Generated/Orb");
             Button(parent, "Title Button", "\u30bf\u30a4\u30c8\u30eb\u3078", new Vector2(430, -300), new Vector2(210, 52), "Generated/Slash_0");
         }
 

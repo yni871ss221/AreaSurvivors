@@ -5,18 +5,13 @@ namespace AreaSurvivors
     public sealed class BuildingPrefabVisualSet : MonoBehaviour
     {
         public bool usePrefabLayout = true;
-        public PaperMeshVisual ghostVisual;
-        public PaperMeshVisual buildFillVisual;
         public PaperMeshVisual completeVisual;
-        public PaperMeshVisual upgradedGhostVisual;
-        public PaperMeshVisual upgradedBuildFillVisual;
         public PaperMeshVisual upgradedCompleteVisual;
         public Sprite upgradedOpenSprite;
-        public PaperMeshVisual hammerVisual;
         public PaperMeshVisual sparkleVisual;
 
-        public bool HasBaseVisuals => ghostVisual != null && buildFillVisual != null && completeVisual != null;
-        public bool HasUpgradeVisuals => upgradedGhostVisual != null && upgradedBuildFillVisual != null && upgradedCompleteVisual != null;
+        public bool HasBaseVisuals => completeVisual != null;
+        public bool HasUpgradeVisuals => upgradedCompleteVisual != null;
 
         void Awake()
         {
@@ -27,42 +22,24 @@ namespace AreaSurvivors
 
         public void BindMissingVisualsFromChildren()
         {
-            if (ghostVisual == null) ghostVisual = FindVisual("Ghost Image");
-            if (buildFillVisual == null) buildFillVisual = FindVisual("Build Fill Image");
             if (completeVisual == null) completeVisual = FindVisual("Complete Image");
-            if (upgradedGhostVisual == null) upgradedGhostVisual = FindVisual("Upgrade Ghost");
-            if (upgradedBuildFillVisual == null) upgradedBuildFillVisual = FindVisual("Upgrade Build Fill");
             if (upgradedCompleteVisual == null) upgradedCompleteVisual = FindVisual("Upgraded Building Image");
-            if (hammerVisual == null) hammerVisual = FindVisual("Hammer");
             if (sparkleVisual == null) sparkleVisual = FindVisual("Completion Sparkle");
             ConfigureSparkleVisual();
         }
 
         public void DisableBillboardsForBuildingVisuals()
         {
-            DisableBillboard(ghostVisual);
-            DisableBillboard(buildFillVisual);
             DisableBillboard(completeVisual);
-            DisableBillboard(upgradedGhostVisual);
-            DisableBillboard(upgradedBuildFillVisual);
             DisableBillboard(upgradedCompleteVisual);
         }
 
         public void ApplyInitialVisibility()
         {
-            SetFill(ghostVisual, 1f);
-            SetFill(buildFillVisual, 1f);
             SetFill(completeVisual, 1f);
-            SetFill(upgradedGhostVisual, 1f);
-            SetFill(upgradedBuildFillVisual, 1f);
             SetFill(upgradedCompleteVisual, 1f);
-            SetVisible(ghostVisual, true);
-            SetVisible(buildFillVisual, false);
-            SetVisible(completeVisual, false);
-            SetVisible(upgradedGhostVisual, false);
-            SetVisible(upgradedBuildFillVisual, false);
+            SetVisible(completeVisual, true);
             SetVisible(upgradedCompleteVisual, false);
-            SetVisible(hammerVisual, false);
             SetVisible(sparkleVisual, false);
         }
 

@@ -72,7 +72,11 @@ namespace AreaSurvivors.Testing
             runtimeConfig = Instantiate(config);
             runtimeConfig.name = $"{config.name} (Gameplay Test)";
             ApplyConfigOverrides();
-            if (scenario.systems.buildGrid) grid.Build();
+            if (scenario.systems.buildGrid)
+            {
+                grid.ApplySquareChunkMapLayout();
+                grid.Build();
+            }
             ClearExistingObjects();
 
             centerCell = grid.GridToCell(grid.width / 2, grid.height / 2);
@@ -420,7 +424,6 @@ namespace AreaSurvivors.Testing
 
                     enemy.xpOrbPrefab = xpOrbPrefab;
                     enemy.damagePopupPrefab = damagePopupPrefab;
-                    enemy.SuppressStuckRecovery = placement.suppressStuckRecovery;
                     int hp = Mathf.Max(1, Mathf.RoundToInt(runtimeConfig.enemyBaseHp * Mathf.Max(0.01f, definition.hpMultiplier)));
                     enemy.Configure(runtimeConfig, grid, target, definition, hp, definition.speedMultiplier);
                     RegisterObservation(instance, placement.monitorForStall, placement.requireReachTarget);

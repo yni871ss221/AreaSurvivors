@@ -14,7 +14,7 @@ namespace AreaSurvivors
         public GameObject damagePopupPrefab;
         public float radius = 34f;
         [Header("Vertical Map Spawn")]
-        public bool useUpperChunkSpawn = true;
+        public bool useUpperChunkSpawn;
         public int spawnChunkOffsetY = 3;
         public int spawnChunkCells = TileGrid.DefaultChunkCells;
 
@@ -276,7 +276,7 @@ namespace AreaSurvivors
                 return new[]
                 {
                     new SpawnPhase { startSeconds = 0f, enemyKind = EnemyKind.Goblin, spawnInterval = config.spawnInterval, baseBatchCount = 1, batchIncreasePerDirectionChange = 1, maxBatchCount = 10 },
-                    new SpawnPhase { startSeconds = 150f, enemyKind = EnemyKind.Ogre, spawnInterval = Mathf.Max(0.5f, config.spawnInterval * 1.05f), baseBatchCount = 1, batchIncreasePerDirectionChange = 1, maxBatchCount = 14 }
+                    new SpawnPhase { startSeconds = 60f, enemyKind = EnemyKind.Ogre, spawnInterval = Mathf.Max(0.5f, config.spawnInterval * 1.05f), baseBatchCount = 1, batchIncreasePerDirectionChange = 1, maxBatchCount = 14 }
                 };
             }
 
@@ -289,9 +289,9 @@ namespace AreaSurvivors
             {
                 return new[]
                 {
-                    new TimedEnemySpawn { timeSeconds = 120f, enemyKind = EnemyKind.EliteGoblin, count = 1, announce = true, announcement = "エリートゴブリン出現！" },
-                    new TimedEnemySpawn { timeSeconds = 270f, enemyKind = EnemyKind.EliteOgre, count = 1, announce = true, announcement = "エリートオーガ出現！" },
-                    new TimedEnemySpawn { timeSeconds = 300f, enemyKind = EnemyKind.GoblinLord, count = 1, announce = true, announcement = "ゴブリンロード出現！" }
+                    new TimedEnemySpawn { timeSeconds = 30f, enemyKind = EnemyKind.EliteGoblin, count = 1, announce = true, announcement = "エリートゴブリン出現！" },
+                    new TimedEnemySpawn { timeSeconds = 90f, enemyKind = EnemyKind.EliteOgre, count = 1, announce = true, announcement = "エリートオーガ出現！" },
+                    new TimedEnemySpawn { timeSeconds = 120f, enemyKind = EnemyKind.GoblinLord, count = 1, announce = true, announcement = "ゴブリンロード出現！" }
                 };
             }
 

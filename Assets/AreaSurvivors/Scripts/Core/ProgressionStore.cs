@@ -19,7 +19,9 @@ namespace AreaSurvivors
                     cached = string.IsNullOrEmpty(json) ? new SaveData() : JsonUtility.FromJson<SaveData>(json);
                     if (cached.upgrades == null) cached.upgrades = new List<UpgradeLevel>();
                     if (cached.stageSpeedSettings == null) cached.stageSpeedSettings = new List<StageSpeedSetting>();
+                    if (cached.stageBuildings == null) cached.stageBuildings = new List<StageBuildingSet>();
                     if (cached.highestUnlockedStage < 1) cached.highestUnlockedStage = 1;
+                    if (cached.selectedStage < 1) cached.selectedStage = 1;
                 }
 
                 return cached;
@@ -64,13 +66,14 @@ namespace AreaSurvivors
                 case UpgradeType.UnlockTowerUpgrade:
                 case UpgradeType.UnlockDefenseCharacter:
                 case UpgradeType.UnlockCarpenterHut:
-                case UpgradeType.UnlockAutoBuild:
                 case UpgradeType.UnlockWorkerHut:
                 case UpgradeType.UnlockClassChange:
                     return 1;
                 case UpgradeType.AutoResourceInterval:
                 case UpgradeType.AutoResourceGain:
                     return 2;
+                case UpgradeType.RoundTimeLimit:
+                    return 6;
                 case UpgradeType.StartingWeaponLevel:
                     return 4;
                 default:
@@ -103,6 +106,7 @@ namespace AreaSurvivors
                 case UpgradeType.EndTokenGain:
                 case UpgradeType.EliteSpawnRate:
                 case UpgradeType.StartingWeaponLevel:
+                case UpgradeType.RoundTimeLimit:
                     return 6;
                 default:
                     return 4;
@@ -125,6 +129,16 @@ namespace AreaSurvivors
         public static bool IsStageUnlocked(int stage)
         {
             return stage >= 1 && Data.highestUnlockedStage >= stage;
+        }
+
+        public static int SelectedStage
+        {
+            get => Mathf.Clamp(Data.selectedStage <= 0 ? 1 : Data.selectedStage, 1, ImplementedStageCount);
+            set
+            {
+                Data.selectedStage = Mathf.Clamp(value, 1, ImplementedStageCount);
+                Save();
+            }
         }
 
         public static bool IsStageCleared(int stage)
@@ -172,6 +186,62 @@ namespace AreaSurvivors
         public static void AddTokensForTesting(int tokens)
         {
             Data.tokens += Mathf.Max(0, tokens);
+            Save();
+        }
+
+        public static bool HasPersistentResources(int wood, int stone)
+        {
+            return Data.wood >= Mathf.Max(0, wood) && Data.stone >= Mathf.Max(0, stone);
+        }
+
+        public static bool TrySpendPersistentResources(int wood, int stone)
+        {
+            wood = Mathf.Max(0, wood);
+            stone = Mathf.Max(0, stone);
+            if (!HasPersistentResources(wood, stone)) return false;
+            Data.wood -= wood;
+            Data.stone -= stone;
+            Save();
+            return true;
+        }
+
+        public static void AddPersistentResources(int wood, int stone)
+        {
+            Data.wood += Mathf.Max(0, wood);
+            Data.stone += Mathf.Max(0, stone);
+            Save();
+        }
+
+        public static StageBuildingSet GetStageBuildings(int stage)
+        {
+            stage = Mathf.Max(1, stage);
+            if (Data.stageBuildings == null) Data.stageBuildings = new List<StageBuildingSet>();
+            foreach (var set in Data.stageBuildings)
+            {
+                if (set == null || set.stage != stage) continue;
+                if (set.buildings == null) set.buildings = new List<SavedBuildingData>();
+                return set;
+            }
+
+            var created = new StageBuildingSet { stage = stage, buildings = new List<SavedBuildingData>() };
+            Data.stageBuildings.Add(created);
+            return created;
+        }
+
+        public static void ReplaceStageBuildings(int stage, List<SavedBuildingData> buildings)
+        {
+            var set = GetStageBuildings(stage);
+            set.buildings = buildings ?? new List<SavedBuildingData>();
+            Save();
+        }
+
+        public static void ReviveStageBuildings(int stage)
+        {
+            var set = GetStageBuildings(stage);
+            foreach (var building in set.buildings)
+            {
+                if (building != null) building.destroyed = false;
+            }
             Save();
         }
 

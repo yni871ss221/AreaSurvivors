@@ -8,6 +8,6 @@ namespace AreaSurvivors
         TileGrid Grid { get; }
         Vector3Int OriginCell { get; }
         Vector2Int Footprint { get; }
-        void AddBuildWork(float workSpeedMultiplier, Transform builder = null);
+        void CompleteImmediately();
     }
 }

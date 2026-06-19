@@ -180,7 +180,6 @@ namespace AreaSurvivors.Editor
             config.towerMaxHpPerUpgradeLevel = 12;
             config.towerUpgradeWoodCost = 300;
             config.towerUpgradeStoneCost = 300;
-            config.towerUpgradeBuildSeconds = 5f;
             config.upgradedTowerMaxHp = 450;
             config.upgradedTowerRegenBonus = 3;
             config.upgradedTowerCannonDamageBonus = 10;
@@ -378,35 +377,24 @@ namespace AreaSurvivors.Editor
             go.AddComponent<Health>();
 
             var ballistaSprite = LoadGeneratedSprite("Ballista") ?? LoadSprite("Ballista");
-            var ghost = CreateSpriteVisual(go.transform, "Ghost Image", ballistaSprite, new Vector2(1.34f, 1.65f), new Color(1f, 1f, 1f, 0.34f), 1000);
-            var build = CreateSpriteVisual(go.transform, "Build Fill Image", ballistaSprite, new Vector2(1.34f, 1.65f), Color.white, 1001);
             var complete = CreateSpriteVisual(go.transform, "Complete Image", ballistaSprite, new Vector2(1.34f, 1.65f), Color.white, 1002);
-            SetVisualOffset(Vector3.zero, ghost, build, complete);
-            var hammer = MeshChild(go.transform, "Hammer", LoadGeneratedSprite("Hammer") ?? LoadSprite("Hammer"), Color.white, 2200);
-            hammer.transform.localPosition = new Vector3(0.28f, -0.12f, 0f);
+            SetVisualOffset(Vector3.zero, complete);
             var sparkle = MeshChild(go.transform, "Completion Sparkle", LoadGeneratedSprite("Sparkle") ?? LoadSprite("Sparkle"), new Color(1f, 1f, 1f, 0f), 2400);
             sparkle.visible = false;
 
             var ySort = go.AddComponent<YSort>();
             ySort.baseOrder = 1000;
             var sortRenderers = new List<Renderer>();
-            sortRenderers.AddRange(ghost.GetComponentsInChildren<Renderer>(true));
-            sortRenderers.AddRange(build.GetComponentsInChildren<Renderer>(true));
             sortRenderers.AddRange(complete.GetComponentsInChildren<Renderer>(true));
             ySort.renderers = sortRenderers.ToArray();
 
             var ballista = go.AddComponent(GetRuntimeType("AreaSurvivors.BallistaTower"));
             SetObjectReference(ballista, "arrowPrefab", arrowPrefab);
             SetObjectReference(ballista, "blockingCollider", blocker);
-            SetObjectReference(ballista, "ghostRenderer", ghost);
-            SetObjectReference(ballista, "buildRenderer", build);
             SetObjectReference(ballista, "completeRenderer", complete);
             SetObjectReference(ballista, "ballistaSprite", ballistaSprite);
             SetVector2(ballista, "spriteVisualSize", new Vector2(1.34f, 1.65f));
-            SetObjectReference(ballista, "ghostObject", ghost.gameObject);
-            SetObjectReference(ballista, "buildObject", build.gameObject);
             SetObjectReference(ballista, "completeObject", complete.gameObject);
-            SetObjectReference(ballista, "hammerRenderer", hammer);
             SetObjectReference(ballista, "sparkleRenderer", sparkle);
             return go;
         }
@@ -428,12 +416,8 @@ namespace AreaSurvivors.Editor
             gridVisual.ConfigureFootprintBox(blocker, false);
 
             var barrierSprite = LoadGeneratedSprite("WoodenWall") ?? LoadSprite("WoodenWall");
-            var ghost = CreateWoodenBarrierSpriteVisual(go.transform, "Ghost Image", barrierSprite, new Color(1f, 1f, 1f, 0.34f), 1000);
-            var build = CreateWoodenBarrierSpriteVisual(go.transform, "Build Fill Image", barrierSprite, Color.white, 1001);
             var complete = CreateWoodenBarrierSpriteVisual(go.transform, "Complete Image", barrierSprite, Color.white, 1002);
-            SetVisualOffset(Vector3.zero, ghost, build, complete);
-            var hammer = MeshChild(go.transform, "Hammer", LoadGeneratedSprite("Hammer") ?? LoadSprite("Hammer"), Color.white, 2200);
-            hammer.transform.localPosition = new Vector3(0.24f, -0.06f, 0f);
+            SetVisualOffset(Vector3.zero, complete);
             var sparkle = MeshChild(go.transform, "Completion Sparkle", LoadGeneratedSprite("Sparkle") ?? LoadSprite("Sparkle"), new Color(1f, 1f, 1f, 0f), 2400);
             sparkle.transform.localPosition = Vector3.zero;
             sparkle.visible = false;
@@ -441,19 +425,13 @@ namespace AreaSurvivors.Editor
             var ySort = go.AddComponent<YSort>();
             ySort.baseOrder = 1000;
             var renderers = new List<Renderer>();
-            renderers.AddRange(ghost.GetComponentsInChildren<Renderer>(true));
-            renderers.AddRange(build.GetComponentsInChildren<Renderer>(true));
             renderers.AddRange(complete.GetComponentsInChildren<Renderer>(true));
             ySort.renderers = renderers.ToArray();
 
             var barrier = go.AddComponent(GetRuntimeType("AreaSurvivors.WoodenBarrier"));
             SetObjectReference(barrier, "blockingCollider", blocker);
-            SetObjectReference(barrier, "ghostRenderer", ghost);
-            SetObjectReference(barrier, "buildRenderer", build);
             SetObjectReference(barrier, "completeRenderer", complete);
-            SetObjectReference(barrier, "ghostObject", ghost.gameObject);
             SetObjectReference(barrier, "completeObject", complete.gameObject);
-            SetObjectReference(barrier, "hammerRenderer", hammer);
             SetObjectReference(barrier, "sparkleRenderer", sparkle);
             SetObjectReference(barrier, "barrierSprite", barrierSprite);
             SetVector2(barrier, "spriteVisualSize", new Vector2(1.34f, 0.58f));
@@ -741,7 +719,7 @@ namespace AreaSurvivors.Editor
             grid.objectTilemap = objectTilemap;
             grid.groundTile = LoadTile("Ground");
             grid.paintTile = LoadTile("Paint");
-            grid.ApplyVerticalMapLayout();
+            grid.ApplySquareChunkMapLayout();
             grid.Build();
             var perimeter = new GameObject("Map Perimeter").AddComponent(GetRuntimeType("AreaSurvivors.MapPerimeterController"));
             SetObjectReference(perimeter, "grid", grid);

@@ -45,7 +45,8 @@ namespace AreaSurvivors
         public float clearRouteHalfWidthCells = 2.5f;
         public float clearRouteAngleOffsetDegrees;
         [Header("Vertical Map Resources")]
-        public bool useVerticalMapResourceLayout = true;
+        public bool useVerticalMapResourceLayout;
+        public bool useOuterEightChunkResourceLayout = true;
         public int upperTree1CountPerChunk = 3;
         public int upperRock1CountPerChunk = 3;
         public bool addOutline = true;
@@ -156,6 +157,12 @@ namespace AreaSurvivors
             if (useVerticalMapResourceLayout)
             {
                 SpawnVerticalMapResources(grid, random, specsByName);
+                return;
+            }
+
+            if (useOuterEightChunkResourceLayout)
+            {
+                SpawnOuterEightChunkResources(grid, random, specsByName);
                 return;
             }
 
@@ -288,6 +295,70 @@ namespace AreaSurvivors
             }
         }
 
+        void SpawnOuterEightChunkResources(TileGrid grid, System.Random random, Dictionary<string, LandmarkSpec> specsByName)
+        {
+            var entries = new[]
+            {
+                Entry("Tree1", 8),
+                Entry("Rock1", 8),
+                Entry("Forest2", 4),
+                Entry("Rock2", 4),
+                Entry("Forest4", 1),
+                Entry("Rock4", 1)
+            };
+
+            var sorted = new List<(PlacementEntry entry, LandmarkSpec spec)>();
+            foreach (var entry in entries)
+            {
+                if (entry == null || !specsByName.TryGetValue(entry.landmarkName, out var spec)) continue;
+                sorted.Add((entry, spec));
+            }
+
+            sorted.Sort((a, b) => Mathf.Max(b.spec.footprint.x, b.spec.footprint.y)
+                .CompareTo(Mathf.Max(a.spec.footprint.x, a.spec.footprint.y)));
+
+            foreach (var pair in sorted)
+            {
+                SpawnOuterChunkEntry(grid, random, pair.spec, pair.entry.count);
+            }
+        }
+
+        void SpawnOuterChunkEntry(TileGrid grid, System.Random random, LandmarkSpec spec, int count)
+        {
+            if (spec == null || count <= 0) return;
+            var sprite = LoadSprite(spec.resourcePath);
+            if (sprite == null) return;
+
+            var footprint = NormalizeFootprint(spec.footprint);
+            int placed = 0;
+            int attempts = 0;
+            int maxAttempts = Mathf.Max(1, count * Mathf.Max(1, maxPlacementAttemptsPerObject));
+            while (placed < count && attempts++ < maxAttempts)
+            {
+                var offset = RandomOuterChunkOffset(random);
+                var cell = RandomCellInChunk(grid, random, offset.x, offset.y, footprint);
+                if (!CanUseChunkCell(grid, cell, footprint)) continue;
+                CreateLandmark(grid, spec, sprite, cell, footprint);
+                placed++;
+            }
+        }
+
+        static Vector2Int RandomOuterChunkOffset(System.Random random)
+        {
+            int index = random.Next(0, 8);
+            switch (index)
+            {
+                case 0: return new Vector2Int(-1, -1);
+                case 1: return new Vector2Int(0, -1);
+                case 2: return new Vector2Int(1, -1);
+                case 3: return new Vector2Int(-1, 0);
+                case 4: return new Vector2Int(1, 0);
+                case 5: return new Vector2Int(-1, 1);
+                case 6: return new Vector2Int(0, 1);
+                default: return new Vector2Int(1, 1);
+            }
+        }
+
         void SpawnCenterChunkResources(TileGrid grid, System.Random random, Dictionary<string, LandmarkSpec> specsByName)
         {
             SpawnCenterBandEntry(grid, random, specsByName, "Tree1", 3, 10, 20);
@@ -353,15 +424,21 @@ namespace AreaSurvivors
 
         Vector3Int RandomCellInChunk(TileGrid grid, System.Random random, int chunkOffsetY, Vector2Int footprint)
         {
+            return RandomCellInChunk(grid, random, 0, chunkOffsetY, footprint);
+        }
+
+        Vector3Int RandomCellInChunk(TileGrid grid, System.Random random, int chunkOffsetX, int chunkOffsetY, Vector2Int footprint)
+        {
             int chunkCells = Mathf.Max(1, grid.groundChunkCells);
             int columns = Mathf.Max(1, Mathf.CeilToInt(grid.width / (float)chunkCells));
             int rows = Mathf.Max(1, Mathf.CeilToInt(grid.height / (float)chunkCells));
             int centerColumn = columns / 2;
             int centerRow = rows / 2;
+            int column = Mathf.Clamp(centerColumn + chunkOffsetX, 0, columns - 1);
             int row = Mathf.Clamp(centerRow + chunkOffsetY, 0, rows - 1);
             int pad = Mathf.Max(0, edgePaddingCells) + Mathf.Max(0, Mathf.Max(footprint.x, footprint.y) - 1);
-            int minX = Mathf.Clamp(centerColumn * chunkCells + pad, 0, grid.width - 1);
-            int maxX = Mathf.Clamp(Mathf.Min(grid.width, centerColumn * chunkCells + chunkCells) - pad, minX + 1, grid.width);
+            int minX = Mathf.Clamp(column * chunkCells + pad, 0, grid.width - 1);
+            int maxX = Mathf.Clamp(Mathf.Min(grid.width, column * chunkCells + chunkCells) - pad, minX + 1, grid.width);
             int minY = Mathf.Clamp(row * chunkCells + pad, 0, grid.height - 1);
             int maxY = Mathf.Clamp(Mathf.Min(grid.height, row * chunkCells + chunkCells) - pad, minY + 1, grid.height);
             return grid.GridToCell(random.Next(minX, maxX), random.Next(minY, maxY));
@@ -475,6 +552,7 @@ namespace AreaSurvivors
 
             var collider = root.AddComponent<BoxCollider2D>();
             gridVisual.ConfigureFootprintBox(collider, false);
+            collider.isTrigger = true;
 
             if (spec.harvestable)
             {

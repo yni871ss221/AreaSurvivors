@@ -47,15 +47,15 @@ namespace AreaSurvivors
 
         void Refresh()
         {
-            SetText("TokenInfo", string.Format("\u30c8\u30fc\u30af\u30f3 {0}   \u7d2f\u8a08\u6483\u7834 {1}", ProgressionStore.Data.tokens, ProgressionStore.Data.totalKills));
+            SetText("TokenInfo", string.Format("\u30c8\u30fc\u30af\u30f3 {0}   \u6728\u6750 {1}   \u77f3\u6750 {2}   \u7d2f\u8a08\u6483\u7834 {3}", ProgressionStore.Data.tokens, ProgressionStore.Data.wood, ProgressionStore.Data.stone, ProgressionStore.Data.totalKills));
             RefreshCharacterCards();
             RefreshStageCards();
         }
 
         void BindStaticActions()
         {
-            BindButton("Start Stage 2 Test Button", () => StartGameFromStage(2));
-            BindButton("Start Game Button", () => StartGameFromStage(1));
+            BindButton("Start Game Button", StartSelectedStage);
+            BindButton("Build Button", StartBuildForSelectedStage);
             BindButton("Upgrade Button", navigator.LoadUpgrades);
             BindButton("Title Button", navigator.LoadTitle);
             BindCharacterButton("Character Knight", CharacterType.Knight);
@@ -100,6 +100,23 @@ namespace AreaSurvivors
 
                 bool unlocked = ProgressionStore.IsStageUnlocked(stage);
                 bool cleared = ProgressionStore.IsStageCleared(stage);
+                var button = panel.GetComponent<Button>();
+                if (button != null)
+                {
+                    button.onClick.RemoveAllListeners();
+                    button.interactable = unlocked;
+                    int selectedStage = stage;
+                    button.onClick.AddListener(() =>
+                    {
+                        ProgressionStore.SelectedStage = selectedStage;
+                        RefreshStageCards();
+                    });
+                }
+
+                var selection = panel.GetComponent<UiSelectionHighlight>();
+                if (selection == null && button != null) selection = panel.gameObject.AddComponent<UiSelectionHighlight>();
+                if (selection != null) selection.forceSelected = unlocked && ProgressionStore.SelectedStage == stage;
+
                 var boss = FindChild(panel, "Boss Image")?.GetComponent<Image>();
                 if (boss != null)
                 {
@@ -122,8 +139,22 @@ namespace AreaSurvivors
             }
         }
 
+        void StartSelectedStage()
+        {
+            StartGameFromStage(ProgressionStore.SelectedStage);
+        }
+
+        void StartBuildForSelectedStage()
+        {
+            int stage = ProgressionStore.SelectedStage;
+            if (!ProgressionStore.IsStageUnlocked(stage)) return;
+            RunState.SetNextBuildStage(stage);
+            navigator.LoadGame();
+        }
+
         void StartGameFromStage(int stage)
         {
+            if (!ProgressionStore.IsStageUnlocked(stage)) return;
             RunState.SetNextStartStage(stage);
             navigator.LoadGame();
         }

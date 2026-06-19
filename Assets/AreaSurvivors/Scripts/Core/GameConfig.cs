@@ -112,7 +112,6 @@ namespace AreaSurvivors
         [Header("Tower")]
         public int towerMaxHp = 160;
         public int towerMaxHpPerUpgradeLevel = 12;
-        public float ballistaBuildSeconds = 2.2f;
         public float ballistaRange = 9.5f;
         public float ballistaCooldown = 1.15f;
         public int ballistaDamage = 5;
@@ -127,20 +126,19 @@ namespace AreaSurvivors
         public float towerCannonKnockback = 2.2f;
         public int towerUpgradeWoodCost = 300;
         public int towerUpgradeStoneCost = 300;
-        public float towerUpgradeBuildSeconds = 5f;
         public int upgradedTowerMaxHp = 450;
         public int upgradedTowerRegenBonus = 3;
         public int upgradedTowerCannonDamageBonus = 10;
         public float upgradedTowerCannonExplosionRadiusMultiplier = 2f;
         public int upgradedTowerImmediatePaintRadiusCells = 15;
-        public float woodenWallBuildSeconds = 1.8f;
         public int woodenWallMaxHp = 70;
-        public float carpenterHutBuildSeconds = 2.4f;
         public int carpenterHutMaxHp = 50;
-        public float carpenterHutAutoBuildSpeedMultiplier = 0.1f;
-        public float workerHutBuildSeconds = 2.4f;
+        public float carpenterHutRepairIntervalSeconds = 2f;
+        public float carpenterHutRepairIntervalReductionPerUpgradeLevel = 0.15f;
+        public float carpenterHutRepairMinIntervalSeconds = 0.5f;
+        public int carpenterHutRepairAmount = 1;
+        public int carpenterHutRepairAmountPerUpgradeLevel = 1;
         public int workerHutMaxHp = 50;
-        public float watchTowerBuildSeconds = 3.2f;
         public int watchTowerMaxHp = 100;
         public float watchTowerAutoPaintIntervalSeconds = 2f;
         public int watchTowerAutoPaintRadiusCells = 10;
@@ -174,6 +172,10 @@ namespace AreaSurvivors
         public int harvestAmount2Cell = 200;
         public int harvestAmount4Cell = 400;
         public int harvestAmount8Cell = 800;
+        public int roundEndWoodReward = 10;
+        public int roundEndStoneReward = 10;
+        public int roundEndWoodRewardPerUpgradeLevel = 10;
+        public int roundEndStoneRewardPerUpgradeLevel = 10;
 
         [Header("Combat")]
         public int baseAttackPower = 6;
@@ -218,6 +220,8 @@ namespace AreaSurvivors
         public float endTokenGainMultiplierPerUpgradeLevel = 0.1f;
         public float eliteSpawnRatePerUpgradeLevel = 0.1f;
         public float autoBuildSpeedPerUpgradeLevel = 0.1f;
+        public float baseRoundTimeLimitSeconds = 60f;
+        public float roundTimeLimitSecondsPerUpgradeLevel = 10f;
         public float projectileSpeed = 11.5f;
         public float projectileLifetime = 4.2f;
         public float projectileVisualScale = 1.35f;
@@ -231,7 +235,7 @@ namespace AreaSurvivors
         public float enemySpawnRadius = 28f;
         public float difficultyRampSeconds = 55f;
         public float playerTerritorySlow = 0.35f;
-        public float spawnDirectionChangeSeconds = 30f;
+        public float spawnDirectionChangeSeconds = 10f;
         [Range(1f, 180f)]
         public float spawnDirectionArcDegrees = 60f;
         public int maxAliveEnemies = 160;
@@ -388,7 +392,7 @@ namespace AreaSurvivors
                 spawnPhases = new[]
                 {
                     new SpawnPhase { startSeconds = 0f, enemyKind = EnemyKind.Boar, spawnInterval = spawnInterval, baseBatchCount = 1, batchIncreasePerDirectionChange = 1, maxBatchCount = 10 },
-                    new SpawnPhase { startSeconds = 150f, enemyKind = EnemyKind.Orc, spawnInterval = Mathf.Max(0.5f, spawnInterval * 1.05f), baseBatchCount = 1, batchIncreasePerDirectionChange = 1, maxBatchCount = 14 }
+                    new SpawnPhase { startSeconds = 60f, enemyKind = EnemyKind.Orc, spawnInterval = Mathf.Max(0.5f, spawnInterval * 1.05f), baseBatchCount = 1, batchIncreasePerDirectionChange = 1, maxBatchCount = 14 }
                 };
             }
 
@@ -396,9 +400,9 @@ namespace AreaSurvivors
             {
                 timedEnemySpawns = new[]
                 {
-                    new TimedEnemySpawn { timeSeconds = 120f, enemyKind = EnemyKind.EliteBoar, count = 1, announce = true, announcement = "エリートイノシシ出現！" },
-                    new TimedEnemySpawn { timeSeconds = 270f, enemyKind = EnemyKind.EliteOrc, count = 1, announce = true, announcement = "エリートオーク出現！" },
-                    new TimedEnemySpawn { timeSeconds = 300f, enemyKind = EnemyKind.OrcKing, count = 1, announce = true, announcement = "オークキング出現！" }
+                    new TimedEnemySpawn { timeSeconds = 30f, enemyKind = EnemyKind.EliteBoar, count = 1, announce = true, announcement = "エリートイノシシ出現！" },
+                    new TimedEnemySpawn { timeSeconds = 90f, enemyKind = EnemyKind.EliteOrc, count = 1, announce = true, announcement = "エリートオーク出現！" },
+                    new TimedEnemySpawn { timeSeconds = 120f, enemyKind = EnemyKind.OrcKing, count = 1, announce = true, announcement = "オークキング出現！" }
                 };
             }
         }

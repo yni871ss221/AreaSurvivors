@@ -55,6 +55,7 @@ namespace AreaSurvivors
         bool buildSelectionActive;
         bool hasBuildCell;
         bool canPlaceBuild;
+        bool buildSceneMode;
 
         public int SelectedHudSlot { get; private set; } = -1;
 
@@ -86,6 +87,7 @@ namespace AreaSurvivors
             config = runConfig;
             grid = runGrid;
             player = runPlayer;
+            buildSceneMode = runPlayer == null;
             EnsureWoodenBarrierResources();
             HideBuildPreview();
             UpdateBuildStatus();
@@ -115,7 +117,6 @@ namespace AreaSurvivors
             {
                 visualSet.BindMissingVisualsFromChildren();
                 if (visualSet.completeVisual != null && visualSet.completeVisual.sprite != null) return visualSet.completeVisual.sprite;
-                if (visualSet.ghostVisual != null && visualSet.ghostVisual.sprite != null) return visualSet.ghostVisual.sprite;
             }
             return null;
         }
@@ -285,21 +286,60 @@ namespace AreaSurvivors
                 return false;
             }
 
-            var ballista = instance.GetComponent<BallistaTower>();
-            if (ballista != null) ballista.RegisterBuildPlacement(grid, footprintOrigin);
-            var barrier = instance.GetComponent<WoodenBarrier>();
-            if (barrier != null) barrier.RegisterBuildPlacement(grid, footprintOrigin);
-            var carpenterHut = instance.GetComponent<CarpenterHut>();
-            if (carpenterHut != null) carpenterHut.RegisterBuildPlacement(grid, footprintOrigin);
-            var workerHut = instance.GetComponent<WorkerHut>();
-            if (workerHut != null) workerHut.RegisterBuildPlacement(grid, footprintOrigin);
-            var watchTower = instance.GetComponent<WatchTower>();
-            if (watchTower != null) watchTower.RegisterBuildPlacement(grid, footprintOrigin);
+            RegisterPlacedObject(instance, footprintOrigin);
+
+            if (buildSceneMode)
+            {
+                var construction = instance.GetComponent<IBuildableConstruction>();
+                construction?.CompleteImmediately();
+            }
 
             SetBuildObjectTile(footprintOrigin);
+            SavePlacedBuilding(instance, footprintOrigin);
             buildBlockReason = BuildBlockReason.NoCell;
             UpdateBuildStatus();
             return true;
+        }
+
+        public void RestoreStageBuildings(int stage)
+        {
+            if (grid == null) return;
+            var set = ProgressionStore.GetStageBuildings(stage);
+            if (set.buildings == null) return;
+            foreach (var saved in set.buildings)
+            {
+                RestoreSavedBuilding(saved);
+            }
+        }
+
+        void RestoreSavedBuilding(SavedBuildingData saved)
+        {
+            if (saved == null) return;
+            var prefab = PrefabForSavedKind(saved.kind);
+            if (prefab == null) return;
+            var originCell = new Vector3Int(saved.x, saved.y, 0);
+            var footprint = FootprintForSavedKind(saved.kind);
+            if (!grid.CanPlaceObject(originCell, footprint)) return;
+
+            var world = GridObjectVisual.FootprintBottomCenterToWorld(grid, originCell, footprint);
+            var instance = Instantiate(prefab, world, Quaternion.identity);
+            ConfigurePlacedObject(instance, saved.kind);
+            var marker = instance.GetComponent<GridObjectMarker>();
+            if (marker != null && !grid.TryRegisterObject(originCell, marker.type, marker.flags, instance, marker.footprint))
+            {
+                Destroy(instance);
+                return;
+            }
+
+            RegisterPlacedObject(instance, originCell);
+            instance.GetComponent<IBuildableConstruction>()?.CompleteImmediately();
+            ConfigurePersistentState(instance, saved);
+            if (saved.upgraded)
+            {
+                var upgradeTarget = instance.GetComponent<BuildingUpgradeTarget>();
+                if (upgradeTarget != null) upgradeTarget.CompleteUpgrade();
+            }
+            SetBuildObjectTile(originCell, saved.kind);
         }
 
         static bool IsPointerOverUi()
@@ -440,7 +480,13 @@ namespace AreaSurvivors
                 return false;
             }
 
-            if (!IsNearPlayer(world))
+            if (!buildSceneMode && !IsNearPlayer(world))
+            {
+                reason = BuildBlockReason.TooFar;
+                return false;
+            }
+
+            if (buildSceneMode && !IsInsideCenterChunk(cell, CurrentBuildFootprint()))
             {
                 reason = BuildBlockReason.TooFar;
                 return false;
@@ -476,16 +522,60 @@ namespace AreaSurvivors
         bool HasBuildResources()
         {
             var cost = CurrentBuildCost();
+            if (buildSceneMode) return ProgressionStore.HasPersistentResources(cost.x, cost.y);
             return GameManager.Instance == null || GameManager.Instance.HasResources(cost.x, cost.y);
         }
 
         bool SpendBuildResources()
         {
             var cost = CurrentBuildCost();
+            if (buildSceneMode)
+            {
+                bool spent = ProgressionStore.TrySpendPersistentResources(cost.x, cost.y);
+                if (spent) GameManager.Instance?.SyncPersistentResources();
+                return spent;
+            }
+
             return GameManager.Instance == null || GameManager.Instance.TrySpendResources(cost.x, cost.y);
         }
 
+        bool IsInsideCenterChunk(Vector3Int originCell, Vector2Int footprint)
+        {
+            if (grid == null || grid.groundChunkCells <= 0) return false;
+            int chunkCells = Mathf.Max(1, grid.groundChunkCells);
+            int centerMinX = grid.width / 2 - chunkCells / 2;
+            int centerMinY = grid.height / 2 - chunkCells / 2;
+            int centerMaxX = centerMinX + chunkCells;
+            int centerMaxY = centerMinY + chunkCells;
+            foreach (var cell in BuildFootprintCells(originCell, footprint))
+            {
+                if (!grid.TryCellToGrid(cell, out var x, out var y)) return false;
+                if (x < centerMinX || x >= centerMaxX || y < centerMinY || y >= centerMaxY) return false;
+            }
+
+            return true;
+        }
+
+        void RegisterPlacedObject(GameObject instance, Vector3Int footprintOrigin)
+        {
+            var ballista = instance.GetComponent<BallistaTower>();
+            if (ballista != null) ballista.RegisterBuildPlacement(grid, footprintOrigin);
+            var barrier = instance.GetComponent<WoodenBarrier>();
+            if (barrier != null) barrier.RegisterBuildPlacement(grid, footprintOrigin);
+            var carpenterHut = instance.GetComponent<CarpenterHut>();
+            if (carpenterHut != null) carpenterHut.RegisterBuildPlacement(grid, footprintOrigin);
+            var workerHut = instance.GetComponent<WorkerHut>();
+            if (workerHut != null) workerHut.RegisterBuildPlacement(grid, footprintOrigin);
+            var watchTower = instance.GetComponent<WatchTower>();
+            if (watchTower != null) watchTower.RegisterBuildPlacement(grid, footprintOrigin);
+        }
+
         void ConfigurePlacedObject(GameObject instance)
+        {
+            ConfigurePlacedObject(instance, CurrentSavedBuildingKind());
+        }
+
+        void ConfigurePlacedObject(GameObject instance, SavedBuildingKind kind)
         {
             var ballista = instance.GetComponent<BallistaTower>();
             if (ballista != null)
@@ -497,9 +587,9 @@ namespace AreaSurvivors
             var barrier = instance.GetComponent<WoodenBarrier>();
             if (barrier != null)
             {
-                instance.name = buildMode == BuildMode.WoodenGate ? "WoodenGate" : "WoodenWall";
+                instance.name = kind == SavedBuildingKind.WoodenGate ? "WoodenGate" : "WoodenWall";
                 barrier.config = config;
-                barrier.gate = buildMode == BuildMode.WoodenGate;
+                barrier.gate = kind == SavedBuildingKind.WoodenGate;
                 if (barrier.gate)
                 {
                     if (woodenGatePreviewSprite != null) barrier.barrierSprite = woodenGatePreviewSprite;
@@ -535,6 +625,67 @@ namespace AreaSurvivors
             }
         }
 
+        void SavePlacedBuilding(GameObject instance, Vector3Int originCell)
+        {
+            if (!buildSceneMode || GameManager.Instance == null) return;
+            var set = ProgressionStore.GetStageBuildings(GameManager.Instance.CurrentStage);
+            var saved = new SavedBuildingData
+            {
+                kind = CurrentSavedBuildingKind(),
+                x = originCell.x,
+                y = originCell.y,
+                upgraded = false,
+                destroyed = false
+            };
+            set.buildings.Add(saved);
+            ConfigurePersistentState(instance, saved);
+            ProgressionStore.Save();
+        }
+
+        static void ConfigurePersistentState(GameObject instance, SavedBuildingData saved)
+        {
+            if (instance == null || saved == null) return;
+            var state = instance.GetComponent<BuildingPersistentState>();
+            if (state == null) state = instance.AddComponent<BuildingPersistentState>();
+            state.Configure(saved);
+        }
+
+        SavedBuildingKind CurrentSavedBuildingKind()
+        {
+            switch (buildMode)
+            {
+                case BuildMode.WoodenWall: return SavedBuildingKind.WoodenWall;
+                case BuildMode.WoodenGate: return SavedBuildingKind.WoodenGate;
+                case BuildMode.CarpenterHut: return SavedBuildingKind.CarpenterHut;
+                case BuildMode.WorkerHut: return SavedBuildingKind.WorkerHut;
+                case BuildMode.WatchTower: return SavedBuildingKind.WatchTower;
+                default: return SavedBuildingKind.Ballista;
+            }
+        }
+
+        GameObject PrefabForSavedKind(SavedBuildingKind kind)
+        {
+            switch (kind)
+            {
+                case SavedBuildingKind.WoodenWall: return woodenWallPrefab;
+                case SavedBuildingKind.WoodenGate: return woodenGatePrefab != null ? woodenGatePrefab : woodenWallPrefab;
+                case SavedBuildingKind.CarpenterHut: return carpenterHutPrefab;
+                case SavedBuildingKind.WorkerHut: return workerHutPrefab;
+                case SavedBuildingKind.WatchTower: return watchTowerPrefab;
+                default: return ballistaPrefab;
+            }
+        }
+
+        Vector2Int FootprintForSavedKind(SavedBuildingKind kind)
+        {
+            var prefab = PrefabForSavedKind(kind);
+            var marker = prefab != null ? prefab.GetComponent<GridObjectMarker>() : null;
+            if (marker != null) return marker.footprint;
+            if (kind == SavedBuildingKind.WatchTower) return new Vector2Int(2, 2);
+            if (kind == SavedBuildingKind.WoodenWall || kind == SavedBuildingKind.WoodenGate) return new Vector2Int(3, 1);
+            return Vector2Int.one;
+        }
+
         void SetBuildObjectTile(Vector3Int cell)
         {
             if (grid == null || grid.objectTilemap == null) return;
@@ -560,6 +711,32 @@ namespace AreaSurvivors
             }
 
             grid.objectTilemap.SetTile(cell, buildMode == BuildMode.WoodenGate ? (woodenGateTile != null ? woodenGateTile : woodenWallTile) : woodenWallTile);
+        }
+
+        void SetBuildObjectTile(Vector3Int cell, SavedBuildingKind kind)
+        {
+            if (grid == null || grid.objectTilemap == null) return;
+            switch (kind)
+            {
+                case SavedBuildingKind.Ballista:
+                    grid.objectTilemap.SetTile(cell, ballistaTile);
+                    return;
+                case SavedBuildingKind.CarpenterHut:
+                    grid.objectTilemap.SetTile(cell, carpenterHutTile);
+                    return;
+                case SavedBuildingKind.WorkerHut:
+                    grid.objectTilemap.SetTile(cell, workerHutTile);
+                    return;
+                case SavedBuildingKind.WatchTower:
+                    grid.objectTilemap.SetTile(cell, watchTowerTile);
+                    return;
+                case SavedBuildingKind.WoodenGate:
+                    grid.objectTilemap.SetTile(cell, woodenGateTile != null ? woodenGateTile : woodenWallTile);
+                    return;
+                default:
+                    grid.objectTilemap.SetTile(cell, woodenWallTile);
+                    return;
+            }
         }
 
         void DrawBuildFootprintPreview(Vector3Int originCell, Vector2Int footprint, bool valid)
@@ -828,30 +1005,33 @@ namespace AreaSurvivors
             }
 
             DestroyPreviewPart(instance.transform, "Build Fill");
-            DestroyPreviewPart(instance.transform, "Complete");
             DestroyPreviewPart(instance.transform, "Ghost");
             SetPreviewPartActive(instance.transform, "Build Fill Image", false);
-            SetPreviewPartActive(instance.transform, "Complete Image", false);
             SetPreviewPartActive(instance.transform, "Hammer", false);
             SetPreviewPartActive(instance.transform, "Completion Sparkle", false);
-            SetPreviewPartActive(instance.transform, "Ghost Image", true);
+            SetPreviewPartActive(instance.transform, "Ghost Image", false);
+            SetPreviewPartActive(instance.transform, "Complete Image", true);
 
             var previewVisuals = new List<PaperMeshVisual>();
             var allVisuals = instance.GetComponentsInChildren<PaperMeshVisual>(true);
             foreach (var visual in allVisuals)
             {
                 if (visual == null) continue;
-                bool isGhostImage = HasAncestorNamed(visual.transform, "Ghost Image");
+                bool isPreviewImage = HasAncestorNamed(visual.transform, "Complete Image");
                 visual.order = 3200;
-                visual.visible = isGhostImage;
-                if (isGhostImage) previewVisuals.Add(visual);
+                visual.visible = isPreviewImage;
+                if (isPreviewImage)
+                {
+                    visual.color = new Color(0.30f, 0.82f, 1f, 0.42f);
+                    previewVisuals.Add(visual);
+                }
             }
 
             buildPreviewVisuals = previewVisuals.ToArray();
 
             foreach (var renderer in instance.GetComponentsInChildren<Renderer>(true))
             {
-                renderer.enabled = HasAncestorNamed(renderer.transform, "Ghost Image");
+                renderer.enabled = HasAncestorNamed(renderer.transform, "Complete Image");
             }
         }
 

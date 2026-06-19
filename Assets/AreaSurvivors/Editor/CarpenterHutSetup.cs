@@ -10,7 +10,6 @@ namespace AreaSurvivors.Editor
     public static class CarpenterHutSetup
     {
         const string SpritePath = "Assets/AreaSurvivors/Sprites/Generated/CarpenterHut.png";
-        const string HammerSpritePath = "Assets/AreaSurvivors/Sprites/Generated/Hammer.png";
         const string SparkleSpritePath = "Assets/AreaSurvivors/Sprites/Generated/Sparkle.png";
         const string TilePath = "Assets/AreaSurvivors/TilePalette/CarpenterHut.asset";
         const string PrefabPath = "Assets/AreaSurvivors/Prefabs/CarpenterHut.prefab";
@@ -92,7 +91,6 @@ namespace AreaSurvivors.Editor
             hut.hutSprite = sprite;
             hut.spriteVisualSize = VisualSizeForWidth(sprite, GridObjectVisual.CellWidth);
             hut.spriteVisualOffset = Vector3.zero;
-            hut.hammerRenderer = CreateOverlayVisual(go.transform, "Hammer", AssetDatabase.LoadAssetAtPath<Sprite>(HammerSpritePath), 22020);
             hut.sparkleRenderer = CreateOverlayVisual(go.transform, "Completion Sparkle", AssetDatabase.LoadAssetAtPath<Sprite>(SparkleSpritePath), 22030);
 
             var prefab = PrefabUtility.SaveAsPrefabAsset(go, PrefabPath);
@@ -125,9 +123,7 @@ namespace AreaSurvivors.Editor
         {
             var config = AssetDatabase.LoadAssetAtPath<GameConfig>("Assets/AreaSurvivors/Resources/Config/GameConfig.asset");
             if (config == null) return;
-            config.carpenterHutBuildSeconds = 2.4f;
             config.carpenterHutMaxHp = 50;
-            config.carpenterHutAutoBuildSpeedMultiplier = 0.1f;
             config.carpenterHutWoodCost = 30;
             config.carpenterHutStoneCost = 20;
             EditorUtility.SetDirty(config);

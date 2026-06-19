@@ -13,7 +13,6 @@ namespace AreaSurvivors
         Camera mainCamera;
         Image cursorIcon;
         Sprite upgradeIcon;
-        Sprite cancelIcon;
         Sprite upgradedTowerSprite;
         bool active;
         TowerController hoverTower;
@@ -29,7 +28,6 @@ namespace AreaSurvivors
             tower = centerTower;
             mainCamera = Camera.main;
             upgradeIcon = LoadGeneratedSprite("UpgradeBuildingIcon");
-            cancelIcon = LoadGeneratedSprite("CancelUpgradeIcon");
             upgradedTowerSprite = centerTower != null ? centerTower.GetConfiguredUpgradeSprite() : null;
             EnsureCursorIcon(hudCanvas);
             SetActive(false);
@@ -81,23 +79,9 @@ namespace AreaSurvivors
 
             if (hoverTower != null)
             {
-                if (hoverTower.HasPendingUpgrade)
-                {
-                    hoverTower.HideUpgradePreview();
-                    SetCursorSprite(cancelIcon != null ? cancelIcon : upgradeIcon);
-                    return;
-                }
-
                 bool canUpgrade = CanReserve(hoverTower);
                 hoverTower.ShowUpgradePreview(upgradedTowerSprite, canUpgrade);
                 SetCursorSprite(upgradeIcon);
-                return;
-            }
-
-            if (hoverBuilding.HasPendingUpgrade)
-            {
-                hoverBuilding.HideUpgradePreview();
-                SetCursorSprite(cancelIcon != null ? cancelIcon : upgradeIcon);
                 return;
             }
 
@@ -110,40 +94,19 @@ namespace AreaSurvivors
             if (hoverTower == null && hoverBuilding == null) return;
             if (hoverTower != null)
             {
-                if (hoverTower.HasPendingUpgrade)
-                {
-                    hoverTower.CancelUpgradeReservation();
-                    SetActive(false);
-                    return;
-                }
                 if (!CanReserve(hoverTower)) return;
                 if (owner == null || config == null) return;
-                if (!owner.TrySpendResources(config.towerUpgradeWoodCost, config.towerUpgradeStoneCost)) return;
-                if (!hoverTower.BeginUpgradeReservation(config, grid, owner, upgradedTowerSprite))
-                {
-                    owner.AddResource(ResourceType.Wood, config.towerUpgradeWoodCost);
-                    owner.AddResource(ResourceType.Stone, config.towerUpgradeStoneCost);
-                    return;
-                }
+                if (!SpendUpgradeResources(config.towerUpgradeWoodCost, config.towerUpgradeStoneCost)) return;
+                hoverTower.CompleteUpgrade(config, grid, upgradedTowerSprite);
                 SetActive(false);
                 return;
             }
 
-            if (hoverBuilding.HasPendingUpgrade)
-            {
-                hoverBuilding.CancelUpgradeReservation();
-                SetActive(false);
-                return;
-            }
             if (!CanReserve(hoverBuilding)) return;
             if (owner == null || config == null) return;
-            if (!owner.TrySpendResources(hoverBuilding.woodCost, hoverBuilding.stoneCost)) return;
-            if (!hoverBuilding.BeginUpgradeReservation(config, grid, owner))
-            {
-                owner.AddResource(ResourceType.Wood, hoverBuilding.woodCost);
-                owner.AddResource(ResourceType.Stone, hoverBuilding.stoneCost);
-                return;
-            }
+            if (!SpendUpgradeResources(hoverBuilding.woodCost, hoverBuilding.stoneCost)) return;
+            hoverBuilding.CompleteUpgrade();
+            BuildingPersistentState.TryMarkUpgraded(hoverBuilding.gameObject);
             SetActive(false);
         }
 
@@ -151,7 +114,7 @@ namespace AreaSurvivors
         {
             if (target == null || config == null || owner == null) return false;
             return target.CanStartUpgrade() &&
-                owner.HasResources(config.towerUpgradeWoodCost, config.towerUpgradeStoneCost) &&
+                HasUpgradeResources(config.towerUpgradeWoodCost, config.towerUpgradeStoneCost) &&
                 IsUnlocked();
         }
 
@@ -159,8 +122,34 @@ namespace AreaSurvivors
         {
             if (target == null || config == null || owner == null) return false;
             return target.CanStartUpgrade() &&
-                owner.HasResources(target.woodCost, target.stoneCost) &&
+                HasUpgradeResources(target.woodCost, target.stoneCost) &&
                 IsUnlocked();
+        }
+
+        bool HasUpgradeResources(int wood, int stone)
+        {
+            wood = Mathf.Max(0, wood);
+            stone = Mathf.Max(0, stone);
+            if (owner != null && owner.SessionMode == MapSessionMode.Build)
+            {
+                return ProgressionStore.HasPersistentResources(wood, stone);
+            }
+
+            return owner == null || owner.HasResources(wood, stone);
+        }
+
+        bool SpendUpgradeResources(int wood, int stone)
+        {
+            wood = Mathf.Max(0, wood);
+            stone = Mathf.Max(0, stone);
+            if (owner != null && owner.SessionMode == MapSessionMode.Build)
+            {
+                bool spent = ProgressionStore.TrySpendPersistentResources(wood, stone);
+                if (spent) owner.SyncPersistentResources();
+                return spent;
+            }
+
+            return owner == null || owner.TrySpendResources(wood, stone);
         }
 
         TowerController FindTowerUnderCursor()
@@ -298,25 +287,18 @@ namespace AreaSurvivors
         GridObjectMarker marker;
         GridObjectVisual gridVisual;
         BuildingPrefabVisualSet prefabVisualSet;
-        PaperMeshVisual upgradeGhostVisual;
-        PaperMeshVisual upgradeBuildVisual;
         PaperMeshVisual upgradedCompleteVisual;
-        PaperMeshVisual upgradeHammerVisual;
         PaperMeshVisual upgradeSparkleVisual;
-        BuildingUpgradeConstruction pendingUpgrade;
         Sprite upgradedSprite;
         Sprite upgradedOpenSprite;
-        Vector3 upgradeBuildBaseScale = Vector3.one;
         Vector3 upgradedCompleteBaseScale = Vector3.one;
         float sparkleTimer;
         bool isUpgraded;
         bool visualsPrepared;
         bool usingPrefabLayout;
         const float SparkleDuration = 0.75f;
-        static readonly Vector3 ToolVisualScale = Vector3.one * 0.58f;
 
         public bool IsUpgraded => isUpgraded;
-        public bool HasPendingUpgrade => pendingUpgrade != null;
         public Vector2Int Footprint => marker != null ? marker.footprint : Vector2Int.one;
         public bool IsBuilt
         {
@@ -358,86 +340,33 @@ namespace AreaSurvivors
 
         public bool CanStartUpgrade()
         {
-            return IsBuilt && !isUpgraded && pendingUpgrade == null && health != null && !health.IsDead;
-        }
-
-        public bool BeginUpgradeReservation(GameConfig config, TileGrid grid, GameManager owner)
-        {
-            if (!CanStartUpgrade()) return false;
-            EnsureSprites();
-            UsePrefabVisualSetIfAvailable();
-            pendingUpgrade = gameObject.AddComponent<BuildingUpgradeConstruction>();
-            pendingUpgrade.Configure(this, config, grid, owner, woodCost, stoneCost);
-            SetBaseVisualVisible(false);
-            ShowUpgradeConstruction(0f, true, false);
-            return true;
-        }
-
-        public void CancelUpgradeReservation()
-        {
-            pendingUpgrade?.CancelAndRefund();
-        }
-
-        public void ClearPendingUpgrade(BuildingUpgradeConstruction construction)
-        {
-            if (pendingUpgrade == construction) pendingUpgrade = null;
-            HideUpgradeConstruction();
-            if (!isUpgraded) SetBaseVisualVisible(true);
+            return IsBuilt && !isUpgraded && health != null && !health.IsDead;
         }
 
         public void ShowUpgradePreview(bool allowed)
         {
-            if (isUpgraded || pendingUpgrade != null) return;
+            if (isUpgraded) return;
             EnsureSprites();
             EnsureUpgradeVisuals();
-            if (upgradeGhostVisual == null) return;
-            upgradeGhostVisual.color = allowed ? new Color(0.30f, 0.82f, 1f, 0.42f) : new Color(1f, 0.20f, 0.16f, 0.42f);
-            upgradeGhostVisual.visible = true;
+            if (upgradedCompleteVisual == null) return;
+            upgradedCompleteVisual.color = allowed ? new Color(0.30f, 0.82f, 1f, 0.42f) : new Color(1f, 0.20f, 0.16f, 0.42f);
+            upgradedCompleteVisual.visible = true;
         }
 
         public void HideUpgradePreview()
         {
-            if (pendingUpgrade != null) return;
-            if (upgradeGhostVisual != null) upgradeGhostVisual.visible = false;
-        }
-
-        public void ShowUpgradeConstruction(float progress, bool active, bool showHammer)
-        {
-            EnsureSprites();
-            EnsureUpgradeVisuals();
-            progress = Mathf.Clamp01(progress);
-            if (upgradeGhostVisual != null)
-            {
-                upgradeGhostVisual.color = new Color(0.30f, 0.82f, 1f, 0.36f);
-                upgradeGhostVisual.visible = active && !isUpgraded;
-            }
-            if (upgradeBuildVisual != null)
-            {
-                upgradeBuildVisual.visible = active && !isUpgraded && progress > 0f;
-                upgradeBuildVisual.transform.localScale = upgradeBuildBaseScale;
-                upgradeBuildVisual.SetVerticalFill(progress);
-            }
-            if (upgradeHammerVisual != null)
-            {
-                if (!isUpgraded && showHammer && !upgradeHammerVisual.gameObject.activeSelf) upgradeHammerVisual.gameObject.SetActive(true);
-                upgradeHammerVisual.visible = !isUpgraded && showHammer;
-            }
-            if (!isUpgraded && showHammer) AnimateUpgradeHammer();
+            if (!isUpgraded && upgradedCompleteVisual != null) upgradedCompleteVisual.visible = false;
         }
 
         public void HideUpgradeConstruction()
         {
-            if (upgradeGhostVisual != null) upgradeGhostVisual.visible = false;
-            if (upgradeBuildVisual != null) upgradeBuildVisual.visible = false;
-            if (upgradeBuildVisual != null) upgradeBuildVisual.SetVerticalFill(1f);
-            if (upgradeHammerVisual != null) upgradeHammerVisual.visible = false;
+            if (!isUpgraded && upgradedCompleteVisual != null) upgradedCompleteVisual.visible = false;
         }
 
         public void CompleteUpgrade()
         {
             if (isUpgraded) return;
             isUpgraded = true;
-            pendingUpgrade = null;
             HideUpgradeConstruction();
             EnsureSprites();
             EnsureUpgradeVisuals();
@@ -565,36 +494,23 @@ namespace AreaSurvivors
             UsePrefabVisualSetIfAvailable();
             if (visualsPrepared)
             {
-                ConfigureUpgradeVisual(upgradeGhostVisual, upgradedSprite, upgradeGhostVisual != null ? upgradeGhostVisual.color : Color.white);
-                ConfigureUpgradeVisual(upgradeBuildVisual, upgradedSprite, Color.white);
+                ConfigureUpgradeVisual(upgradedCompleteVisual, upgradedSprite, upgradedCompleteVisual != null ? upgradedCompleteVisual.color : Color.white);
                 return;
             }
 
             if (usingPrefabLayout && prefabVisualSet != null && prefabVisualSet.HasUpgradeVisuals)
             {
-                upgradeGhostVisual = prefabVisualSet.upgradedGhostVisual;
-                upgradeBuildVisual = prefabVisualSet.upgradedBuildFillVisual;
                 upgradedCompleteVisual = prefabVisualSet.upgradedCompleteVisual;
-                upgradeHammerVisual = prefabVisualSet.hammerVisual;
                 upgradeSparkleVisual = prefabVisualSet.sparkleVisual;
-                ConfigureUpgradeVisual(upgradeGhostVisual, upgradedSprite, new Color(0.30f, 0.82f, 1f, 0.36f));
-                ConfigureUpgradeVisual(upgradeBuildVisual, upgradedSprite, Color.white);
                 ConfigureUpgradeVisual(upgradedCompleteVisual, upgradedSprite, Color.white);
             }
             else
             {
-                upgradeGhostVisual = CreateUpgradeVisual("Upgrade Ghost", upgradedSprite, new Color(0.30f, 0.82f, 1f, 0.36f), 22000);
-                upgradeBuildVisual = CreateUpgradeVisual("Upgrade Build Fill", upgradedSprite, Color.white, 22001);
                 upgradedCompleteVisual = CreateUpgradeVisual("Upgraded Building Image", upgradedSprite, Color.white, 22002);
-                upgradeHammerVisual = CreateOverlayVisual("Upgrade Hammer", null, 22020);
                 upgradeSparkleVisual = CreateOverlayVisual("Upgrade Sparkle", null, 22030);
             }
-            if (upgradeBuildVisual != null) upgradeBuildBaseScale = upgradeBuildVisual.transform.localScale;
             if (upgradedCompleteVisual != null) upgradedCompleteBaseScale = upgradedCompleteVisual.transform.localScale;
-            if (upgradeGhostVisual != null) upgradeGhostVisual.visible = false;
-            if (upgradeBuildVisual != null) upgradeBuildVisual.visible = false;
             if (upgradedCompleteVisual != null) upgradedCompleteVisual.visible = false;
-            if (upgradeHammerVisual != null) upgradeHammerVisual.visible = false;
             if (upgradeSparkleVisual != null) upgradeSparkleVisual.visible = false;
             RefreshYSortRenderers();
             visualsPrepared = true;
@@ -635,7 +551,6 @@ namespace AreaSurvivors
             if (outline == null) outline = mesh.gameObject.AddComponent<RuntimeSpriteOutline>();
             outline.outlineColor = Color.black;
             outline.thickness = 0.022f;
-            ApplyToolVisualScale(mesh.transform);
             return mesh;
         }
 
@@ -662,19 +577,6 @@ namespace AreaSurvivors
             if (mesh.GetComponent<OcclusionMaskSource>() == null) mesh.gameObject.AddComponent<OcclusionMaskSource>();
         }
 
-        void AnimateUpgradeHammer()
-        {
-            if (upgradeHammerVisual == null) return;
-            float swing = Mathf.Sin(Time.time * 16f);
-            upgradeHammerVisual.transform.localRotation = Quaternion.Euler(0f, 0f, -35f + swing * 32f);
-            if (!usingPrefabLayout)
-            {
-                var size = gridVisual != null ? gridVisual.FootprintWorldSize : Vector2.one;
-                upgradeHammerVisual.transform.localPosition = new Vector3(size.x * 0.18f, size.y + 0.36f + Mathf.Abs(swing) * 0.08f, 0f);
-            }
-            ApplyToolVisualScale(upgradeHammerVisual.transform);
-        }
-
         void AnimateUpgradeSparkle()
         {
             if (sparkleTimer <= 0f)
@@ -695,25 +597,12 @@ namespace AreaSurvivors
             }
         }
 
-        static void ApplyToolVisualScale(Transform target)
-        {
-            if (target == null) return;
-            var parentScale = target.parent != null ? target.parent.lossyScale : Vector3.one;
-            target.localScale = new Vector3(
-                ToolVisualScale.x / Mathf.Max(0.001f, Mathf.Abs(parentScale.x)),
-                ToolVisualScale.y / Mathf.Max(0.001f, Mathf.Abs(parentScale.y)),
-                ToolVisualScale.z);
-        }
-
         void UsePrefabVisualSetIfAvailable()
         {
             if (prefabVisualSet == null) prefabVisualSet = GetComponent<BuildingPrefabVisualSet>();
             usingPrefabLayout = prefabVisualSet != null && prefabVisualSet.usePrefabLayout && prefabVisualSet.HasUpgradeVisuals;
             if (!usingPrefabLayout) return;
-            upgradeGhostVisual = prefabVisualSet.upgradedGhostVisual;
-            upgradeBuildVisual = prefabVisualSet.upgradedBuildFillVisual;
             upgradedCompleteVisual = prefabVisualSet.upgradedCompleteVisual;
-            if (prefabVisualSet.hammerVisual != null) upgradeHammerVisual = prefabVisualSet.hammerVisual;
             if (prefabVisualSet.sparkleVisual != null) upgradeSparkleVisual = prefabVisualSet.sparkleVisual;
         }
 
@@ -725,180 +614,5 @@ namespace AreaSurvivors
             ySort.Apply();
         }
 
-    }
-
-    public sealed class BuildingUpgradeConstruction : MonoBehaviour, IBuildableConstruction
-    {
-        BuildingUpgradeTarget target;
-        GameConfig config;
-        TileGrid grid;
-        GameManager owner;
-        float progress;
-        float assistedBuildTimer;
-        int touchingPlayers;
-        bool completed;
-        bool canceling;
-        int woodCost;
-        int stoneCost;
-        Collider2D[] targetColliders;
-        Collider2D playerCollider;
-        Vector3Int originCell;
-        Vector2Int footprint = Vector2Int.one;
-        const float BuildDecaySecondsMultiplier = 3f;
-        const float ColliderContactTolerance = 0.02f;
-
-        public bool IsBuilt => completed;
-        public TileGrid Grid => grid;
-        public Vector3Int OriginCell => originCell;
-        public Vector2Int Footprint => footprint;
-
-        public void Configure(BuildingUpgradeTarget upgradeTarget, GameConfig gameConfig, TileGrid tileGrid, GameManager gameManager, int wood, int stone)
-        {
-            target = upgradeTarget;
-            config = gameConfig;
-            grid = tileGrid;
-            owner = gameManager;
-            woodCost = Mathf.Max(0, wood);
-            stoneCost = Mathf.Max(0, stone);
-            targetColliders = GetComponents<Collider2D>();
-            var player = owner != null ? owner.Player : GameManager.Instance != null ? GameManager.Instance.Player : null;
-            playerCollider = player != null ? player.GetComponent<Collider2D>() : null;
-            var sourceConstruction = FindSourceConstruction();
-            if (sourceConstruction != null)
-            {
-                originCell = sourceConstruction.OriginCell;
-                footprint = sourceConstruction.Footprint;
-            }
-            else
-            {
-                var marker = GetComponent<GridObjectMarker>();
-                if (marker != null) footprint = marker.footprint;
-                if (grid != null) originCell = grid.WorldToCell(transform.position);
-            }
-            target?.ShowUpgradeConstruction(progress, true, false);
-        }
-
-        IBuildableConstruction FindSourceConstruction()
-        {
-            foreach (var behaviour in GetComponents<MonoBehaviour>())
-            {
-                if (behaviour == null || behaviour == this) continue;
-                var construction = behaviour as IBuildableConstruction;
-                if (construction != null) return construction;
-            }
-            return null;
-        }
-
-        void Update()
-        {
-            if (completed || canceling) return;
-            var contactBuilder = ColliderContactBuilder();
-            if (contactBuilder != null)
-            {
-                AddBuildWork(WorkSpeedMultiplier(), contactBuilder);
-            }
-            else if (progress > 0f)
-            {
-                if (assistedBuildTimer > 0f) assistedBuildTimer = Mathf.Max(0f, assistedBuildTimer - Time.deltaTime);
-                else
-                {
-                    progress = Mathf.Clamp01(progress - Time.deltaTime / Mathf.Max(0.1f, BuildSeconds() * BuildDecaySecondsMultiplier));
-                    target?.ShowUpgradeConstruction(progress, true, false);
-                }
-            }
-
-            target?.ShowUpgradeConstruction(progress, true, ShouldShowHammer());
-        }
-
-        void OnCollisionEnter2D(Collision2D collision)
-        {
-            if (collision.collider.GetComponent<PlayerController>() == null) return;
-            touchingPlayers++;
-            playerCollider = collision.collider;
-        }
-
-        void OnCollisionExit2D(Collision2D collision)
-        {
-            if (collision.collider.GetComponent<PlayerController>() == null) return;
-            touchingPlayers = Mathf.Max(0, touchingPlayers - 1);
-            if (playerCollider == collision.collider) playerCollider = null;
-        }
-
-        void OnTriggerEnter2D(Collider2D other)
-        {
-            if (other.GetComponent<PlayerController>() == null) return;
-            touchingPlayers++;
-            playerCollider = other;
-        }
-
-        void OnTriggerExit2D(Collider2D other)
-        {
-            if (other.GetComponent<PlayerController>() == null) return;
-            touchingPlayers = Mathf.Max(0, touchingPlayers - 1);
-            if (playerCollider == other) playerCollider = null;
-        }
-
-        public void AddBuildWork(float workSpeedMultiplier, Transform builder = null)
-        {
-            if (completed || canceling) return;
-            progress = Mathf.Clamp01(progress + Time.deltaTime * Mathf.Max(0f, workSpeedMultiplier) / Mathf.Max(0.1f, BuildSeconds()));
-            assistedBuildTimer = 0.18f;
-            target?.ShowUpgradeConstruction(progress, true, ShouldShowHammer());
-            if (progress >= 1f) CompleteBuild();
-        }
-
-        public void CancelAndRefund()
-        {
-            if (completed || canceling) return;
-            canceling = true;
-            if (owner != null)
-            {
-                owner.AddResource(ResourceType.Wood, woodCost);
-                owner.AddResource(ResourceType.Stone, stoneCost);
-            }
-            target?.ClearPendingUpgrade(this);
-            Destroy(this);
-        }
-
-        void CompleteBuild()
-        {
-            if (completed) return;
-            completed = true;
-            progress = 1f;
-            target?.CompleteUpgrade();
-            Destroy(this);
-        }
-
-        float BuildSeconds()
-        {
-            return config != null ? Mathf.Max(0.1f, config.towerUpgradeBuildSeconds) : 5f;
-        }
-
-        bool ShouldShowHammer()
-        {
-            return ColliderContactBuilder() != null || assistedBuildTimer > 0f;
-        }
-
-        Transform ColliderContactBuilder()
-        {
-            var player = owner != null ? owner.Player : GameManager.Instance != null ? GameManager.Instance.Player : null;
-            if (player == null) return null;
-            if (playerCollider == null) playerCollider = player.GetComponent<Collider2D>();
-            if (playerCollider == null) return touchingPlayers > 0 ? player.transform : null;
-            if (targetColliders == null || targetColliders.Length == 0) targetColliders = GetComponents<Collider2D>();
-            foreach (var targetCollider in targetColliders)
-            {
-                if (targetCollider == null || !targetCollider.enabled) continue;
-                var distance = targetCollider.Distance(playerCollider);
-                if (distance.isOverlapped || distance.distance <= ColliderContactTolerance) return player.transform;
-            }
-            return null;
-        }
-
-        static float WorkSpeedMultiplier()
-        {
-            var player = GameManager.Instance != null ? GameManager.Instance.Player : null;
-            return player != null ? Mathf.Max(0.05f, player.Stats.workSpeedMultiplier) : 1f;
-        }
     }
 }

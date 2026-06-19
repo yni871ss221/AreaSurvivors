@@ -10,18 +10,12 @@ namespace AreaSurvivors
         public GameConfig config;
         public TileGrid grid;
         public Collider2D blockingCollider;
-        public PaperMeshVisual ghostRenderer;
-        public PaperMeshVisual buildRenderer;
         public PaperMeshVisual completeRenderer;
-        public PaperMeshVisual hammerRenderer;
         public PaperMeshVisual sparkleRenderer;
         public Sprite towerSprite;
         public Vector2 spriteVisualSize = new Vector2(1.22f, 2.55f);
         public Vector3 spriteVisualOffset = Vector3.zero;
-        public GameObject ghostObject;
-        public GameObject buildObject;
         public GameObject completeObject;
-        public float buildSeconds = 3.2f;
         public int maxHp = 100;
         public int autoPaintRadiusCells = 10;
 
@@ -29,14 +23,9 @@ namespace AreaSurvivors
         GridObjectMarker marker;
         GridObjectVisual gridVisual;
         BuildingPrefabVisualSet prefabVisualSet;
-        float buildProgress;
-        float assistedBuildTimer;
         float visualHeight = 1f;
         float sparkleTimer;
-        Vector3 buildVisualScale = Vector3.one;
         Vector3 completeVisualScale = Vector3.one;
-        int touchingPlayers;
-        Transform activeBuilder;
         bool completed;
         bool spriteVisualsPrepared;
         bool usingPrefabLayout;
@@ -44,8 +33,6 @@ namespace AreaSurvivors
         bool hasRegisteredCell;
         Vector3Int registeredCell;
         const float SparkleDuration = 0.75f;
-        const float BuildDecaySecondsMultiplier = 3f;
-        static readonly Vector3 ToolVisualScale = Vector3.one * 0.58f;
 
         public bool IsBuilt => completed;
         public TileGrid Grid => grid;
@@ -61,7 +48,6 @@ namespace AreaSurvivors
             UsePrefabVisualSetIfAvailable();
             health.Died += _ => Break();
             EnsureSpriteVisuals();
-            ConfigureHammerVisual();
             EnsureUpgradeTarget();
         }
 
@@ -81,7 +67,6 @@ namespace AreaSurvivors
             if (health != null) health.SetMax(maxHp);
             spriteVisualsPrepared = false;
             EnsureSpriteVisuals();
-            ConfigureHammerVisual();
             CacheVisualScales();
             ApplyVisuals();
         }
@@ -96,13 +81,11 @@ namespace AreaSurvivors
         {
             if (config != null)
             {
-                buildSeconds = config.watchTowerBuildSeconds;
                 maxHp = config.watchTowerMaxHp;
                 autoPaintRadiusCells = config.watchTowerAutoPaintRadiusCells;
             }
 
             EnsureSpriteVisuals();
-            ConfigureHammerVisual();
 
             CacheVisualScales();
             ApplyVisuals();
@@ -110,53 +93,14 @@ namespace AreaSurvivors
 
         void Update()
         {
-            if (completed)
-            {
-                AnimateCompletionSparkle();
-                return;
-            }
-
-            if (touchingPlayers > 0)
-            {
-                AddBuildWork(WorkSpeedMultiplier(), activeBuilder);
-            }
-            else if (buildProgress > 0f)
-            {
-                if (assistedBuildTimer > 0f)
-                {
-                    assistedBuildTimer = Mathf.Max(0f, assistedBuildTimer - Time.deltaTime);
-                }
-                else
-                {
-                    buildProgress = Mathf.Clamp01(buildProgress - Time.deltaTime / Mathf.Max(0.1f, buildSeconds * BuildDecaySecondsMultiplier));
-                }
-            }
-
-            ApplyVisuals();
-            AnimateHammer();
+            if (!completed) return;
+            AnimateCompletionSparkle();
         }
 
-        void OnTriggerEnter2D(Collider2D other)
-        {
-            if (other.GetComponent<PlayerController>() == null) return;
-            touchingPlayers++;
-            activeBuilder = other.transform;
-        }
-
-        void OnTriggerExit2D(Collider2D other)
-        {
-            if (other.GetComponent<PlayerController>() == null) return;
-            touchingPlayers = Mathf.Max(0, touchingPlayers - 1);
-            if (touchingPlayers == 0 || activeBuilder == other.transform) activeBuilder = null;
-        }
-
-        public void AddBuildWork(float workSpeedMultiplier, Transform builder = null)
+        public void CompleteImmediately()
         {
             if (completed) return;
-            buildProgress = Mathf.Clamp01(buildProgress + Time.deltaTime * Mathf.Max(0f, workSpeedMultiplier) / Mathf.Max(0.1f, buildSeconds));
-            assistedBuildTimer = 0.18f;
-            if (builder != null) activeBuilder = builder;
-            if (buildProgress >= 1f) CompleteBuild();
+            CompleteBuild();
         }
 
         public void AutoPaintNearestCell()
@@ -201,16 +145,9 @@ namespace AreaSurvivors
             return true;
         }
 
-        static float WorkSpeedMultiplier()
-        {
-            var player = GameManager.Instance != null ? GameManager.Instance.Player : null;
-            return player != null ? Mathf.Max(0.05f, player.Stats.workSpeedMultiplier) : 1f;
-        }
-
         void CompleteBuild()
         {
             completed = true;
-            buildProgress = 1f;
             sparkleTimer = SparkleDuration;
             health.SetMax(maxHp);
             ApplyVisuals();
@@ -226,7 +163,9 @@ namespace AreaSurvivors
         {
             if (breaking) return;
             breaking = true;
-            if (grid != null) grid.ClearObject(hasRegisteredCell ? registeredCell : grid.WorldToCell(transform.position));
+            var cell = hasRegisteredCell ? registeredCell : grid != null ? grid.WorldToCell(transform.position) : OriginCell;
+            if (BuildingPersistentState.TryMarkDestroyed(gameObject, grid, cell)) return;
+            if (grid != null) grid.ClearObject(cell);
             Destroy(gameObject);
         }
 
@@ -236,27 +175,16 @@ namespace AreaSurvivors
             UsePrefabVisualSetIfAvailable();
             if (usingPrefabLayout && prefabVisualSet != null && prefabVisualSet.HasBaseVisuals)
             {
-                ConfigureSpriteVisual(ghostRenderer, new Color(1f, 1f, 1f, 0.34f));
-                ConfigureSpriteVisual(buildRenderer, Color.white);
                 ConfigureSpriteVisual(completeRenderer, Color.white);
-                ghostObject = ghostRenderer.gameObject;
-                buildObject = buildRenderer.gameObject;
                 completeObject = completeRenderer.gameObject;
                 RefreshSortRenderers();
                 spriteVisualsPrepared = true;
                 return;
             }
             if (towerSprite == null) return;
-            if (ghostRenderer == null) ghostRenderer = CreateSpriteVisual("Ghost Image", new Color(1f, 1f, 1f, 0.34f), 1000);
-            if (buildRenderer == null) buildRenderer = CreateSpriteVisual("Build Fill Image", Color.white, 1001);
             if (completeRenderer == null) completeRenderer = CreateSpriteVisual("Complete Image", Color.white, 1002);
-            if (hammerRenderer == null) hammerRenderer = CreateOverlayVisual("Hammer", null, 22020);
             if (sparkleRenderer == null) sparkleRenderer = CreateOverlayVisual("Completion Sparkle", null, 22030);
-            ConfigureSpriteVisual(ghostRenderer, new Color(1f, 1f, 1f, 0.34f));
-            ConfigureSpriteVisual(buildRenderer, Color.white);
             ConfigureSpriteVisual(completeRenderer, Color.white);
-            ghostObject = ghostRenderer.gameObject;
-            buildObject = buildRenderer.gameObject;
             completeObject = completeRenderer.gameObject;
             RefreshSortRenderers();
             spriteVisualsPrepared = true;
@@ -318,7 +246,6 @@ namespace AreaSurvivors
                 completeVisualScale = completeRenderer.transform.localScale;
                 visualHeight = completeRenderer.sprite.bounds.size.y * completeVisualScale.y;
             }
-            if (buildRenderer != null) buildVisualScale = buildRenderer.transform.localScale;
         }
 
         void EnsureGridObjectVisual()
@@ -355,26 +282,12 @@ namespace AreaSurvivors
             outline.thickness = 0.03f;
         }
 
-        void ConfigureHammerVisual()
-        {
-            if (hammerRenderer == null) return;
-            hammerRenderer.order = 22020;
-            ApplyToolVisualScale(hammerRenderer.transform);
-            var outline = hammerRenderer.GetComponent<RuntimeSpriteOutline>();
-            if (outline == null) outline = hammerRenderer.gameObject.AddComponent<RuntimeSpriteOutline>();
-            if (hammerRenderer.GetComponent<PreserveSortingOrder>() == null) hammerRenderer.gameObject.AddComponent<PreserveSortingOrder>();
-            outline.outlineColor = Color.black;
-            outline.thickness = 0.022f;
-        }
-
         void RefreshSortRenderers()
         {
             var ySort = GetComponent<YSort>();
             if (ySort == null) return;
             ySort.renderers = new[]
             {
-                ghostRenderer != null ? ghostRenderer.Renderer : null,
-                buildRenderer != null ? buildRenderer.Renderer : null,
                 completeRenderer != null ? completeRenderer.Renderer : null
             };
             ySort.Apply();
@@ -383,40 +296,10 @@ namespace AreaSurvivors
         void ApplyVisuals()
         {
             if (blockingCollider != null) blockingCollider.enabled = completed;
-            if (ghostRenderer != null) ghostRenderer.visible = !completed;
-            SetActive(ghostObject, !completed);
-            if (buildRenderer != null)
-            {
-                buildRenderer.visible = !completed && buildProgress > 0f;
-                buildRenderer.transform.localScale = usingPrefabLayout
-                    ? buildVisualScale
-                    : buildVisualScale;
-                buildRenderer.SetVerticalFill(buildProgress);
-                if (!usingPrefabLayout) buildRenderer.transform.localPosition = gridVisual != null ? gridVisual.visualOffset : spriteVisualOffset;
-            }
             if (completeRenderer != null) completeRenderer.visible = completed;
             if (completeRenderer != null) completeRenderer.SetVerticalFill(1f);
             SetActive(completeObject, completed);
             if (sparkleRenderer != null && !completed) sparkleRenderer.visible = false;
-            if (hammerRenderer != null) hammerRenderer.visible = ShouldShowHammer();
-        }
-
-        void AnimateHammer()
-        {
-            if (hammerRenderer == null || !ShouldShowHammer()) return;
-            float swing = Mathf.Sin(Time.time * 16f);
-            hammerRenderer.transform.localRotation = Quaternion.Euler(0f, 0f, -35f + swing * 32f);
-            var offset = gridVisual != null ? gridVisual.visualOffset : spriteVisualOffset;
-            if (!usingPrefabLayout)
-            {
-                hammerRenderer.transform.localPosition = offset + new Vector3(0.18f, spriteVisualSize.y * 0.5f + 0.42f + Mathf.Abs(swing) * 0.08f, 0f);
-            }
-            ApplyToolVisualScale(hammerRenderer.transform);
-        }
-
-        bool ShouldShowHammer()
-        {
-            return !completed && (touchingPlayers > 0 || assistedBuildTimer > 0f);
         }
 
         void AnimateCompletionSparkle()
@@ -455,25 +338,12 @@ namespace AreaSurvivors
             if (target != null) target.SetActive(active);
         }
 
-        static void ApplyToolVisualScale(Transform target)
-        {
-            if (target == null) return;
-            var parentScale = target.parent != null ? target.parent.lossyScale : Vector3.one;
-            target.localScale = new Vector3(
-                ToolVisualScale.x / Mathf.Max(0.001f, Mathf.Abs(parentScale.x)),
-                ToolVisualScale.y / Mathf.Max(0.001f, Mathf.Abs(parentScale.y)),
-                ToolVisualScale.z);
-        }
-
         void UsePrefabVisualSetIfAvailable()
         {
             if (prefabVisualSet == null) prefabVisualSet = GetComponent<BuildingPrefabVisualSet>();
             usingPrefabLayout = prefabVisualSet != null && prefabVisualSet.usePrefabLayout && prefabVisualSet.HasBaseVisuals;
             if (!usingPrefabLayout) return;
-            ghostRenderer = prefabVisualSet.ghostVisual;
-            buildRenderer = prefabVisualSet.buildFillVisual;
             completeRenderer = prefabVisualSet.completeVisual;
-            if (prefabVisualSet.hammerVisual != null) hammerRenderer = prefabVisualSet.hammerVisual;
             if (prefabVisualSet.sparkleVisual != null) sparkleRenderer = prefabVisualSet.sparkleVisual;
         }
     }

@@ -37,6 +37,7 @@ namespace AreaSurvivors
         public int Wood { get; private set; }
         public int Stone { get; private set; }
         public int RunTokens { get; private set; }
+        public MapSessionMode SessionMode => sessionMode;
 
         int kills;
         int level = 1;
@@ -45,9 +46,11 @@ namespace AreaSurvivors
         int damageDealt;
         float elapsed;
         float hudElapsed;
+        float roundTimeLimit;
         float xpRemainder;
         int currentStage = 1;
         float currentStageSpeedMultiplier = 1f;
+        MapSessionMode sessionMode = MapSessionMode.Game;
         bool bossActive;
         bool gameEnding;
         GameObject levelUpInputBlocker;
@@ -63,14 +66,15 @@ namespace AreaSurvivors
         void Start()
         {
             Time.timeScale = 1f;
+            sessionMode = RunState.ConsumeNextMapMode();
             config = Instantiate(config);
             config.EnsureEnemySpawnDefaults();
             config.EnsureWeaponLevelDefaults();
-            Wood = Mathf.Max(0, config.startingWood + ProgressionStore.GetLevel(UpgradeType.StartingWood) * config.startingWoodPerUpgradeLevel);
-            Stone = Mathf.Max(0, config.startingStone + ProgressionStore.GetLevel(UpgradeType.StartingStone) * config.startingStonePerUpgradeLevel);
+            Wood = sessionMode == MapSessionMode.Build ? ProgressionStore.Data.wood : 0;
+            Stone = sessionMode == MapSessionMode.Build ? ProgressionStore.Data.stone : 0;
             if (grid != null)
             {
-                grid.ApplyVerticalMapLayout();
+                grid.ApplySquareChunkMapLayout();
                 grid.Build();
                 RebuildMapPerimeter();
             }
@@ -94,18 +98,26 @@ namespace AreaSurvivors
             var towerRootWorld = GridObjectVisual.FootprintOriginToWorld(grid, towerOriginCell);
             grid.PaintImmediate(towerRootWorld, TileOwner.Player, InitialTowerTerritoryRadius);
             SpawnNaturalLandmarks(towerOriginCell);
+            int stage = RunState.ConsumeNextStartStage();
 
-            Player = Instantiate(playerPrefab, grid.GridToWorld(grid.width / 2, grid.height / 2 - 6), Quaternion.identity);
-            if (spawner != null) Player.damagePopupPrefab = spawner.damagePopupPrefab;
-            Player.Configure(config, grid, RunState.SelectedCharacter);
-            if (buildPlacement != null) buildPlacement.Initialize(config, grid, Player);
+            if (sessionMode == MapSessionMode.Game)
+            {
+                Player = Instantiate(playerPrefab, grid.GridToWorld(grid.width / 2, grid.height / 2 - 6), Quaternion.identity);
+                if (spawner != null) Player.damagePopupPrefab = spawner.damagePopupPrefab;
+                Player.Configure(config, grid, RunState.SelectedCharacter);
+            }
+
+            if (sessionMode == MapSessionMode.Game) ProgressionStore.ReviveStageBuildings(stage);
+            if (buildPlacement != null) buildPlacement.Initialize(config, grid, sessionMode == MapSessionMode.Build ? null : Player);
+            if (buildPlacement != null) buildPlacement.RestoreStageBuildings(stage);
             ConfigureAutoBuildingScheduler();
             PolishHud();
             ConfigureGameHud();
 
             var cameraFollow = Camera.main.GetComponent<CameraFollow>();
-            if (cameraFollow != null) cameraFollow.Configure(Player.transform, Tower.transform, config);
-            BeginStage(RunState.ConsumeNextStartStage());
+            if (cameraFollow != null && sessionMode == MapSessionMode.Game && Player != null) cameraFollow.Configure(Player.transform, Tower.transform, config);
+            if (sessionMode == MapSessionMode.Game) BeginStage(stage);
+            else BeginBuildMode(stage);
             UpdateHud();
         }
 
@@ -141,11 +153,14 @@ namespace AreaSurvivors
             if (grid == null) return;
             if (naturalLandmarks == null) naturalLandmarks = GetComponent<NaturalLandmarkSpawner>();
             if (naturalLandmarks == null) naturalLandmarks = gameObject.AddComponent<NaturalLandmarkSpawner>();
+            naturalLandmarks.useVerticalMapResourceLayout = false;
+            naturalLandmarks.useOuterEightChunkResourceLayout = true;
             naturalLandmarks.Spawn(grid, centerCell);
         }
 
         void ConfigureAutoBuildingScheduler()
         {
+            if (sessionMode == MapSessionMode.Build) return;
             var scheduler = GetComponent<AutoBuildingScheduler>();
             if (scheduler == null) scheduler = gameObject.AddComponent<AutoBuildingScheduler>();
             scheduler.Configure(config);
@@ -153,9 +168,18 @@ namespace AreaSurvivors
 
         void Update()
         {
-            elapsed += Time.deltaTime * currentStageSpeedMultiplier;
-            hudElapsed = bossActive ? Mathf.Min(StageStartDisplaySeconds() + config.bossTimeSeconds, hudElapsed) : elapsed;
-            if (buildPlacement != null && (buildingUpgrade == null || !buildingUpgrade.IsActive)) buildPlacement.Tick();
+            if (sessionMode == MapSessionMode.Game)
+            {
+                elapsed += Time.deltaTime * currentStageSpeedMultiplier;
+                hudElapsed = Mathf.Max(0f, roundTimeLimit - elapsed);
+                if (!gameEnding && elapsed >= roundTimeLimit) EndRun(false);
+            }
+            else
+            {
+                hudElapsed = 0f;
+            }
+
+            if (sessionMode == MapSessionMode.Build && buildPlacement != null && (buildingUpgrade == null || !buildingUpgrade.IsActive)) buildPlacement.Tick();
             UpdateLevelUpButtonHover();
             UpdateHud();
         }
@@ -183,6 +207,13 @@ namespace AreaSurvivors
             Wood -= wood;
             Stone -= stone;
             return true;
+        }
+
+        public void SyncPersistentResources()
+        {
+            if (sessionMode != MapSessionMode.Build) return;
+            Wood = Mathf.Max(0, ProgressionStore.Data.wood);
+            Stone = Mathf.Max(0, ProgressionStore.Data.stone);
         }
 
         public void AddResource(ResourceType type, int amount)
@@ -461,7 +492,6 @@ namespace AreaSurvivors
         {
             if (boss == null) return;
             bossActive = true;
-            hudElapsed = StageStartDisplaySeconds() + config.bossTimeSeconds;
             if (timerText != null) timerText.color = Color.red;
             gameHud?.ShowBoss(boss);
             ShowAnnouncement(spawner != null ? spawner.CurrentBossAnnouncement : config.bossAnnouncement);
@@ -475,19 +505,6 @@ namespace AreaSurvivors
 
         IEnumerator BossDefeatedRoutine(EnemyController boss)
         {
-            if (currentStage == 1)
-            {
-                bool unlockedStage2 = ProgressionStore.MarkStageCleared(1);
-                if (unlockedStage2)
-                {
-                    yield return GameClearRoutine(boss, 1, 2, "ステージ2がアンロックされました");
-                    yield break;
-                }
-
-                yield return StageTransitionRoutine(boss, 2);
-                yield break;
-            }
-
             bool unlockedNextStage = ProgressionStore.MarkStageCleared(currentStage);
             yield return GameClearRoutine(boss, currentStage, unlockedNextStage ? currentStage + 1 : 0, string.Empty);
         }
@@ -503,13 +520,7 @@ namespace AreaSurvivors
 
         IEnumerator StageTransitionRoutine(EnemyController boss, int nextStage)
         {
-            bossActive = false;
-            if (timerText != null) timerText.color = Color.white;
-            gameHud?.ShowBoss(null);
-            spawner?.StopAndClearEnemies(boss);
-            ShowAnnouncement("STAGE " + nextStage);
-            yield return new WaitForSeconds(1.4f);
-            BeginStage(nextStage);
+            yield break;
         }
 
         public void ShowAnnouncement(string message)
@@ -527,12 +538,18 @@ namespace AreaSurvivors
             if (!clear && gameEnding) return;
             gameEnding = true;
             Time.timeScale = 1f;
+            int rewardWood = EndWoodReward();
+            int rewardStone = EndStoneReward();
+            int woodEarned = Mathf.Max(0, Wood) + rewardWood;
+            int stoneEarned = Mathf.Max(0, Stone) + rewardStone;
             RunResult.Last = new RunResult
             {
                 kills = kills,
                 damageDealt = damageDealt,
                 level = level,
                 tokensEarned = EndTokenReward(),
+                woodEarned = woodEarned,
+                stoneEarned = stoneEarned,
                 survivedSeconds = elapsed,
                 gameClear = clear,
                 clearedStage = clearedStage,
@@ -541,6 +558,7 @@ namespace AreaSurvivors
                 upgrades = new List<string>(runUpgrades)
             };
             ProgressionStore.AddRunTokens(kills, EndTokenReward());
+            ProgressionStore.AddPersistentResources(woodEarned, stoneEarned);
             SceneManager.LoadScene(SceneNames.GameEnd);
         }
 
@@ -548,6 +566,16 @@ namespace AreaSurvivors
         {
             float multiplier = 1f + ProgressionStore.GetLevel(UpgradeType.EndTokenGain) * config.endTokenGainMultiplierPerUpgradeLevel;
             return Mathf.Max(0, Mathf.RoundToInt(RunTokens * multiplier));
+        }
+
+        int EndWoodReward()
+        {
+            return Mathf.Max(0, config.roundEndWoodReward + ProgressionStore.GetLevel(UpgradeType.StartingWood) * config.roundEndWoodRewardPerUpgradeLevel);
+        }
+
+        int EndStoneReward()
+        {
+            return Mathf.Max(0, config.roundEndStoneReward + ProgressionStore.GetLevel(UpgradeType.StartingStone) * config.roundEndStoneRewardPerUpgradeLevel);
         }
 
         void UpdateHud()
@@ -568,12 +596,48 @@ namespace AreaSurvivors
         {
             currentStage = Mathf.Max(1, stage);
             currentStageSpeedMultiplier = ProgressionStore.IsFastStage(currentStage) ? 2f : 1f;
-            elapsed = StageStartDisplaySeconds();
-            hudElapsed = elapsed;
+            roundTimeLimit = RoundTimeLimitSeconds();
+            elapsed = 0f;
+            hudElapsed = roundTimeLimit;
             bossActive = false;
             if (timerText != null) timerText.color = Color.white;
-            if (spawner != null) spawner.BeginStage(config, grid, Tower.EnemyTarget, currentStage, StageStartDisplaySeconds(), currentStageSpeedMultiplier);
+            if (spawner != null)
+            {
+                spawner.useUpperChunkSpawn = false;
+                spawner.BeginStage(config, grid, Tower.EnemyTarget, currentStage, 0f, currentStageSpeedMultiplier);
+            }
             gameHud?.SetStage(currentStage);
+        }
+
+        void BeginBuildMode(int stage)
+        {
+            currentStage = Mathf.Max(1, stage);
+            currentStageSpeedMultiplier = 1f;
+            elapsed = 0f;
+            hudElapsed = 0f;
+            bossActive = false;
+            if (spawner != null) spawner.gameObject.SetActive(false);
+            if (levelUpPanel != null) levelUpPanel.SetActive(false);
+            if (timerText != null) timerText.text = string.Empty;
+            ConfigureBuildModeCamera();
+            gameHud?.SetStage(currentStage);
+        }
+
+        void ConfigureBuildModeCamera()
+        {
+            var camera = Camera.main;
+            if (camera == null) return;
+            var follow = camera.GetComponent<CameraFollow>();
+            if (follow != null) follow.enabled = false;
+            var buildCamera = camera.GetComponent<BuildModeCameraController>();
+            if (buildCamera == null) buildCamera = camera.gameObject.AddComponent<BuildModeCameraController>();
+            buildCamera.enabled = true;
+            buildCamera.Configure(grid);
+        }
+
+        float RoundTimeLimitSeconds()
+        {
+            return Mathf.Max(1f, config.baseRoundTimeLimitSeconds + ProgressionStore.GetLevel(UpgradeType.RoundTimeLimit) * config.roundTimeLimitSecondsPerUpgradeLevel);
         }
 
         float StageStartDisplaySeconds()
@@ -740,18 +804,23 @@ namespace AreaSurvivors
             if (canvas == null) canvas = CreateCanvas();
 
             HideLegacyBuildStatus(canvas.transform);
-            BindSceneRunStats(canvas.transform);
+            ApplySessionHudVisibility(canvas.transform);
+            if (gameManager == null || gameManager.SessionMode == MapSessionMode.Game) BindSceneRunStats(canvas.transform);
             BuildStagePanel(canvas.transform);
             BindSceneResourceHud(canvas.transform);
-            BindSceneBossHud(canvas.transform);
-            BuildPlayerPanel(canvas.transform);
-            BuildConstructionMenu(canvas.transform);
+            if (gameManager == null || gameManager.SessionMode == MapSessionMode.Game)
+            {
+                BindSceneBossHud(canvas.transform);
+                BuildPlayerPanel(canvas.transform);
+            }
+            if (gameManager != null && gameManager.SessionMode == MapSessionMode.Build) BuildConstructionMenu(canvas.transform);
             BuildTowerPanel(canvas.transform);
-            if (gameManager != null)
+            if (gameManager != null && gameManager.SessionMode == MapSessionMode.Build)
             {
                 gameManager.ConfigureBuildingUpgrade(canvas);
                 buildingUpgrade = gameManager.buildingUpgrade;
                 BindUpgradeButton(canvas.transform);
+                BindBuildModeLobbyButton(canvas.transform);
             }
             UpdatePlayerPanel();
             UpdateResourceHud();
@@ -765,6 +834,28 @@ namespace AreaSurvivors
             if (towerHealth != null) towerHealth.Damaged -= OnTowerDamaged;
             if (towerController != null) towerController.Upgraded -= OnTowerUpgraded;
             if (bossHealth != null) bossHealth.Died -= OnBossDied;
+        }
+
+        void ApplySessionHudVisibility(Transform parent)
+        {
+            if (parent == null || gameManager == null) return;
+            bool buildMode = gameManager.SessionMode == MapSessionMode.Build;
+            SetDirectChildActive(parent, "Construction Menu", buildMode);
+            SetDirectChildActive(parent, "Upgrade Building Button", buildMode);
+            SetDirectChildActive(parent, "Build Lobby Button", buildMode);
+            SetDirectChildActive(parent, "Timer Panel", !buildMode);
+            SetDirectChildActive(parent, "Kill Panel", !buildMode);
+            SetDirectChildActive(parent, "Boss Status", !buildMode);
+            SetDirectChildActive(parent, "Player Status", !buildMode);
+            SetDirectChildActive(parent, "Weapon Status", !buildMode);
+            SetDirectChildActive(parent, "XP Bar", !buildMode);
+            SetDirectChildActive(parent, "Level Panel", !buildMode);
+        }
+
+        static void SetDirectChildActive(Transform parent, string path, bool active)
+        {
+            var child = parent != null ? parent.Find(path) : null;
+            if (child != null) child.gameObject.SetActive(active);
         }
 
         void Update()
@@ -1462,6 +1553,36 @@ namespace AreaSurvivors
                 icon.preserveAspect = true;
                 icon.color = upgradeButton.interactable ? Color.white : new Color(0.35f, 0.38f, 0.36f, 1f);
             }
+        }
+
+        void BindBuildModeLobbyButton(Transform parent)
+        {
+            if (parent == null) return;
+            var buttonTransform = parent.Find("Build Lobby Button");
+            var button = buttonTransform != null ? buttonTransform.GetComponent<Button>() : null;
+            if (button == null)
+            {
+                var image = new GameObject("Build Lobby Button").AddComponent<Image>();
+                image.transform.SetParent(parent, false);
+                image.color = new Color(0.10f, 0.16f, 0.18f, 0.94f);
+                var rect = image.rectTransform;
+                rect.anchorMin = new Vector2(1f, 0f);
+                rect.anchorMax = new Vector2(1f, 0f);
+                rect.pivot = new Vector2(1f, 0f);
+                rect.anchoredPosition = new Vector2(-16f, 16f);
+                rect.sizeDelta = new Vector2(148f, 44f);
+                AddFrame(rect, rect.sizeDelta);
+                button = image.gameObject.AddComponent<Button>();
+                button.targetGraphic = image;
+                CreateText(rect, "Label", "ロビーへ", 18, Vector2.zero, rect.sizeDelta, TextAnchor.MiddleCenter);
+            }
+
+            button.onClick.RemoveAllListeners();
+            button.onClick.AddListener(() =>
+            {
+                SceneManager.LoadScene(SceneNames.Lobby);
+            });
+            button.gameObject.SetActive(true);
         }
 
         Button CreateUpgradeButton(Transform parent)

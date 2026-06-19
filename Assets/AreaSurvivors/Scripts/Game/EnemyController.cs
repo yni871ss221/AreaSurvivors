@@ -12,8 +12,6 @@ namespace AreaSurvivors
         public GameObject xpOrbPrefab;
         public GameObject damagePopupPrefab;
         public DirectionalSpriteAnimator directionalAnimator;
-        public float obstacleAvoidanceRadius = 1.45f;
-        public float obstacleAvoidanceWeight = 1.65f;
         public int xpValue = 1;
         public int tokenValue;
         public int attackDamage = 3;
@@ -21,16 +19,6 @@ namespace AreaSurvivors
         public string displayName = "イノシシ";
         public bool elite;
         public bool boss;
-        [Header("Stuck Recovery")]
-        public float stuckDetectionSeconds = 1.5f;
-        public float stuckMinimumProgress = 0.08f;
-        public float stuckPositionThreshold = 0.14f;
-        public float stuckRecoverySeconds = 2f;
-        public float stuckRecoveryMinimumSeconds = 0.65f;
-        public float stuckRecoveryAbsoluteLimitSeconds = 8f;
-        public float stuckRecoveryCooldownSeconds = 2.5f;
-        public float stuckMinimumTargetDistance = 2.5f;
-        public bool SuppressStuckRecovery { get; set; }
 
         Rigidbody2D body;
         Health health;
@@ -41,17 +29,6 @@ namespace AreaSurvivors
         RuntimeSpriteOutline outline;
         float contactTimer;
         float speedMultiplier = 1f;
-        float enemyCellSize = 1f;
-        bool ignoresNaturalObstacles;
-        bool expectsToMove;
-        bool recoveringFromStuck;
-        float stuckTimer;
-        float stuckRecoveryTimer;
-        float stuckRecoveryElapsed;
-        float stuckRecoveryCooldown;
-        float lastTargetDistance = -1f;
-        Vector2 lastStuckSamplePosition;
-        bool hasStuckSample;
         bool dying;
         Color desiredOutlineColor = Color.black;
         float desiredOutlineThickness = 0.018f;
@@ -119,12 +96,8 @@ namespace AreaSurvivors
             attackDamage = Mathf.Max(0, Mathf.RoundToInt((config != null ? config.enemyDamage : 3) * Mathf.Max(0f, definition.damageMultiplier)));
             float visualScale = config != null ? Mathf.Max(0.1f, config.enemyVisualScale) : 1f;
             float cellScale = Mathf.Max(0.1f, definition.cellSize);
-            enemyCellSize = cellScale;
-            ignoresNaturalObstacles = definition.elite || definition.boss;
             transform.localScale = Vector3.one * visualScale * cellScale;
             speedMultiplier = Mathf.Max(0.05f, definition.speedMultiplier);
-            obstacleAvoidanceRadius = Mathf.Max(0.45f, 0.8f + cellScale * 0.8f);
-            obstacleAvoidanceWeight = Mathf.Max(1.65f, 1.45f + cellScale * 0.45f);
             ConfigureFootCollider(cellScale);
 
             desiredOutlineColor = definition.outlineColor;
@@ -132,7 +105,6 @@ namespace AreaSurvivors
             if (definition.elite) desiredOutlineThickness = Mathf.Max(desiredOutlineThickness, 0.055f);
             if (definition.boss) desiredOutlineThickness = Mathf.Max(desiredOutlineThickness, 0.075f);
             ApplyOutlineStyle();
-            if (ignoresNaturalObstacles) IgnoreNaturalObstacleCollisions();
         }
 
         void ConfigureFootCollider(float cellScale)
@@ -166,194 +138,17 @@ namespace AreaSurvivors
 
         void Update()
         {
-            expectsToMove = false;
             if (dying || target == null) return;
             if (knockback != null && knockback.Active)
             {
                 if (directionalAnimator != null) directionalAnimator.Tick(Vector2.down, true);
-                ResetStuckTracking();
                 return;
             }
-            expectsToMove = true;
-            var targetDirection = ((Vector2)(target.position - transform.position)).normalized;
-            var direction = AvoidObstacles(targetDirection);
+            var direction = ((Vector2)(target.position - transform.position)).normalized;
             float slow = grid.GetMoveMultiplier(transform.position, TileOwner.Enemy, config.playerTerritorySlow);
             body.velocity = direction * config.enemyBaseSpeed * slow * speedMultiplier;
             if (directionalAnimator != null) directionalAnimator.Tick(direction, body.velocity.sqrMagnitude > 0.01f);
             grid.Paint(transform.position, TileOwner.Enemy, 1);
-            UpdateStuckRecovery();
-        }
-
-        Vector2 AvoidObstacles(Vector2 targetDirection)
-        {
-            if (ignoresNaturalObstacles || recoveringFromStuck) return targetDirection;
-
-            var position = (Vector2)transform.position;
-            var avoidance = Vector2.zero;
-            var nearby = Physics2D.OverlapCircleAll(position, obstacleAvoidanceRadius);
-            foreach (var hit in nearby)
-            {
-                if (hit == null || hit.attachedRigidbody == body) continue;
-                if (!IsNaturalObstacle(hit)) continue;
-
-                var closest = hit.ClosestPoint(position);
-                var away = position - closest;
-                if (away.sqrMagnitude < 0.001f) away = position - (Vector2)hit.transform.position;
-                if (away.sqrMagnitude < 0.001f) away = Vector2.Perpendicular(targetDirection);
-
-                float distance = Mathf.Max(0.05f, away.magnitude);
-                float strength = Mathf.Clamp01((obstacleAvoidanceRadius - distance) / obstacleAvoidanceRadius);
-                avoidance += away.normalized * strength;
-            }
-
-            float castRadius = Mathf.Max(0.28f, 0.18f + enemyCellSize * 0.2f);
-            float lookAhead = Mathf.Max(0.75f, 0.65f + enemyCellSize * 0.85f);
-            var frontHits = Physics2D.CircleCastAll(position, castRadius, targetDirection, lookAhead);
-            foreach (var frontHit in frontHits)
-            {
-                if (!IsNaturalObstacle(frontHit.collider)) continue;
-                var side = Vector2.Perpendicular(targetDirection);
-                if (Vector2.Dot(side, position - (Vector2)frontHit.collider.transform.position) < 0f) side = -side;
-                float proximity = 1f - Mathf.Clamp01(frontHit.distance / lookAhead);
-                avoidance += side * (0.9f + enemyCellSize * 0.35f) * Mathf.Lerp(0.55f, 1f, proximity);
-            }
-
-            var steered = targetDirection + avoidance * obstacleAvoidanceWeight;
-            return steered.sqrMagnitude > 0.01f ? steered.normalized : targetDirection;
-        }
-
-        void IgnoreNaturalObstacleCollisions()
-        {
-            SetNaturalObstacleCollisionIgnored(true);
-        }
-
-        void SetNaturalObstacleCollisionIgnored(bool ignored)
-        {
-            if (colliders == null || colliders.Length == 0) return;
-            var obstacles = FindObjectsOfType<Obstacle>();
-            foreach (var obstacle in obstacles)
-            {
-                if (obstacle == null) continue;
-                var obstacleColliders = obstacle.GetComponents<Collider2D>();
-                foreach (var own in colliders)
-                {
-                    if (own == null) continue;
-                    foreach (var obstacleCollider in obstacleColliders)
-                    {
-                        if (obstacleCollider != null) Physics2D.IgnoreCollision(own, obstacleCollider, ignored);
-                    }
-                }
-            }
-        }
-
-        void UpdateStuckRecovery()
-        {
-            if (ignoresNaturalObstacles || dying || !expectsToMove || SuppressStuckRecovery || target == null)
-            {
-                ResetStuckTracking();
-                return;
-            }
-
-            stuckRecoveryCooldown = Mathf.Max(0f, stuckRecoveryCooldown - Time.deltaTime);
-            float targetDistance = Vector2.Distance(transform.position, target.position);
-            if (recoveringFromStuck)
-            {
-                stuckRecoveryElapsed += Time.deltaTime;
-                stuckRecoveryTimer -= Time.deltaTime;
-                bool minimumRecoveryElapsed = stuckRecoveryElapsed >= Mathf.Max(0f, stuckRecoveryMinimumSeconds);
-                bool safelyClear = minimumRecoveryElapsed && !IsNearNaturalObstacle(true) && !OverlapsNaturalObstacle();
-                bool absoluteLimitReached = stuckRecoveryElapsed >= Mathf.Max(stuckRecoverySeconds, stuckRecoveryAbsoluteLimitSeconds);
-                if (safelyClear || absoluteLimitReached)
-                {
-                    SetNaturalObstacleCollisionIgnored(false);
-                    recoveringFromStuck = false;
-                    stuckRecoveryElapsed = 0f;
-                    stuckRecoveryCooldown = Mathf.Max(0f, stuckRecoveryCooldownSeconds);
-                    ResetStuckTracking();
-                }
-                return;
-            }
-
-            if (targetDistance <= Mathf.Max(0f, stuckMinimumTargetDistance))
-            {
-                ResetStuckTracking();
-                return;
-            }
-
-            if (lastTargetDistance < 0f)
-            {
-                lastTargetDistance = targetDistance;
-                return;
-            }
-
-            if (!hasStuckSample)
-            {
-                stuckTimer = 0f;
-                lastStuckSamplePosition = transform.position;
-                lastTargetDistance = targetDistance;
-                hasStuckSample = true;
-                return;
-            }
-
-            stuckTimer += Time.deltaTime;
-            if (stuckTimer < Mathf.Max(0.1f, stuckDetectionSeconds)) return;
-
-            float positionProgress = Vector2.Distance(lastStuckSamplePosition, transform.position);
-            float targetProgress = lastTargetDistance - targetDistance;
-            bool positionUnchanged = positionProgress <= Mathf.Max(0.01f, stuckPositionThreshold);
-            bool didNotApproachTarget = targetProgress < Mathf.Max(0.001f, stuckMinimumProgress);
-            lastStuckSamplePosition = transform.position;
-            lastTargetDistance = targetDistance;
-            stuckTimer = 0f;
-            if (!positionUnchanged || !didNotApproachTarget || stuckRecoveryCooldown > 0f || !IsNearNaturalObstacle(false)) return;
-
-            SetNaturalObstacleCollisionIgnored(true);
-            recoveringFromStuck = true;
-            stuckRecoveryElapsed = 0f;
-            stuckRecoveryTimer = Mathf.Max(0.1f, stuckRecoverySeconds);
-        }
-
-        bool IsNearNaturalObstacle(bool requireClearance)
-        {
-            float recoveryRadius = Mathf.Max(0.45f, obstacleAvoidanceRadius);
-            float radius = requireClearance
-                ? recoveryRadius + Mathf.Max(0.35f, enemyCellSize * 0.35f)
-                : recoveryRadius;
-            var nearby = Physics2D.OverlapCircleAll(transform.position, radius);
-            foreach (var hit in nearby)
-            {
-                if (IsNaturalObstacle(hit)) return true;
-            }
-            return false;
-        }
-
-        bool OverlapsNaturalObstacle()
-        {
-            if (colliders == null) return false;
-            var obstacles = FindObjectsOfType<Obstacle>();
-            foreach (var own in colliders)
-            {
-                if (own == null || !own.enabled) continue;
-                foreach (var obstacle in obstacles)
-                {
-                    if (obstacle == null) continue;
-                    foreach (var obstacleCollider in obstacle.GetComponents<Collider2D>())
-                    {
-                        if (obstacleCollider == null || !obstacleCollider.enabled) continue;
-                        if (own.Distance(obstacleCollider).isOverlapped) return true;
-                    }
-                }
-            }
-
-            return false;
-        }
-
-        void ResetStuckTracking()
-        {
-            stuckTimer = 0f;
-            lastTargetDistance = target != null ? Vector2.Distance(transform.position, target.position) : -1f;
-            lastStuckSamplePosition = transform.position;
-            hasStuckSample = false;
         }
 
         void OnCollisionStay2D(Collision2D collision)
@@ -381,16 +176,6 @@ namespace AreaSurvivors
             int dealt = otherHealth.Damage(attackDamage, hitPoint);
             DamagePopup.Show(damagePopupPrefab, hitPoint + Vector3.up * 0.18f, dealt, Color.red);
             contactTimer = 0.75f;
-        }
-
-        static bool IsNaturalObstacle(Collider2D collider)
-        {
-            if (collider == null || collider.GetComponentInParent<Obstacle>() == null) return false;
-            return collider.GetComponentInParent<WoodenBarrier>() == null &&
-                   collider.GetComponentInParent<BallistaTower>() == null &&
-                   collider.GetComponentInParent<CarpenterHut>() == null &&
-                   collider.GetComponentInParent<WorkerHut>() == null &&
-                   collider.GetComponentInParent<WatchTower>() == null;
         }
 
         void OnDamaged(Health damagedHealth, int amount)

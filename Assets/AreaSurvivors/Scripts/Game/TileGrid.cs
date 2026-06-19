@@ -48,8 +48,8 @@ namespace AreaSurvivors
     public sealed class TileGrid : MonoBehaviour
     {
         public const int DefaultChunkCells = 25;
-        public const int VerticalMapChunkColumns = 1;
-        public const int VerticalMapChunkRows = 11;
+        public const int DefaultMapChunkColumns = 3;
+        public const int DefaultMapChunkRows = 3;
 
         public int width = 96;
         public int height = 136;
@@ -101,12 +101,12 @@ namespace AreaSurvivors
         TileBase[] pathDetailTiles;
         readonly List<TileBase> generatedGroundTiles = new List<TileBase>();
 
-        public void ApplyVerticalMapLayout()
+        public void ApplySquareChunkMapLayout(int columns = DefaultMapChunkColumns, int rows = DefaultMapChunkRows)
         {
             int chunkCells = Mathf.Max(1, groundChunkCells > 0 ? groundChunkCells : DefaultChunkCells);
             groundChunkCells = chunkCells;
-            width = chunkCells * VerticalMapChunkColumns;
-            height = chunkCells * VerticalMapChunkRows;
+            width = chunkCells * Mathf.Max(1, columns);
+            height = chunkCells * Mathf.Max(1, rows);
         }
 
         void Awake()

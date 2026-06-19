@@ -10,7 +10,6 @@ namespace AreaSurvivors.Editor
     public static class WatchTowerSetup
     {
         const string SpritePath = "Assets/AreaSurvivors/Sprites/Generated/WatchTower.png";
-        const string HammerSpritePath = "Assets/AreaSurvivors/Sprites/Generated/Hammer.png";
         const string SparkleSpritePath = "Assets/AreaSurvivors/Sprites/Generated/Sparkle.png";
         const string TilePath = "Assets/AreaSurvivors/TilePalette/WatchTower.asset";
         const string PrefabPath = "Assets/AreaSurvivors/Prefabs/WatchTower.prefab";
@@ -92,7 +91,6 @@ namespace AreaSurvivors.Editor
             tower.towerSprite = sprite;
             tower.spriteVisualSize = VisualSizeForWidth(sprite, GridObjectVisual.CellWidth * marker.footprint.x);
             tower.spriteVisualOffset = Vector3.zero;
-            tower.hammerRenderer = CreateOverlayVisual(go.transform, "Hammer", AssetDatabase.LoadAssetAtPath<Sprite>(HammerSpritePath), 22020);
             tower.sparkleRenderer = CreateOverlayVisual(go.transform, "Completion Sparkle", AssetDatabase.LoadAssetAtPath<Sprite>(SparkleSpritePath), 22030);
 
             var prefab = PrefabUtility.SaveAsPrefabAsset(go, PrefabPath);
@@ -126,7 +124,6 @@ namespace AreaSurvivors.Editor
         {
             var config = AssetDatabase.LoadAssetAtPath<GameConfig>("Assets/AreaSurvivors/Resources/Config/GameConfig.asset");
             if (config == null) return;
-            config.watchTowerBuildSeconds = 3.2f;
             config.watchTowerMaxHp = 100;
             config.watchTowerWoodCost = 50;
             config.watchTowerStoneCost = 50;

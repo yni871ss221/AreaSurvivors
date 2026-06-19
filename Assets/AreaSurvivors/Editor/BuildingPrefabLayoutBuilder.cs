@@ -66,13 +66,8 @@ namespace AreaSurvivors.EditorTools
                 ConfigureVisualSet(root, set, marker.footprint, barrier.barrierSprite, LoadGeneratedSprite(upgradeSpriteName), 0.026f);
                 set.upgradedOpenSprite = !string.IsNullOrEmpty(upgradeOpenSpriteName) ? LoadGeneratedSprite(upgradeOpenSpriteName) : null;
 
-                barrier.ghostRenderer = set.ghostVisual;
-                barrier.buildRenderer = set.buildFillVisual;
                 barrier.completeRenderer = set.completeVisual;
-                barrier.hammerRenderer = set.hammerVisual;
                 barrier.sparkleRenderer = set.sparkleVisual;
-                barrier.ghostObject = set.ghostVisual != null ? set.ghostVisual.gameObject : null;
-                barrier.buildObject = set.buildFillVisual != null ? set.buildFillVisual.gameObject : null;
                 barrier.completeObject = set.completeVisual != null ? set.completeVisual.gameObject : null;
                 barrier.blockingCollider = ConfigureCollider(root, marker.footprint, false);
                 ConfigureCollider(root, marker.footprint, true);
@@ -103,13 +98,8 @@ namespace AreaSurvivors.EditorTools
                 ballista.ballistaSprite = LoadGeneratedSprite("Ballista");
                 var set = Ensure<BuildingPrefabVisualSet>(root);
                 ConfigureVisualSet(root, set, marker.footprint, ballista.ballistaSprite, LoadGeneratedSprite("BallistaUpgrade"), 0.035f);
-                ballista.ghostRenderer = set.ghostVisual;
-                ballista.buildRenderer = set.buildFillVisual;
                 ballista.completeRenderer = set.completeVisual;
-                ballista.hammerRenderer = set.hammerVisual;
                 ballista.sparkleRenderer = set.sparkleVisual;
-                ballista.ghostObject = set.ghostVisual != null ? set.ghostVisual.gameObject : null;
-                ballista.buildObject = set.buildFillVisual != null ? set.buildFillVisual.gameObject : null;
                 ballista.completeObject = set.completeVisual != null ? set.completeVisual.gameObject : null;
                 ballista.blockingCollider = ConfigureCollider(root, marker.footprint, false);
                 ConfigureCollider(root, marker.footprint, true);
@@ -140,13 +130,8 @@ namespace AreaSurvivors.EditorTools
                 watchTower.towerSprite = LoadGeneratedSprite("WatchTower");
                 var set = Ensure<BuildingPrefabVisualSet>(root);
                 ConfigureVisualSet(root, set, marker.footprint, watchTower.towerSprite, LoadGeneratedSprite("WatchTowerUpgrade"), 0.03f);
-                watchTower.ghostRenderer = set.ghostVisual;
-                watchTower.buildRenderer = set.buildFillVisual;
                 watchTower.completeRenderer = set.completeVisual;
-                watchTower.hammerRenderer = set.hammerVisual;
                 watchTower.sparkleRenderer = set.sparkleVisual;
-                watchTower.ghostObject = set.ghostVisual != null ? set.ghostVisual.gameObject : null;
-                watchTower.buildObject = set.buildFillVisual != null ? set.buildFillVisual.gameObject : null;
                 watchTower.completeObject = set.completeVisual != null ? set.completeVisual.gameObject : null;
                 watchTower.blockingCollider = ConfigureCollider(root, marker.footprint, false);
                 ConfigureCollider(root, marker.footprint, true);
@@ -191,13 +176,8 @@ namespace AreaSurvivors.EditorTools
                     hut.hutSprite = sprite;
                     hut.spriteVisualSize = VisualSizeForWidth(sprite, GridObjectVisual.CellWidth);
                     hut.spriteVisualOffset = Vector3.zero;
-                    hut.ghostRenderer = ConfigureVisual(root.transform, "Ghost Image", sprite, new Color(1f, 1f, 1f, 0.34f), 1000, marker.footprint, 0.026f);
-                    hut.buildRenderer = ConfigureVisual(root.transform, "Build Fill Image", sprite, Color.white, 1001, marker.footprint, 0.026f);
                     hut.completeRenderer = ConfigureVisual(root.transform, "Complete Image", sprite, Color.white, 1002, marker.footprint, 0.026f);
-                    hut.hammerRenderer = ConfigureOverlay(root.transform, "Hammer", LoadGeneratedSprite("Hammer"), 22020, new Vector3(0.12f, GridObjectVisual.CellHeight + 0.18f, 0f), 0.58f);
                     hut.sparkleRenderer = ConfigureOverlay(root.transform, "Completion Sparkle", LoadGeneratedSprite("Sparkle"), 22030, new Vector3(0.3f, 0.48f, 0f), 0.7f);
-                    hut.ghostObject = hut.ghostRenderer != null ? hut.ghostRenderer.gameObject : null;
-                    hut.buildObject = hut.buildRenderer != null ? hut.buildRenderer.gameObject : null;
                     hut.completeObject = hut.completeRenderer != null ? hut.completeRenderer.gameObject : null;
                     hut.blockingCollider = ConfigureCollider(root, marker.footprint, false);
                     ConfigureCollider(root, marker.footprint, true);
@@ -208,13 +188,8 @@ namespace AreaSurvivors.EditorTools
                     hut.hutSprite = sprite;
                     hut.spriteVisualSize = VisualSizeForWidth(sprite, GridObjectVisual.CellWidth);
                     hut.spriteVisualOffset = Vector3.zero;
-                    hut.ghostRenderer = ConfigureVisual(root.transform, "Ghost Image", sprite, new Color(1f, 1f, 1f, 0.34f), 1000, marker.footprint, 0.026f);
-                    hut.buildRenderer = ConfigureVisual(root.transform, "Build Fill Image", sprite, Color.white, 1001, marker.footprint, 0.026f);
                     hut.completeRenderer = ConfigureVisual(root.transform, "Complete Image", sprite, Color.white, 1002, marker.footprint, 0.026f);
-                    hut.hammerRenderer = ConfigureOverlay(root.transform, "Hammer", LoadGeneratedSprite("Hammer"), 22020, new Vector3(0.12f, GridObjectVisual.CellHeight + 0.18f, 0f), 0.58f);
                     hut.sparkleRenderer = ConfigureOverlay(root.transform, "Completion Sparkle", LoadGeneratedSprite("Sparkle"), 22030, new Vector3(0.3f, 0.48f, 0f), 0.7f);
-                    hut.ghostObject = hut.ghostRenderer != null ? hut.ghostRenderer.gameObject : null;
-                    hut.buildObject = hut.buildRenderer != null ? hut.buildRenderer.gameObject : null;
                     hut.completeObject = hut.completeRenderer != null ? hut.completeRenderer.gameObject : null;
                     hut.blockingCollider = ConfigureCollider(root, marker.footprint, false);
                     ConfigureCollider(root, marker.footprint, true);
@@ -281,21 +256,11 @@ namespace AreaSurvivors.EditorTools
             tower.upgradedVisualOffset = Vector3.zero;
 
             var baseVisual = ConfigureVisual(root.transform, "Base Tower Image", LoadGeneratedSprite("Tower"), Color.white, 1003, marker.footprint, 0.018f);
-            var ghost = ConfigureVisual(root.transform, "Upgrade Ghost", LoadGeneratedSprite("TowerUpgrade"), new Color(0.30f, 0.82f, 1f, 0.36f), 22000, marker.footprint, 0.018f);
-            var build = ConfigureVisual(root.transform, "Upgrade Build Fill", LoadGeneratedSprite("TowerUpgrade"), Color.white, 22001, marker.footprint, 0.018f);
             var complete = ConfigureVisual(root.transform, "Upgraded Tower Image", LoadGeneratedSprite("TowerUpgrade"), Color.white, 22002, marker.footprint, 0.018f);
-            var hammer = ConfigureOverlay(root.transform, "Upgrade Hammer", LoadGeneratedSprite("Hammer"), 22020, new Vector3(0.42f, 1.4f, 0f), 0.58f);
             var sparkle = ConfigureOverlay(root.transform, "Upgrade Sparkle", LoadGeneratedSprite("Sparkle"), 22030, new Vector3(0.18f, 2.2f, 0f), 0.7f);
 
             if (baseVisual != null) baseVisual.visible = true;
-            if (ghost != null) ghost.visible = false;
-            if (build != null)
-            {
-                build.visible = false;
-                build.SetVerticalFill(1f);
-            }
             if (complete != null) complete.visible = false;
-            if (hammer != null) hammer.visible = false;
             if (sparkle != null) sparkle.visible = false;
 
             var ySort = Ensure<YSort>(root);
@@ -307,13 +272,8 @@ namespace AreaSurvivors.EditorTools
         static void ConfigureVisualSet(GameObject root, BuildingPrefabVisualSet set, Vector2Int footprint, Sprite baseSprite, Sprite upgradeSprite, float outlineThickness)
         {
             set.usePrefabLayout = true;
-            set.ghostVisual = ConfigureVisual(root.transform, "Ghost Image", baseSprite, new Color(1f, 1f, 1f, 0.34f), 1000, footprint, outlineThickness);
-            set.buildFillVisual = ConfigureVisual(root.transform, "Build Fill Image", baseSprite, Color.white, 1001, footprint, outlineThickness);
             set.completeVisual = ConfigureVisual(root.transform, "Complete Image", baseSprite, Color.white, 1002, footprint, outlineThickness);
-            set.upgradedGhostVisual = ConfigureVisual(root.transform, "Upgrade Ghost", upgradeSprite, new Color(0.30f, 0.82f, 1f, 0.36f), 22000, footprint, outlineThickness);
-            set.upgradedBuildFillVisual = ConfigureVisual(root.transform, "Upgrade Build Fill", upgradeSprite, Color.white, 22001, footprint, outlineThickness);
             set.upgradedCompleteVisual = ConfigureVisual(root.transform, "Upgraded Building Image", upgradeSprite, Color.white, 22002, footprint, outlineThickness);
-            set.hammerVisual = ConfigureOverlay(root.transform, "Hammer", LoadGeneratedSprite("Hammer"), 22020, new Vector3(0.22f, footprint.y * GridObjectVisual.CellHeight + 0.28f, 0f), 0.58f);
             set.sparkleVisual = ConfigureOverlay(root.transform, "Completion Sparkle", LoadGeneratedSprite("Sparkle"), 22030, new Vector3(0.32f, footprint.y * GridObjectVisual.CellHeight + 0.36f, 0f), 0.7f);
             set.ApplyInitialVisibility();
         }

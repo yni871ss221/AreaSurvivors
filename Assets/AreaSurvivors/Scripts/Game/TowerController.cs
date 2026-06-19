@@ -18,12 +18,8 @@ namespace AreaSurvivors
         GridObjectVisual gridVisual;
         PaperMeshVisual visual;
         PaperMeshVisual baseTowerVisual;
-        PaperMeshVisual upgradeGhostVisual;
-        PaperMeshVisual upgradeBuildVisual;
         PaperMeshVisual upgradedCompleteVisual;
-        PaperMeshVisual upgradeHammerVisual;
         PaperMeshVisual upgradeSparkleVisual;
-        TowerUpgradeConstruction pendingUpgrade;
         Sprite upgradedSprite;
         Vector3 groundAnchorWorld;
         bool collapsing;
@@ -32,11 +28,9 @@ namespace AreaSurvivors
         bool upgradeVisualsPrepared;
         bool baseTowerUsesPrefabLayout;
         bool upgradeUsesPrefabLayout;
-        Vector3 upgradeBuildBaseScale = Vector3.one;
         Vector3 upgradedCompleteBaseScale = Vector3.one;
         const float UpgradeSparkleDuration = 0.75f;
         float upgradeSparkleTimer;
-        static readonly Vector3 ToolVisualScale = Vector3.one * 0.58f;
 
         void Awake()
         {
@@ -55,7 +49,6 @@ namespace AreaSurvivors
         }
 
         public bool IsUpgraded => isUpgraded;
-        public bool HasPendingUpgrade => pendingUpgrade != null;
         public Health Health => health;
         public Vector3 GroundAnchorWorld => hasGroundAnchor ? groundAnchorWorld : enemyTargetPoint != null ? enemyTargetPoint.position : transform.position;
 
@@ -65,8 +58,6 @@ namespace AreaSurvivors
         {
             BindPrefabUpgradeVisuals();
             if (upgradedCompleteVisual != null && upgradedCompleteVisual.sprite != null) return upgradedCompleteVisual.sprite;
-            if (upgradeGhostVisual != null && upgradeGhostVisual.sprite != null) return upgradeGhostVisual.sprite;
-            if (upgradeBuildVisual != null && upgradeBuildVisual.sprite != null) return upgradeBuildVisual.sprite;
             return upgradedSprite;
         }
 
@@ -101,7 +92,7 @@ namespace AreaSurvivors
 
         public bool CanStartUpgrade()
         {
-            return !isUpgraded && pendingUpgrade == null && !collapsing && health != null && !health.IsDead;
+            return !isUpgraded && !collapsing && health != null && !health.IsDead;
         }
 
         public bool ContainsUpgradePointer(Vector3 world)
@@ -120,95 +111,35 @@ namespace AreaSurvivors
             return footprintCollider != null && footprintCollider.OverlapPoint(world);
         }
 
-        public bool BeginUpgradeReservation(GameConfig config, TileGrid grid, GameManager owner, Sprite sprite)
-        {
-            if (!CanStartUpgrade()) return false;
-            upgradedSprite = sprite != null ? sprite : GetConfiguredUpgradeSprite();
-            if (upgradedSprite == null) return false;
-            pendingUpgrade = gameObject.AddComponent<TowerUpgradeConstruction>();
-            pendingUpgrade.Configure(this, config, grid, owner, upgradedSprite);
-            SetBaseTowerVisible(false);
-            ShowUpgradeConstruction(0f, true, false);
-            return true;
-        }
-
-        public void CancelUpgradeReservation()
-        {
-            if (pendingUpgrade == null) return;
-            pendingUpgrade.CancelAndRefund();
-        }
-
-        public void ClearPendingUpgrade(TowerUpgradeConstruction construction)
-        {
-            if (pendingUpgrade == construction) pendingUpgrade = null;
-            HideUpgradeConstruction();
-            if (!isUpgraded) SetBaseTowerVisible(true);
-        }
-
         public void ShowUpgradePreview(Sprite sprite, bool allowed)
         {
-            if (isUpgraded || pendingUpgrade != null) return;
+            if (isUpgraded) return;
             upgradedSprite = sprite != null ? sprite : GetConfiguredUpgradeSprite();
             if (upgradedSprite == null) return;
             EnsureUpgradeVisuals(upgradedSprite);
-            if (upgradeGhostVisual == null) return;
-            upgradeGhostVisual.color = allowed ? new Color(0.30f, 0.82f, 1f, 0.42f) : new Color(1f, 0.20f, 0.16f, 0.42f);
-            upgradeGhostVisual.visible = true;
+            if (upgradedCompleteVisual == null) return;
+            upgradedCompleteVisual.color = allowed ? new Color(0.30f, 0.82f, 1f, 0.42f) : new Color(1f, 0.20f, 0.16f, 0.42f);
+            upgradedCompleteVisual.visible = true;
         }
 
         public void HideUpgradePreview()
         {
-            if (pendingUpgrade != null) return;
-            if (upgradeGhostVisual != null) upgradeGhostVisual.visible = false;
-        }
-
-        public void ShowUpgradeConstruction(float progress, bool active, bool showHammer)
-        {
-            EnsureUpgradeVisuals(upgradedSprite != null ? upgradedSprite : GetConfiguredUpgradeSprite());
-            progress = Mathf.Clamp01(progress);
-            if (upgradeGhostVisual != null)
-            {
-                upgradeGhostVisual.color = new Color(0.30f, 0.82f, 1f, 0.36f);
-                upgradeGhostVisual.visible = active && !isUpgraded;
-            }
-            if (upgradeBuildVisual != null)
-            {
-                upgradeBuildVisual.visible = active && !isUpgraded && progress > 0f;
-                upgradeBuildVisual.transform.localScale = upgradeBuildBaseScale;
-                upgradeBuildVisual.SetVerticalFill(progress);
-            }
-            if (upgradeHammerVisual != null)
-            {
-                if (!isUpgraded && showHammer && !upgradeHammerVisual.gameObject.activeSelf) upgradeHammerVisual.gameObject.SetActive(true);
-                upgradeHammerVisual.visible = !isUpgraded && showHammer;
-            }
-            if (!isUpgraded && showHammer) AnimateUpgradeHammer();
+            if (!isUpgraded && upgradedCompleteVisual != null) upgradedCompleteVisual.visible = false;
         }
 
         public void HideUpgradeConstruction()
         {
-            if (upgradeGhostVisual != null) upgradeGhostVisual.visible = false;
-            if (upgradeBuildVisual != null) upgradeBuildVisual.visible = false;
-            if (upgradeBuildVisual != null) upgradeBuildVisual.SetVerticalFill(1f);
-            if (upgradeHammerVisual != null) upgradeHammerVisual.visible = false;
+            if (!isUpgraded && upgradedCompleteVisual != null) upgradedCompleteVisual.visible = false;
         }
 
         public void CompleteUpgrade(GameConfig config, TileGrid grid, Sprite sprite)
         {
             if (isUpgraded) return;
             isUpgraded = true;
-            pendingUpgrade = null;
             upgradedSprite = sprite != null ? sprite : GetConfiguredUpgradeSprite();
             if (upgradedSprite == null) return;
             EnsureUpgradeVisuals(upgradedSprite);
             SetBaseTowerVisible(false);
-            if (upgradeGhostVisual != null) upgradeGhostVisual.visible = false;
-            if (upgradeBuildVisual != null) upgradeBuildVisual.visible = false;
-            if (upgradeHammerVisual != null)
-            {
-                upgradeHammerVisual.visible = false;
-                upgradeHammerVisual.gameObject.SetActive(false);
-            }
             if (upgradedCompleteVisual != null)
             {
                 upgradedCompleteVisual.visible = true;
@@ -246,7 +177,6 @@ namespace AreaSurvivors
         {
             if (!isUpgraded && baseTowerVisual != null) return baseTowerVisual.Renderer;
             if (upgradedCompleteVisual != null && upgradedCompleteVisual.visible) return upgradedCompleteVisual.Renderer;
-            if (upgradeGhostVisual != null && upgradeGhostVisual.visible) return upgradeGhostVisual.Renderer;
             return baseTowerVisual != null ? baseTowerVisual.Renderer : null;
         }
 
@@ -315,7 +245,7 @@ namespace AreaSurvivors
             {
                 gridVisual.ApplyFootprintWidthPreserveAspect(baseTowerVisual, sprite);
             }
-            baseTowerVisual.visible = !isUpgraded && pendingUpgrade == null;
+            baseTowerVisual.visible = !isUpgraded;
             var preserveSortingOrder = baseTowerVisual.GetComponent<PreserveSortingOrder>();
             if (preserveSortingOrder != null) Destroy(preserveSortingOrder);
             if (baseTowerVisual.GetComponent<OcclusionMaskSource>() == null) baseTowerVisual.gameObject.AddComponent<OcclusionMaskSource>();
@@ -331,44 +261,30 @@ namespace AreaSurvivors
             BindPrefabUpgradeVisuals();
             if (upgradeVisualsPrepared)
             {
-                ConfigureUpgradeVisual(upgradeGhostVisual, sprite, upgradeGhostVisual != null ? upgradeGhostVisual.color : Color.white);
-                ConfigureUpgradeVisual(upgradeBuildVisual, sprite, Color.white);
-                ConfigureUpgradeVisual(upgradedCompleteVisual, sprite, Color.white);
+                ConfigureUpgradeVisual(upgradedCompleteVisual, sprite, upgradedCompleteVisual != null ? upgradedCompleteVisual.color : Color.white);
                 return;
             }
 
             if (upgradeUsesPrefabLayout)
             {
-                ConfigureUpgradeVisual(upgradeGhostVisual, sprite, new Color(0.30f, 0.82f, 1f, 0.36f));
-                ConfigureUpgradeVisual(upgradeBuildVisual, sprite, Color.white);
                 ConfigureUpgradeVisual(upgradedCompleteVisual, sprite, Color.white);
             }
             else
             {
-                upgradeGhostVisual = CreateUpgradeVisual("Upgrade Ghost", sprite, new Color(0.30f, 0.82f, 1f, 0.36f), 22000);
-                upgradeBuildVisual = CreateUpgradeVisual("Upgrade Build Fill", sprite, Color.white, 22001);
                 upgradedCompleteVisual = CreateUpgradeVisual("Upgraded Tower Image", sprite, Color.white, 22002);
-                upgradeHammerVisual = CreateOverlayVisual("Upgrade Hammer", null, 22020);
                 upgradeSparkleVisual = CreateOverlayVisual("Upgrade Sparkle", null, 22030);
             }
-            if (upgradeBuildVisual != null) upgradeBuildBaseScale = upgradeBuildVisual.transform.localScale;
             if (upgradedCompleteVisual != null) upgradedCompleteBaseScale = upgradedCompleteVisual.transform.localScale;
-            if (upgradeGhostVisual != null) upgradeGhostVisual.visible = false;
-            if (upgradeBuildVisual != null) upgradeBuildVisual.visible = false;
             if (upgradedCompleteVisual != null) upgradedCompleteVisual.visible = false;
-            if (upgradeHammerVisual != null) upgradeHammerVisual.visible = false;
             if (upgradeSparkleVisual != null) upgradeSparkleVisual.visible = false;
             upgradeVisualsPrepared = true;
         }
 
         void BindPrefabUpgradeVisuals()
         {
-            if (upgradeGhostVisual == null) upgradeGhostVisual = FindVisual("Upgrade Ghost");
-            if (upgradeBuildVisual == null) upgradeBuildVisual = FindVisual("Upgrade Build Fill");
             if (upgradedCompleteVisual == null) upgradedCompleteVisual = FindVisual("Upgraded Tower Image");
-            if (upgradeHammerVisual == null) upgradeHammerVisual = FindVisual("Upgrade Hammer");
             if (upgradeSparkleVisual == null) upgradeSparkleVisual = FindVisual("Upgrade Sparkle");
-            upgradeUsesPrefabLayout = upgradeGhostVisual != null && upgradeBuildVisual != null && upgradedCompleteVisual != null;
+            upgradeUsesPrefabLayout = upgradedCompleteVisual != null;
         }
 
         PaperMeshVisual FindVisual(string childName)
@@ -402,7 +318,6 @@ namespace AreaSurvivors
             if (outline == null) outline = mesh.gameObject.AddComponent<RuntimeSpriteOutline>();
             outline.outlineColor = Color.black;
             outline.thickness = 0.022f;
-            ApplyToolVisualScale(mesh.transform);
             return mesh;
         }
 
@@ -434,15 +349,6 @@ namespace AreaSurvivors
             outline.outlineColor = Color.black;
             outline.thickness = 0.018f;
             if (mesh.GetComponent<OcclusionMaskSource>() == null) mesh.gameObject.AddComponent<OcclusionMaskSource>();
-        }
-
-        void AnimateUpgradeHammer()
-        {
-            if (upgradeHammerVisual == null) return;
-            float swing = Mathf.Sin(Time.time * 16f);
-            upgradeHammerVisual.transform.localRotation = Quaternion.Euler(0f, 0f, -35f + swing * 32f);
-            upgradeHammerVisual.transform.localPosition = UpgradeVisualOffset + new Vector3(0.42f, 1.4f + Mathf.Abs(swing) * 0.08f, 0f);
-            ApplyToolVisualScale(upgradeHammerVisual.transform);
         }
 
         void AnimateUpgradeSparkle()
@@ -477,16 +383,6 @@ namespace AreaSurvivors
             {
                 return upgradedVisualOffset;
             }
-        }
-
-        static void ApplyToolVisualScale(Transform target)
-        {
-            if (target == null) return;
-            var parentScale = target.parent != null ? target.parent.lossyScale : Vector3.one;
-            target.localScale = new Vector3(
-                ToolVisualScale.x / Mathf.Max(0.001f, Mathf.Abs(parentScale.x)),
-                ToolVisualScale.y / Mathf.Max(0.001f, Mathf.Abs(parentScale.y)),
-                ToolVisualScale.z);
         }
 
         void StartCollapse()

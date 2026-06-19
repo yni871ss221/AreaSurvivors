@@ -31,6 +31,7 @@ namespace AreaSurvivors
         EndTokenGain = 36,
         EliteSpawnRate = 37,
         UnlockClassChange = 38,
-        StartingWeaponLevel = 39
+        StartingWeaponLevel = 39,
+        RoundTimeLimit = 40
     }
 }

@@ -295,8 +295,6 @@ MonoBehaviour:
   xpOrbPrefab: {fileID: 0}
   damagePopupPrefab: {fileID: 0}
   directionalAnimator: {fileID: 5480497435905261421}
-  obstacleAvoidanceRadius: 1.45
-  obstacleAvoidanceWeight: 1.65
   xpValue: 1
   tokenValue: 0
   attackDamage: 3
@@ -304,11 +302,3 @@ MonoBehaviour:
   displayName: "\u30A4\u30CE\u30B7\u30B7"
   elite: 0
   boss: 0
-  stuckDetectionSeconds: 1.5
-  stuckMinimumProgress: 0.08
-  stuckPositionThreshold: 0.14
-  stuckRecoverySeconds: 2
-  stuckRecoveryMinimumSeconds: 0.65
-  stuckRecoveryAbsoluteLimitSeconds: 8
-  stuckRecoveryCooldownSeconds: 2.5
-  stuckMinimumTargetDistance: 2.5

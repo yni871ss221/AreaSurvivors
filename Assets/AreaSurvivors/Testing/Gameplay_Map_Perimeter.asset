@@ -23,15 +23,14 @@ MonoBehaviour:
     clearExistingEnemies: 1
     clearExistingNaturalLandmarks: 1
   configOverrides: []
-  targetCellOffset: {x: 60, y: 0}
+  targetCellOffset: {x: 0, y: 0}
   enemies:
   - kind: 0
-    cellOffset: {x: 44, y: 0}
+    cellOffset: {x: 34, y: 0}
     count: 1
     spacing: {x: 1, y: 0}
     monitorForStall: 1
     requireReachTarget: 0
-    suppressStuckRecovery: 1
   landmarks: []
   prefabs: []
   scheduledActions: []

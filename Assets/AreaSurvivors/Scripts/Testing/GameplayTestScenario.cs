@@ -64,7 +64,6 @@ namespace AreaSurvivors.Testing
             public Vector2Int spacing = Vector2Int.right;
             public bool monitorForStall = true;
             public bool requireReachTarget = true;
-            public bool suppressStuckRecovery;
         }
 
         [Serializable]
