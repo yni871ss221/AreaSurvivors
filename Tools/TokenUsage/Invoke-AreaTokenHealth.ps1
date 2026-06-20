@@ -1,0 +1,58 @@
+param(
+    [string]$BaseRef = "e68ca9a",
+    [string]$HeadRef = "2771c1c",
+    [int]$WarnIncreasePercent = 10,
+    [switch]$IncludeRtk,
+    [switch]$IncludeUnity,
+    [switch]$UpdateBaseline,
+    [switch]$FailOnIncrease
+)
+
+$ErrorActionPreference = "Stop"
+
+$benchmarkPath = Join-Path $PSScriptRoot "Run-TokenBenchmark.ps1"
+$argsForBenchmark = @{
+    BaseRef = $BaseRef
+    HeadRef = $HeadRef
+    WarnIncreasePercent = $WarnIncreasePercent
+    Json = $true
+}
+if ($IncludeRtk) { $argsForBenchmark.IncludeRtk = $true }
+if ($IncludeUnity) { $argsForBenchmark.IncludeUnity = $true }
+if ($UpdateBaseline) { $argsForBenchmark.UpdateBaseline = $true }
+
+$json = & $benchmarkPath @argsForBenchmark
+$result = $json | ConvertFrom-Json
+$comparison = @($result.comparison)
+$rows = @()
+
+foreach ($item in $comparison) {
+    $rows += [pscustomobject]@{
+        status = $item.status
+        delta_percent = $item.delta_percent
+        delta_tokens = $item.delta_tokens
+        current_tokens = $item.current_tokens
+        command = $item.command
+    }
+}
+
+if ($rows.Count -eq 0) {
+    Write-Output "Token health: no baseline comparison available."
+    Write-Output ("baseline_path: {0}" -f $result.baseline_path)
+    exit 0
+}
+
+$increased = @($rows | Where-Object { $_.status -eq "increased" })
+$improved = @($rows | Where-Object { $_.status -eq "improved" })
+
+Write-Output ("Token health: {0} increased, {1} improved, {2} checked" -f $increased.Count, $improved.Count, $rows.Count)
+$rows |
+    Sort-Object @{Expression = { if ($_.status -eq "increased") { 0 } elseif ($_.status -eq "improved") { 1 } else { 2 } }}, @{Expression = "current_tokens"; Descending = $true} |
+    Select-Object status, delta_percent, delta_tokens, current_tokens, command |
+    Format-Table -AutoSize
+
+Write-Output ("baseline_path: {0}" -f $result.baseline_path)
+
+if ($FailOnIncrease -and $increased.Count -gt 0) {
+    exit 2
+}

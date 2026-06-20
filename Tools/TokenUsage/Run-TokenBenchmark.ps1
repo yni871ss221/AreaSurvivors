@@ -2,6 +2,7 @@ param(
     [string]$BaseRef = "e68ca9a",
     [string]$HeadRef = "2771c1c",
     [switch]$IncludeRtk,
+    [switch]$IncludeUnity,
     [string]$ReportPath,
     [string]$BaselinePath = "",
     [switch]$UpdateBaseline,
@@ -30,6 +31,15 @@ if ($IncludeRtk) {
             "& '$rtk' grep public Assets/AreaSurvivors/Scripts"
         )
     }
+}
+
+if ($IncludeUnity) {
+    $commands += @(
+        "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-unity.ps1 -Action Compile",
+        "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-unity.ps1 -Action ConsoleErrors -MaxCount 30",
+        "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-unity.ps1 -Action Menu -MenuPath 'Area Survivors/Reports/C# Symbol Overview'",
+        "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-unity.ps1 -Action Menu -MenuPath 'Area Survivors/Reports/Scene Prefab Overview'"
+    )
 }
 
 $results = @()

@@ -123,7 +123,16 @@ AreaSurvivors リポジトリで作業するエージェント向けの運用ル
 - `Library/`、`Temp/`、`Obj/`、`.git/`、バイナリDLL/PDB/画像へ広い `Select-String` / `Get-Content` / `rg -a` をかけない。Unity生成キャッシュ調査は、対象パスと拡張子を絞り、必要ならファイル名一覧だけ確認する。
 - 出力が大きくなりそうなコマンドは、必要に応じて `Tools/TokenUsage/Estimate-TokenCost.ps1` または `Tools/TokenUsage/Run-WithTokenReport.ps1` で事前見積もり・JSONL記録を行い、本文を直接チャットへ流さない。
 - トークン改善の効果確認は `Tools/TokenUsage/Run-TokenBenchmark.ps1` を使い、`TokenReports/token-benchmark-baseline.json` との比較を見る。高出力のコマンド実行は `Tools/TokenUsage/Safe-Command.ps1` を優先する。
-- 広いC#探索が必要な場合は `Area Survivors/Reports/C# Symbol Index`、Scene/Prefabの構造確認は `Area Survivors/Reports/Scene Prefab Structure` を先に使い、Scene YAML全文や広い `git grep` を避ける。
+- 日常の高出力候補コマンドは、まず `Tools/TokenUsage/Invoke-AreaSafeCommand.ps1` を入口にする。`Status`、`DiffStat`、`DiffNameOnly`、`Search`、`Read`、`Compile`、`ConsoleErrors`、`Benchmark` を優先し、生の広い `git diff` / `rg` / `Get-Content` を避ける。
+- 日常利用では `Tools/TokenUsage/safe-status.ps1`、`safe-diff.ps1`、`safe-search.ps1`、`safe-read.ps1`、`token-health.ps1` を優先する。PowerShellセッションでは `Tools/TokenUsage/Import-AreaTokenAliases.ps1` を読み込んで短い関数名を使ってよい。
+- 生の `git diff`、対象未指定の `rg`、行数制限なしの `Get-Content`、`--maxCount` なしの `Console.GetLog`、Scene/Prefab YAML確認を実行しそうな場合は、先に `Tools/TokenUsage/Test-AreaCommandRisk.ps1` か安全ラッパーで確認する。
+- 生の危険コマンドを実行する必要がある場合は、まず `Tools/TokenUsage/guarded-command.ps1 -Command "<command>"` を使う。既知パターンは `safe-diff`、`safe-search`、`safe-read`、`ConsoleErrors` へ自動変換し、未知パターンは明示指定なしでは実行しない。
+- 定期的なトークン消費チェックは `Tools/TokenUsage/Invoke-AreaTokenHealth.ps1` を使う。改善作業の前後や作業終了前に実行し、必要なら `-FailOnIncrease` で増加を検知する。
+- Unity系コマンドは `Tools/TokenUsage/safe-unity.ps1` を入口にする。`Compile`、`ConsoleErrors`、`Menu`、`Eval` を使い、`ConsoleErrors` は必ず件数制限する。Unity出力も比較したい場合は `Tools/TokenUsage/token-health.ps1 -IncludeUnity` を使う。
+- Unity Reporterの出力は `TokenReports/UnityReports/` へ保存し、Consoleには保存先・行数・文字数の要約だけ出す。詳細が必要なときだけ保存ファイルを対象指定で読む。
+- 広いC#探索が必要な場合は `Area Survivors/Reports/C# Symbol Overview`、必要なら `Area Survivors/Reports/C# Symbol Index` の順に使う。Scene/Prefabの構造確認は `Area Survivors/Reports/Scene Prefab Overview`、必要なら `Area Survivors/Reports/Scene Prefab Structure` の順に使い、Scene YAML全文や広い `git grep` を避ける。
+- Scene/Prefab内の特定GameObject、Component、RectTransformを探す場合は `Area Survivors/Reports/Scene Prefab Search` を使い、Scene/Prefab YAML全文を読まない。
+- 大きいスクリーンショットは、確認前に `Tools/TokenUsage/Optimize-AreaScreenshot.ps1` で縮小またはクロップした軽量版を作る。
 - トークン削減に関わる作業では、作業前に対象コマンドを見積もり、作業後に `Run-TokenBenchmark.ps1` か対象別 `Estimate-TokenCost.ps1` で改善前後を比較する。比較結果は必要に応じてObsidianへ記録する。
 - `Safe-Command.ps1` でblockedになった出力は、そのまま表示せず、RTK、対象パス指定、Reporter/Validator、`Select-Object -First` などの低トークン代替に切り替える。
 - UI配置変更は、個別に動かして都度スクリーンショットを見るのではなく、座標表やグリッド定義をまとめて決めて一括反映し、その後Validatorと最終スクリーンショットで確認する。

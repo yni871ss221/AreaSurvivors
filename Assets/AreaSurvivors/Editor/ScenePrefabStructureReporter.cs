@@ -15,30 +15,38 @@ namespace AreaSurvivors.Editor
         const string GameScenePath = "Assets/AreaSurvivors/Scenes/05_Game.unity";
         const string PrefabRoot = "Assets/AreaSurvivors/Prefabs";
 
+        [MenuItem("Area Survivors/Reports/Scene Prefab Overview")]
+        public static void LogOverview()
+        {
+            var report = BuildReport(false);
+            Debug.Log(ReportOutputUtility.SaveAndSummarize("Scene/prefab overview", report, "scene-prefab-overview"));
+        }
+
         [MenuItem("Area Survivors/Reports/Scene Prefab Structure")]
         public static void LogStructure()
         {
-            Debug.Log(BuildReport());
+            var report = BuildReport(true);
+            Debug.Log(ReportOutputUtility.SaveAndSummarize("Scene/prefab structure", report, "scene-prefab-structure"));
         }
 
         [MenuItem("Area Survivors/Reports/Copy Scene Prefab Structure")]
         public static void CopyStructure()
         {
-            var report = BuildReport();
+            var report = BuildReport(true);
             EditorGUIUtility.systemCopyBuffer = report;
             Debug.Log("Scene/prefab structure report copied to clipboard.");
         }
 
-        static string BuildReport()
+        static string BuildReport(bool includeRows)
         {
             var report = new StringBuilder(8192);
             report.AppendLine("AreaSurvivors Scene/Prefab Structure");
-            AppendScene(report, GameScenePath);
-            AppendPrefabs(report);
+            AppendScene(report, GameScenePath, includeRows);
+            AppendPrefabs(report, includeRows);
             return report.ToString();
         }
 
-        static void AppendScene(StringBuilder report, string scenePath)
+        static void AppendScene(StringBuilder report, string scenePath, bool includeRows)
         {
             report.AppendLine();
             report.AppendLine("[Scene]");
@@ -97,10 +105,17 @@ namespace AreaSurvivors.Editor
             report.AppendLine($"- roots: {roots.Length}, objects: {objects}, missingScripts: {missingScripts}");
             report.AppendLine($"- cameras: {cameras}, canvases: {canvases}, tilemaps: {tilemaps}, images: {images}, texts: {texts}");
             report.AppendLine($"- GameManager: {gameManagers}, BuildPlacementController: {buildControllers}");
-            report.AppendLine("- root objects:");
-            foreach (var root in roots)
+            if (includeRows)
             {
-                report.AppendLine($"  - {root.name}");
+                report.AppendLine("- root objects:");
+                foreach (var root in roots)
+                {
+                    report.AppendLine($"  - {root.name}");
+                }
+            }
+            else
+            {
+                report.AppendLine("- root objects omitted. Use Scene Prefab Structure for names.");
             }
 
             if (!wasLoaded)
@@ -109,7 +124,7 @@ namespace AreaSurvivors.Editor
             }
         }
 
-        static void AppendPrefabs(StringBuilder report)
+        static void AppendPrefabs(StringBuilder report, bool includeRows)
         {
             report.AppendLine();
             report.AppendLine("[Prefabs]");
@@ -144,9 +159,16 @@ namespace AreaSurvivors.Editor
 
             rows.Sort();
             report.AppendLine($"- prefabs: {rows.Count}, missingScripts: {totalMissingScripts}, visualSets: {visualSets}, paperVisuals: {paperVisuals}, nullPaperSprites: {nullPaperSprites}");
-            foreach (var row in rows)
+            if (includeRows)
             {
-                report.AppendLine(row);
+                foreach (var row in rows)
+                {
+                    report.AppendLine(row);
+                }
+            }
+            else
+            {
+                report.AppendLine("- prefab rows omitted. Use Scene Prefab Structure for names.");
             }
         }
 

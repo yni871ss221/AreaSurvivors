@@ -15,10 +15,18 @@ namespace AreaSurvivors.Editor
         static readonly Regex FieldRegex = new Regex(@"\b(public|internal|private|protected)\s+(static\s+|readonly\s+|const\s+|serializedField\s+)*[A-Za-z_][A-Za-z0-9_<>,\[\]\.?]*\s+([A-Za-z_][A-Za-z0-9_]*)\s*(=|;)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         static readonly Regex SerializedFieldRegex = new Regex(@"\[SerializeField\][\s\r\n]*(private|protected|public|internal)?\s*[A-Za-z_][A-Za-z0-9_<>,\[\]\.?]*\s+([A-Za-z_][A-Za-z0-9_]*)", RegexOptions.Compiled);
 
+        [MenuItem("Area Survivors/Reports/C# Symbol Overview")]
+        public static void LogSymbolOverview()
+        {
+            var report = BuildReport(0, false);
+            Debug.Log(ReportOutputUtility.SaveAndSummarize("C# symbol overview", report, "csharp-symbol-overview"));
+        }
+
         [MenuItem("Area Survivors/Reports/C# Symbol Index")]
         public static void LogSymbolIndex()
         {
-            Debug.Log(BuildReport(30, false));
+            var report = BuildReport(30, false);
+            Debug.Log(ReportOutputUtility.SaveAndSummarize("C# symbol index", report, "csharp-symbol-index"));
         }
 
         [MenuItem("Area Survivors/Reports/Copy C# Symbol Index")]
@@ -65,19 +73,26 @@ namespace AreaSurvivors.Editor
             report.AppendLine($"Files: {summaries.Count}, types: {totalTypes}, methods: {totalMethods}, fields: {totalFields}, serializedFields: {totalSerializedFields}");
             report.AppendLine();
 
-            int shown = 0;
-            foreach (var summary in summaries)
+            if (maxFiles > 0)
             {
-                if (shown >= maxFiles) break;
-                shown++;
-                report.AppendLine($"- {summary.path}");
-                if (summary.types.Count > 0) report.AppendLine($"  types: {string.Join(", ", summary.types)}");
-                if (summary.serializedFields.Count > 0) report.AppendLine($"  serialized: {JoinLimited(summary.serializedFields, 12)}");
-                if (includeMethods && summary.methods.Count > 0) report.AppendLine($"  methods: {JoinLimited(summary.methods, 12)}");
+                int shown = 0;
+                foreach (var summary in summaries)
+                {
+                    if (shown >= maxFiles) break;
+                    shown++;
+                    report.AppendLine($"- {summary.path}");
+                    if (summary.types.Count > 0) report.AppendLine($"  types: {string.Join(", ", summary.types)}");
+                    if (summary.serializedFields.Count > 0) report.AppendLine($"  serialized: {JoinLimited(summary.serializedFields, 12)}");
+                    if (includeMethods && summary.methods.Count > 0) report.AppendLine($"  methods: {JoinLimited(summary.methods, 12)}");
+                }
+                if (shown < summaries.Count)
+                {
+                    report.AppendLine($"... {summaries.Count - shown} more files omitted. Use Copy C# Symbol Index for the full report.");
+                }
             }
-            if (shown < summaries.Count)
+            else
             {
-                report.AppendLine($"... {summaries.Count - shown} more files omitted. Use Copy C# Symbol Index for the full report.");
+                report.AppendLine("Overview only. Use C# Symbol Index for first 30 files, or Copy C# Symbol Index for full detail.");
             }
 
             return report.ToString();

@@ -50,7 +50,8 @@ namespace AreaSurvivors.Editor
         [MenuItem("Area Survivors/Reports/Compact Project Snapshot")]
         public static void LogCompactProjectSnapshot()
         {
-            Debug.Log(BuildReport());
+            var report = BuildReport();
+            Debug.Log(ReportOutputUtility.SaveAndSummarize("Compact project snapshot", report, "compact-project-snapshot"));
         }
 
         [MenuItem("Area Survivors/Reports/Copy Compact Project Snapshot")]
