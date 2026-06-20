@@ -20,8 +20,13 @@ function safe-read {
 }
 
 function token-health {
-    param([switch]$FailOnIncrease, [switch]$IncludeRtk, [switch]$IncludeUnity, [switch]$UpdateBaseline)
-    & "$PSScriptRoot\Invoke-AreaTokenHealth.ps1" -FailOnIncrease:$FailOnIncrease -IncludeRtk:$IncludeRtk -IncludeUnity:$IncludeUnity -UpdateBaseline:$UpdateBaseline
+    param([switch]$FailOnIncrease, [switch]$IncludeUnity, [switch]$UpdateBaseline)
+    & "$PSScriptRoot\Invoke-AreaTokenHealth.ps1" -FailOnIncrease:$FailOnIncrease -IncludeUnity:$IncludeUnity -UpdateBaseline:$UpdateBaseline
+}
+
+function token-benchmark-heavy {
+    param([switch]$IncludeRtk, [switch]$IncludeUnity, [switch]$UpdateBaseline)
+    & "$PSScriptRoot\token-benchmark-heavy.ps1" -IncludeRtk:$IncludeRtk -IncludeUnity:$IncludeUnity -UpdateBaseline:$UpdateBaseline
 }
 
 function guarded-command {
@@ -48,8 +53,8 @@ function safe-unity-search {
 }
 
 function token-report-summary {
-    param([int]$Days = 7, [int]$Top = 10, [switch]$ExcludeBenchmark)
-    & "$PSScriptRoot\Get-TokenReportSummary.ps1" -Days $Days -Top $Top -ExcludeBenchmark:$ExcludeBenchmark
+    param([int]$Days = 7, [int]$Top = 10, [switch]$IncludeBenchmark)
+    & "$PSScriptRoot\Get-TokenReportSummary.ps1" -Days $Days -Top $Top -IncludeBenchmark:$IncludeBenchmark
 }
 
 function start-token-check {

@@ -127,8 +127,9 @@ AreaSurvivors リポジトリで作業するエージェント向けの運用ル
 - 日常利用では `Tools/TokenUsage/safe-status.ps1`、`safe-diff.ps1`、`safe-search.ps1`、`safe-read.ps1`、`token-health.ps1` を優先する。PowerShellセッションでは `Tools/TokenUsage/Import-AreaTokenAliases.ps1` を読み込んで短い関数名を使ってよい。
 - 生の `git diff`、対象未指定の `rg`、行数制限なしの `Get-Content`、`--maxCount` なしの `Console.GetLog`、Scene/Prefab YAML確認を実行しそうな場合は、先に `Tools/TokenUsage/Test-AreaCommandRisk.ps1` か安全ラッパーで確認する。
 - 生のコマンドを実行する必要がある場合は、まず `Tools/TokenUsage/guarded-command.ps1 -Command "<command>"` を標準入口にする。既知パターンは `safe-diff`、`safe-search`、`safe-read`、`safe-unity` へ自動変換し、未知パターンは明示指定なしでは実行しない。
-- 定期的なトークン消費チェックは `Tools/TokenUsage/Invoke-AreaTokenHealth.ps1` を使う。改善作業の前後や作業終了前に実行し、必要なら `-FailOnIncrease` で増加を検知する。
-- TokenReportsの原因分析は `Tools/TokenUsage/token-report-summary.ps1` を使い、重いコマンド、blocked回数、high/critical件数を見る。
+- 定期的なトークン消費チェックは日常用の `Tools/TokenUsage/token-health.ps1` を使う。これは安全ラッパー中心の軽量ベンチで、`TokenReports/token-daily-baseline.json` と比較する。必要なら `-FailOnIncrease` で増加を検知する。
+- 過去の巨大出力ケースを確認するHeavyベンチは `Tools/TokenUsage/token-benchmark-heavy.ps1` を明示時だけ実行する。通常の作業開始・終了チェックではHeavyベンチを回さない。
+- TokenReportsの原因分析は `Tools/TokenUsage/token-report-summary.ps1` を使い、重いコマンド、blocked回数、high/critical件数を見る。benchmark系レコードはデフォルト除外し、必要な場合だけ `-IncludeBenchmark` を付ける。
 - 作業開始時の軽量確認は `Tools/TokenUsage/start-token-check.ps1`、作業終了時の軽量確認は `Tools/TokenUsage/end-token-check.ps1` を使う。Unity込みで見る場合は `-IncludeUnity` を付ける。
 - Unity系コマンドは `Tools/TokenUsage/safe-unity.ps1` を入口にする。`Compile`、`ConsoleErrors`、`Menu`、`Eval` を使い、`ConsoleErrors` は必ず件数制限する。Unity出力も比較したい場合は `Tools/TokenUsage/token-health.ps1 -IncludeUnity` を使う。
 - Unity Reporterの出力は `TokenReports/UnityReports/` へ保存し、Consoleには保存先・行数・文字数の要約だけ出す。詳細が必要なときだけ保存ファイルを対象指定で読む。

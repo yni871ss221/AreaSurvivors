@@ -2,7 +2,7 @@ param(
     [string]$ReportDirectory = "TokenReports",
     [int]$Days = 7,
     [int]$Top = 10,
-    [switch]$ExcludeBenchmark,
+    [switch]$IncludeBenchmark,
     [switch]$Json
 )
 
@@ -49,7 +49,7 @@ foreach ($file in Get-ChildItem -LiteralPath $ReportDirectory -Filter "*.jsonl" 
     }
 }
 
-if ($ExcludeBenchmark) {
+if (-not $IncludeBenchmark) {
     $records = @($records | Where-Object { $_.kind -ne "benchmark" })
 }
 

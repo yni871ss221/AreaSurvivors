@@ -1,8 +1,5 @@
 param(
-    [string]$BaseRef = "e68ca9a",
-    [string]$HeadRef = "2771c1c",
     [int]$WarnIncreasePercent = 10,
-    [switch]$IncludeRtk,
     [switch]$IncludeUnity,
     [switch]$UpdateBaseline,
     [switch]$FailOnIncrease
@@ -10,14 +7,11 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-$benchmarkPath = Join-Path $PSScriptRoot "Run-TokenBenchmark.ps1"
+$benchmarkPath = Join-Path $PSScriptRoot "Run-TokenDailyHealth.ps1"
 $argsForBenchmark = @{
-    BaseRef = $BaseRef
-    HeadRef = $HeadRef
     WarnIncreasePercent = $WarnIncreasePercent
     Json = $true
 }
-if ($IncludeRtk) { $argsForBenchmark.IncludeRtk = $true }
 if ($IncludeUnity) { $argsForBenchmark.IncludeUnity = $true }
 if ($UpdateBaseline) { $argsForBenchmark.UpdateBaseline = $true }
 
@@ -37,7 +31,7 @@ foreach ($item in $comparison) {
 }
 
 if ($rows.Count -eq 0) {
-    Write-Output "Token health: no baseline comparison available."
+    Write-Output "Token health: no daily baseline comparison available."
     Write-Output ("baseline_path: {0}" -f $result.baseline_path)
     exit 0
 }
@@ -51,7 +45,7 @@ $rows |
     Select-Object status, delta_percent, delta_tokens, current_tokens, command |
     Format-Table -AutoSize
 
-Write-Output ("baseline_path: {0}" -f $result.baseline_path)
+Write-Output ("daily_baseline_path: {0}" -f $result.baseline_path)
 
 if ($FailOnIncrease -and $increased.Count -gt 0) {
     exit 2

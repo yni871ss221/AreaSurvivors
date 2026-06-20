@@ -93,24 +93,26 @@ powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-unity-search.ps1 
 ## Repeatable Benchmark
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/Run-TokenBenchmark.ps1
-powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/Run-TokenBenchmark.ps1 -IncludeRtk
-powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/Run-TokenBenchmark.ps1 -UpdateBaseline
 powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/Invoke-AreaTokenHealth.ps1
 powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/token-health.ps1 -FailOnIncrease
 powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/token-health.ps1 -IncludeUnity
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/token-benchmark-heavy.ps1
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/token-benchmark-heavy.ps1 -IncludeRtk -IncludeUnity
 ```
 
-The default benchmark uses the historical high-output range `e68ca9a..2771c1c`.
-When a baseline exists at `TokenReports/token-benchmark-baseline.json`, the benchmark prints current-vs-baseline deltas.
-Use `Invoke-AreaTokenHealth.ps1 -FailOnIncrease` for a compact periodic check that exits non-zero when a benchmark row increases beyond the configured threshold.
+`token-health.ps1` is the daily lightweight check and uses `TokenReports/token-daily-baseline.json`.
+`token-benchmark-heavy.ps1` runs the historical high-output range `e68ca9a..2771c1c`; use it only when intentionally checking heavy-output regressions.
+Use `token-health.ps1 -FailOnIncrease` for a compact periodic check that exits non-zero when a daily health row increases beyond the configured threshold.
 
 Summarize recorded command token estimates:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/token-report-summary.ps1 -Days 7 -Top 10
-powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/token-report-summary.ps1 -Days 1 -Top 8 -ExcludeBenchmark
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/token-report-summary.ps1 -Days 1 -Top 8
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/token-report-summary.ps1 -Days 1 -Top 8 -IncludeBenchmark
 ```
+
+Benchmark records are excluded by default from `token-report-summary.ps1`.
 
 Use lightweight start/end checks:
 
