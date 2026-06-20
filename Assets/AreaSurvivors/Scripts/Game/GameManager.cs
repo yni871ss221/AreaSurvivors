@@ -628,11 +628,16 @@ namespace AreaSurvivors
             var camera = Camera.main;
             if (camera == null) return;
             var follow = camera.GetComponent<CameraFollow>();
-            if (follow != null) follow.enabled = false;
+            if (follow != null)
+            {
+                follow.target = null;
+                follow.anchor = null;
+                follow.enabled = false;
+            }
             var buildCamera = camera.GetComponent<BuildModeCameraController>();
             if (buildCamera == null) buildCamera = camera.gameObject.AddComponent<BuildModeCameraController>();
             buildCamera.enabled = true;
-            buildCamera.Configure(grid);
+            buildCamera.Configure(grid, Tower != null ? Tower.transform : null);
         }
 
         float RoundTimeLimitSeconds()
