@@ -110,9 +110,17 @@ Summarize recorded command token estimates:
 powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/token-report-summary.ps1 -Days 7 -Top 10
 powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/token-report-summary.ps1 -Days 1 -Top 8
 powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/token-report-summary.ps1 -Days 1 -Top 8 -IncludeBenchmark
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/token-report-summary.ps1 -Since "2026-06-20 16:30" -Kind safe_command,daily_health
 ```
 
 Benchmark records are excluded by default from `token-report-summary.ps1`.
+
+Archive old JSONL reports instead of deleting them:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/archive-token-reports.ps1 -OlderThanDays 1 -WhatIf
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/archive-token-reports.ps1 -OlderThanDays 1
+```
 
 Use lightweight start/end checks:
 

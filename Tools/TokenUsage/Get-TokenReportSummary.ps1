@@ -1,6 +1,8 @@
 param(
     [string]$ReportDirectory = "TokenReports",
     [int]$Days = 7,
+    [string]$Since = "",
+    [string[]]$Kind = @(),
     [int]$Top = 10,
     [switch]$IncludeBenchmark,
     [switch]$Json
@@ -13,9 +15,20 @@ if (-not (Test-Path -LiteralPath $ReportDirectory)) {
     exit 0
 }
 
-$since = (Get-Date).Date.AddDays(-[math]::Max(0, $Days - 1))
+$sinceDate = if ([string]::IsNullOrWhiteSpace($Since)) {
+    (Get-Date).Date.AddDays(-[math]::Max(0, $Days - 1))
+} else {
+    [DateTime]::Parse($Since)
+}
+$kindSet = @{}
+foreach ($item in $Kind) {
+    foreach ($part in ($item -split ",")) {
+        $trimmed = $part.Trim()
+        if (-not [string]::IsNullOrWhiteSpace($trimmed)) { $kindSet[$trimmed] = $true }
+    }
+}
 $records = @()
-foreach ($file in Get-ChildItem -LiteralPath $ReportDirectory -Filter "*.jsonl" -File | Where-Object { $_.LastWriteTime -ge $since }) {
+foreach ($file in Get-ChildItem -LiteralPath $ReportDirectory -Filter "*.jsonl" -File | Where-Object { $_.LastWriteTime -ge $sinceDate }) {
     foreach ($line in Get-Content -LiteralPath $file.FullName -Encoding UTF8) {
         if ([string]::IsNullOrWhiteSpace($line)) { continue }
         try {
@@ -52,11 +65,16 @@ foreach ($file in Get-ChildItem -LiteralPath $ReportDirectory -Filter "*.jsonl" 
 if (-not $IncludeBenchmark) {
     $records = @($records | Where-Object { $_.kind -ne "benchmark" })
 }
+if ($kindSet.Count -gt 0) {
+    $records = @($records | Where-Object { $kindSet.ContainsKey([string]$_.kind) })
+}
 
 $totalTokens = ($records | Measure-Object -Property tokens -Sum).Sum
 $summary = [pscustomobject]@{
     report_directory = (Resolve-Path -LiteralPath $ReportDirectory).Path
     days = $Days
+    since = $sinceDate.ToString("o")
+    kinds = @($kindSet.Keys)
     records = $records.Count
     total_estimated_tokens = [int]$totalTokens
     blocked_count = @($records | Where-Object { $_.blocked }).Count

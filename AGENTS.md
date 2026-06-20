@@ -130,6 +130,8 @@ AreaSurvivors リポジトリで作業するエージェント向けの運用ル
 - 定期的なトークン消費チェックは日常用の `Tools/TokenUsage/token-health.ps1` を使う。これは安全ラッパー中心の軽量ベンチで、`TokenReports/token-daily-baseline.json` と比較する。必要なら `-FailOnIncrease` で増加を検知する。
 - 過去の巨大出力ケースを確認するHeavyベンチは `Tools/TokenUsage/token-benchmark-heavy.ps1` を明示時だけ実行する。通常の作業開始・終了チェックではHeavyベンチを回さない。
 - TokenReportsの原因分析は `Tools/TokenUsage/token-report-summary.ps1` を使い、重いコマンド、blocked回数、high/critical件数を見る。benchmark系レコードはデフォルト除外し、必要な場合だけ `-IncludeBenchmark` を付ける。
+- TokenReportsの鮮度管理は `Tools/TokenUsage/archive-token-reports.ps1` を使い、古いJSONLを `TokenReports/Archive/` へ移動する。削除ではなくアーカイブを基本にする。
+- 対策後だけを分析したい場合は `token-report-summary.ps1 -Since "<日時>"`、種別を絞る場合は `-Kind safe_command,daily_health` のように指定する。
 - 作業開始時の軽量確認は `Tools/TokenUsage/start-token-check.ps1`、作業終了時の軽量確認は `Tools/TokenUsage/end-token-check.ps1` を使う。Unity込みで見る場合は `-IncludeUnity` を付ける。
 - Unity系コマンドは `Tools/TokenUsage/safe-unity.ps1` を入口にする。`Compile`、`ConsoleErrors`、`Menu`、`Eval` を使い、`ConsoleErrors` は必ず件数制限する。Unity出力も比較したい場合は `Tools/TokenUsage/token-health.ps1 -IncludeUnity` を使う。
 - Unity Reporterの出力は `TokenReports/UnityReports/` へ保存し、Consoleには保存先・行数・文字数の要約だけ出す。詳細が必要なときだけ保存ファイルを対象指定で読む。

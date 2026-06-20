@@ -11,4 +11,4 @@ Write-Output "[end-token-check] token health"
 & "$PSScriptRoot\token-health.ps1" -IncludeUnity:$IncludeUnity
 Write-Output ""
 Write-Output "[end-token-check] report summary"
-& "$PSScriptRoot\token-report-summary.ps1" -Days 1 -Top 8
+& "$PSScriptRoot\token-report-summary.ps1" -Days 1 -Kind safe_command,daily_health -Top 8

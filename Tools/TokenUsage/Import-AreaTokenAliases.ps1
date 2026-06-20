@@ -53,8 +53,13 @@ function safe-unity-search {
 }
 
 function token-report-summary {
-    param([int]$Days = 7, [int]$Top = 10, [switch]$IncludeBenchmark)
-    & "$PSScriptRoot\Get-TokenReportSummary.ps1" -Days $Days -Top $Top -IncludeBenchmark:$IncludeBenchmark
+    param([int]$Days = 7, [string]$Since = "", [string[]]$Kind = @(), [int]$Top = 10, [switch]$IncludeBenchmark)
+    & "$PSScriptRoot\Get-TokenReportSummary.ps1" -Days $Days -Since $Since -Kind $Kind -Top $Top -IncludeBenchmark:$IncludeBenchmark
+}
+
+function archive-token-reports {
+    param([int]$OlderThanDays = 1, [switch]$WhatIf)
+    & "$PSScriptRoot\Archive-TokenReports.ps1" -OlderThanDays $OlderThanDays -WhatIf:$WhatIf
 }
 
 function start-token-check {
