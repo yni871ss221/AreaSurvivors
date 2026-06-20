@@ -17,3 +17,4 @@
 *.VC.db
 sysinfo.txt
 crashlytics-build.properties
+TokenReports/

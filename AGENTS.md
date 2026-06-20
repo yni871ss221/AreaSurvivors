@@ -119,6 +119,13 @@ AreaSurvivors リポジトリで作業するエージェント向けの運用ル
 - RTK出力は要約されるため、Scene/Prefab/YAMLの精査や正確な差分確認が必要な場合は、対象ファイルを絞って通常の `git diff -- <path>` や専用Validatorで確認する。
 - 広い `git diff` / `git status` / `rg` / `Get-Content`、Scene/Prefab/YAML全文、Unityログ、Obsidian長文、スクリーンショット反復などでトークン消費が大きくなりそうな場合は、実行前に軽量ルートを自動で選ぶか、必要なら短く提案してから進める。
 - 高トークン化を検知した場合の優先順は、`Compact Project Snapshot`、RTK、対象パス指定、専用Validator/Reporter、必要範囲だけのログ/差分確認、最後に限定的な全文確認とする。
+- `git merge` / `git pull` / `git checkout` など大量diffstatを出し得るGit操作は、可能なら `--no-stat`、`--ff-only`、または事前の `rtk git diff --stat` / `git diff --name-only` で規模確認してから実行する。マージ結果の全文statを読み込まない。
+- `Library/`、`Temp/`、`Obj/`、`.git/`、バイナリDLL/PDB/画像へ広い `Select-String` / `Get-Content` / `rg -a` をかけない。Unity生成キャッシュ調査は、対象パスと拡張子を絞り、必要ならファイル名一覧だけ確認する。
+- 出力が大きくなりそうなコマンドは、必要に応じて `Tools/TokenUsage/Estimate-TokenCost.ps1` または `Tools/TokenUsage/Run-WithTokenReport.ps1` で事前見積もり・JSONL記録を行い、本文を直接チャットへ流さない。
+- トークン改善の効果確認は `Tools/TokenUsage/Run-TokenBenchmark.ps1` を使い、`TokenReports/token-benchmark-baseline.json` との比較を見る。高出力のコマンド実行は `Tools/TokenUsage/Safe-Command.ps1` を優先する。
+- 広いC#探索が必要な場合は `Area Survivors/Reports/C# Symbol Index`、Scene/Prefabの構造確認は `Area Survivors/Reports/Scene Prefab Structure` を先に使い、Scene YAML全文や広い `git grep` を避ける。
+- トークン削減に関わる作業では、作業前に対象コマンドを見積もり、作業後に `Run-TokenBenchmark.ps1` か対象別 `Estimate-TokenCost.ps1` で改善前後を比較する。比較結果は必要に応じてObsidianへ記録する。
+- `Safe-Command.ps1` でblockedになった出力は、そのまま表示せず、RTK、対象パス指定、Reporter/Validator、`Select-Object -First` などの低トークン代替に切り替える。
 - UI配置変更は、個別に動かして都度スクリーンショットを見るのではなく、座標表やグリッド定義をまとめて決めて一括反映し、その後Validatorと最終スクリーンショットで確認する。
 - スキルツリーは `SkillTreeLayoutValidator` のようなEditor検証を先に使い、ノード重なり・リンク角度・重複ID・前提不整合を検出してから目視確認する。
 - UniCLI `Eval` に複雑なC#コードや引用符を多く含む処理を直接渡さない。Scene操作、Validator実行、移行処理などは、最初から短い一時Editor Runner/Migratorを作成し、`AreaSurvivors.SomeRunner.Run();` のような単純なEvalで呼び出す。作業後はRunner/Migratorと `.meta` を削除する。
