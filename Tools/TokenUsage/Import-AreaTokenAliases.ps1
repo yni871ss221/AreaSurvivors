@@ -41,3 +41,23 @@ function safe-unity {
     )
     & "$PSScriptRoot\Invoke-AreaSafeUnity.ps1" -Action $Action -MenuPath $MenuPath -EvalCode $EvalCode -MaxCount $MaxCount -PrintOutput:$PrintOutput
 }
+
+function safe-unity-search {
+    param([Parameter(Mandatory = $true)][string]$Query, [switch]$PrintOutput)
+    & "$PSScriptRoot\Invoke-AreaUnitySearch.ps1" -Query $Query -PrintOutput:$PrintOutput
+}
+
+function token-report-summary {
+    param([int]$Days = 7, [int]$Top = 10, [switch]$ExcludeBenchmark)
+    & "$PSScriptRoot\Get-TokenReportSummary.ps1" -Days $Days -Top $Top -ExcludeBenchmark:$ExcludeBenchmark
+}
+
+function start-token-check {
+    param([switch]$IncludeUnity)
+    & "$PSScriptRoot\start-token-check.ps1" -IncludeUnity:$IncludeUnity
+}
+
+function end-token-check {
+    param([switch]$IncludeUnity)
+    & "$PSScriptRoot\end-token-check.ps1" -IncludeUnity:$IncludeUnity
+}

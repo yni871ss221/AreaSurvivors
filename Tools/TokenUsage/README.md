@@ -45,6 +45,7 @@ powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-read.ps1 -Path AG
 powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/token-health.ps1
 powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-unity.ps1 -Action Compile
 powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-unity.ps1 -Action ConsoleErrors -MaxCount 30 -PrintOutput
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/guarded-command.ps1 -Command "git diff"
 ```
 
 For interactive PowerShell sessions, import aliases once:
@@ -57,6 +58,7 @@ safe-search "BuildMode" -Path Assets/AreaSurvivors/Scripts -PrintOutput
 safe-read AGENTS.md -First 80 -PrintOutput
 token-health
 safe-unity Compile
+guarded-command "git diff"
 ```
 
 `Diff` requires `-Path` or `-RefRange` so broad raw diffs are not run accidentally.
@@ -82,6 +84,12 @@ For Scene/Prefab/C# exploration, prefer Unity reports before raw YAML or broad g
 Unity report menu output is saved under `TokenReports/UnityReports/`.
 The Unity Console receives only the saved path plus line/character counts.
 
+Run Scene/Prefab search from the CLI:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-unity-search.ps1 -Query BuildMode
+```
+
 ## Repeatable Benchmark
 
 ```powershell
@@ -96,6 +104,20 @@ powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/token-health.ps1 -Incl
 The default benchmark uses the historical high-output range `e68ca9a..2771c1c`.
 When a baseline exists at `TokenReports/token-benchmark-baseline.json`, the benchmark prints current-vs-baseline deltas.
 Use `Invoke-AreaTokenHealth.ps1 -FailOnIncrease` for a compact periodic check that exits non-zero when a benchmark row increases beyond the configured threshold.
+
+Summarize recorded command token estimates:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/token-report-summary.ps1 -Days 7 -Top 10
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/token-report-summary.ps1 -Days 1 -Top 8 -ExcludeBenchmark
+```
+
+Use lightweight start/end checks:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/start-token-check.ps1
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/end-token-check.ps1 -IncludeUnity
+```
 
 ## Screenshot Lightening
 
