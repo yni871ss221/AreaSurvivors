@@ -817,10 +817,12 @@ namespace AreaSurvivors.Editor
             DestroyChild(canvas, "Tower Status");
             DestroyLegacyBuildStatusText(canvas);
 
-            var construction = HudPanel(canvas, "Construction Menu", new Vector2(16, 16), new Vector2(276, 96), Vector2.zero, Vector2.zero, new Color(0.035f, 0.05f, 0.045f, 0.72f));
+            var construction = HudPanel(canvas, "Construction Menu", new Vector2(16, 16), new Vector2(614, 96), Vector2.zero, Vector2.zero, new Color(0.035f, 0.05f, 0.045f, 0.72f));
             CreateEditableBuildSlot(construction, "Build Slot 1", "1", LoadGeneratedSprite("Ballista"), new Vector2(42, 48), new Vector2(46, 44));
             CreateEditableBuildSlot(construction, "Build Slot 2", "2", LoadGeneratedSprite("WoodenWall"), new Vector2(112, 48), new Vector2(46, 44));
             CreateEditableBuildSlot(construction, "Build Slot 3", "3", LoadGeneratedSprite("WoodenGateClosed"), new Vector2(182, 48), new Vector2(46, 44));
+            CreateEditableTestResourceButton(construction, "Test Add Wood Button", "+\u6728100", new Vector2(530, 53));
+            CreateEditableTestResourceButton(construction, "Test Add Stone Button", "+\u77f3100", new Vector2(530, 15));
             var status = HudText(construction, "1 \u30d0\u30ea\u30b9\u30bf x4", 14, new Vector2(238, 48), new Vector2(64, 58));
             status.name = "Build Status";
             if (buildPlacement != null) buildPlacement.buildText = status;
@@ -868,6 +870,19 @@ namespace AreaSurvivors.Editor
             keyText.name = "Key";
             var stock = HudText(slot, "x4", 12, new Vector2(17, -22), new Vector2(34, 18));
             stock.name = "Stock";
+        }
+
+        static void CreateEditableTestResourceButton(Transform parent, string name, string label, Vector2 position)
+        {
+            var buttonRoot = HudPanel(parent, name, position, new Vector2(72, 28), Vector2.zero, Vector2.zero, new Color(0.09f, 0.16f, 0.12f, 0.92f));
+            buttonRoot.gameObject.AddComponent<Button>();
+            var text = HudText(buttonRoot, label, 13, Vector2.zero, new Vector2(72, 28));
+            text.name = "Label";
+            text.alignment = TextAnchor.MiddleCenter;
+            text.rectTransform.anchorMin = Vector2.zero;
+            text.rectTransform.anchorMax = Vector2.one;
+            text.rectTransform.offsetMin = Vector2.zero;
+            text.rectTransform.offsetMax = Vector2.zero;
         }
 
         static RectTransform HudPanel(Transform parent, string name, Vector2 position, Vector2 size, Vector2 anchorMin, Vector2 anchorMax, Color color)

@@ -223,6 +223,13 @@ namespace AreaSurvivors
             else Stone += amount;
         }
 
+        public void AddPersistentResourcesForTesting(int wood, int stone)
+        {
+            if (sessionMode != MapSessionMode.Build) return;
+            ProgressionStore.AddPersistentResources(wood, stone);
+            SyncPersistentResources();
+        }
+
         public void AddRunTokens(int amount)
         {
             RunTokens += Mathf.Max(0, amount);
@@ -740,8 +747,10 @@ namespace AreaSurvivors
         static readonly Vector2 WeaponIconSize = new Vector2(48f, 48f);
         static readonly Vector2 BuildStatusPanelPosition = new Vector2(14f, 15f);
         static readonly Vector2 BuildStatusPanelSize = new Vector2(82f, 66f);
+        static readonly Vector2 TestResourceButtonSize = new Vector2(72f, 28f);
         const float BuildSlotStartX = 110f;
         const float BuildSlotSpacing = 70f;
+        const int TestResourceAddAmount = 100;
 
         BuildPlacementController buildPlacement;
         BuildingUpgradeController buildingUpgrade;
@@ -1306,6 +1315,17 @@ namespace AreaSurvivors
 
             var status = EnsureBuildStatusPanel(root, statusPosition);
             if (buildPlacement != null) buildPlacement.buildText = status;
+            BindTestResourceButton(root, "Test Add Wood Button", "+木100", new Vector2(slotPositions[slotPositions.Length - 1].x + 70f, statusPosition.y + 38f), () =>
+            {
+                gameManager?.AddPersistentResourcesForTesting(TestResourceAddAmount, 0);
+                UpdateResourceHud();
+            });
+            BindTestResourceButton(root, "Test Add Stone Button", "+石100", new Vector2(slotPositions[slotPositions.Length - 1].x + 70f, statusPosition.y), () =>
+            {
+                gameManager?.AddPersistentResourcesForTesting(0, TestResourceAddAmount);
+                UpdateResourceHud();
+            });
+            AddFrame(root, root.sizeDelta);
         }
 
         void BuildStagePanel(Transform parent)
@@ -1485,6 +1505,51 @@ namespace AreaSurvivors
             stockLabels[index].rectTransform.anchoredPosition = new Vector2(0f, -22f);
             stockLabels[index].rectTransform.sizeDelta = new Vector2(58f, 18f);
             slotBackplates[index] = image;
+        }
+
+        static void BindTestResourceButton(RectTransform parent, string name, string labelText, Vector2 position, UnityEngine.Events.UnityAction onClick)
+        {
+            var buttonTransform = parent.Find(name) as RectTransform;
+            bool created = buttonTransform == null;
+            if (buttonTransform == null) buttonTransform = CreatePanel(parent, name, position, TestResourceButtonSize, Vector2.zero, Vector2.zero);
+
+            buttonTransform.anchorMin = Vector2.zero;
+            buttonTransform.anchorMax = Vector2.zero;
+            buttonTransform.pivot = Vector2.zero;
+            buttonTransform.anchoredPosition = position;
+            buttonTransform.sizeDelta = TestResourceButtonSize;
+            var parentSize = parent.sizeDelta;
+            parentSize.x = Mathf.Max(parentSize.x, position.x + TestResourceButtonSize.x + 12f);
+            parentSize.y = Mathf.Max(parentSize.y, position.y + TestResourceButtonSize.y + 12f);
+            parent.sizeDelta = parentSize;
+
+            var image = buttonTransform.GetComponent<Image>();
+            if (image != null)
+            {
+                image.color = SlotColor;
+                image.raycastTarget = true;
+            }
+
+            var button = buttonTransform.GetComponent<Button>();
+            if (button == null) button = buttonTransform.gameObject.AddComponent<Button>();
+            button.targetGraphic = image;
+            button.transition = Selectable.Transition.ColorTint;
+            button.onClick.RemoveAllListeners();
+            if (onClick != null) button.onClick.AddListener(onClick);
+
+            var labelTransform = buttonTransform.Find("Label");
+            var label = labelTransform != null ? labelTransform.GetComponent<Text>() : null;
+            if (label == null) label = CreateText(buttonTransform, "Label", labelText, 13, Vector2.zero, TestResourceButtonSize, TextAnchor.MiddleCenter);
+            label.text = labelText;
+            label.fontSize = 13;
+            label.alignment = TextAnchor.MiddleCenter;
+            label.rectTransform.anchorMin = Vector2.zero;
+            label.rectTransform.anchorMax = Vector2.one;
+            label.rectTransform.offsetMin = Vector2.zero;
+            label.rectTransform.offsetMax = Vector2.zero;
+
+            if (created || buttonTransform.GetComponent<UiBoxOutline>() == null) AddFrame(buttonTransform, TestResourceButtonSize);
+            buttonTransform.SetAsLastSibling();
         }
 
         void BuildTowerPanel(Transform parent)

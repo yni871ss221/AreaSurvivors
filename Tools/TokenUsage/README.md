@@ -84,6 +84,17 @@ For Scene/Prefab/C# exploration, prefer Unity reports before raw YAML or broad g
 Unity report menu output is saved under `TokenReports/UnityReports/`.
 The Unity Console receives only the saved path plus line/character counts.
 
+Recommended low-token flow for asset cleanup review:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/run-unity-report.ps1 -Report asset-references
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/filter-asset-reference-report.ps1 -Top 10
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/filter-asset-reference-report.ps1 -Top 10 -ExportPath TokenReports/UnityReports/asset-review-notes.md -ExportFormat md
+```
+
+Use the first command only when the underlying references may have changed.
+For repeated review, prefer reusing the latest report with `filter-asset-reference-report.ps1`.
+
 Run Scene/Prefab search from the CLI:
 
 ```powershell

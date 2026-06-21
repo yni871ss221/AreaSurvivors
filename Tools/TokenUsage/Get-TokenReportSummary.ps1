@@ -4,6 +4,8 @@ param(
     [string]$Since = "",
     [string[]]$Kind = @(),
     [int]$Top = 10,
+    [int]$Recent = 0,
+    [switch]$SinceLastStart,
     [switch]$IncludeBenchmark,
     [switch]$Json
 )
@@ -62,11 +64,27 @@ foreach ($file in Get-ChildItem -LiteralPath $ReportDirectory -Filter "*.jsonl" 
     }
 }
 
+if ($SinceLastStart) {
+    $latestMarker = $records |
+        Where-Object { $_.kind -eq "token_start_marker" -and -not [string]::IsNullOrWhiteSpace([string]$_.timestamp) } |
+        Sort-Object timestamp |
+        Select-Object -Last 1
+    if ($latestMarker -ne $null) {
+        $sinceDate = [DateTime]::Parse($latestMarker.timestamp)
+        $records = @($records | Where-Object {
+            -not [string]::IsNullOrWhiteSpace([string]$_.timestamp) -and [DateTime]::Parse($_.timestamp) -ge $sinceDate
+        })
+    }
+}
+
 if (-not $IncludeBenchmark) {
-    $records = @($records | Where-Object { $_.kind -ne "benchmark" })
+    $records = @($records | Where-Object { $_.kind -ne "benchmark" -and $_.kind -ne "token_start_marker" })
 }
 if ($kindSet.Count -gt 0) {
     $records = @($records | Where-Object { $kindSet.ContainsKey([string]$_.kind) })
+}
+if ($Recent -gt 0) {
+    $records = @($records | Sort-Object timestamp | Select-Object -Last $Recent)
 }
 
 $totalTokens = ($records | Measure-Object -Property tokens -Sum).Sum
@@ -75,6 +93,8 @@ $summary = [pscustomobject]@{
     days = $Days
     since = $sinceDate.ToString("o")
     kinds = @($kindSet.Keys)
+    recent = $Recent
+    since_last_start = [bool]$SinceLastStart
     records = $records.Count
     total_estimated_tokens = [int]$totalTokens
     blocked_count = @($records | Where-Object { $_.blocked }).Count

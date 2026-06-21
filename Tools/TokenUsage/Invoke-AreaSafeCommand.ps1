@@ -42,7 +42,7 @@ function Normalize-PathValues {
 $safeCommandPath = Join-Path $PSScriptRoot "Safe-Command.ps1"
 $benchmarkPath = Join-Path $PSScriptRoot "Run-TokenBenchmark.ps1"
 $command = ""
-$Path = Normalize-PathValues $Path
+$Path = @(Normalize-PathValues $Path)
 
 switch ($Action) {
     "Status" {

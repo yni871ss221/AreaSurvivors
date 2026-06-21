@@ -2,7 +2,8 @@ param(
     [int]$WarnIncreasePercent = 10,
     [switch]$IncludeUnity,
     [switch]$UpdateBaseline,
-    [switch]$FailOnIncrease
+    [switch]$FailOnIncrease,
+    [int]$Top = 5
 )
 
 $ErrorActionPreference = "Stop"
@@ -42,6 +43,7 @@ $improved = @($rows | Where-Object { $_.status -eq "improved" })
 Write-Output ("Token health: {0} increased, {1} improved, {2} checked" -f $increased.Count, $improved.Count, $rows.Count)
 $rows |
     Sort-Object @{Expression = { if ($_.status -eq "increased") { 0 } elseif ($_.status -eq "improved") { 1 } else { 2 } }}, @{Expression = "current_tokens"; Descending = $true} |
+    Select-Object -First $Top |
     Select-Object status, delta_percent, delta_tokens, current_tokens, command |
     Format-Table -AutoSize
 
