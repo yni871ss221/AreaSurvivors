@@ -38,6 +38,7 @@ namespace AreaSurvivors
         bool hasRegisteredCell;
         Vector3Int registeredCell;
         readonly float sparkleDuration = 0.75f;
+        const float BaseVisualHeightMultiplier = 221f / 190f;
 
         public bool IsBuilt => completed;
         public TileGrid Grid => grid;
@@ -70,6 +71,7 @@ namespace AreaSurvivors
             maxHp += Mathf.Max(0, hpBonus);
             damage += Mathf.Max(0, damageBonus);
             if (health != null) health.SetMax(maxHp);
+            if (upgradedSprite != null) ballistaSprite = upgradedSprite;
             EnsureSpriteVisuals();
             CacheVisualScales();
             ApplyBuildVisuals();
@@ -85,7 +87,8 @@ namespace AreaSurvivors
         {
             EnsureSpriteVisuals();
 
-            if (config != null)
+            var upgradeTarget = GetComponent<BuildingUpgradeTarget>();
+            if (config != null && (upgradeTarget == null || !upgradeTarget.IsUpgraded))
             {
                 attackRange = config.ballistaRange + ProgressionStore.GetLevel(UpgradeType.BallistaRange) * config.ballistaRangePerUpgradeLevel;
                 attackCooldown = config.ballistaCooldown;
@@ -132,6 +135,7 @@ namespace AreaSurvivors
             {
                 usingSpriteVisuals = true;
                 ConfigureSpriteVisual(completeRenderer, Color.white);
+                ApplyBaseVisualScaleOverride();
                 completeObject = completeRenderer.gameObject;
                 RefreshSortRenderers();
                 return;
@@ -218,6 +222,15 @@ namespace AreaSurvivors
             visual.visible = false;
         }
 
+        void ApplyBaseVisualScaleOverride()
+        {
+            if (!usingPrefabLayout || completeRenderer == null) return;
+            var baseScale = prefabVisualSet != null && prefabVisualSet.upgradedCompleteVisual != null
+                ? prefabVisualSet.upgradedCompleteVisual.transform.localScale
+                : completeRenderer.transform.localScale;
+            completeRenderer.transform.localScale = new Vector3(baseScale.x, baseScale.y * BaseVisualHeightMultiplier, baseScale.z);
+        }
+
         void CacheVisualScales()
         {
             if (completeRenderer != null && completeRenderer.sprite != null)
@@ -266,12 +279,14 @@ namespace AreaSurvivors
 
         void ApplyBuildVisuals()
         {
-            if (completeRenderer != null) completeRenderer.visible = completed;
+            var upgradeTarget = GetComponent<BuildingUpgradeTarget>();
+            bool hideBaseVisual = upgradeTarget != null && upgradeTarget.IsUpgraded;
             if (completeRenderer != null) completeRenderer.SetVerticalFill(1f);
             if (!usingSpriteVisuals || completeObject == null || (completeRenderer != null && completeObject == completeRenderer.gameObject))
             {
-                SetActive(completeObject, completed);
+                SetActive(completeObject, completed && !hideBaseVisual);
             }
+            if (completeRenderer != null) completeRenderer.visible = completed && !hideBaseVisual;
             if (sparkleRenderer != null && !completed) sparkleRenderer.visible = false;
             if (blockingCollider != null) blockingCollider.enabled = completed;
         }

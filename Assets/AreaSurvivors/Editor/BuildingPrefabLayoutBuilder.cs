@@ -7,6 +7,9 @@ namespace AreaSurvivors.EditorTools
     public static class BuildingPrefabLayoutBuilder
     {
         const string PrefabRoot = "Assets/AreaSurvivors/Prefabs";
+        const float WoodenBarrierBaseHeightMultiplier = 89f / 87f;
+        const float BallistaBaseHeightMultiplier = 221f / 190f;
+        const float WatchTowerBaseHeightMultiplier = 419f / 367f;
 
         [MenuItem("AreaSurvivors/Setup Building Prefab Layouts")]
         public static void SetupBuildingPrefabLayouts()
@@ -63,7 +66,7 @@ namespace AreaSurvivors.EditorTools
                 barrier.openGateSprite = !string.IsNullOrEmpty(openSpriteName) ? LoadGeneratedSprite(openSpriteName) : null;
 
                 var set = Ensure<BuildingPrefabVisualSet>(root);
-                ConfigureVisualSet(root, set, marker.footprint, barrier.barrierSprite, LoadGeneratedSprite(upgradeSpriteName), 0.026f);
+                ConfigureVisualSet(root, set, marker.footprint, barrier.barrierSprite, LoadGeneratedSprite(upgradeSpriteName), 0.026f, WoodenBarrierBaseHeightMultiplier);
                 set.upgradedOpenSprite = !string.IsNullOrEmpty(upgradeOpenSpriteName) ? LoadGeneratedSprite(upgradeOpenSpriteName) : null;
 
                 barrier.completeRenderer = set.completeVisual;
@@ -97,7 +100,7 @@ namespace AreaSurvivors.EditorTools
                 var ballista = Ensure<BallistaTower>(root);
                 ballista.ballistaSprite = LoadGeneratedSprite("Ballista");
                 var set = Ensure<BuildingPrefabVisualSet>(root);
-                ConfigureVisualSet(root, set, marker.footprint, ballista.ballistaSprite, LoadGeneratedSprite("BallistaUpgrade"), 0.035f);
+                ConfigureVisualSet(root, set, marker.footprint, ballista.ballistaSprite, LoadGeneratedSprite("BallistaUpgrade"), 0.035f, BallistaBaseHeightMultiplier);
                 ballista.completeRenderer = set.completeVisual;
                 ballista.sparkleRenderer = set.sparkleVisual;
                 ballista.completeObject = set.completeVisual != null ? set.completeVisual.gameObject : null;
@@ -129,7 +132,7 @@ namespace AreaSurvivors.EditorTools
                 var watchTower = Ensure<WatchTower>(root);
                 watchTower.towerSprite = LoadGeneratedSprite("WatchTower");
                 var set = Ensure<BuildingPrefabVisualSet>(root);
-                ConfigureVisualSet(root, set, marker.footprint, watchTower.towerSprite, LoadGeneratedSprite("WatchTowerUpgrade"), 0.03f);
+                ConfigureVisualSet(root, set, marker.footprint, watchTower.towerSprite, LoadGeneratedSprite("WatchTowerUpgrade"), 0.03f, WatchTowerBaseHeightMultiplier);
                 watchTower.completeRenderer = set.completeVisual;
                 watchTower.sparkleRenderer = set.sparkleVisual;
                 watchTower.completeObject = set.completeVisual != null ? set.completeVisual.gameObject : null;
@@ -269,16 +272,16 @@ namespace AreaSurvivors.EditorTools
             ySort.Refresh();
         }
 
-        static void ConfigureVisualSet(GameObject root, BuildingPrefabVisualSet set, Vector2Int footprint, Sprite baseSprite, Sprite upgradeSprite, float outlineThickness)
+        static void ConfigureVisualSet(GameObject root, BuildingPrefabVisualSet set, Vector2Int footprint, Sprite baseSprite, Sprite upgradeSprite, float outlineThickness, float baseHeightMultiplier = 1f)
         {
             set.usePrefabLayout = true;
-            set.completeVisual = ConfigureVisual(root.transform, "Complete Image", baseSprite, Color.white, 1002, footprint, outlineThickness);
+            set.completeVisual = ConfigureVisual(root.transform, "Complete Image", baseSprite, Color.white, 1002, footprint, outlineThickness, baseHeightMultiplier);
             set.upgradedCompleteVisual = ConfigureVisual(root.transform, "Upgraded Building Image", upgradeSprite, Color.white, 22002, footprint, outlineThickness);
             set.sparkleVisual = ConfigureOverlay(root.transform, "Completion Sparkle", LoadGeneratedSprite("Sparkle"), 22030, new Vector3(0.32f, footprint.y * GridObjectVisual.CellHeight + 0.36f, 0f), 0.7f);
             set.ApplyInitialVisibility();
         }
 
-        static PaperMeshVisual ConfigureVisual(Transform parent, string name, Sprite sprite, Color color, int sortingOrder, Vector2Int footprint, float outlineThickness)
+        static PaperMeshVisual ConfigureVisual(Transform parent, string name, Sprite sprite, Color color, int sortingOrder, Vector2Int footprint, float outlineThickness, float heightMultiplier = 1f)
         {
             var go = FindOrCreateChild(parent, name);
             var billboard = Ensure<PaperBillboard>(go);
@@ -286,7 +289,7 @@ namespace AreaSurvivors.EditorTools
             var visual = Ensure<PaperMeshVisual>(go);
             visual.useBottomCenterAnchor = true;
             visual.Configure(sprite, color, sortingOrder);
-            FitWidthPreserveAspect(go.transform, sprite, footprint);
+            FitWidthPreserveAspect(go.transform, sprite, footprint, heightMultiplier);
             var outline = Ensure<RuntimeSpriteOutline>(go);
             outline.outlineColor = Color.black;
             outline.thickness = outlineThickness;
@@ -310,7 +313,7 @@ namespace AreaSurvivors.EditorTools
             return visual;
         }
 
-        static void FitWidthPreserveAspect(Transform transform, Sprite sprite, Vector2Int footprint)
+        static void FitWidthPreserveAspect(Transform transform, Sprite sprite, Vector2Int footprint, float heightMultiplier = 1f)
         {
             transform.localPosition = Vector3.zero;
             transform.localRotation = Quaternion.identity;
@@ -322,7 +325,8 @@ namespace AreaSurvivors.EditorTools
 
             float targetWidth = Mathf.Max(0.01f, footprint.x * GridObjectVisual.CellWidth);
             float scale = targetWidth / sprite.bounds.size.x;
-            transform.localScale = new Vector3(scale, scale, 1f);
+            float yScale = scale * Mathf.Max(0.01f, heightMultiplier);
+            transform.localScale = new Vector3(scale, yScale, 1f);
         }
 
         static BoxCollider2D ConfigureCollider(GameObject root, Vector2Int footprint, bool trigger)
