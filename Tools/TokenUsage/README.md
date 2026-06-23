@@ -120,11 +120,13 @@ Summarize recorded command token estimates:
 ```powershell
 powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/token-report-summary.ps1 -Days 7 -Top 10
 powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/token-report-summary.ps1 -Days 1 -Top 8
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/token-report-summary.ps1 -Path TokenReports/2026-06-23.jsonl -Top 8
 powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/token-report-summary.ps1 -Days 1 -Top 8 -IncludeBenchmark
 powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/token-report-summary.ps1 -Since "2026-06-20 16:30" -Kind safe_command,daily_health
 ```
 
 Benchmark records are excluded by default from `token-report-summary.ps1`.
+Passing `-Path TokenReports/YYYY-MM-DD.jsonl` summarizes only that report file.
 
 Archive old JSONL reports instead of deleting them:
 
@@ -136,8 +138,8 @@ powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/archive-token-reports.
 Use lightweight start/end checks:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/start-token-check.ps1
-powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/end-token-check.ps1 -IncludeUnity
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/start-token-check.ps1 -UiPercent 12.5 -BudgetTokens 1000000 -Note "Phase 4 HUD work"
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/end-token-check.ps1 -CurrentPercent 50.0 -IncludeUnity
 ```
 
 ## Coverage for Untracked Usage
@@ -146,11 +148,32 @@ Command reports do not include Codex fixed context, chat text, screenshots, or t
 Record the Codex UI usage percentage at the start and end of a long session, then compare it with recorded command output:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/session-coverage.ps1 -StartPercent 12.5 -CurrentPercent 50.0 -BudgetTokens 1000000 -Save
-powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/end-token-check.ps1 -StartPercent 12.5 -CurrentPercent 50.0 -BudgetTokens 1000000 -CoverageNote "Phase 4 HUD work"
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/start-token-check.ps1 -UiPercent 12.5 -BudgetTokens 1000000 -Note "Phase 4 HUD work"
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/session-coverage.ps1 -CurrentPercent 50.0 -Save
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/end-token-check.ps1 -CurrentPercent 50.0 -CoverageNote "Phase 4 HUD work"
 ```
 
 If `-BudgetTokens` is unknown, omit it. The script will still record the UI percentage delta and TokenReports total, but untracked token count will remain a percentage-only estimate.
+
+Use `record-untracked-usage.ps1` to add manual estimates for known non-command usage:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/record-untracked-usage.ps1 -Category chat_summary -EstimatedTokens 1200 -Note "Long final answer and user clarification"
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/record-untracked-usage.ps1 -Category screenshot -ImagePath "C:\path\screen.png" -Note "HUD screenshot inspected by Codex"
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/record-untracked-usage.ps1 -Category direct_tool_output -EstimatedTokens 3000 -Note "exec_command output was returned directly instead of safe-command"
+```
+
+Suggested categories:
+
+- `chat`
+- `assistant_response`
+- `fixed_context`
+- `screenshot`
+- `direct_tool_output`
+- `reasoning`
+- `manual_adjustment`
+
+`session-coverage.ps1` subtracts both command reports and `manual_untracked_usage` records from the UI-derived estimate, so repeated manual entries make the remaining unknown bucket smaller.
 
 ## Screenshot Lightening
 

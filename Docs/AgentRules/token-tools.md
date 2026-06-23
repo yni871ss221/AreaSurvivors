@@ -9,8 +9,10 @@
 - Reporter候補や実行名の確認は `reporter-candidates.ps1` を使い、既存Reporterの有無を先に確認する。
 - `git diff` は対象ファイル指定、必要なら `--name-only`、`--stat`、`safe-diff.ps1` を使う。
 - TokenReportsの原因分析は `token-report-summary.ps1 -Recent <件数>` または `-SinceLastStart` を使う。
-- 作業開始時は `start-token-check.ps1`、終了時は `end-token-check.ps1` を使う。Heavyベンチは明示時だけ実行する。
-- 長時間作業ではCodex UIの消費率を開始/終了で控え、`session-coverage.ps1 -StartPercent <開始%> -CurrentPercent <現在%> [-BudgetTokens <推定枠tokens>] -Save` でTokenReports外の消費を差分推定する。
+- 作業開始時は `start-token-check.ps1 -UiPercent <開始%> [-BudgetTokens <推定枠tokens>] -Note <作業名>`、終了時は `end-token-check.ps1 -CurrentPercent <現在%>` を使う。Heavyベンチは明示時だけ実行する。
+- 長時間作業ではCodex UIの消費率を開始/終了で控え、`session-coverage.ps1 -CurrentPercent <現在%> -Save` でTokenReports外の消費を差分推定する。開始値は最新 `token_start_marker` から自動取得される。
+- 会話、長い回答、画像添付、直接 `exec_command` の出力、推論が重そうな設計判断など、TokenReportsに自動記録されない消費は `record-untracked-usage.ps1 -Category <種別> -EstimatedTokens <概算> -Note <理由>` または `-ImagePath <画像>` で手動記録する。
+- 日別確認は `token-report-summary.ps1 -Path TokenReports/YYYY-MM-DD.jsonl -Top <件数>` を使う。`-Days` 集計と混同しない。
 - 直接 `exec_command` で高出力コマンドを実行しない。`Get-Content`、広域 `rg`、`git diff`、`unicli commands` は `safe-*` / `Run-WithTokenReport.ps1` / 対象コマンドの `--help` に寄せ、TokenReportsへ残す。
 - `unicli commands` は原則禁止。必要な場合は対象コマンド名を把握してから `unicli exec <Command> --help` のみにする。
 - プロジェクトの重いファイルや未参照候補は `project-weight-report.ps1` で候補だけを見る。削除判断は別作業にする。

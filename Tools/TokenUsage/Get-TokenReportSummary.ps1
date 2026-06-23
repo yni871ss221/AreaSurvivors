@@ -1,4 +1,5 @@
 param(
+    [Alias("Path")]
     [string]$ReportDirectory = "TokenReports",
     [int]$Days = 7,
     [string]$Since = "",
@@ -12,9 +13,14 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$explicitReportFile = $false
 if (-not (Test-Path -LiteralPath $ReportDirectory)) {
     Write-Output "No TokenReports directory found."
     exit 0
+}
+$reportItem = Get-Item -LiteralPath $ReportDirectory
+if (-not $reportItem.PSIsContainer) {
+    $explicitReportFile = $true
 }
 
 $sinceDate = if ([string]::IsNullOrWhiteSpace($Since)) {
@@ -30,7 +36,12 @@ foreach ($item in $Kind) {
     }
 }
 $records = @()
-foreach ($file in Get-ChildItem -LiteralPath $ReportDirectory -Filter "*.jsonl" -File | Where-Object { $_.LastWriteTime -ge $sinceDate }) {
+$reportFiles = if ($explicitReportFile) {
+    @($reportItem)
+} else {
+    @(Get-ChildItem -LiteralPath $ReportDirectory -Filter "*.jsonl" -File | Where-Object { $_.LastWriteTime -ge $sinceDate })
+}
+foreach ($file in $reportFiles) {
     foreach ($line in Get-Content -LiteralPath $file.FullName -Encoding UTF8) {
         if ([string]::IsNullOrWhiteSpace($line)) { continue }
         try {
@@ -89,7 +100,8 @@ if ($Recent -gt 0) {
 
 $totalTokens = ($records | Measure-Object -Property tokens -Sum).Sum
 $summary = [pscustomobject]@{
-    report_directory = (Resolve-Path -LiteralPath $ReportDirectory).Path
+    report_directory = if ($explicitReportFile) { (Resolve-Path -LiteralPath $reportItem.DirectoryName).Path } else { (Resolve-Path -LiteralPath $ReportDirectory).Path }
+    report_file = if ($explicitReportFile) { $reportItem.Name } else { "" }
     days = $Days
     since = $sinceDate.ToString("o")
     kinds = @($kindSet.Keys)
@@ -99,6 +111,16 @@ $summary = [pscustomobject]@{
     total_estimated_tokens = [int]$totalTokens
     blocked_count = @($records | Where-Object { $_.blocked }).Count
     high_or_critical_count = @($records | Where-Object { $_.risk -in @("high", "critical") }).Count
+    kind_summary = @($records |
+        Group-Object kind |
+        ForEach-Object {
+            [pscustomobject]@{
+                kind = $_.Name
+                records = $_.Count
+                tokens = [int](($_.Group | Measure-Object -Property tokens -Sum).Sum)
+            }
+        } |
+        Sort-Object tokens -Descending)
     top_commands = @($records | Sort-Object tokens -Descending | Select-Object -First $Top)
 }
 
@@ -108,6 +130,11 @@ if ($Json) {
 }
 
 Write-Output ("Token report summary: records={0}, total_estimated_tokens={1}, blocked={2}, high_or_critical={3}" -f $summary.records, $summary.total_estimated_tokens, $summary.blocked_count, $summary.high_or_critical_count)
+Write-Output ""
+Write-Output "Kind summary:"
+$summary.kind_summary |
+    Select-Object kind, records, tokens |
+    Format-Table -AutoSize
 Write-Output ""
 $summary.top_commands |
     Select-Object tokens, risk, blocked, exit_code, kind, command |
