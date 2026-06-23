@@ -799,7 +799,7 @@ namespace AreaSurvivors
 
         float RoundTimeLimitSeconds()
         {
-            return Mathf.Max(1f, config.baseRoundTimeLimitSeconds + ProgressionStore.GetLevel(UpgradeType.RoundTimeLimit) * config.roundTimeLimitSecondsPerUpgradeLevel);
+            return Mathf.Max(1f, config.baseRoundTimeLimitSeconds);
         }
 
         float StageStartDisplaySeconds()

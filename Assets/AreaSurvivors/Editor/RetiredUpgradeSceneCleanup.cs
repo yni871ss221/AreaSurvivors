@@ -8,6 +8,7 @@ namespace AreaSurvivors.EditorTools
     public static class RetiredUpgradeSceneCleanup
     {
         const string UpgradeScenePath = "Assets/AreaSurvivors/Scenes/04_Upgrades.unity";
+        const string LobbyScenePath = "Assets/AreaSurvivors/Scenes/03_Lobby.unity";
 
         [MenuItem("AreaSurvivors/Cleanup/Remove Retired Upgrade Nodes")]
         public static void RemoveRetiredUpgradeNodes()
@@ -50,6 +51,24 @@ namespace AreaSurvivors.EditorTools
             Debug.Log($"Removed retired upgrade nodes: nodes={removedNodes}, prerequisites={cleanedPrerequisites}");
         }
 
+        [MenuItem("AreaSurvivors/Cleanup/Remove Retired Lobby Character Cards")]
+        public static void RemoveRetiredLobbyCharacterCards()
+        {
+            var scene = EditorSceneManager.OpenScene(LobbyScenePath);
+            var roots = scene.GetRootGameObjects();
+            int removed = 0;
+
+            foreach (var root in roots)
+            {
+                removed += DestroyChildrenNamed(root.transform, "Character Archer");
+                removed += DestroyChildrenNamed(root.transform, "Character Mage");
+            }
+
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene);
+            Debug.Log($"Removed retired lobby character cards: removed={removed}");
+        }
+
         static int RemoveRetiredPrerequisites(SkillNodeView node)
         {
             int removed = 0;
@@ -86,6 +105,24 @@ namespace AreaSurvivors.EditorTools
                 }
 
                 node.linkRoutes = kept.ToArray();
+            }
+
+            return removed;
+        }
+
+        static int DestroyChildrenNamed(Transform root, string name)
+        {
+            int removed = 0;
+            var targets = new List<GameObject>();
+            foreach (var transform in root.GetComponentsInChildren<Transform>(true))
+            {
+                if (transform != root && transform.name == name) targets.Add(transform.gameObject);
+            }
+
+            foreach (var target in targets)
+            {
+                Object.DestroyImmediate(target);
+                removed++;
             }
 
             return removed;

@@ -66,8 +66,6 @@ namespace AreaSurvivors
                 case UpgradeType.AutoRegen:
                 case UpgradeType.TowerAutoRegen:
                     return Regen;
-                case UpgradeType.RoundTimeLimit:
-                    return Revive;
                 case UpgradeType.WorkSpeed:
                     return Work;
                 case UpgradeType.ResourceGain:

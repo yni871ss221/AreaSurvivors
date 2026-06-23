@@ -86,18 +86,21 @@
   - 理由: 仕様が固まった後は軽量化しやすいが、現時点では検証済み挙動の保険でもある。
   - 2026-06-23: `GameManager.cs` の自然ランドマーク停止フラグと制限時間失敗停止フラグを削除済み。通常ゲームで木 / 石自然物を出さない、制限時間で失敗しない挙動は維持。
   - 2026-06-23: `BuildPlacementController.cs` の Build Scene 任意配置停止 / 小屋ビルド停止フラグ、Lobby系のナイト固定フラグ、`AutoBuildingScheduler.cs` / `CarpenterHut.cs` / `WorkerHut.cs` の小屋機能停止フラグを削除済み。停止中の挙動は固定仕様として維持。
+  - 2026-06-23: `RoundTimeLimit` アップグレードの延長効果を削除し、ラウンド時間は `GameConfig.baseRoundTimeLimitSeconds` のみを参照する固定仕様に整理済み。`UpgradeType.RoundTimeLimit` は既存セーブ互換と廃止アップグレード判定用に残す。
 - 優先度C: UI 停止分岐
   - `LobbyScreen.cs`
   - `SimpleUi.cs`
   - `LobbyUiFactory.cs`
   - 理由: メニュー導線に影響するため、タイトル / ロビー側の最終方針確認後に削る。
   - 2026-06-23: ナイト固定を仕様として直書きし、アーチャー / メイジ生成・バインド用の停止分岐を削除済み。
+  - 2026-06-23: `03_Lobby.unity` から `Character Archer` / `Character Mage` を Unity API 経由で物理削除済み。`CharacterType.Archer` / `CharacterType.Mage` と武器データ参照は、弓 / 火の玉が既存配列を流用しているため、武器仕様整理まで互換として保持。
 - 優先度D: 不要になった建造補助
   - `CarpenterHut.cs`
   - `WorkerHut.cs`
   - `AutoBuildingScheduler.cs`
   - 理由: 固定スロット側が安定した後に削る。Prefab / Save data 参照確認が必要。
   - 2026-06-23: `CarpenterHut.cs` / `WorkerHut.cs` / `AutoBuildingScheduler.cs` / `AutoWorkScheduler.cs`、対応する Editor Setup、Prefab、Tile、Generated / External Sprite、GameConfig / GeneratedSpriteCatalog / 05_Game serialized 参照を削除。`04_Upgrades.unity` の廃止ノード / リンクも Unity API 経由で物理削除済み。`SavedBuildingKind` と廃止 `UpgradeType` は既存セーブ互換用に残し、`ProgressionStore.IsRetiredUpgrade` で購入不可、`UpgradeScreen` で Runtime 非表示化。
+  - 2026-06-23: `04_Upgrades.unity` から `UnlockDefenseCharacter` / `UnlockClassChange` / `RoundTimeLimit` のノードとリンクを Unity API 経由で物理削除済み。対応する `UpgradeType` は既存セーブ互換と廃止判定用に残し、`ProgressionStore.IsRetiredUpgrade` で購入不可にする。
 - 優先度E: 一時ブートストラップ / 旧配置互換
   - `05_Game.unity` の temporary bootstrap 系オブジェクト
   - 固定スロット化が終わった後の `SyncFixedBuildingSlots` 互換処理

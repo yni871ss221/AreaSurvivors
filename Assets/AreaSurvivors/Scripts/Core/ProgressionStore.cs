@@ -66,11 +66,7 @@ namespace AreaSurvivors
                 case UpgradeType.UnlockLargeWorkshop:
                 case UpgradeType.UnlockTowerCannon:
                 case UpgradeType.UnlockTowerUpgrade:
-                case UpgradeType.UnlockDefenseCharacter:
-                case UpgradeType.UnlockClassChange:
                     return 1;
-                case UpgradeType.RoundTimeLimit:
-                    return 6;
                 case UpgradeType.StartingWeaponLevel:
                     return 4;
                 default:
@@ -93,6 +89,9 @@ namespace AreaSurvivors
                 case UpgradeType.UnlockWorkerHut:
                 case UpgradeType.AutoResourceInterval:
                 case UpgradeType.AutoResourceGain:
+                case UpgradeType.UnlockDefenseCharacter:
+                case UpgradeType.UnlockClassChange:
+                case UpgradeType.RoundTimeLimit:
                     return true;
                 default:
                     return false;
@@ -108,15 +107,12 @@ namespace AreaSurvivors
                 case UpgradeType.UnlockLargeWorkshop:
                 case UpgradeType.UnlockTowerCannon:
                 case UpgradeType.UnlockTowerUpgrade:
-                case UpgradeType.UnlockDefenseCharacter:
-                case UpgradeType.UnlockClassChange:
                     return 8;
                 case UpgradeType.TowerMaxHp:
                 case UpgradeType.TowerAutoRegen:
                 case UpgradeType.EndTokenGain:
                 case UpgradeType.EliteSpawnRate:
                 case UpgradeType.StartingWeaponLevel:
-                case UpgradeType.RoundTimeLimit:
                     return 6;
                 default:
                     return 4;

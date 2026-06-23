@@ -206,7 +206,6 @@ namespace AreaSurvivors
         public float eliteSpawnRatePerUpgradeLevel = 0.1f;
         public float autoBuildSpeedPerUpgradeLevel = 0.1f;
         public float baseRoundTimeLimitSeconds = 60f;
-        public float roundTimeLimitSecondsPerUpgradeLevel = 10f;
         public float projectileSpeed = 11.5f;
         public float projectileLifetime = 4.2f;
         public float projectileVisualScale = 1.35f;

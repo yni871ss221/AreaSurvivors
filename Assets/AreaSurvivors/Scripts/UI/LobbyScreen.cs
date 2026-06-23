@@ -65,8 +65,6 @@ namespace AreaSurvivors
         void RefreshCharacterCards()
         {
             RefreshCharacterCard("Character Knight", CharacterType.Knight);
-            SetCharacterCardActive("Character Archer", false);
-            SetCharacterCardActive("Character Mage", false);
         }
 
         void RefreshCharacterCard(string name, CharacterType type)
@@ -227,12 +225,6 @@ namespace AreaSurvivors
         {
             var child = FindChild(root, name);
             if (child != null) child.gameObject.SetActive(active);
-        }
-
-        void SetCharacterCardActive(string name, bool active)
-        {
-            var card = FindChild(name);
-            if (card != null) card.gameObject.SetActive(active);
         }
 
         static Sprite BossSprite(int stage)
