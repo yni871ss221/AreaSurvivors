@@ -35,11 +35,7 @@ namespace AreaSurvivors.Editor
             characterImage.sprite = LoadGeneratedSprite("Knight");
             characterImage.preserveAspect = true;
 
-            var weaponFrame = EnsurePanel(root, "Weapon Frame", new Vector2(96f, -42f), new Vector2(58f, 58f), Vector2.up, SlotColor);
-            EnsureFrame(weaponFrame, weaponFrame.sizeDelta);
-            var weaponImage = EnsureImage(weaponFrame, "Weapon Image", new Vector2(48f, 48f));
-            weaponImage.sprite = LoadGeneratedSprite("Slash_0");
-            weaponImage.preserveAspect = true;
+            DestroyChild(root, "Weapon Frame");
 
             EnsureBar(root, "Player HP Bar", new Vector2(174f, -36f), new Vector2(190f, 24f), HpGreen, "45/45");
             EnsureBar(root, "Player XP Bar", new Vector2(174f, -72f), new Vector2(190f, 20f), HpBlue, "Lv.1");
@@ -51,12 +47,10 @@ namespace AreaSurvivors.Editor
             {
                 ConfigurePlayerStatColumn(statsRoot, splitPlayer != null);
                 EnsureAdvancedStatBoxes(statsRoot, splitPlayer != null);
-                HideWeaponStatBoxes(statsRoot);
+                RemoveWeaponStatBoxes(statsRoot);
             }
 
-            var weaponStats = EnsurePanel(canvas.transform, "Weapon Status", new Vector2(14f, -356f), new Vector2(124f, 218f), Vector2.up);
-            EnsureFrame(weaponStats, weaponStats.sizeDelta);
-            ConfigureWeaponStatColumn(weaponStats);
+            DestroyChild(canvas.transform, "Weapon Status");
 
             EditorSceneManager.MarkSceneDirty(canvas.gameObject.scene);
             EditorSceneManager.SaveScene(canvas.gameObject.scene);
@@ -65,13 +59,8 @@ namespace AreaSurvivors.Editor
 
         public static void CreateRunResourcePanels()
         {
-            ImportGeneratedSprite("WoodIcon");
-            ImportGeneratedSprite("StoneIcon");
-            ImportGeneratedSprite("Pickaxe");
-            ImportGeneratedSprite("Axe");
-            ImportGeneratedSprite("Hammer");
-            ImportGeneratedSprite("Token");
             ImportGeneratedSprite("SkullIcon");
+            ImportGeneratedSprite("Token");
             var canvas = FindHudCanvas();
             if (canvas == null)
             {
@@ -96,12 +85,7 @@ namespace AreaSurvivors.Editor
             EnsureFrame(kills, kills.sizeDelta);
             ConfigureKillPanel(kills);
 
-            var wood = EnsureResourcePanel(canvas.transform, "Wood Resource", new Vector2(222f, -28f), LoadGeneratedSprite("WoodIcon"), "100");
-            var stone = EnsureResourcePanel(canvas.transform, "Stone Resource", new Vector2(332f, -28f), LoadGeneratedSprite("StoneIcon"), "100");
-            var token = EnsureResourcePanel(canvas.transform, "Token Resource", new Vector2(442f, -28f), LoadGeneratedSprite("Token"), "0");
-            EnsureFrame(wood, wood.sizeDelta);
-            EnsureFrame(stone, stone.sizeDelta);
-            EnsureFrame(token, token.sizeDelta);
+            EnsureTokenResourcePanel(canvas.transform);
             EnsureBossHud(canvas.transform);
 
             var oldBackplate = canvas.transform.Find("Run Stats Backplate");
@@ -110,6 +94,23 @@ namespace AreaSurvivors.Editor
             EditorSceneManager.MarkSceneDirty(canvas.gameObject.scene);
             EditorSceneManager.SaveScene(canvas.gameObject.scene);
             Debug.Log("Run stats and resource HUD panels were created in the scene.");
+        }
+
+        [MenuItem("Area Survivors/Rebuild/Restore Token HUD")]
+        public static void RestoreTokenHud()
+        {
+            ImportGeneratedSprite("Token");
+            var canvas = FindHudCanvas();
+            if (canvas == null)
+            {
+                Debug.LogError("HUD Canvas was not found.");
+                return;
+            }
+
+            EnsureTokenResourcePanel(canvas.transform);
+            EditorSceneManager.MarkSceneDirty(canvas.gameObject.scene);
+            EditorSceneManager.SaveScene(canvas.gameObject.scene);
+            Debug.Log("Token HUD panel was restored in the scene.");
         }
 
         public static void CreateTowerUpgradeButton()
@@ -211,26 +212,6 @@ namespace AreaSurvivors.Editor
             return null;
         }
 
-        static RectTransform EnsureResourcePanel(Transform parent, string name, Vector2 position, Sprite iconSprite, string amount)
-        {
-            var root = EnsurePanel(parent, name, position, new Vector2(98f, 34f), new Vector2(0.5f, 1f));
-            SetAnchored(root, position, new Vector2(98f, 34f), new Vector2(0.5f, 1f));
-            var icon = EnsureImage(root, "Icon", new Vector2(24f, 24f));
-            icon.sprite = iconSprite;
-            icon.preserveAspect = true;
-            AddIconOutline(icon);
-            icon.rectTransform.anchorMin = new Vector2(0f, 0.5f);
-            icon.rectTransform.anchorMax = new Vector2(0f, 0.5f);
-            icon.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            icon.rectTransform.anchoredPosition = new Vector2(18f, 0f);
-            var text = EnsureText(root, "Amount", amount, 18, TextAnchor.MiddleLeft);
-            text.rectTransform.anchorMin = new Vector2(0f, 0f);
-            text.rectTransform.anchorMax = new Vector2(1f, 1f);
-            text.rectTransform.offsetMin = new Vector2(36f, 0f);
-            text.rectTransform.offsetMax = new Vector2(-6f, 0f);
-            return root;
-        }
-
         static void ConfigureKillPanel(RectTransform root)
         {
             var icon = EnsureImage(root, "Icon", new Vector2(24f, 24f));
@@ -247,6 +228,29 @@ namespace AreaSurvivors.Editor
             killText.rectTransform.anchorMax = Vector2.one;
             killText.rectTransform.offsetMin = new Vector2(42f, 0f);
             killText.rectTransform.offsetMax = new Vector2(-8f, 0f);
+        }
+
+        static RectTransform EnsureTokenResourcePanel(Transform parent)
+        {
+            var root = EnsurePanel(parent, "Token Resource", new Vector2(442f, -28f), new Vector2(98f, 34f), new Vector2(0.5f, 1f));
+            SetAnchored(root, new Vector2(442f, -28f), new Vector2(98f, 34f), new Vector2(0.5f, 1f));
+            EnsureFrame(root, root.sizeDelta);
+
+            var icon = EnsureImage(root, "Icon", new Vector2(24f, 24f));
+            icon.sprite = LoadGeneratedSprite("Token");
+            icon.preserveAspect = true;
+            AddIconOutline(icon);
+            icon.rectTransform.anchorMin = new Vector2(0f, 0.5f);
+            icon.rectTransform.anchorMax = new Vector2(0f, 0.5f);
+            icon.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            icon.rectTransform.anchoredPosition = new Vector2(18f, 0f);
+
+            var text = EnsureText(root, "Amount", "0", 18, TextAnchor.MiddleLeft);
+            text.rectTransform.anchorMin = Vector2.zero;
+            text.rectTransform.anchorMax = Vector2.one;
+            text.rectTransform.offsetMin = new Vector2(36f, 0f);
+            text.rectTransform.offsetMax = new Vector2(-6f, 0f);
+            return root;
         }
 
         static void EnsureBossHud(Transform parent)
@@ -319,30 +323,14 @@ namespace AreaSurvivors.Editor
             EnsureStatBox(root, "Resource Text", new Vector2(8f, -462f), "資源", "+0");
         }
 
-        static void ConfigureWeaponStatColumn(RectTransform root)
+        static void RemoveWeaponStatBoxes(RectTransform root)
         {
-            EnsureStatBox(root, "Weapon Level Text", new Vector2(8f, -18f), "武器Lv", "1");
-            EnsureStatBox(root, "Attack Text", new Vector2(8f, -48f), "攻撃", "10");
-            EnsureStatBox(root, "Cooldown Text", new Vector2(8f, -78f), "間隔", "0.9s");
-            EnsureStatBox(root, "Projectile Text", new Vector2(8f, -108f), "弾速", "11.5");
-            EnsureStatBox(root, "Range Text", new Vector2(8f, -138f), "範囲", "1.1");
-            EnsureStatBox(root, "Knockback Text", new Vector2(8f, -168f), "ノック", "1");
-        }
-
-        static void HideWeaponStatBoxes(RectTransform root)
-        {
-            HideChild(root, "Attack Text Box");
-            HideChild(root, "Cooldown Text Box");
-            HideChild(root, "Projectile Text Box");
-            HideChild(root, "Range Text Box");
-            HideChild(root, "Knockback Text Box");
-        }
-
-        static void HideChild(Transform parent, string name)
-        {
-            if (parent == null) return;
-            var child = parent.Find(name);
-            if (child != null) child.gameObject.SetActive(false);
+            DestroyChild(root, "Weapon Level Text Box");
+            DestroyChild(root, "Attack Text Box");
+            DestroyChild(root, "Cooldown Text Box");
+            DestroyChild(root, "Projectile Text Box");
+            DestroyChild(root, "Range Text Box");
+            DestroyChild(root, "Knockback Text Box");
         }
 
         static RectTransform EnsurePanel(Transform parent, string name, Vector2 position, Vector2 size, Vector2 anchor, Color? color = null)

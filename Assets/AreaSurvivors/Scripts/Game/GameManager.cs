@@ -11,7 +11,6 @@ namespace AreaSurvivors
     public sealed class GameManager : MonoBehaviour
     {
         static readonly bool DisableConstructionHudForPhase1 = true;
-        static readonly bool DisableResourceHudForPhase1 = true;
         static readonly bool DisableNaturalLandmarkSpawnsForPhase1 = true;
         static readonly bool DisableRoundTimeLimitFailureForPhase1 = true;
 
@@ -44,7 +43,6 @@ namespace AreaSurvivors
         public int RunTokens { get; private set; }
         public MapSessionMode SessionMode => sessionMode;
         public bool ConstructionHudEnabled => !DisableConstructionHudForPhase1 && sessionMode == MapSessionMode.Build;
-        public bool ResourceHudEnabled => !DisableResourceHudForPhase1;
 
         int kills;
         int level = 1;
@@ -910,7 +908,6 @@ namespace AreaSurvivors
     public sealed class GameHudController : MonoBehaviour
     {
         const float LowHpBlinkThreshold = 0.1f;
-        static readonly bool DisableWeaponHudForPhase3 = true;
         static readonly Color PanelColor = new Color(0.035f, 0.05f, 0.045f, 0.72f);
         static readonly Color SlotColor = new Color(0.09f, 0.16f, 0.12f, 0.92f);
         static readonly Color SlotSelectedColor = new Color(0.114f, 0.529f, 0.298f, 0.98f);
@@ -925,17 +922,7 @@ namespace AreaSurvivors
         static readonly Vector2 TowerHpBarSize = new Vector2(38f, 136f);
         static readonly Vector2 TowerHpTextPosition = new Vector2(0f, -286f);
         static readonly Vector2 PlayerPanelSize = new Vector2(390f, 318f);
-        static readonly Vector2 WeaponPanelSize = new Vector2(124f, 218f);
-        static readonly Vector2 PaintGaugePosition = new Vector2(174f, -108f);
-        static readonly Vector2 PaintGaugeSize = new Vector2(190f, 20f);
         static readonly Vector2 PlayerIconSize = new Vector2(58f, 58f);
-        static readonly Vector2 WeaponIconSize = new Vector2(48f, 48f);
-        static readonly Vector2 BuildStatusPanelPosition = new Vector2(14f, 15f);
-        static readonly Vector2 BuildStatusPanelSize = new Vector2(82f, 66f);
-        static readonly Vector2 TestResourceButtonSize = new Vector2(72f, 28f);
-        const float BuildSlotStartX = 110f;
-        const float BuildSlotSpacing = 70f;
-        const int TestResourceAddAmount = 100;
 
         BuildPlacementController buildPlacement;
         BuildingUpgradeController buildingUpgrade;
@@ -948,16 +935,12 @@ namespace AreaSurvivors
         RectTransform towerPanel;
         RectTransform playerPanel;
         RectTransform playerStatsPanel;
-        RectTransform weaponStatsPanel;
         Image hpFill;
         Image playerHpFill;
         Image playerXpFill;
         Text hpText;
         Text playerHpText;
         Text playerLevelText;
-        Text weaponLevelText;
-        Text playerAttackText;
-        Text playerCooldownText;
         Text playerSpeedText;
         Text playerPaintText;
         RectTransform paintControlBlueSegment;
@@ -967,16 +950,11 @@ namespace AreaSurvivors
         Text paintControlNeutralText;
         Text paintControlRedText;
         Text playerReviveText;
-        Text playerProjectileText;
-        Text playerRangeText;
-        Text playerKnockbackText;
         Text playerDefenseText;
         Text playerXpGainText;
         Text playerRegenText;
         Text playerWorkText;
         Text playerResourceText;
-        Text woodText;
-        Text stoneText;
         Text tokenText;
         RectTransform bossPanel;
         Text bossNameText;
@@ -987,13 +965,7 @@ namespace AreaSurvivors
         Health bossHealth;
         Coroutine announcementRoutine;
         Text stageText;
-        Text[] stockLabels;
-        Image[] slotBackplates;
-        Image[] slotIcons;
-        Button[] slotButtons;
-        UiSelectionHighlight[] slotHighlights;
         readonly List<FloatingHudDamage> damagePopups = new List<FloatingHudDamage>();
-        int selectedSlot;
 
         public void Initialize(BuildPlacementController placement, TowerController tower, GameManager owner)
         {
@@ -1012,13 +984,11 @@ namespace AreaSurvivors
             ApplySessionHudVisibility(canvas.transform);
             if (gameManager == null || gameManager.SessionMode == MapSessionMode.Game) BindSceneRunStats(canvas.transform);
             BuildStagePanel(canvas.transform);
-            BindSceneResourceHud(canvas.transform);
             if (gameManager == null || gameManager.SessionMode == MapSessionMode.Game)
             {
                 BindSceneBossHud(canvas.transform);
                 BuildPlayerPanel(canvas.transform);
             }
-            if (gameManager != null && gameManager.ConstructionHudEnabled) BuildConstructionMenu(canvas.transform);
             BuildTowerPanel(canvas.transform);
             if (gameManager != null && gameManager.ConstructionHudEnabled)
             {
@@ -1028,8 +998,7 @@ namespace AreaSurvivors
                 BindBuildModeLobbyButton(canvas.transform);
             }
             UpdatePlayerPanel();
-            UpdateResourceHud();
-            UpdateBuildSlots();
+            UpdateTokenHud();
             UpdateTowerPanel();
             UpdateBossHud();
         }
@@ -1045,19 +1014,15 @@ namespace AreaSurvivors
         {
             if (parent == null || gameManager == null) return;
             bool buildMode = gameManager.ConstructionHudEnabled;
-            SetDirectChildActive(parent, "Construction Menu", buildMode);
             SetDirectChildActive(parent, "Upgrade Building Button", buildMode);
             SetDirectChildActive(parent, "Build Lobby Button", buildMode);
             SetDirectChildActive(parent, "Timer Panel", !buildMode);
             SetDirectChildActive(parent, "Kill Panel", !buildMode);
             SetDirectChildActive(parent, "Boss Status", !buildMode);
             SetDirectChildActive(parent, "Player Status", !buildMode);
-            SetDirectChildActive(parent, "Weapon Status", !buildMode && !DisableWeaponHudForPhase3);
+            SetDirectChildActive(parent, "Token Resource", !buildMode);
             SetDirectChildActive(parent, "XP Bar", !buildMode);
             SetDirectChildActive(parent, "Level Panel", !buildMode);
-            SetDirectChildActive(parent, "Wood Resource", gameManager.ResourceHudEnabled);
-            SetDirectChildActive(parent, "Stone Resource", gameManager.ResourceHudEnabled);
-            SetDirectChildActive(parent, "Token Resource", gameManager.ResourceHudEnabled);
         }
 
         static void SetDirectChildActive(Transform parent, string path, bool active)
@@ -1070,8 +1035,7 @@ namespace AreaSurvivors
         {
             if (player == null && gameManager != null) player = gameManager.Player;
             UpdatePlayerPanel();
-            UpdateResourceHud();
-            UpdateBuildSlots();
+            UpdateTokenHud();
             UpdateTowerPanel();
             UpdateBossHud();
             TickDamagePopups();
@@ -1094,6 +1058,8 @@ namespace AreaSurvivors
                 gameManager.killText = kills;
             }
             ConfigureStaticHudIcon(parent, "Kill Panel/Icon");
+            tokenText = FindText(parent, "Token Resource/Amount");
+            ConfigureStaticHudIcon(parent, "Token Resource/Icon");
         }
 
         public void SetStage(int stage)
@@ -1101,23 +1067,10 @@ namespace AreaSurvivors
             if (stageText != null) stageText.text = "STAGE " + Mathf.Max(1, stage);
         }
 
-        void BindSceneResourceHud(Transform parent)
+        void UpdateTokenHud()
         {
-            woodText = FindText(parent, "Wood Resource/Amount");
-            stoneText = FindText(parent, "Stone Resource/Amount");
-            tokenText = FindText(parent, "Token Resource/Amount");
-            ConfigureStaticHudIcon(parent, "Wood Resource/Icon");
-            ConfigureStaticHudIcon(parent, "Stone Resource/Icon");
-            ConfigureStaticHudIcon(parent, "Token Resource/Icon");
-        }
-
-        void UpdateResourceHud()
-        {
-            if (gameManager == null) return;
-            if (!gameManager.ResourceHudEnabled) return;
-            if (woodText != null) woodText.text = gameManager.Wood.ToString();
-            if (stoneText != null) stoneText.text = gameManager.Stone.ToString();
-            if (tokenText != null) tokenText.text = gameManager.RunTokens.ToString();
+            if (gameManager == null || tokenText == null) return;
+            tokenText.text = gameManager.RunTokens.ToString();
         }
 
         void BindSceneBossHud(Transform parent)
@@ -1192,53 +1145,18 @@ namespace AreaSurvivors
             playerStatsPanel = statsRoot != null ? statsRoot.GetComponent<RectTransform>() : playerPanel;
             if (splitPlayerRoot != null) HideLegacyPlayerTiles(playerStatsPanel);
 
-            weaponStatsPanel = parent.Find("Weapon Status") as RectTransform;
-            if (DisableWeaponHudForPhase3)
-            {
-                if (weaponStatsPanel != null) weaponStatsPanel.gameObject.SetActive(false);
-                HideHudChild(playerPanel, "Weapon Frame");
-            }
-            else if (weaponStatsPanel == null)
-            {
-                weaponStatsPanel = CreatePanel(parent, "Weapon Status", new Vector2(14f, -356f), WeaponPanelSize, Vector2.up, Vector2.up);
-                AddFrame(weaponStatsPanel, WeaponPanelSize);
-            }
-            if (!DisableWeaponHudForPhase3 && weaponStatsPanel != playerStatsPanel) HideWeaponStatTiles(playerStatsPanel);
-
             var portraitFrame = EnsureIconFrame(playerPanel, "Character Frame", new Vector2(18f, -36f), new Vector2(70f, 70f));
             var portrait = EnsureImage(portraitFrame, "Character Image", PlayerIconSize);
             portrait.sprite = player != null ? player.PortraitSprite : LoadHudSprite("Knight", null);
             portrait.preserveAspect = true;
 
-            if (DisableWeaponHudForPhase3)
-            {
-                BuildPaintGauge(playerPanel);
-            }
-            else
-            {
-                var weaponFrame = EnsureIconFrame(playerPanel, "Weapon Frame", new Vector2(96f, -42f), new Vector2(58f, 58f));
-                var weapon = EnsureImage(weaponFrame, "Weapon Image", WeaponIconSize);
-                weapon.sprite = WeaponSprite(player != null ? player.characterType : CharacterType.Knight);
-                weapon.preserveAspect = true;
-            }
+            BuildPaintGauge(playerPanel);
 
             playerHpFill = EnsureHorizontalBar(playerPanel, "Player HP Bar", new Vector2(174f, -36f), new Vector2(190f, 24f), HpRed, out playerHpText);
             playerXpFill = EnsureHorizontalBar(playerPanel, "Player XP Bar", new Vector2(174f, -72f), new Vector2(190f, 20f), HpBlue, out playerLevelText);
-            if (!DisableWeaponHudForPhase3)
-            {
-                weaponLevelText = BindStatText(weaponStatsPanel, "Weapon Level Text") ?? EnsureStatText(weaponStatsPanel, "Weapon Level Text", new Vector2(8f, -18f));
-                playerAttackText = BindStatText(weaponStatsPanel, "Attack Text") ?? EnsureStatText(weaponStatsPanel, "Attack Text", new Vector2(8f, -48f));
-                playerCooldownText = BindStatText(weaponStatsPanel, "Cooldown Text") ?? EnsureStatText(weaponStatsPanel, "Cooldown Text", new Vector2(8f, -78f));
-            }
             playerSpeedText = BindStatText(playerStatsPanel, "Speed Text") ?? EnsureStatText(playerStatsPanel, "Speed Text", new Vector2(8f, -18f));
             playerPaintText = BindStatText(playerStatsPanel, "Paint Text") ?? EnsureStatText(playerStatsPanel, "Paint Text", new Vector2(8f, -48f));
             playerReviveText = BindStatText(playerStatsPanel, "Revive Text") ?? EnsureStatText(playerStatsPanel, "Revive Text", new Vector2(8f, -78f));
-            if (!DisableWeaponHudForPhase3)
-            {
-                playerProjectileText = BindStatText(weaponStatsPanel, "Projectile Text") ?? EnsureStatText(weaponStatsPanel, "Projectile Text", new Vector2(8f, -108f));
-                playerRangeText = BindStatText(weaponStatsPanel, "Range Text") ?? EnsureStatText(weaponStatsPanel, "Range Text", new Vector2(8f, -138f));
-                playerKnockbackText = BindStatText(weaponStatsPanel, "Knockback Text") ?? EnsureStatText(weaponStatsPanel, "Knockback Text", new Vector2(8f, -168f));
-            }
             playerDefenseText = BindStatText(playerStatsPanel, "Defense Text") ?? EnsureStatText(playerStatsPanel, "Defense Text", new Vector2(8f, -108f));
             playerXpGainText = BindStatText(playerStatsPanel, "Xp Gain Text") ?? EnsureStatText(playerStatsPanel, "Xp Gain Text", new Vector2(8f, -138f));
             playerRegenText = BindStatText(playerStatsPanel, "Regen Text") ?? EnsureStatText(playerStatsPanel, "Regen Text", new Vector2(8f, -168f));
@@ -1266,19 +1184,8 @@ namespace AreaSurvivors
         {
             if (statsRoot == null) return;
             HideHudChild(statsRoot, "Character Frame");
-            HideHudChild(statsRoot, "Weapon Frame");
             HideHudChild(statsRoot, "Player HP Bar");
             HideHudChild(statsRoot, "Player XP Bar");
-        }
-
-        static void HideWeaponStatTiles(RectTransform statsRoot)
-        {
-            if (statsRoot == null) return;
-            HideHudChild(statsRoot, "Attack Text Box");
-            HideHudChild(statsRoot, "Cooldown Text Box");
-            HideHudChild(statsRoot, "Projectile Text Box");
-            HideHudChild(statsRoot, "Range Text Box");
-            HideHudChild(statsRoot, "Knockback Text Box");
         }
 
         static void HideHudChild(Transform parent, string name)
@@ -1308,25 +1215,10 @@ namespace AreaSurvivors
 
             var portrait = playerPanel.Find("Character Frame/Character Image")?.GetComponent<Image>();
             if (portrait != null) portrait.sprite = player.PortraitSprite;
-            var weaponController = player.weapon;
-            if (!DisableWeaponHudForPhase3)
-            {
-                var weapon = playerPanel.Find("Weapon Frame/Weapon Image")?.GetComponent<Image>();
-                if (weapon != null) weapon.sprite = WeaponSprite(player.characterType);
-                if (weaponLevelText != null) weaponLevelText.text = weaponController != null ? weaponController.WeaponLevel.ToString() : "-";
-                if (playerAttackText != null) playerAttackText.text = weaponController != null ? weaponController.AttackPower.ToString() : "-";
-                if (playerCooldownText != null) playerCooldownText.text = weaponController != null ? weaponController.CurrentCooldown.ToString("0.0") + "s" : "-";
-            }
             if (playerSpeedText != null) playerSpeedText.text = player.MoveSpeed.ToString("0.0");
             if (playerPaintText != null) playerPaintText.text = player.PaintRadius.ToString();
             if (playerReviveText != null) playerReviveText.text = player.ReviveSeconds.ToString("0.0") + "s";
             var stats = player.Stats;
-            if (!DisableWeaponHudForPhase3)
-            {
-                if (playerProjectileText != null) playerProjectileText.text = weaponController != null && weaponController.ProjectileSpeed > 0f ? weaponController.ProjectileSpeed.ToString("0.0") : "-";
-                if (playerRangeText != null) playerRangeText.text = weaponController != null ? weaponController.WeaponRange.ToString("0.0") : "-";
-                if (playerKnockbackText != null) playerKnockbackText.text = weaponController != null ? weaponController.Knockback.ToString("0.#") : "-";
-            }
             if (playerDefenseText != null) playerDefenseText.text = stats.defense.ToString();
             if (playerXpGainText != null) playerXpGainText.text = stats.xpGainMultiplier.ToString("0.0") + "x";
             if (playerRegenText != null) playerRegenText.text = stats.autoRegen.ToString();
@@ -1529,15 +1421,9 @@ namespace AreaSurvivors
         {
             switch (name)
             {
-                case "Weapon Level Text": return "武器Lv";
-                case "Attack Text": return "攻撃";
-                case "Cooldown Text": return "間隔";
                 case "Speed Text": return "速度";
                 case "Paint Text": return "塗り";
                 case "Revive Text": return "復活";
-                case "Projectile Text": return "弾速";
-                case "Range Text": return "範囲";
-                case "Knockback Text": return "ノック";
                 case "Defense Text": return "防御";
                 case "Xp Gain Text": return "経験";
                 case "Regen Text": return "回復";
@@ -1555,77 +1441,6 @@ namespace AreaSurvivors
             rect.anchoredPosition = Vector2.zero;
             rect.offsetMin = new Vector2(left, 0f);
             rect.offsetMax = new Vector2(right, 0f);
-        }
-
-        static Sprite WeaponSprite(CharacterType type)
-        {
-            if (type == CharacterType.Archer) return GeneratedSpriteLoader.Load("Arrow") ?? Resources.Load<Sprite>("Arrow");
-            if (type == CharacterType.Mage) return GeneratedSpriteLoader.Load("Fireball") ?? Resources.Load<Sprite>("Fireball");
-            return GeneratedSpriteLoader.Load("Slash_0") ?? Resources.Load<Sprite>("Slash");
-        }
-
-        void BuildConstructionMenu(Transform parent)
-        {
-            var existing = parent.Find("Construction Menu");
-            var root = existing != null ? existing.GetComponent<RectTransform>() : null;
-            if (root == null)
-            {
-                root = CreatePanel(parent, "Construction Menu", new Vector2(16f, 16f), new Vector2(386f, 96f), Vector2.zero, Vector2.zero);
-                AddFrame(root, new Vector2(386f, 96f));
-            }
-
-            var slotPositions = BuildSlotPositions(root);
-            var statusPosition = BuildStatusPanelPosition;
-            EnsureBuildMenuBounds(root, slotPositions, statusPosition);
-            stockLabels = new Text[6];
-            slotBackplates = new Image[6];
-            slotIcons = new Image[6];
-            slotButtons = new Button[6];
-            slotHighlights = new UiSelectionHighlight[6];
-            ConfigureBuildSlot(root, 0, "1", slotPositions[0], () =>
-            {
-                selectedSlot = 0;
-                buildPlacement?.SelectWoodenWall();
-            });
-            ConfigureBuildSlot(root, 1, "2", slotPositions[1], () =>
-            {
-                selectedSlot = 1;
-                buildPlacement?.SelectWoodenGate();
-            });
-            ConfigureBuildSlot(root, 2, "3", slotPositions[2], () =>
-            {
-                selectedSlot = 2;
-                buildPlacement?.SelectBallista();
-            });
-            ConfigureBuildSlot(root, 3, "4", slotPositions[3], () =>
-            {
-                selectedSlot = 3;
-                buildPlacement?.SelectWatchTower();
-            });
-            ConfigureBuildSlot(root, 4, "5", slotPositions[4], () =>
-            {
-                selectedSlot = 4;
-                buildPlacement?.SelectCarpenterHut();
-            });
-            ConfigureBuildSlot(root, 5, "6", slotPositions[5], () =>
-            {
-                selectedSlot = 5;
-                buildPlacement?.SelectWorkerHut();
-            });
-
-            var status = EnsureBuildStatusPanel(root, statusPosition);
-            if (buildPlacement != null) buildPlacement.buildText = status;
-            BindTestResourceButton(root, "Test Add Wood Button", "+木100", new Vector2(slotPositions[slotPositions.Length - 1].x + 70f, statusPosition.y + 38f), () =>
-            {
-                gameManager?.AddPersistentResourcesForTesting(TestResourceAddAmount, 0);
-                UpdateResourceHud();
-            });
-            BindTestResourceButton(root, "Test Add Stone Button", "+石100", new Vector2(slotPositions[slotPositions.Length - 1].x + 70f, statusPosition.y), () =>
-            {
-                gameManager?.AddPersistentResourcesForTesting(0, TestResourceAddAmount);
-                UpdateResourceHud();
-            });
-            AddFrame(root, root.sizeDelta);
         }
 
         void BuildStagePanel(Transform parent)
@@ -1651,205 +1466,6 @@ namespace AreaSurvivors
             label.rectTransform.offsetMax = Vector2.zero;
             stageText = label;
             SetStage(gameManager != null ? gameManager.CurrentStage : 1);
-        }
-
-        static Vector2[] BuildSlotPositions(RectTransform root)
-        {
-            var result = new[]
-            {
-                new Vector2(BuildSlotStartX, 15f),
-                new Vector2(BuildSlotStartX + BuildSlotSpacing, 15f),
-                new Vector2(BuildSlotStartX + BuildSlotSpacing * 2f, 15f),
-                new Vector2(BuildSlotStartX + BuildSlotSpacing * 3f, 15f),
-                new Vector2(BuildSlotStartX + BuildSlotSpacing * 4f, 15f),
-                new Vector2(BuildSlotStartX + BuildSlotSpacing * 5f, 15f)
-            };
-
-            var firstSlot = root.Find("Build Slot 1") as RectTransform;
-            float y = firstSlot != null ? firstSlot.anchoredPosition.y : result[0].y;
-            float spacing = BuildSlotSpacing;
-            var secondSlot = root.Find("Build Slot 2") as RectTransform;
-            if (firstSlot != null && secondSlot != null)
-            {
-                float existingSpacing = secondSlot.anchoredPosition.x - firstSlot.anchoredPosition.x;
-                if (Mathf.Abs(existingSpacing) >= 1f) spacing = existingSpacing;
-            }
-
-            for (int i = 0; i < result.Length; i++)
-            {
-                result[i] = new Vector2(BuildSlotStartX + spacing * i, y);
-            }
-
-            return result;
-        }
-
-        static void EnsureBuildMenuBounds(RectTransform root, Vector2[] slotPositions, Vector2 statusPosition)
-        {
-            const float slotHeight = 66f;
-            const float margin = 12f;
-
-            float right = Mathf.Max(slotPositions[slotPositions.Length - 1].x + 58f, statusPosition.x + BuildStatusPanelSize.x) + margin;
-            float top = Mathf.Max(slotPositions[0].y + slotHeight, statusPosition.y + BuildStatusPanelSize.y) + margin;
-            var size = root.sizeDelta;
-            size.x = Mathf.Max(size.x, right);
-            size.y = Mathf.Max(size.y, top);
-            root.sizeDelta = size;
-        }
-
-        static Text EnsureBuildStatusPanel(RectTransform root, Vector2 position)
-        {
-            var panelTransform = root.Find("Build Status Panel") as RectTransform;
-            if (panelTransform == null)
-            {
-                panelTransform = CreatePanel(root, "Build Status Panel", position, BuildStatusPanelSize, Vector2.zero, Vector2.zero);
-            }
-
-            panelTransform.anchorMin = Vector2.zero;
-            panelTransform.anchorMax = Vector2.zero;
-            panelTransform.pivot = Vector2.zero;
-            panelTransform.anchoredPosition = position;
-            panelTransform.sizeDelta = BuildStatusPanelSize;
-            var panelImage = panelTransform.GetComponent<Image>();
-            if (panelImage != null) panelImage.color = SlotColor;
-            AddFrame(panelTransform, BuildStatusPanelSize);
-
-            var statusTransform = panelTransform.Find("Build Status");
-            if (statusTransform == null) statusTransform = root.Find("Build Status");
-            var status = statusTransform != null ? statusTransform.GetComponent<Text>() : null;
-            if (status == null) status = CreateText(panelTransform, "Build Status", "", 12, Vector2.zero, new Vector2(74f, 58f), TextAnchor.MiddleCenter);
-            status.transform.SetParent(panelTransform, false);
-            status.name = "Build Status";
-            status.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
-            status.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-            status.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            status.rectTransform.anchoredPosition = Vector2.zero;
-            status.rectTransform.sizeDelta = new Vector2(74f, 58f);
-            status.fontSize = 12;
-            status.alignment = TextAnchor.MiddleCenter;
-            status.horizontalOverflow = HorizontalWrapMode.Wrap;
-            status.verticalOverflow = VerticalWrapMode.Truncate;
-            status.gameObject.SetActive(true);
-            status.transform.SetAsLastSibling();
-            panelTransform.SetAsLastSibling();
-            return status;
-        }
-
-        void ConfigureBuildSlot(RectTransform parent, int index, string key, Vector2 position, UnityEngine.Events.UnityAction onClick)
-        {
-            var slotName = "Build Slot " + key;
-            var slot = parent.Find(slotName);
-            bool createdSlot = slot == null;
-            var buttonObject = slot != null ? slot.gameObject : new GameObject(slotName);
-            buttonObject.transform.SetParent(parent, false);
-            var image = buttonObject.GetComponent<Image>();
-            if (image == null) image = buttonObject.AddComponent<Image>();
-            var button = buttonObject.GetComponent<Button>();
-            if (button == null) button = buttonObject.AddComponent<Button>();
-            button.targetGraphic = image;
-            slotButtons[index] = button;
-            button.transition = Selectable.Transition.None;
-            button.onClick.RemoveAllListeners();
-            button.onClick.AddListener(onClick);
-            var highlight = buttonObject.GetComponent<UiSelectionHighlight>();
-            if (highlight == null) highlight = buttonObject.AddComponent<UiSelectionHighlight>();
-            highlight.padding = 4f;
-            highlight.thickness = 3f;
-            slotHighlights[index] = highlight;
-            var selectOnHover = buttonObject.GetComponent<SelectOnPointerEnter>();
-            if (selectOnHover != null) Destroy(selectOnHover);
-            button.colors = new ColorBlock
-            {
-                normalColor = SlotColor,
-                highlightedColor = SlotSelectedColor,
-                pressedColor = new Color(0.06f, 0.10f, 0.08f, 0.98f),
-                selectedColor = SlotSelectedColor,
-                disabledColor = new Color(0.12f, 0.12f, 0.12f, 0.7f),
-                colorMultiplier = 1f,
-                fadeDuration = 0.08f
-            };
-
-            var rect = buttonObject.GetComponent<RectTransform>();
-            if (createdSlot)
-            {
-                rect.anchorMin = Vector2.zero;
-                rect.anchorMax = Vector2.zero;
-                rect.pivot = Vector2.zero;
-                rect.anchoredPosition = position;
-                image.color = SlotColor;
-                rect.sizeDelta = new Vector2(58f, 66f);
-                AddFrame(rect, rect.sizeDelta);
-            }
-
-            var iconTransform = rect.Find("Icon");
-            var icon = iconTransform != null ? iconTransform.GetComponent<Image>() : null;
-            bool createdIcon = icon == null;
-            if (createdIcon) icon = new GameObject("Icon").AddComponent<Image>();
-            icon.transform.SetParent(rect, false);
-            icon.preserveAspect = true;
-            icon.raycastTarget = false;
-            if (createdIcon)
-            {
-                icon.rectTransform.anchoredPosition = new Vector2(0f, -2f);
-                icon.rectTransform.sizeDelta = new Vector2(46f, 44f);
-            }
-            slotIcons[index] = icon;
-
-            var keyTransform = rect.Find("Key");
-            var keyText = keyTransform != null ? keyTransform.GetComponent<Text>() : null;
-            if (keyText == null) keyText = CreateText(rect, "Key", key, 16, new Vector2(-18f, 22f), new Vector2(24f, 22f), TextAnchor.MiddleCenter);
-            keyText.text = key;
-            var stockTransform = rect.Find("Stock");
-            stockLabels[index] = stockTransform != null ? stockTransform.GetComponent<Text>() : null;
-            if (stockLabels[index] == null) stockLabels[index] = CreateText(rect, "Stock", "", 11, new Vector2(0f, -22f), new Vector2(56f, 18f), TextAnchor.MiddleCenter);
-            stockLabels[index].fontSize = 11;
-            stockLabels[index].rectTransform.anchoredPosition = new Vector2(0f, -22f);
-            stockLabels[index].rectTransform.sizeDelta = new Vector2(58f, 18f);
-            slotBackplates[index] = image;
-        }
-
-        static void BindTestResourceButton(RectTransform parent, string name, string labelText, Vector2 position, UnityEngine.Events.UnityAction onClick)
-        {
-            var buttonTransform = parent.Find(name) as RectTransform;
-            bool created = buttonTransform == null;
-            if (buttonTransform == null) buttonTransform = CreatePanel(parent, name, position, TestResourceButtonSize, Vector2.zero, Vector2.zero);
-
-            buttonTransform.anchorMin = Vector2.zero;
-            buttonTransform.anchorMax = Vector2.zero;
-            buttonTransform.pivot = Vector2.zero;
-            buttonTransform.anchoredPosition = position;
-            buttonTransform.sizeDelta = TestResourceButtonSize;
-            var parentSize = parent.sizeDelta;
-            parentSize.x = Mathf.Max(parentSize.x, position.x + TestResourceButtonSize.x + 12f);
-            parentSize.y = Mathf.Max(parentSize.y, position.y + TestResourceButtonSize.y + 12f);
-            parent.sizeDelta = parentSize;
-
-            var image = buttonTransform.GetComponent<Image>();
-            if (image != null)
-            {
-                image.color = SlotColor;
-                image.raycastTarget = true;
-            }
-
-            var button = buttonTransform.GetComponent<Button>();
-            if (button == null) button = buttonTransform.gameObject.AddComponent<Button>();
-            button.targetGraphic = image;
-            button.transition = Selectable.Transition.ColorTint;
-            button.onClick.RemoveAllListeners();
-            if (onClick != null) button.onClick.AddListener(onClick);
-
-            var labelTransform = buttonTransform.Find("Label");
-            var label = labelTransform != null ? labelTransform.GetComponent<Text>() : null;
-            if (label == null) label = CreateText(buttonTransform, "Label", labelText, 13, Vector2.zero, TestResourceButtonSize, TextAnchor.MiddleCenter);
-            label.text = labelText;
-            label.fontSize = 13;
-            label.alignment = TextAnchor.MiddleCenter;
-            label.rectTransform.anchorMin = Vector2.zero;
-            label.rectTransform.anchorMax = Vector2.one;
-            label.rectTransform.offsetMin = Vector2.zero;
-            label.rectTransform.offsetMax = Vector2.zero;
-
-            if (created || buttonTransform.GetComponent<UiBoxOutline>() == null) AddFrame(buttonTransform, TestResourceButtonSize);
-            buttonTransform.SetAsLastSibling();
         }
 
         void BuildTowerPanel(Transform parent)
@@ -1987,24 +1603,6 @@ namespace AreaSurvivors
             {
                 towerImage.sprite = nextSprite;
                 towerImage.preserveAspect = true;
-            }
-        }
-
-        void UpdateBuildSlots()
-        {
-            if (buildPlacement == null || stockLabels == null) return;
-            selectedSlot = buildPlacement.SelectedHudSlot;
-            for (int i = 0; i < stockLabels.Length; i++)
-            {
-                if (stockLabels[i] != null) stockLabels[i].text = buildPlacement.GetHudCostLabel(i);
-            }
-            for (int i = 0; i < slotBackplates.Length; i++)
-            {
-                bool unlocked = buildPlacement.IsSlotUnlocked(i);
-                if (slotButtons != null && i < slotButtons.Length && slotButtons[i] != null) slotButtons[i].interactable = unlocked;
-                if (slotIcons != null && i < slotIcons.Length && slotIcons[i] != null) slotIcons[i].enabled = unlocked;
-                if (slotBackplates[i] != null) slotBackplates[i].color = i == selectedSlot ? SlotSelectedColor : SlotColor;
-                if (slotHighlights != null && i < slotHighlights.Length && slotHighlights[i] != null) slotHighlights[i].forceSelected = i == selectedSlot;
             }
         }
 
