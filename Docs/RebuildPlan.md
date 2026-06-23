@@ -84,6 +84,7 @@
   - `GameManager.cs` の HUD / リソース / 制限時間停止系フラグ
   - `BuildPlacementController.cs` の build scene 用の停止分岐
   - 理由: 仕様が固まった後は軽量化しやすいが、現時点では検証済み挙動の保険でもある。
+  - 2026-06-23: `GameManager.cs` の自然ランドマーク停止フラグと制限時間失敗停止フラグを削除済み。通常ゲームで木 / 石自然物を出さない、制限時間で失敗しない挙動は維持。
 - 優先度C: UI 停止分岐
   - `LobbyScreen.cs`
   - `SimpleUi.cs`

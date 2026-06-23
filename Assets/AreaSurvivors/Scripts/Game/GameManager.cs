@@ -10,9 +10,6 @@ namespace AreaSurvivors
 {
     public sealed class GameManager : MonoBehaviour
     {
-        static readonly bool DisableNaturalLandmarkSpawnsForPhase1 = true;
-        static readonly bool DisableRoundTimeLimitFailureForPhase1 = true;
-
         public static GameManager Instance { get; private set; }
 
         public GameConfig config;
@@ -22,7 +19,6 @@ namespace AreaSurvivors
         public EnemySpawner spawner;
         public BuildPlacementController buildPlacement;
         public BuildingUpgradeController buildingUpgrade;
-        public NaturalLandmarkSpawner naturalLandmarks;
         public GameHudController gameHud;
         public Text timerText;
         public Text killText;
@@ -100,7 +96,6 @@ namespace AreaSurvivors
             if (towerMarker != null) towerMarker.Register(grid);
             var towerRootWorld = GridObjectVisual.FootprintOriginToWorld(grid, towerOriginCell);
             grid.PaintImmediate(towerRootWorld, TileOwner.Player, InitialTowerTerritoryRadius);
-            SpawnNaturalLandmarks(towerOriginCell);
             int stage = RunState.ConsumeNextStartStage();
             SyncFixedBuildingSlots(stage);
 
@@ -292,17 +287,6 @@ namespace AreaSurvivors
             return grid != null && grid.IsFootprintOwnedBy(originCell, footprint, TileOwner.Player);
         }
 
-        void SpawnNaturalLandmarks(Vector3Int centerCell)
-        {
-            if (DisableNaturalLandmarkSpawnsForPhase1) return;
-            if (grid == null) return;
-            if (naturalLandmarks == null) naturalLandmarks = GetComponent<NaturalLandmarkSpawner>();
-            if (naturalLandmarks == null) naturalLandmarks = gameObject.AddComponent<NaturalLandmarkSpawner>();
-            naturalLandmarks.useVerticalMapResourceLayout = false;
-            naturalLandmarks.useOuterEightChunkResourceLayout = true;
-            naturalLandmarks.Spawn(grid, centerCell);
-        }
-
         void ConfigureAutoBuildingScheduler()
         {
             if (sessionMode == MapSessionMode.Build) return;
@@ -317,7 +301,6 @@ namespace AreaSurvivors
             {
                 if (!bossActive) elapsed += Time.deltaTime * currentStageSpeedMultiplier;
                 hudElapsed = Mathf.Max(0f, roundTimeLimit - elapsed);
-                if (!DisableRoundTimeLimitFailureForPhase1 && !gameEnding && elapsed >= roundTimeLimit) EndRun(false);
             }
             else
             {
