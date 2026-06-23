@@ -97,6 +97,7 @@ namespace AreaSurvivors.Editor
         static void AppendTransformHealth(StringBuilder report, GameObject root)
         {
             var warnings = new List<string>();
+            int allowedScaleExceptions = 0;
             foreach (var transform in root.GetComponentsInChildren<Transform>(true))
             {
                 if (transform == root.transform) continue;
@@ -107,15 +108,27 @@ namespace AreaSurvivors.Editor
 
                 if (!Approximately(transform.localScale, Vector3.one))
                 {
+                    if (IsAllowedScaleException(transform))
+                    {
+                        allowedScaleExceptions++;
+                        continue;
+                    }
+
                     warnings.Add($"scale path={PathFromRoot(root.transform, transform)} localScale={transform.localScale}");
                 }
             }
 
             report.AppendLine($"- transformWarnings: {warnings.Count}");
+            report.AppendLine($"- allowedScaleExceptions: {allowedScaleExceptions}");
             foreach (var warning in warnings)
             {
                 report.AppendLine($"  - {warning}");
             }
+        }
+
+        static bool IsAllowedScaleException(Transform transform)
+        {
+            return transform != null && transform.name == "Completion Sparkle";
         }
 
         static IEnumerable<string> ColliderLines(Collider2D[] colliders)
