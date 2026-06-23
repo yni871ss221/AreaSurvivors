@@ -216,7 +216,7 @@ namespace AreaSurvivors
                 if (definition.requiresUnlock && !ProgressionStore.IsUnlocked(definition.unlockType)) continue;
                 if (!TryFindFixedSlotOrigin(towerOrigin, definition.footprint, definition.desiredOffset, out var originCell)) continue;
 
-                var saved = i < existing.Count ? existing[i] : null;
+                var saved = FindExistingFixedBuilding(existing, definition.kind, originCell);
                 if (saved == null) saved = new SavedBuildingData();
                 var previousKind = saved.kind;
                 saved.kind = definition.kind;
@@ -228,6 +228,18 @@ namespace AreaSurvivors
             }
 
             return result;
+        }
+
+        static SavedBuildingData FindExistingFixedBuilding(List<SavedBuildingData> existing, SavedBuildingKind kind, Vector3Int originCell)
+        {
+            if (existing == null) return null;
+            foreach (var saved in existing)
+            {
+                if (saved == null) continue;
+                if (saved.kind == kind && saved.x == originCell.x && saved.y == originCell.y) return saved;
+            }
+
+            return null;
         }
 
         bool TryFindFixedSlotOrigin(Vector3Int towerOrigin, Vector2Int footprint, Vector2Int desiredOffset, out Vector3Int originCell)

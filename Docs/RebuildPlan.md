@@ -102,6 +102,7 @@
   - `05_Game.unity` の temporary bootstrap 系オブジェクト
   - 固定スロット化が終わった後の `SyncFixedBuildingSlots` 互換処理
   - 理由: Scene YAML 破損リスクがあるため、Reporter / Validator で対象を絞ってから行う。
+  - 2026-06-23: `05_Game.unity` に temporary / bootstrap 名の Scene オブジェクトが残っていないことを確認。`SyncFixedBuildingSlots` は固定スロット建造物の保存状態入口として残しつつ、旧任意配置リストの index による状態引き継ぎを廃止し、同じ種類かつ同じセルの固定スロット状態だけを引き継ぐよう整理。
 
 置き換えるもの:
 
