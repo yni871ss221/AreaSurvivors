@@ -155,30 +155,9 @@ namespace AreaSurvivors
             return slider;
         }
 
-        public static void CharacterSelector(Transform parent)
-        {
-            CharacterCard(parent, "\u30ca\u30a4\u30c8", "\u524d\u65b9\u3092\u5207\u308a\u6255\u3046", "Generated/Knight", CharacterType.Knight, new Vector2(-250, -10));
-        }
-
         public static Sprite Sprite(string resource)
         {
             return LoadSprite(resource);
-        }
-
-        static void CharacterCard(Transform parent, string title, string description, string spriteResource, CharacterType type, Vector2 pos)
-        {
-            var button = Button(parent, "", pos, () =>
-            {
-                RunState.SelectedCharacter = type;
-                ProgressionStore.Data.selectedCharacter = type;
-                ProgressionStore.Save();
-            }, new Vector2(210, 190));
-            var selected = button.gameObject.AddComponent<CharacterSelectionHighlight>();
-            selected.type = type;
-
-            AddIcon(button.transform, spriteResource, new Vector2(0, 38), new Vector2(94, 94));
-            Label(button.transform, title, 24, new Vector2(0, -42), new Vector2(180, 32));
-            Label(button.transform, description, 15, new Vector2(0, -78), new Vector2(180, 36), "Description", new Color(0.82f, 0.92f, 0.84f));
         }
 
         static void AddIcon(Transform parent, string resource, Vector2 pos, Vector2 size)

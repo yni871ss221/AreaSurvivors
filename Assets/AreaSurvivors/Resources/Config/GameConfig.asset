@@ -390,34 +390,5 @@ MonoBehaviour:
     boss: 1
     outlineColor: {r: 1, g: 0.08, b: 0.04, a: 1}
     outlineThickness: 0.075
-  spawnPhases:
-  - startSeconds: 0
-    enemyKind: 0
-    spawnInterval: 1.8
-    baseBatchCount: 1
-    batchIncreasePerDirectionChange: 1
-    maxBatchCount: 10
-  - startSeconds: 150
-    enemyKind: 2
-    spawnInterval: 1.8899999
-    baseBatchCount: 1
-    batchIncreasePerDirectionChange: 1
-    maxBatchCount: 14
-  timedEnemySpawns:
-  - timeSeconds: 120
-    enemyKind: 1
-    count: 1
-    announce: 1
-    announcement: "\u30A8\u30EA\u30FC\u30C8\u30A4\u30CE\u30B7\u30B7\u51FA\u73FE\uFF01"
-  - timeSeconds: 270
-    enemyKind: 3
-    count: 1
-    announce: 1
-    announcement: "\u30A8\u30EA\u30FC\u30C8\u30AA\u30FC\u30AF\u51FA\u73FE\uFF01"
-  - timeSeconds: 300
-    enemyKind: 4
-    count: 1
-    announce: 1
-    announcement: "\u30AA\u30FC\u30AF\u30AD\u30F3\u30B0\u51FA\u73FE\uFF01"
   xpPerEnemy: 1
   tokenKillsDivisor: 8

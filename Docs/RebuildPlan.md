@@ -94,6 +94,7 @@
   - 理由: メニュー導線に影響するため、タイトル / ロビー側の最終方針確認後に削る。
   - 2026-06-23: ナイト固定を仕様として直書きし、アーチャー / メイジ生成・バインド用の停止分岐を削除済み。
   - 2026-06-23: `03_Lobby.unity` から `Character Archer` / `Character Mage` を Unity API 経由で物理削除済み。`CharacterType.Archer` / `CharacterType.Mage` と武器データ参照は、弓 / 火の玉が既存配列を流用しているため、武器仕様整理まで互換として保持。
+  - 2026-06-23: `SimpleUi.CharacterSelector` と旧 `CharacterCard` 生成処理、`LobbyScreen` のキャラ選択ボタンバインド、Lobby UI の Runtime fallback 生成を削除済み。`SaveData.selectedCharacter` は既存セーブ互換、`CharacterSelectionHighlight` は Scene / Lobby のナイト表示用として保持。
 - 優先度D: 不要になった建造補助
   - `CarpenterHut.cs`
   - `WorkerHut.cs`
@@ -332,6 +333,7 @@ Docs/RebuildPlan.md を読んで、まず Phase 0 の棚卸しから進めてく
 ### Phase 6: 敵出現 / ラウンド仕様調整
 
 - `EnemySpawner` は Stage 1 / Stage 2 の `SpawnPhase` と `TimedEnemySpawn` をコード側で固定定義し、GameConfig asset の古い配列に引っ張られないようにした。
+- 2026-06-23: `GameConfig` の旧 `spawnPhases` / `timedEnemySpawns` 公開フィールドと `GameConfig.asset` の古いシリアライズ済み配列を削除。ステージ別スポーン表は `EnemySpawner` 内の固定テーブルを正とする。
 - Stage 1 は 0:30 エリートイノシシ、1:00 オークへ切替、1:30 エリートオーク、2:00 オークキング。
 - Stage 2 は 0:30 エリートゴブリン、1:00 オーガへ切替、1:30 エリートオーガ、2:00 ゴブリンロード。
 - ボス出現中は `GameManager.Update()` のタイマー加算を止め、既存の赤タイマー表示とBoss HUDを維持する。

@@ -33,7 +33,7 @@ namespace AreaSurvivors
             Label(canvas.transform, "TokenInfo", "\u30c8\u30fc\u30af\u30f3 0   \u7d2f\u8a08\u6483\u7834 0", 21, new Vector2(0, 260), new Vector2(620, 32), new Color(0.86f, 0.94f, 0.80f));
 
             BuildStageProgress(canvas.transform);
-            BuildCharacterSelector(canvas.transform);
+            BuildKnightLoadout(canvas.transform);
             BuildFooterButtons(canvas.transform);
             return canvas;
         }
@@ -100,7 +100,7 @@ namespace AreaSurvivors
             Label(root.transform, "Fast Label", "\u500d\u901f", 13, new Vector2(12, 0), new Vector2(46, 20), BodyText);
         }
 
-        static void BuildCharacterSelector(Transform parent)
+        static void BuildKnightLoadout(Transform parent)
         {
             Panel(parent, "Character Panel", new Vector2(0, -66), new Vector2(760, 238), PanelColor);
             Label(parent, "CharacterTitle", "\u51fa\u6483\u30ad\u30e3\u30e9\u30af\u30bf\u30fc", 23, new Vector2(0, 28), new Vector2(420, 34), AccentText);

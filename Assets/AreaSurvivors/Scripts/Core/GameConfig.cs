@@ -38,27 +38,6 @@ namespace AreaSurvivors
     }
 
     [System.Serializable]
-    public sealed class SpawnPhase
-    {
-        public float startSeconds;
-        public EnemyKind enemyKind = EnemyKind.Boar;
-        public float spawnInterval = 1.8f;
-        public int baseBatchCount = 1;
-        public int batchIncreasePerDirectionChange = 1;
-        public int maxBatchCount = 12;
-    }
-
-    [System.Serializable]
-    public sealed class TimedEnemySpawn
-    {
-        public float timeSeconds;
-        public EnemyKind enemyKind;
-        public int count = 1;
-        public bool announce;
-        public string announcement;
-    }
-
-    [System.Serializable]
     public sealed class WeaponLevelDefinition
     {
         [Range(1, GameConfig.MaxWeaponLevel)]
@@ -226,8 +205,6 @@ namespace AreaSurvivors
         public float bossTimeSeconds = 300f;
         public string bossAnnouncement = "オークキング出現！";
         public EnemyDefinition[] enemyDefinitions;
-        public SpawnPhase[] spawnPhases;
-        public TimedEnemySpawn[] timedEnemySpawns;
 
         [Header("Progression")]
         public int xpPerEnemy = 1;
@@ -371,24 +348,6 @@ namespace AreaSurvivors
 
             ApplyStageTwoAnimationSpeedDefaults(defaultDefinitions);
 
-            if (spawnPhases == null || spawnPhases.Length == 0)
-            {
-                spawnPhases = new[]
-                {
-                    new SpawnPhase { startSeconds = 0f, enemyKind = EnemyKind.Boar, spawnInterval = spawnInterval, baseBatchCount = 1, batchIncreasePerDirectionChange = 1, maxBatchCount = 10 },
-                    new SpawnPhase { startSeconds = 60f, enemyKind = EnemyKind.Orc, spawnInterval = Mathf.Max(0.5f, spawnInterval * 1.05f), baseBatchCount = 1, batchIncreasePerDirectionChange = 1, maxBatchCount = 14 }
-                };
-            }
-
-            if (timedEnemySpawns == null || timedEnemySpawns.Length == 0)
-            {
-                timedEnemySpawns = new[]
-                {
-                    new TimedEnemySpawn { timeSeconds = 30f, enemyKind = EnemyKind.EliteBoar, count = 1, announce = true, announcement = "エリートイノシシ出現！" },
-                    new TimedEnemySpawn { timeSeconds = 90f, enemyKind = EnemyKind.EliteOrc, count = 1, announce = true, announcement = "エリートオーク出現！" },
-                    new TimedEnemySpawn { timeSeconds = 120f, enemyKind = EnemyKind.OrcKing, count = 1, announce = true, announcement = "オークキング出現！" }
-                };
-            }
         }
 
         public EnemyDefinition GetEnemyDefinition(EnemyKind kind)

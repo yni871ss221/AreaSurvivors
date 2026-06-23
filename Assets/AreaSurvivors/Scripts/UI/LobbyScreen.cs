@@ -38,8 +38,9 @@ namespace AreaSurvivors
             lobbyUi = FindLobbyCanvas();
             if (lobbyUi == null)
             {
-                Debug.LogWarning("Lobby UI was not found in the scene. Creating a temporary runtime fallback.");
-                lobbyUi = LobbyUiFactory.Create();
+                Debug.LogError("Lobby UI was not found in the scene. Place the Lobby UI in the scene instead of relying on runtime generation.");
+                enabled = false;
+                return;
             }
 
             BindStaticActions();
@@ -49,7 +50,7 @@ namespace AreaSurvivors
         void Refresh()
         {
             SetText("TokenInfo", string.Format("\u30c8\u30fc\u30af\u30f3 {0}   \u6728\u6750 {1}   \u77f3\u6750 {2}   \u7d2f\u8a08\u6483\u7834 {3}", ProgressionStore.Data.tokens, ProgressionStore.Data.wood, ProgressionStore.Data.stone, ProgressionStore.Data.totalKills));
-            RefreshCharacterCards();
+            RefreshKnightLoadout();
             RefreshStageCards();
         }
 
@@ -59,34 +60,21 @@ namespace AreaSurvivors
             BindButton("Build Button", StartBuildForSelectedStage);
             BindButton("Upgrade Button", navigator.LoadUpgrades);
             BindButton("Title Button", navigator.LoadTitle);
-            BindCharacterButton("Character Knight", CharacterType.Knight);
         }
 
-        void RefreshCharacterCards()
+        void RefreshKnightLoadout()
         {
-            RefreshCharacterCard("Character Knight", CharacterType.Knight);
+            RefreshKnightLoadout("Character Knight");
         }
 
-        void RefreshCharacterCard(string name, CharacterType type)
+        void RefreshKnightLoadout(string name)
         {
             var card = FindChild(name);
             if (card == null) return;
             var highlight = card.GetComponent<CharacterSelectionHighlight>();
-            if (highlight != null) highlight.type = type;
+            if (highlight != null) highlight.type = CharacterType.Knight;
             var selection = card.GetComponent<UiSelectionHighlight>();
-            if (selection != null) selection.forceSelected = RunState.SelectedCharacter == type;
-        }
-
-        void BindCharacterButton(string name, CharacterType type)
-        {
-            BindButton(name, () =>
-            {
-                if (type != CharacterType.Knight) return;
-                RunState.SelectedCharacter = type;
-                ProgressionStore.Data.selectedCharacter = type;
-                ProgressionStore.Save();
-                RefreshCharacterCards();
-            });
+            if (selection != null) selection.forceSelected = true;
         }
 
         void NormalizeCharacterSelection()

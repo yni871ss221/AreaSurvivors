@@ -6,6 +6,25 @@ namespace AreaSurvivors
 {
     public sealed class EnemySpawner : MonoBehaviour
     {
+        sealed class SpawnPhase
+        {
+            public float startSeconds;
+            public EnemyKind enemyKind = EnemyKind.Boar;
+            public float spawnInterval = 1.8f;
+            public int baseBatchCount = 1;
+            public int batchIncreasePerDirectionChange = 1;
+            public int maxBatchCount = 12;
+        }
+
+        sealed class TimedEnemySpawn
+        {
+            public float timeSeconds;
+            public EnemyKind enemyKind;
+            public int count = 1;
+            public bool announce;
+            public string announcement;
+        }
+
         public GameObject enemyPrefab;
         public GameConfig config;
         public TileGrid grid;
