@@ -62,8 +62,6 @@ namespace AreaSurvivors.EditorTools
             SetSlotIconSprite(menu, 2, "WoodenGateClosed");
             SetSlotIconSprite(menu, 3, "Ballista");
             SetSlotIconSprite(menu, 4, "WatchTower");
-            SetSlotIconSprite(menu, 5, "CarpenterHut");
-            SetSlotIconSprite(menu, 6, "WorkerHut");
         }
 
         public static void ApplyToOpenScene()
@@ -77,15 +75,13 @@ namespace AreaSurvivors.EditorTools
 
             var menu = menuObject.GetComponent<RectTransform>();
             if (menu == null) return;
-            menu.sizeDelta = new Vector2(Mathf.Max(menu.sizeDelta.x, 600f), Mathf.Max(menu.sizeDelta.y, 96f));
+            menu.sizeDelta = new Vector2(Mathf.Max(menu.sizeDelta.x, 440f), Mathf.Max(menu.sizeDelta.y, 96f));
 
             var statusText = EnsureStatusPanel(menu);
             ConfigureSlot(menu, 1, "WoodenWall", "1", "木10", new Vector2(46f, 44f), true);
             ConfigureSlot(menu, 2, "WoodenGateClosed", "2", "木20", new Vector2(46f, 44f), true);
             ConfigureSlot(menu, 3, "Ballista", "3", "ロック", new Vector2(46f, 44f), false);
             ConfigureSlot(menu, 4, "WatchTower", "4", "ロック", new Vector2(46f, 44f), false);
-            ConfigureSlot(menu, 5, "CarpenterHut", "5", "ロック", new Vector2(46f, 44f), false);
-            ConfigureSlot(menu, 6, "WorkerHut", "6", "ロック", new Vector2(46f, 44f), false);
 
             if (statusText != null)
             {

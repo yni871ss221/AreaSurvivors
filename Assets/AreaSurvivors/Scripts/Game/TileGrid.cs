@@ -28,12 +28,10 @@ namespace AreaSurvivors
         Empty = 0,
         Tower = 1,
         Ballista = 2,
-        CarpenterHut = 3,
         WoodenWall = 4,
         Tree = 5,
         Rock = 6,
         Pond = 7,
-        WorkerHut = 8,
         WatchTower = 9
     }
 

@@ -109,7 +109,6 @@ namespace AreaSurvivors
             if (sessionMode == MapSessionMode.Game) ProgressionStore.ReviveStageBuildings(stage);
             if (buildPlacement != null) buildPlacement.Initialize(config, grid, sessionMode == MapSessionMode.Build ? null : Player);
             if (buildPlacement != null) buildPlacement.RestoreStageBuildings(stage);
-            ConfigureAutoBuildingScheduler();
             PolishHud();
             ConfigureGameHud();
 
@@ -201,20 +200,6 @@ namespace AreaSurvivors
                 unlockType = UpgradeType.UnlockWatchTower,
                 footprint = new Vector2Int(2, 2),
                 desiredOffset = new Vector2Int(0, 10)
-            },
-            new FixedBuildingSlotDefinition
-            {
-                kind = SavedBuildingKind.CarpenterHut,
-                unlockType = UpgradeType.UnlockCarpenterHut,
-                footprint = Vector2Int.one,
-                desiredOffset = new Vector2Int(-8, -8)
-            },
-            new FixedBuildingSlotDefinition
-            {
-                kind = SavedBuildingKind.WorkerHut,
-                unlockType = UpgradeType.UnlockWorkerHut,
-                footprint = Vector2Int.one,
-                desiredOffset = new Vector2Int(8, -8)
             }
         };
 
@@ -285,14 +270,6 @@ namespace AreaSurvivors
         bool HasPlayerTerritory(Vector3Int originCell, Vector2Int footprint)
         {
             return grid != null && grid.IsFootprintOwnedBy(originCell, footprint, TileOwner.Player);
-        }
-
-        void ConfigureAutoBuildingScheduler()
-        {
-            if (sessionMode == MapSessionMode.Build) return;
-            var scheduler = GetComponent<AutoBuildingScheduler>();
-            if (scheduler == null) scheduler = gameObject.AddComponent<AutoBuildingScheduler>();
-            scheduler.Configure(config);
         }
 
         void Update()

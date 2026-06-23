@@ -16,23 +16,17 @@ namespace AreaSurvivors
         [FormerlySerializedAs("woodenWallPrefab")]
         public GameObject woodenWallPrefab;
         public GameObject woodenGatePrefab;
-        public GameObject carpenterHutPrefab;
-        public GameObject workerHutPrefab;
         public GameObject watchTowerPrefab;
         public Sprite ballistaPreviewSprite;
         [FormerlySerializedAs("woodenWallPreviewSprite")]
         public Sprite woodenWallPreviewSprite;
         public Sprite woodenGatePreviewSprite;
         public Sprite woodenGateOpenSprite;
-        public Sprite carpenterHutPreviewSprite;
-        public Sprite workerHutPreviewSprite;
         public Sprite watchTowerPreviewSprite;
         public TileBase ballistaTile;
         [FormerlySerializedAs("woodenWallTile")]
         public TileBase woodenWallTile;
         public TileBase woodenGateTile;
-        public TileBase carpenterHutTile;
-        public TileBase workerHutTile;
         public TileBase watchTowerTile;
         public Tilemap buildPreviewTilemap;
         public TileBase buildPreviewTile;
@@ -64,8 +58,6 @@ namespace AreaSurvivors
             Ballista,
             WoodenWall,
             WoodenGate,
-            CarpenterHut,
-            WorkerHut,
             WatchTower
         }
 
@@ -208,20 +200,6 @@ namespace AreaSurvivors
             UpdateBuildStatus();
         }
 
-        public void SelectCarpenterHut()
-        {
-            buildSelectionActive = false;
-            SelectedHudSlot = -1;
-            UpdateBuildStatus();
-        }
-
-        public void SelectWorkerHut()
-        {
-            buildSelectionActive = false;
-            SelectedHudSlot = -1;
-            UpdateBuildStatus();
-        }
-
         public void SelectWatchTower()
         {
             if (!IsSlotUnlocked(3))
@@ -358,14 +336,6 @@ namespace AreaSurvivors
             if (Input.GetKeyDown(KeyCode.Alpha4))
             {
                 if (IsSlotUnlocked(3)) SelectWatchTower();
-            }
-            if (Input.GetKeyDown(KeyCode.Alpha5))
-            {
-                if (IsSlotUnlocked(4)) SelectCarpenterHut();
-            }
-            if (Input.GetKeyDown(KeyCode.Alpha6))
-            {
-                if (IsSlotUnlocked(5)) SelectWorkerHut();
             }
         }
 
@@ -550,10 +520,6 @@ namespace AreaSurvivors
             if (ballista != null) ballista.RegisterBuildPlacement(grid, footprintOrigin);
             var barrier = instance.GetComponent<WoodenBarrier>();
             if (barrier != null) barrier.RegisterBuildPlacement(grid, footprintOrigin);
-            var carpenterHut = instance.GetComponent<CarpenterHut>();
-            if (carpenterHut != null) carpenterHut.RegisterBuildPlacement(grid, footprintOrigin);
-            var workerHut = instance.GetComponent<WorkerHut>();
-            if (workerHut != null) workerHut.RegisterBuildPlacement(grid, footprintOrigin);
             var watchTower = instance.GetComponent<WatchTower>();
             if (watchTower != null) watchTower.RegisterBuildPlacement(grid, footprintOrigin);
         }
@@ -589,20 +555,6 @@ namespace AreaSurvivors
                     barrier.openGateSprite = null;
                 }
                 barrier.RefreshConfiguredSprites();
-            }
-
-            var carpenterHut = instance.GetComponent<CarpenterHut>();
-            if (carpenterHut != null)
-            {
-                carpenterHut.config = config;
-                carpenterHut.grid = grid;
-            }
-
-            var workerHut = instance.GetComponent<WorkerHut>();
-            if (workerHut != null)
-            {
-                workerHut.config = config;
-                workerHut.grid = grid;
             }
 
             var watchTower = instance.GetComponent<WatchTower>();
@@ -644,8 +596,6 @@ namespace AreaSurvivors
             {
                 case BuildMode.WoodenWall: return SavedBuildingKind.WoodenWall;
                 case BuildMode.WoodenGate: return SavedBuildingKind.WoodenGate;
-                case BuildMode.CarpenterHut: return SavedBuildingKind.CarpenterHut;
-                case BuildMode.WorkerHut: return SavedBuildingKind.WorkerHut;
                 case BuildMode.WatchTower: return SavedBuildingKind.WatchTower;
                 default: return SavedBuildingKind.Ballista;
             }
@@ -657,8 +607,6 @@ namespace AreaSurvivors
             {
                 case SavedBuildingKind.WoodenWall: return woodenWallPrefab;
                 case SavedBuildingKind.WoodenGate: return woodenGatePrefab != null ? woodenGatePrefab : woodenWallPrefab;
-                case SavedBuildingKind.CarpenterHut: return carpenterHutPrefab;
-                case SavedBuildingKind.WorkerHut: return workerHutPrefab;
                 case SavedBuildingKind.WatchTower: return watchTowerPrefab;
                 default: return ballistaPrefab;
             }
@@ -682,16 +630,6 @@ namespace AreaSurvivors
                 grid.objectTilemap.SetTile(cell, ballistaTile);
                 return;
             }
-            if (buildMode == BuildMode.CarpenterHut)
-            {
-                grid.objectTilemap.SetTile(cell, carpenterHutTile);
-                return;
-            }
-            if (buildMode == BuildMode.WorkerHut)
-            {
-                grid.objectTilemap.SetTile(cell, workerHutTile);
-                return;
-            }
             if (buildMode == BuildMode.WatchTower)
             {
                 grid.objectTilemap.SetTile(cell, watchTowerTile);
@@ -708,12 +646,6 @@ namespace AreaSurvivors
             {
                 case SavedBuildingKind.Ballista:
                     grid.objectTilemap.SetTile(cell, ballistaTile);
-                    return;
-                case SavedBuildingKind.CarpenterHut:
-                    grid.objectTilemap.SetTile(cell, carpenterHutTile);
-                    return;
-                case SavedBuildingKind.WorkerHut:
-                    grid.objectTilemap.SetTile(cell, workerHutTile);
                     return;
                 case SavedBuildingKind.WatchTower:
                     grid.objectTilemap.SetTile(cell, watchTowerTile);
@@ -756,8 +688,6 @@ namespace AreaSurvivors
         GameObject CurrentBuildPrefab()
         {
             if (buildMode == BuildMode.Ballista) return ballistaPrefab;
-            if (buildMode == BuildMode.CarpenterHut) return carpenterHutPrefab;
-            if (buildMode == BuildMode.WorkerHut) return workerHutPrefab;
             if (buildMode == BuildMode.WatchTower) return watchTowerPrefab;
             if (buildMode == BuildMode.WoodenGate) return woodenGatePrefab != null ? woodenGatePrefab : woodenWallPrefab;
             return woodenWallPrefab;
@@ -766,8 +696,6 @@ namespace AreaSurvivors
         Vector2Int CurrentBuildFootprint()
         {
             if (buildMode == BuildMode.Ballista) return new Vector2Int(2, 2);
-            if (buildMode == BuildMode.CarpenterHut) return Vector2Int.one;
-            if (buildMode == BuildMode.WorkerHut) return Vector2Int.one;
             if (buildMode == BuildMode.WatchTower) return new Vector2Int(2, 2);
             return new Vector2Int(3, 1);
         }
@@ -777,8 +705,6 @@ namespace AreaSurvivors
             if (config == null)
             {
                 if (buildMode == BuildMode.Ballista) return new Vector2Int(50, 30);
-                if (buildMode == BuildMode.CarpenterHut) return new Vector2Int(30, 20);
-                if (buildMode == BuildMode.WorkerHut) return new Vector2Int(30, 20);
                 if (buildMode == BuildMode.WatchTower) return new Vector2Int(50, 50);
                 if (buildMode == BuildMode.WoodenGate) return new Vector2Int(20, 0);
                 return new Vector2Int(10, 0);
@@ -786,14 +712,6 @@ namespace AreaSurvivors
             if (buildMode == BuildMode.Ballista)
             {
                 return new Vector2Int(Mathf.Max(0, config.ballistaWoodCost), Mathf.Max(0, config.ballistaStoneCost));
-            }
-            if (buildMode == BuildMode.CarpenterHut)
-            {
-                return new Vector2Int(Mathf.Max(0, config.carpenterHutWoodCost), Mathf.Max(0, config.carpenterHutStoneCost));
-            }
-            if (buildMode == BuildMode.WorkerHut)
-            {
-                return new Vector2Int(Mathf.Max(0, config.workerHutWoodCost), Mathf.Max(0, config.workerHutStoneCost));
             }
             if (buildMode == BuildMode.WatchTower)
             {
@@ -834,16 +752,6 @@ namespace AreaSurvivors
                     wood = config.watchTowerWoodCost;
                     stone = config.watchTowerStoneCost;
                 }
-                else if (slot == 4)
-                {
-                    wood = config.carpenterHutWoodCost;
-                    stone = config.carpenterHutStoneCost;
-                }
-                else if (slot == 5)
-                {
-                    wood = config.workerHutWoodCost;
-                    stone = config.workerHutStoneCost;
-                }
             }
             else
             {
@@ -867,16 +775,6 @@ namespace AreaSurvivors
                     wood = 50;
                     stone = 50;
                 }
-                else if (slot == 4)
-                {
-                    wood = 30;
-                    stone = 20;
-                }
-                else if (slot == 5)
-                {
-                    wood = 30;
-                    stone = 20;
-                }
             }
 
             return BuildCostLabel(Mathf.Max(0, wood), Mathf.Max(0, stone));
@@ -887,8 +785,6 @@ namespace AreaSurvivors
             if (slot == 4 || slot == 5) return false;
             if (slot == 2) return ProgressionStore.IsUnlocked(UpgradeType.UnlockBallista);
             if (slot == 3) return ProgressionStore.IsUnlocked(UpgradeType.UnlockWatchTower);
-            if (slot == 4) return ProgressionStore.IsUnlocked(UpgradeType.UnlockCarpenterHut);
-            if (slot == 5) return ProgressionStore.IsUnlocked(UpgradeType.UnlockWorkerHut);
             return true;
         }
 
@@ -903,8 +799,6 @@ namespace AreaSurvivors
         Vector3Int CurrentBuildFootprintOrigin(Vector3Int pointerCell)
         {
             if (buildMode == BuildMode.Ballista) return pointerCell + Vector3Int.down;
-            if (buildMode == BuildMode.CarpenterHut) return pointerCell;
-            if (buildMode == BuildMode.WorkerHut) return pointerCell;
             if (buildMode == BuildMode.WatchTower) return pointerCell + Vector3Int.down;
             return pointerCell;
         }
@@ -1061,8 +955,6 @@ namespace AreaSurvivors
         {
             if (buildText == null) return;
             var label = buildMode == BuildMode.Ballista ? "3 \u30d0\u30ea\u30b9\u30bf" :
-                buildMode == BuildMode.CarpenterHut ? "5 \u5927\u5de5\u5c0f\u5c4b" :
-                buildMode == BuildMode.WorkerHut ? "6 \u4f5c\u696d\u5c0f\u5c4b" :
                 buildMode == BuildMode.WatchTower ? "4 \u76e3\u8996\u5854" :
                 buildMode == BuildMode.WoodenGate ? "2 \u6728\u306e\u57ce\u9580" : "1 \u6728\u306e\u57ce\u58c1";
             var cost = CurrentBuildCost();

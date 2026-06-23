@@ -27,8 +27,6 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: e368e2c6b2424ad8950fa2077e9458a0, type: 3}
   - name: CannonExplosion.
     sprite: {fileID: 21300000, guid: cdbe110e60164bdfaf916542e9e5bc3e, type: 3}
-  - name: CarpenterHut.
-    sprite: {fileID: 21300000, guid: 886839bc83e88f842839e0a1869c4292, type: 3}
   - name: CharacterSheets/Archer.
     sprite: {fileID: 21300000, guid: dc3845514dfe65741a5862968992f85e, type: 3}
   - name: CharacterSheets/EnemyBoar.
@@ -473,5 +471,3 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 5584e0128a7e4743a979509d03c0eb0b, type: 3}
   - name: WoodIcon.
     sprite: {fileID: 21300000, guid: 19845df25c834f04bb999aecaafd7a89, type: 3}
-  - name: WorkerHut.
-    sprite: {fileID: 21300000, guid: b36d05d5e0d181149af725612dc2afde, type: 3}

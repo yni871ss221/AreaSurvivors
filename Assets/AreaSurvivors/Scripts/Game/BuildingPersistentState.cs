@@ -53,8 +53,6 @@ namespace AreaSurvivors
                 if (behaviour == null || behaviour == this) continue;
                 if (behaviour is BallistaTower ||
                     behaviour is WoodenBarrier ||
-                    behaviour is CarpenterHut ||
-                    behaviour is WorkerHut ||
                     behaviour is WatchTower ||
                     behaviour is BuildingUpgradeTarget)
                 {

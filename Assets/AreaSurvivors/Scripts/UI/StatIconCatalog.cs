@@ -65,16 +65,12 @@ namespace AreaSurvivors
                 case UpgradeType.XpGain: return Xp;
                 case UpgradeType.AutoRegen:
                 case UpgradeType.TowerAutoRegen:
-                case UpgradeType.UnlockAutoBuild:
                     return Regen;
                 case UpgradeType.RoundTimeLimit:
                     return Revive;
                 case UpgradeType.WorkSpeed:
-                case UpgradeType.AutoBuildSpeed:
-                case UpgradeType.AutoResourceInterval:
                     return Work;
                 case UpgradeType.ResourceGain:
-                case UpgradeType.AutoResourceGain:
                 case UpgradeType.StartingWood:
                 case UpgradeType.StartingStone:
                     return Resource;

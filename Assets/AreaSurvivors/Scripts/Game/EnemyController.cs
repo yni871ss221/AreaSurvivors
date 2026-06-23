@@ -160,15 +160,11 @@ namespace AreaSurvivors
             if (otherHealth == null) return;
             var barrier = collision.collider.GetComponentInParent<WoodenBarrier>();
             var ballista = collision.collider.GetComponentInParent<BallistaTower>();
-            var carpenterHut = collision.collider.GetComponentInParent<CarpenterHut>();
-            var workerHut = collision.collider.GetComponentInParent<WorkerHut>();
             var watchTower = collision.collider.GetComponentInParent<WatchTower>();
             if (collision.collider.GetComponentInParent<PlayerController>() == null &&
                 collision.collider.GetComponentInParent<TowerController>() == null &&
                 (barrier == null || !barrier.IsBuilt) &&
                 (ballista == null || !ballista.IsBuilt) &&
-                (carpenterHut == null || !carpenterHut.IsBuilt) &&
-                (workerHut == null || !workerHut.IsBuilt) &&
                 (watchTower == null || !watchTower.IsBuilt)) return;
             Vector3 hitPoint = collision.contactCount > 0
                 ? collision.GetContact(0).point

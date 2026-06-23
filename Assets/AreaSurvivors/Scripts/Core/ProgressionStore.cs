@@ -39,6 +39,7 @@ namespace AreaSurvivors
 
         public static bool TryBuy(UpgradeType type)
         {
+            if (IsRetiredUpgrade(type)) return false;
             int level = GetLevel(type);
             if (level >= GetMaxLevel(type)) return false;
             int cost = GetCost(type, level);
@@ -57,6 +58,7 @@ namespace AreaSurvivors
 
         public static int GetMaxLevel(UpgradeType type)
         {
+            if (IsRetiredUpgrade(type)) return 0;
             switch (type)
             {
                 case UpgradeType.UnlockBallista:
@@ -65,13 +67,8 @@ namespace AreaSurvivors
                 case UpgradeType.UnlockTowerCannon:
                 case UpgradeType.UnlockTowerUpgrade:
                 case UpgradeType.UnlockDefenseCharacter:
-                case UpgradeType.UnlockCarpenterHut:
-                case UpgradeType.UnlockWorkerHut:
                 case UpgradeType.UnlockClassChange:
                     return 1;
-                case UpgradeType.AutoResourceInterval:
-                case UpgradeType.AutoResourceGain:
-                    return 2;
                 case UpgradeType.RoundTimeLimit:
                     return 6;
                 case UpgradeType.StartingWeaponLevel:
@@ -86,6 +83,22 @@ namespace AreaSurvivors
             return GetLevel(type) > 0;
         }
 
+        public static bool IsRetiredUpgrade(UpgradeType type)
+        {
+            switch (type)
+            {
+                case UpgradeType.UnlockCarpenterHut:
+                case UpgradeType.UnlockAutoBuild:
+                case UpgradeType.AutoBuildSpeed:
+                case UpgradeType.UnlockWorkerHut:
+                case UpgradeType.AutoResourceInterval:
+                case UpgradeType.AutoResourceGain:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
         static int BaseCost(UpgradeType type)
         {
             switch (type)
@@ -96,9 +109,6 @@ namespace AreaSurvivors
                 case UpgradeType.UnlockTowerCannon:
                 case UpgradeType.UnlockTowerUpgrade:
                 case UpgradeType.UnlockDefenseCharacter:
-                case UpgradeType.UnlockCarpenterHut:
-                case UpgradeType.UnlockAutoBuild:
-                case UpgradeType.UnlockWorkerHut:
                 case UpgradeType.UnlockClassChange:
                     return 8;
                 case UpgradeType.TowerMaxHp:

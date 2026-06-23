@@ -29333,21 +29333,15 @@ MonoBehaviour:
   ballistaPrefab: {fileID: 368178252523101967, guid: 7796e6c889d9df540a0491083770b91a, type: 3}
   woodenWallPrefab: {fileID: 3532261140256798230, guid: d98c638ae0975af4e97f6ccb3e183143, type: 3}
   woodenGatePrefab: {fileID: 3532261140256798230, guid: ca03a1bcd6cff5b40b9963d3399fa770, type: 3}
-  carpenterHutPrefab: {fileID: 4637011847263125252, guid: 775bd9bc4a2bc2444ab5353a114209e6, type: 3}
-  workerHutPrefab: {fileID: 1971978705047215740, guid: e4ea7ffafff431e488efe3d4e947ac1d, type: 3}
   watchTowerPrefab: {fileID: 4955589404155924230, guid: c70f51ebbee261b43873f0edb7406c74, type: 3}
   ballistaPreviewSprite: {fileID: 21300000, guid: 01cfba73cb681724686a120912dbc395, type: 3}
   woodenWallPreviewSprite: {fileID: 21300000, guid: c1c65f9d327a46ab882dc0e037fe24b9, type: 3}
   woodenGatePreviewSprite: {fileID: 21300000, guid: 1a35cb87b0384d47b1379365ac54a1d1, type: 3}
   woodenGateOpenSprite: {fileID: 21300000, guid: 6da6f4812fd845259eafe14b3e36f349, type: 3}
-  carpenterHutPreviewSprite: {fileID: 21300000, guid: 886839bc83e88f842839e0a1869c4292, type: 3}
-  workerHutPreviewSprite: {fileID: 21300000, guid: b36d05d5e0d181149af725612dc2afde, type: 3}
   watchTowerPreviewSprite: {fileID: 21300000, guid: 21a8096036d361640b76d30c33cdc590, type: 3}
   ballistaTile: {fileID: 11400000, guid: 281b9b18c14eef041ac0b1c1187d3987, type: 2}
   woodenWallTile: {fileID: 11400000, guid: 5c6d8b4ae17a4d37a027b596d1c58f18, type: 2}
   woodenGateTile: {fileID: 11400000, guid: 6e852a4c1ef64e569a5cfdb96928da91, type: 2}
-  carpenterHutTile: {fileID: 11400000, guid: 546970bf20de3344c86b788d4c6ff2b5, type: 2}
-  workerHutTile: {fileID: 11400000, guid: b7b4587f97b9a5a448377dc59dc8489c, type: 2}
   watchTowerTile: {fileID: 11400000, guid: f8c00e35fd295cb478618100a3fbaaf7, type: 2}
   buildPreviewTilemap: {fileID: 214893054}
   buildPreviewTile: {fileID: 11400000, guid: b7993b6688e045e4e9494908eee1c9a1, type: 2}

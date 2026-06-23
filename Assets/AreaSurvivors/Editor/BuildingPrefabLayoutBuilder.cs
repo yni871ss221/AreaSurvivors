@@ -37,8 +37,6 @@ namespace AreaSurvivors.EditorTools
 
             SetupBallistaPrefab($"{PrefabRoot}/BallistaTower.prefab");
             SetupWatchTowerPrefab($"{PrefabRoot}/WatchTower.prefab");
-            SetupCarpenterHutPrefab($"{PrefabRoot}/CarpenterHut.prefab");
-            SetupWorkerHutPrefab($"{PrefabRoot}/WorkerHut.prefab");
             SetupCenterTowerPrefab($"{PrefabRoot}/CenterTower.prefab");
             UpdateGameSceneReferences();
             AssetDatabase.SaveAssets();
@@ -138,66 +136,6 @@ namespace AreaSurvivors.EditorTools
                 watchTower.completeObject = set.completeVisual != null ? set.completeVisual.gameObject : null;
                 watchTower.blockingCollider = ConfigureCollider(root, marker.footprint, false);
                 ConfigureCollider(root, marker.footprint, true);
-                DestroyChild(root.transform, "Build Gauge");
-                CleanMissingScripts(root);
-                PrefabUtility.SaveAsPrefabAsset(root, path);
-            }
-            finally
-            {
-                PrefabUtility.UnloadPrefabContents(root);
-            }
-        }
-
-        static void SetupCarpenterHutPrefab(string path)
-        {
-            SetupHutPrefab(path, GridObjectType.CarpenterHut, LoadGeneratedSprite("CarpenterHut"), true);
-        }
-
-        static void SetupWorkerHutPrefab(string path)
-        {
-            SetupHutPrefab(path, GridObjectType.WorkerHut, LoadGeneratedSprite("WorkerHut"), false);
-        }
-
-        static void SetupHutPrefab(string path, GridObjectType type, Sprite sprite, bool carpenter)
-        {
-            var root = PrefabUtility.LoadPrefabContents(path);
-            try
-            {
-                var marker = Ensure<GridObjectMarker>(root);
-                marker.type = type;
-                marker.flags = GridCellFlags.BlocksMovement | GridCellFlags.BlocksBuilding | GridCellFlags.Defensive;
-                marker.footprint = Vector2Int.one;
-                var gridVisual = Ensure<GridObjectVisual>(root);
-                gridVisual.ConfigureFootprint(marker.footprint);
-                gridVisual.footprint = marker.footprint;
-                gridVisual.fitVisualWidthToFootprint = false;
-                gridVisual.resetVisualOffset = false;
-
-                if (carpenter)
-                {
-                    var hut = Ensure<CarpenterHut>(root);
-                    hut.hutSprite = sprite;
-                    hut.spriteVisualSize = VisualSizeForWidth(sprite, GridObjectVisual.CellWidth);
-                    hut.spriteVisualOffset = Vector3.zero;
-                    hut.completeRenderer = ConfigureVisual(root.transform, "Complete Image", sprite, Color.white, 1002, marker.footprint, 0.026f);
-                    hut.sparkleRenderer = ConfigureOverlay(root.transform, "Completion Sparkle", LoadGeneratedSprite("Sparkle"), 22030, new Vector3(0.3f, 0.48f, 0f), 0.7f);
-                    hut.completeObject = hut.completeRenderer != null ? hut.completeRenderer.gameObject : null;
-                    hut.blockingCollider = ConfigureCollider(root, marker.footprint, false);
-                    ConfigureCollider(root, marker.footprint, true);
-                }
-                else
-                {
-                    var hut = Ensure<WorkerHut>(root);
-                    hut.hutSprite = sprite;
-                    hut.spriteVisualSize = VisualSizeForWidth(sprite, GridObjectVisual.CellWidth);
-                    hut.spriteVisualOffset = Vector3.zero;
-                    hut.completeRenderer = ConfigureVisual(root.transform, "Complete Image", sprite, Color.white, 1002, marker.footprint, 0.026f);
-                    hut.sparkleRenderer = ConfigureOverlay(root.transform, "Completion Sparkle", LoadGeneratedSprite("Sparkle"), 22030, new Vector3(0.3f, 0.48f, 0f), 0.7f);
-                    hut.completeObject = hut.completeRenderer != null ? hut.completeRenderer.gameObject : null;
-                    hut.blockingCollider = ConfigureCollider(root, marker.footprint, false);
-                    ConfigureCollider(root, marker.footprint, true);
-                }
-
                 DestroyChild(root.transform, "Build Gauge");
                 CleanMissingScripts(root);
                 PrefabUtility.SaveAsPrefabAsset(root, path);
@@ -399,7 +337,6 @@ namespace AreaSurvivors.EditorTools
             {
                 "Ballista",
                 "BallistaUpgrade",
-                "CarpenterHut",
                 "Tower",
                 "TowerUpgrade",
                 "WatchTower",
@@ -410,7 +347,6 @@ namespace AreaSurvivors.EditorTools
                 "WoodenGateUpgradeOpen",
                 "WoodenWall",
                 "WoodenWallUpgrade",
-                "WorkerHut",
             };
             foreach (var name in generated)
             {
@@ -421,7 +357,6 @@ namespace AreaSurvivors.EditorTools
             {
                 "BallistaSource_20260616_122017",
                 "BallistaUpgradeSource_20260615_154348",
-                "CarpenterHutSource",
                 "TowerSquareSource_20260614_211704",
                 "TowerUpgradeSquareSource_20260614_234350",
                 "WatchTowerSquareSource_20260615_000239",
@@ -432,7 +367,6 @@ namespace AreaSurvivors.EditorTools
                 "WoodenGateUpgradeOpenSource_20260616_220654",
                 "WoodenWallSource_20260616_204904",
                 "WoodenWallUpgradeSource_20260616_221042",
-                "WorkerHutSource",
             };
             foreach (var name in externalSources)
             {

@@ -97,6 +97,7 @@
   - `WorkerHut.cs`
   - `AutoBuildingScheduler.cs`
   - 理由: 固定スロット側が安定した後に削る。Prefab / Save data 参照確認が必要。
+  - 2026-06-23: `CarpenterHut.cs` / `WorkerHut.cs` / `AutoBuildingScheduler.cs` / `AutoWorkScheduler.cs`、対応する Editor Setup、Prefab、Tile、Generated / External Sprite、GameConfig / GeneratedSpriteCatalog / 05_Game serialized 参照を削除。`04_Upgrades.unity` の廃止ノード / リンクも Unity API 経由で物理削除済み。`SavedBuildingKind` と廃止 `UpgradeType` は既存セーブ互換用に残し、`ProgressionStore.IsRetiredUpgrade` で購入不可、`UpgradeScreen` で Runtime 非表示化。
 - 優先度E: 一時ブートストラップ / 旧配置互換
   - `05_Game.unity` の temporary bootstrap 系オブジェクト
   - 固定スロット化が終わった後の `SyncFixedBuildingSlots` 互換処理
@@ -346,13 +347,11 @@ Docs/RebuildPlan.md を読んで、まず Phase 0 の棚卸しから進めてく
   - `WoodenGate`: `Complete Image` `(1.40, 1.43, 1.00)`, `Upgraded Building Image` `(1.40, 1.40, 1.00)`, `Completion Sparkle` `(0.70, 0.70, 0.70)`
   - `BallistaTower`: `Complete Image` `(1.40, 1.63, 1.00)`, `Upgraded Building Image` `(1.40, 1.40, 1.00)`, `Completion Sparkle` `(0.70, 0.70, 0.70)`
   - `WatchTower`: `Complete Image` `(1.40, 1.60, 1.00)`, `Upgraded Building Image` `(1.40, 1.40, 1.00)`, `Completion Sparkle` `(0.70, 0.70, 0.70)`
-  - `CarpenterHut`: `Complete Image` `(1.40, 1.40, 1.00)`, `Completion Sparkle` `(0.70, 0.70, 0.70)`
-  - `WorkerHut`: `Complete Image` `(1.40, 1.40, 1.00)`, `Completion Sparkle` `(0.70, 0.70, 0.70)`
 - 正規化方針: 建造物本体 / アップグレード本体の PNG は占有セル幅 `セル数 * 64px` を維持し、Sprite PPU を `64 / GridObjectVisual.CellWidth(0.7) = 91.42857` に寄せる。Prefab child Transform Scale は `1,1,1` を正とする。
 - `WoodenWall` は通常 / アップグレード画像の PPU を `91.42857` に変更し、`Complete Image` / `Upgraded Building Image` の Scale を `1,1,1` 化済み。
 - `WoodenGate` は通常閉 / 通常開 / アップグレード閉 / アップグレード開画像の PPU を `91.42857` に変更し、`Complete Image` / `Upgraded Building Image` の Scale を `1,1,1` 化済み。
 - `BallistaTower` / `WatchTower` は通常 / アップグレード画像の PPU を `91.42857` に変更し、`Complete Image` / `Upgraded Building Image` の Scale を `1,1,1` 化済み。
-- `CarpenterHut` / `WorkerHut` は通常画像の PPU を `91.42857` に変更し、`Complete Image` の Scale を `1,1,1` 化済み。
+- `CarpenterHut` / `WorkerHut` は 2026-06-23 の優先度D対応で機能 / Prefab / Sprite を削除済み。
 - `WoodenBarrier` の Prefab レイアウト時Y倍率補正は停止済み。通常 / アップグレード画像の高さ差は PNG のアスペクト比を正とし、Y Scale では補正しない。
 - `BallistaTower` / `WatchTower` の Prefab レイアウト時Y倍率補正は停止済み。通常 / アップグレード画像の高さ差は PNG のアスペクト比を正とし、Y Scale では補正しない。
 - Scale `1,1,1` 化の残りは `Completion Sparkle` のみ。これは演出用Scaleのため、建造物本体正規化とは分けて扱う。

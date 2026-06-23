@@ -61,8 +61,6 @@ MonoBehaviour:
   upgradedTowerCannonExplosionRadiusMultiplier: 2
   upgradedTowerImmediatePaintRadiusCells: 15
   woodenWallMaxHp: 70
-  carpenterHutMaxHp: 50
-  workerHutMaxHp: 50
   watchTowerMaxHp: 100
   watchTowerAutoPaintIntervalSeconds: 2
   watchTowerAutoPaintRadiusCells: 10
@@ -78,18 +76,10 @@ MonoBehaviour:
   woodenGateStoneCost: 0
   ballistaWoodCost: 50
   ballistaStoneCost: 30
-  carpenterHutWoodCost: 30
-  carpenterHutStoneCost: 20
-  workerHutWoodCost: 30
-  workerHutStoneCost: 20
   watchTowerWoodCost: 50
   watchTowerStoneCost: 50
   harvestIntervalSeconds: 1
   harvestAmountPerTick: 2
-  workerHutAutoGatherBaseIntervalSeconds: 5
-  workerHutAutoGatherIntervalReductionPerLevel: 1
-  workerHutAutoGatherBaseAmount: 1
-  workerHutAutoGatherAmountPerLevel: 1
   harvestAmount1Cell: 100
   harvestAmount2Cell: 200
   harvestAmount4Cell: 400

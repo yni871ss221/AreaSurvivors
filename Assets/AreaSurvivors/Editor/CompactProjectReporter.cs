@@ -23,8 +23,6 @@ namespace AreaSurvivors.Editor
             "Assets/AreaSurvivors/Prefabs/BallistaTower.prefab",
             "Assets/AreaSurvivors/Prefabs/WoodenWall.prefab",
             "Assets/AreaSurvivors/Prefabs/WoodenGate.prefab",
-            "Assets/AreaSurvivors/Prefabs/CarpenterHut.prefab",
-            "Assets/AreaSurvivors/Prefabs/WorkerHut.prefab",
             "Assets/AreaSurvivors/Prefabs/WatchTower.prefab",
             "Assets/AreaSurvivors/Prefabs/Player.prefab",
             "Assets/AreaSurvivors/Prefabs/Enemy.prefab",

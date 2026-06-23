@@ -98,6 +98,13 @@ namespace AreaSurvivors
         void ConfigureSceneNode(SkillNodeView node, SkillNodeView[] sceneNodes)
         {
             if (node == null) return;
+            if (ProgressionStore.IsRetiredUpgrade(node.type))
+            {
+                node.gameObject.SetActive(false);
+                return;
+            }
+
+            node.gameObject.SetActive(true);
             node.ResolveReferences();
 
             int level = ProgressionStore.GetLevel(node.type);

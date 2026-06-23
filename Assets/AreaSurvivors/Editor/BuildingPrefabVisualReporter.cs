@@ -12,9 +12,7 @@ namespace AreaSurvivors.Editor
             "Assets/AreaSurvivors/Prefabs/WoodenWall.prefab",
             "Assets/AreaSurvivors/Prefabs/WoodenGate.prefab",
             "Assets/AreaSurvivors/Prefabs/BallistaTower.prefab",
-            "Assets/AreaSurvivors/Prefabs/WatchTower.prefab",
-            "Assets/AreaSurvivors/Prefabs/CarpenterHut.prefab",
-            "Assets/AreaSurvivors/Prefabs/WorkerHut.prefab"
+            "Assets/AreaSurvivors/Prefabs/WatchTower.prefab"
         };
 
         [MenuItem("Area Survivors/Reports/Building Prefab Visuals")]
@@ -88,8 +86,6 @@ namespace AreaSurvivors.Editor
 
             if (root.GetComponent<BallistaTower>() != null) lines.Add("- component BallistaTower=yes");
             if (root.GetComponent<WatchTower>() != null) lines.Add("- component WatchTower=yes");
-            if (root.GetComponent<CarpenterHut>() != null) lines.Add("- component CarpenterHut=yes");
-            if (root.GetComponent<WorkerHut>() != null) lines.Add("- component WorkerHut=yes");
 
             report.AppendLine($"- spriteUsers: {lines.Count}");
             foreach (var line in lines)
