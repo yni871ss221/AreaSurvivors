@@ -7,7 +7,6 @@ namespace AreaSurvivors
     [RequireComponent(typeof(Health))]
     public sealed class WorkerHut : MonoBehaviour, IBuildableConstruction
     {
-        static readonly bool DisableWorkerHutAutoGatherForPhase1 = true;
         public GameConfig config;
         public TileGrid grid;
         public Collider2D blockingCollider;
@@ -87,14 +86,6 @@ namespace AreaSurvivors
 
         public void AutoGather(int amountPerResource)
         {
-            if (DisableWorkerHutAutoGatherForPhase1) return;
-            if (!completed || grid == null || amountPerResource <= 0) return;
-
-            var wood = FindNearestConnectedResource(ResourceType.Wood);
-            if (wood != null) wood.HarvestExternal(amountPerResource);
-
-            var stone = FindNearestConnectedResource(ResourceType.Stone);
-            if (stone != null) stone.HarvestExternal(amountPerResource);
         }
 
         HarvestableResource FindNearestConnectedResource(ResourceType type)

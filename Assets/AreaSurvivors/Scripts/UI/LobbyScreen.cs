@@ -9,7 +9,6 @@ namespace AreaSurvivors
         const int StagePanelCount = 4;
         static readonly Color LockedColor = new Color(0f, 0f, 0f, 0.72f);
         static readonly Color UnlockedColor = Color.white;
-        static readonly bool DisableNonKnightSelectionForPhase1 = true;
 
         Canvas lobbyUi;
         SceneNavigator navigator;
@@ -61,23 +60,13 @@ namespace AreaSurvivors
             BindButton("Upgrade Button", navigator.LoadUpgrades);
             BindButton("Title Button", navigator.LoadTitle);
             BindCharacterButton("Character Knight", CharacterType.Knight);
-            if (!DisableNonKnightSelectionForPhase1)
-            {
-                BindCharacterButton("Character Archer", CharacterType.Archer);
-                BindCharacterButton("Character Mage", CharacterType.Mage);
-            }
         }
 
         void RefreshCharacterCards()
         {
             RefreshCharacterCard("Character Knight", CharacterType.Knight);
-            SetCharacterCardActive("Character Archer", !DisableNonKnightSelectionForPhase1);
-            SetCharacterCardActive("Character Mage", !DisableNonKnightSelectionForPhase1);
-            if (!DisableNonKnightSelectionForPhase1)
-            {
-                RefreshCharacterCard("Character Archer", CharacterType.Archer);
-                RefreshCharacterCard("Character Mage", CharacterType.Mage);
-            }
+            SetCharacterCardActive("Character Archer", false);
+            SetCharacterCardActive("Character Mage", false);
         }
 
         void RefreshCharacterCard(string name, CharacterType type)
@@ -94,7 +83,7 @@ namespace AreaSurvivors
         {
             BindButton(name, () =>
             {
-                if (DisableNonKnightSelectionForPhase1 && type != CharacterType.Knight) return;
+                if (type != CharacterType.Knight) return;
                 RunState.SelectedCharacter = type;
                 ProgressionStore.Data.selectedCharacter = type;
                 ProgressionStore.Save();
@@ -104,7 +93,6 @@ namespace AreaSurvivors
 
         void NormalizeCharacterSelection()
         {
-            if (!DisableNonKnightSelectionForPhase1) return;
             RunState.SelectedCharacter = CharacterType.Knight;
             ProgressionStore.Data.selectedCharacter = CharacterType.Knight;
             ProgressionStore.Save();

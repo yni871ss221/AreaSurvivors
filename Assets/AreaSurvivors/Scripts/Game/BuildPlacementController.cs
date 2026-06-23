@@ -56,8 +56,6 @@ namespace AreaSurvivors
         bool hasBuildCell;
         bool canPlaceBuild;
         bool buildSceneMode;
-        static readonly bool DisableBuildPlacementInBuildSceneForPhase1 = true;
-        static readonly bool DisableHutBuildsForPhase1 = true;
 
         public int SelectedHudSlot { get; private set; } = -1;
 
@@ -142,7 +140,7 @@ namespace AreaSurvivors
                 return;
             }
 
-            if (buildSceneMode && DisableBuildPlacementInBuildSceneForPhase1)
+            if (buildSceneMode)
             {
                 CancelBuildSelection();
                 return;
@@ -212,49 +210,15 @@ namespace AreaSurvivors
 
         public void SelectCarpenterHut()
         {
-            if (DisableHutBuildsForPhase1)
-            {
-                buildSelectionActive = false;
-                SelectedHudSlot = -1;
-                UpdateBuildStatus();
-                return;
-            }
-
-            if (!IsSlotUnlocked(4))
-            {
-                buildSelectionActive = false;
-                SelectedHudSlot = -1;
-                UpdateBuildStatus();
-                return;
-            }
-
-            buildMode = BuildMode.CarpenterHut;
-            buildSelectionActive = true;
-            SelectedHudSlot = 4;
+            buildSelectionActive = false;
+            SelectedHudSlot = -1;
             UpdateBuildStatus();
         }
 
         public void SelectWorkerHut()
         {
-            if (DisableHutBuildsForPhase1)
-            {
-                buildSelectionActive = false;
-                SelectedHudSlot = -1;
-                UpdateBuildStatus();
-                return;
-            }
-
-            if (!IsSlotUnlocked(5))
-            {
-                buildSelectionActive = false;
-                SelectedHudSlot = -1;
-                UpdateBuildStatus();
-                return;
-            }
-
-            buildMode = BuildMode.WorkerHut;
-            buildSelectionActive = true;
-            SelectedHudSlot = 5;
+            buildSelectionActive = false;
+            SelectedHudSlot = -1;
             UpdateBuildStatus();
         }
 
@@ -277,7 +241,7 @@ namespace AreaSurvivors
         public bool TryPlaceAtCell(Vector3Int cell)
         {
             if (grid == null || grid.groundTilemap == null) return false;
-            if (buildSceneMode && DisableBuildPlacementInBuildSceneForPhase1) return false;
+            if (buildSceneMode) return false;
             var footprint = CurrentBuildFootprint();
             var footprintOrigin = CurrentBuildFootprintOrigin(cell);
             var world = GridObjectVisual.FootprintBottomCenterToWorld(grid, footprintOrigin, footprint);
@@ -374,7 +338,7 @@ namespace AreaSurvivors
 
         void HandleBuildModeInput()
         {
-            if (buildSceneMode && DisableBuildPlacementInBuildSceneForPhase1)
+            if (buildSceneMode)
             {
                 return;
             }
@@ -920,7 +884,7 @@ namespace AreaSurvivors
 
         public bool IsSlotUnlocked(int slot)
         {
-            if (DisableHutBuildsForPhase1 && (slot == 4 || slot == 5)) return false;
+            if (slot == 4 || slot == 5) return false;
             if (slot == 2) return ProgressionStore.IsUnlocked(UpgradeType.UnlockBallista);
             if (slot == 3) return ProgressionStore.IsUnlocked(UpgradeType.UnlockWatchTower);
             if (slot == 4) return ProgressionStore.IsUnlocked(UpgradeType.UnlockCarpenterHut);

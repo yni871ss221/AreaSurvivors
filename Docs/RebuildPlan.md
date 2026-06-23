@@ -85,11 +85,13 @@
   - `BuildPlacementController.cs` の build scene 用の停止分岐
   - 理由: 仕様が固まった後は軽量化しやすいが、現時点では検証済み挙動の保険でもある。
   - 2026-06-23: `GameManager.cs` の自然ランドマーク停止フラグと制限時間失敗停止フラグを削除済み。通常ゲームで木 / 石自然物を出さない、制限時間で失敗しない挙動は維持。
+  - 2026-06-23: `BuildPlacementController.cs` の Build Scene 任意配置停止 / 小屋ビルド停止フラグ、Lobby系のナイト固定フラグ、`AutoBuildingScheduler.cs` / `CarpenterHut.cs` / `WorkerHut.cs` の小屋機能停止フラグを削除済み。停止中の挙動は固定仕様として維持。
 - 優先度C: UI 停止分岐
   - `LobbyScreen.cs`
   - `SimpleUi.cs`
   - `LobbyUiFactory.cs`
   - 理由: メニュー導線に影響するため、タイトル / ロビー側の最終方針確認後に削る。
+  - 2026-06-23: ナイト固定を仕様として直書きし、アーチャー / メイジ生成・バインド用の停止分岐を削除済み。
 - 優先度D: 不要になった建造補助
   - `CarpenterHut.cs`
   - `WorkerHut.cs`

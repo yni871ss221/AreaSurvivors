@@ -7,7 +7,6 @@ namespace AreaSurvivors
 {
     public static class LobbyUiFactory
     {
-        static readonly bool DisableNonKnightSelectionForPhase1 = true;
         static readonly Color PanelColor = new Color(0.03f, 0.06f, 0.05f, 0.62f);
         static readonly Color StagePanelColor = new Color(0.035f, 0.06f, 0.05f, 0.78f);
         static readonly Color ButtonColor = new Color(0.12f, 0.20f, 0.16f, 0.94f);
@@ -106,11 +105,6 @@ namespace AreaSurvivors
             Panel(parent, "Character Panel", new Vector2(0, -66), new Vector2(760, 238), PanelColor);
             Label(parent, "CharacterTitle", "\u51fa\u6483\u30ad\u30e3\u30e9\u30af\u30bf\u30fc", 23, new Vector2(0, 28), new Vector2(420, 34), AccentText);
             CharacterCard(parent, "Character Knight", "\u30ca\u30a4\u30c8", "\u524d\u65b9\u3092\u5207\u308a\u6255\u3046", "Generated/Knight", CharacterType.Knight, new Vector2(-250, -10));
-            if (!DisableNonKnightSelectionForPhase1)
-            {
-                CharacterCard(parent, "Character Archer", "\u30a2\u30fc\u30c1\u30e3\u30fc", "\u9060\u304f\u306e\u6575\u3092\u72d9\u3046", "Generated/Archer", CharacterType.Archer, new Vector2(0, -10));
-                CharacterCard(parent, "Character Mage", "\u30e1\u30a4\u30b8", "\u706b\u7403\u3067\u7fa4\u308c\u3092\u6255\u3046", "Generated/Mage", CharacterType.Mage, new Vector2(250, -10));
-            }
         }
 
         static void CharacterCard(Transform parent, string objectName, string title, string description, string spriteResource, CharacterType type, Vector2 pos)

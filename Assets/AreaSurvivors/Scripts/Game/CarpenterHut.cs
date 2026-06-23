@@ -7,7 +7,6 @@ namespace AreaSurvivors
     [RequireComponent(typeof(Health))]
     public sealed class CarpenterHut : MonoBehaviour, IBuildableConstruction
     {
-        static readonly bool DisableCarpenterHutRepairForPhase1 = true;
         public GameConfig config;
         public TileGrid grid;
         public Collider2D blockingCollider;
@@ -84,10 +83,7 @@ namespace AreaSurvivors
 
         void Update()
         {
-            if (!completed || DisableCarpenterHutRepairForPhase1) return;
-
-            RepairConnectedBuildings();
-            AnimateCompletionSparkle();
+            if (!completed) return;
         }
 
         public void CompleteImmediately()
@@ -98,7 +94,6 @@ namespace AreaSurvivors
 
         void RepairConnectedBuildings()
         {
-            if (DisableCarpenterHutRepairForPhase1) return;
             if (grid == null || repairAmount <= 0) return;
             repairTimer -= Time.deltaTime;
             if (repairTimer > 0f) return;
