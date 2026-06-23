@@ -14,6 +14,7 @@ namespace AreaSurvivors.Editor
         const string ActionSmokeScenarioPath = TestFolder + "/Gameplay_Action_Smoke.asset";
         const string EnemyVisualsScenarioPath = TestFolder + "/Gameplay_Enemy_Visuals.asset";
         const string MapPerimeterScenarioPath = TestFolder + "/Gameplay_Map_Perimeter.asset";
+        const string RebootWeaponsScenarioPath = TestFolder + "/Gameplay_Reboot_Weapons.asset";
         const string SelectedScenarioEditorPref = "AreaSurvivors.GameplayTestScenarioPath";
         static bool playModeQueued;
 
@@ -26,6 +27,7 @@ namespace AreaSurvivors.Editor
             EnsureActionSmokeScenario();
             EnsureEnemyVisualsScenario();
             EnsureMapPerimeterScenario();
+            EnsureRebootWeaponsScenario();
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             var bootstrapObject = new GameObject("Gameplay Test Bootstrap");
@@ -85,6 +87,9 @@ namespace AreaSurvivors.Editor
         [MenuItem("Area Survivors/Test Scenarios/Run Samples/Map Perimeter")]
         public static void RunMapPerimeter() => RunScenarioAsset(EnsureMapPerimeterScenario());
 
+        [MenuItem("Area Survivors/Test Scenarios/Run Samples/Reboot Weapons")]
+        public static void RunRebootWeapons() => RunScenarioAsset(EnsureRebootWeaponsScenario());
+
         [MenuItem("Area Survivors/Test Scenarios/Samples/Use Navigation Default")]
         public static void UseNavigationDefault()
         {
@@ -113,6 +118,12 @@ namespace AreaSurvivors.Editor
         public static void UseMapPerimeter()
         {
             UseScenarioAsset(EnsureMapPerimeterScenario());
+        }
+
+        [MenuItem("Area Survivors/Test Scenarios/Samples/Use Reboot Weapons")]
+        public static void UseRebootWeapons()
+        {
+            UseScenarioAsset(EnsureRebootWeaponsScenario());
         }
 
         [MenuItem("Area Survivors/Test Scenarios/Create New Gameplay Scenario")]
@@ -347,6 +358,63 @@ namespace AreaSurvivors.Editor
                 }
             };
             AssetDatabase.CreateAsset(scenario, EnemyVisualsScenarioPath);
+            AssetDatabase.SaveAssets();
+            return scenario;
+        }
+
+        static GameplayTestScenario EnsureRebootWeaponsScenario()
+        {
+            var scenario = AssetDatabase.LoadAssetAtPath<GameplayTestScenario>(RebootWeaponsScenarioPath);
+            if (scenario != null) return scenario;
+
+            scenario = ScriptableObject.CreateInstance<GameplayTestScenario>();
+            scenario.name = "Gameplay_Reboot_Weapons";
+            scenario.systems.enableGameManager = true;
+            scenario.systems.enableEnemySpawner = false;
+            scenario.systems.enableScenePlayer = false;
+            scenario.systems.enableSceneTower = true;
+            scenario.systems.clearExistingEnemies = true;
+            scenario.systems.clearExistingNaturalLandmarks = true;
+            scenario.targetCellOffset = Vector2Int.zero;
+            scenario.scheduledActions = new[]
+            {
+                new GameplayTestScenario.ScheduledAction
+                {
+                    atSeconds = 0.2f,
+                    type = GameplayTestActionType.LevelUpArrowWeapon
+                },
+                new GameplayTestScenario.ScheduledAction
+                {
+                    atSeconds = 0.4f,
+                    type = GameplayTestActionType.LevelUpFireballWeapon
+                }
+            };
+            scenario.simulationTimeScale = 4f;
+            scenario.testDurationSeconds = 1f;
+            scenario.assertions = new[]
+            {
+                new GameplayTestScenario.Assertion
+                {
+                    type = GameplayTestAssertionType.GameStageEquals,
+                    expectedCount = 1
+                },
+                new GameplayTestScenario.Assertion
+                {
+                    type = GameplayTestAssertionType.WeaponSlashLevelAtLeast,
+                    expectedCount = 1
+                },
+                new GameplayTestScenario.Assertion
+                {
+                    type = GameplayTestAssertionType.WeaponArrowLevelAtLeast,
+                    expectedCount = 1
+                },
+                new GameplayTestScenario.Assertion
+                {
+                    type = GameplayTestAssertionType.WeaponFireballLevelAtLeast,
+                    expectedCount = 1
+                }
+            };
+            AssetDatabase.CreateAsset(scenario, RebootWeaponsScenarioPath);
             AssetDatabase.SaveAssets();
             return scenario;
         }

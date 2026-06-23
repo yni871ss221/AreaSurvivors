@@ -120,7 +120,18 @@ function Write-TokenUsageJsonLine {
     $line = $Record | ConvertTo-Json -Depth 8 -Compress
     for ($attempt = 0; $attempt -lt 5; $attempt++) {
         try {
-            $line | Add-Content -LiteralPath $ReportPath -Encoding UTF8
+            $stream = [System.IO.File]::Open($ReportPath, [System.IO.FileMode]::Append, [System.IO.FileAccess]::Write, [System.IO.FileShare]::ReadWrite)
+            try {
+                $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+                $writer = New-Object System.IO.StreamWriter($stream, $utf8NoBom)
+                try {
+                    $writer.WriteLine($line)
+                } finally {
+                    $writer.Dispose()
+                }
+            } finally {
+                $stream.Dispose()
+            }
             return $ReportPath
         } catch {
             Start-Sleep -Milliseconds (100 * ($attempt + 1))

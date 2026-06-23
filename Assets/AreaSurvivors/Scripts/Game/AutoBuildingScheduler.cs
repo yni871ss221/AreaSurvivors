@@ -5,6 +5,7 @@ namespace AreaSurvivors
     public class AutoBuildingScheduler : MonoBehaviour
     {
         public GameConfig config;
+        static readonly bool DisableWorkerHutAutoGatherForPhase1 = true;
 
         float workerHutTimer;
         float watchTowerTimer;
@@ -25,6 +26,7 @@ namespace AreaSurvivors
 
         void TickWorkerHutTimer()
         {
+            if (DisableWorkerHutAutoGatherForPhase1) return;
             float interval = AutoGatherIntervalSeconds();
             workerHutTimer += Time.deltaTime;
             if (workerHutTimer < interval) return;

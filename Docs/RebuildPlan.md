@@ -71,6 +71,31 @@
 - 制限時間クリア
 - 任意配置型の建造
 
+削除対象のまとめ（Phase 4 以降で順次整理）:
+
+- 優先度A: HUD の旧表示部
+  - 武器パネル / 建造メニュー / 木石パネルの旧レイアウト分岐
+  - 塗りゲージの仮実装が本実装に置き換わった後の一時コード
+  - 理由: Scene 配置の HUD を正にしたため、残すほど疎結合ルールと衝突しやすい。
+- 優先度B: Phase 1 / 3 の一時停止フラグと互換分岐
+  - `GameManager.cs` の HUD / リソース / 制限時間停止系フラグ
+  - `BuildPlacementController.cs` の build scene 用の停止分岐
+  - 理由: 仕様が固まった後は軽量化しやすいが、現時点では検証済み挙動の保険でもある。
+- 優先度C: UI 停止分岐
+  - `LobbyScreen.cs`
+  - `SimpleUi.cs`
+  - `LobbyUiFactory.cs`
+  - 理由: メニュー導線に影響するため、タイトル / ロビー側の最終方針確認後に削る。
+- 優先度D: 不要になった建造補助
+  - `CarpenterHut.cs`
+  - `WorkerHut.cs`
+  - `AutoBuildingScheduler.cs`
+  - 理由: 固定スロット側が安定した後に削る。Prefab / Save data 参照確認が必要。
+- 優先度E: 一時ブートストラップ / 旧配置互換
+  - `05_Game.unity` の temporary bootstrap 系オブジェクト
+  - 固定スロット化が終わった後の `SyncFixedBuildingSlots` 互換処理
+  - 理由: Scene YAML 破損リスクがあるため、Reporter / Validator で対象を絞ってから行う。
+
 置き換えるもの:
 
 - 建造物配置を固定スロット方式へ変更
@@ -269,3 +294,60 @@ Docs/RebuildPlan.md を読んで、まず Phase 0 の棚卸しから進めてく
 - `.unity` / `.prefab` は全文読みではなく Reporter / Validator / targeted search を優先する。
 - Obsidian 外部記憶は、ユーザーが履歴確認・記録・締め作業を明示した時だけ使う。
 - 日本語で報告する。
+
+## 現在地メモ
+
+### Phase 4: 塗り / セル占有整理
+
+- 青 / 赤 / 無色セル集計は `TileGrid.GetControlSummary()` に集約済み。
+- HUD 塗り内訳は Scene 上の `Control Breakdown` を正とし、`GameHudController` は既存参照の更新のみ行う。
+- プレイヤー / 敵の床速度補正は `TileGrid.GetMoveMultiplier()` に集約済み。
+- 建造物セルの通行不可は `TileGrid` の object flags / `IsBlockedForMovement()` 経由に整理済み。
+- プレイヤー移動、敵移動、敵赤塗り、プレイヤー足元青塗りは既存 `TileGrid.Paint()` を利用。
+- 武器による青塗りは、スラッシュ命中、矢命中、火の玉通過 / 爆発で `TileGrid.Paint(..., TileOwner.Player, ...)` を呼ぶ最小連携を追加済み。
+- 検証: `unicli exec Compile` 成功、`unicli exec Console.GetLog` 空。
+
+### Phase 5: 武器仕様の新仕様化
+
+- `WeaponController` はキャラ種別の排他攻撃ではなく、スラッシュ / 弓 / 火の玉を個別レベルと個別ループで扱う形へ移行中。
+- `GameManager` のゲーム開始時プレイヤー生成は `CharacterType.Knight` 固定に変更済み。
+- 初期状態はスラッシュのみ。弓 / 火の玉はレベルアップ選択肢で Lv1 解放される。
+- レベルアップ選択肢は `GameManager.RollUpgrades()` でスラッシュ強化、弓解放 / 強化、火の玉解放 / 強化を優先表示する。
+- 既存 `GameConfig` の `knightWeaponLevels` / `archerWeaponLevels` / `mageWeaponLevels` を流用し、新規Asset構造はまだ追加しない。
+- `GameplayTestRunner` に武器レベル / Stage の Assertion と、武器レベルアップ用 ScheduledAction を追加済み。
+- `GameplayTestTools` に `Gameplay_Reboot_Weapons` サンプル生成メニューを追加済み。メニュー実行で Scenario asset を生成してから PlayMode 検証する。
+- 検証: `unicli exec Compile` 成功、`unicli exec Console.GetLog` 空。
+
+### Phase 6: 敵出現 / ラウンド仕様調整
+
+- `EnemySpawner` は Stage 1 / Stage 2 の `SpawnPhase` と `TimedEnemySpawn` をコード側で固定定義し、GameConfig asset の古い配列に引っ張られないようにした。
+- Stage 1 は 0:30 エリートイノシシ、1:00 オークへ切替、1:30 エリートオーク、2:00 オークキング。
+- Stage 2 は 0:30 エリートゴブリン、1:00 オーガへ切替、1:30 エリートオーガ、2:00 ゴブリンロード。
+- ボス出現中は `GameManager.Update()` のタイマー加算を止め、既存の赤タイマー表示とBoss HUDを維持する。
+- Stage 1 ボス討伐後は同一Scene内で Stage 2 へ連続進行し、Stage 2 ボス討伐でGameClearへ進む。
+- GameplayTest 側は Stage 値 Assertion を追加済み。ボス討伐による Stage 1 -> Stage 2 連続進行は実プレイ確認または専用 PlayMode Scenario 追加で検証する。
+- 検証: `unicli exec Compile` 成功、`unicli exec Console.GetLog` 空。
+
+### Phase 7: 画像 Scale 問題の収束
+
+- Prefab / Scene の一括再生成はまだ行わない。
+- `BuildingPrefabVisualReporter` に子Transformの localScale / localRotation 警告を追加し、Scale `1` / Rotation `0` へ寄せる対象を低出力レポートで確認できるようにした。
+- 次に実施する場合は、このReporter結果を見てPrefab単位でScale/Rotationを調整する。
+- 最新レポート: `TokenReports/UnityReports/building-prefab-visuals-20260623-123708.md`
+- Rotation 警告は 0 件。Scale 警告のみ。
+- Scale 警告対象:
+  - `WoodenWall`: `Complete Image` `(1.40, 1.43, 1.00)`, `Upgraded Building Image` `(1.40, 1.40, 1.00)`, `Completion Sparkle` `(0.70, 0.70, 0.70)`
+  - `WoodenGate`: `Complete Image` `(1.40, 1.43, 1.00)`, `Upgraded Building Image` `(1.40, 1.40, 1.00)`, `Completion Sparkle` `(0.70, 0.70, 0.70)`
+  - `BallistaTower`: `Complete Image` `(1.40, 1.63, 1.00)`, `Upgraded Building Image` `(1.40, 1.40, 1.00)`, `Completion Sparkle` `(0.70, 0.70, 0.70)`
+  - `WatchTower`: `Complete Image` `(1.40, 1.60, 1.00)`, `Upgraded Building Image` `(1.40, 1.40, 1.00)`, `Completion Sparkle` `(0.70, 0.70, 0.70)`
+  - `CarpenterHut`: `Complete Image` `(1.40, 1.40, 1.00)`, `Completion Sparkle` `(0.70, 0.70, 0.70)`
+  - `WorkerHut`: `Complete Image` `(1.40, 1.40, 1.00)`, `Completion Sparkle` `(0.70, 0.70, 0.70)`
+- 正規化方針: 建造物本体 / アップグレード本体の PNG は占有セル幅 `セル数 * 64px` を維持し、Sprite PPU を `64 / GridObjectVisual.CellWidth(0.7) = 91.42857` に寄せる。Prefab child Transform Scale は `1,1,1` を正とする。
+- `WoodenWall` は通常 / アップグレード画像の PPU を `91.42857` に変更し、`Complete Image` / `Upgraded Building Image` の Scale を `1,1,1` 化済み。
+- `WoodenGate` は通常閉 / 通常開 / アップグレード閉 / アップグレード開画像の PPU を `91.42857` に変更し、`Complete Image` / `Upgraded Building Image` の Scale を `1,1,1` 化済み。
+- `BallistaTower` / `WatchTower` は通常 / アップグレード画像の PPU を `91.42857` に変更し、`Complete Image` / `Upgraded Building Image` の Scale を `1,1,1` 化済み。
+- `CarpenterHut` / `WorkerHut` は通常画像の PPU を `91.42857` に変更し、`Complete Image` の Scale を `1,1,1` 化済み。
+- `WoodenBarrier` の Prefab レイアウト時Y倍率補正は停止済み。通常 / アップグレード画像の高さ差は PNG のアスペクト比を正とし、Y Scale では補正しない。
+- `BallistaTower` / `WatchTower` の Prefab レイアウト時Y倍率補正は停止済み。通常 / アップグレード画像の高さ差は PNG のアスペクト比を正とし、Y Scale では補正しない。
+- Scale `1,1,1` 化の残りは `Completion Sparkle` のみ。これは演出用Scaleのため、建造物本体正規化とは分けて扱う。
+- 検証: `unicli exec Compile` 成功、`unicli exec Console.GetLog` 空。

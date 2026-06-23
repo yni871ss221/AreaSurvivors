@@ -33,7 +33,6 @@ namespace AreaSurvivors
         bool hasRegisteredCell;
         Vector3Int registeredCell;
         const float SparkleDuration = 0.75f;
-        const float BaseVisualHeightMultiplier = 419f / 367f;
 
         public bool IsBuilt => completed;
         public TileGrid Grid => grid;
@@ -129,7 +128,7 @@ namespace AreaSurvivors
                     if (distance > radius) continue;
 
                     var cell = OriginCell + new Vector3Int(x, y, 0);
-                    if (!grid.ContainsCell(cell) || grid.GetOwner(cell) == TileOwner.Player) continue;
+                    if (!grid.ContainsCell(cell) || grid.IsOwnedBy(cell, TileOwner.Player)) continue;
                     if (distance < bestDistance)
                     {
                         bestDistance = distance;
@@ -179,7 +178,6 @@ namespace AreaSurvivors
             if (usingPrefabLayout && prefabVisualSet != null && prefabVisualSet.HasBaseVisuals)
             {
                 ConfigureSpriteVisual(completeRenderer, Color.white);
-                ApplyBaseVisualScaleOverride();
                 completeObject = completeRenderer.gameObject;
                 RefreshSortRenderers();
                 spriteVisualsPrepared = true;
@@ -241,15 +239,6 @@ namespace AreaSurvivors
                 gridVisual.ApplyFootprintWidthPreserveAspect(visual, towerSprite);
             }
             visual.visible = false;
-        }
-
-        void ApplyBaseVisualScaleOverride()
-        {
-            if (!usingPrefabLayout || completeRenderer == null) return;
-            var baseScale = prefabVisualSet != null && prefabVisualSet.upgradedCompleteVisual != null
-                ? prefabVisualSet.upgradedCompleteVisual.transform.localScale
-                : completeRenderer.transform.localScale;
-            completeRenderer.transform.localScale = new Vector3(baseScale.x, baseScale.y * BaseVisualHeightMultiplier, baseScale.z);
         }
 
         void CacheVisualScales()

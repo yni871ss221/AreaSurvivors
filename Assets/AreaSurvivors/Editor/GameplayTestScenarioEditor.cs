@@ -52,11 +52,24 @@ namespace AreaSurvivors.Editor
 
             foreach (var action in scenario.scheduledActions ?? System.Array.Empty<GameplayTestScenario.ScheduledAction>())
             {
-                if (action != null && string.IsNullOrWhiteSpace(action.objectName))
+                if (action != null && RequiresTargetObject(action.type) && string.IsNullOrWhiteSpace(action.objectName))
                     warnings.Add("Scheduled ActionにObject Name未設定の項目があります。");
             }
 
             return warnings;
+        }
+
+        static bool RequiresTargetObject(GameplayTestActionType type)
+        {
+            switch (type)
+            {
+                case GameplayTestActionType.LevelUpSlashWeapon:
+                case GameplayTestActionType.LevelUpArrowWeapon:
+                case GameplayTestActionType.LevelUpFireballWeapon:
+                    return false;
+                default:
+                    return true;
+            }
         }
     }
 }

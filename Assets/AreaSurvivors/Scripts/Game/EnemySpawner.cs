@@ -248,7 +248,7 @@ namespace AreaSurvivors
             for (int i = 0; i < 20; i++)
             {
                 var candidate = grid.GridToCell(Random.Range(startX, endX), Random.Range(startY, endY));
-                if (grid.IsOccupied(candidate)) continue;
+                if (grid.HasObject(candidate)) continue;
                 selected = candidate;
                 break;
             }
@@ -280,7 +280,11 @@ namespace AreaSurvivors
                 };
             }
 
-            return config.spawnPhases;
+            return new[]
+            {
+                new SpawnPhase { startSeconds = 0f, enemyKind = EnemyKind.Boar, spawnInterval = config.spawnInterval, baseBatchCount = 1, batchIncreasePerDirectionChange = 1, maxBatchCount = 10 },
+                new SpawnPhase { startSeconds = 60f, enemyKind = EnemyKind.Orc, spawnInterval = Mathf.Max(0.5f, config.spawnInterval * 1.05f), baseBatchCount = 1, batchIncreasePerDirectionChange = 1, maxBatchCount = 14 }
+            };
         }
 
         TimedEnemySpawn[] TimedSpawnsForCurrentStage()
@@ -295,7 +299,12 @@ namespace AreaSurvivors
                 };
             }
 
-            return config.timedEnemySpawns ?? new TimedEnemySpawn[0];
+            return new[]
+            {
+                new TimedEnemySpawn { timeSeconds = 30f, enemyKind = EnemyKind.EliteBoar, count = 1, announce = true, announcement = "エリートイノシシ出現！" },
+                new TimedEnemySpawn { timeSeconds = 90f, enemyKind = EnemyKind.EliteOrc, count = 1, announce = true, announcement = "エリートオーク出現！" },
+                new TimedEnemySpawn { timeSeconds = 120f, enemyKind = EnemyKind.OrcKing, count = 1, announce = true, announcement = "オークキング出現！" }
+            };
         }
 
         static string BossAnnouncementForStage(int stage)

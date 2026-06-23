@@ -11,6 +11,18 @@ namespace AreaSurvivors
         Enemy
     }
 
+    public struct TileControlSummary
+    {
+        public int playerCells;
+        public int enemyCells;
+        public int neutralCells;
+        public int totalCells;
+
+        public float playerRatio => totalCells <= 0 ? 0f : (float)playerCells / totalCells;
+        public float enemyRatio => totalCells <= 0 ? 0f : (float)enemyCells / totalCells;
+        public float neutralRatio => totalCells <= 0 ? 0f : (float)neutralCells / totalCells;
+    }
+
     public enum GridObjectType
     {
         Empty = 0,
@@ -89,6 +101,8 @@ namespace AreaSurvivors
         float[,] controlValues;
         float[,] targetControlValues;
         bool[,] paintDirty;
+        int playerControlledCellCount;
+        int enemyControlledCellCount;
         GridObjectRecord[,] objects;
         GameObject gridLineOverlay;
         Mesh gridLineMesh;
@@ -126,6 +140,8 @@ namespace AreaSurvivors
             controlValues = new float[width, height];
             targetControlValues = new float[width, height];
             paintDirty = new bool[width, height];
+            playerControlledCellCount = 0;
+            enemyControlledCellCount = 0;
             objects = new GridObjectRecord[width, height];
             groundTilemap.ClearAllTiles();
             paintTilemap.ClearAllTiles();
@@ -429,6 +445,11 @@ namespace AreaSurvivors
 
         public bool IsOccupied(Vector3Int cell)
         {
+            return HasObject(cell);
+        }
+
+        public bool HasObject(Vector3Int cell)
+        {
             return GetObject(cell) != null;
         }
 
@@ -438,12 +459,49 @@ namespace AreaSurvivors
             return record != null && (record.flags & flag) != 0;
         }
 
+        public bool IsBlockedForBuilding(Vector3Int cell)
+        {
+            return HasFlag(cell, GridCellFlags.BlocksBuilding);
+        }
+
+        public bool IsBlockedForMovement(Vector3Int cell)
+        {
+            return HasFlag(cell, GridCellFlags.BlocksMovement) || HasFlag(cell, GridCellFlags.BlocksBuilding);
+        }
+
+        public bool IsOwnedBy(Vector3Int cell, TileOwner owner)
+        {
+            return GetOwner(cell) == owner;
+        }
+
+        public bool IsFootprintOwnedBy(Vector3Int originCell, Vector2Int footprint, TileOwner owner)
+        {
+            footprint = NormalizeFootprint(footprint);
+            foreach (var cell in FootprintCells(originCell, footprint))
+            {
+                if (!ContainsCell(cell) || GetOwner(cell) != owner) return false;
+            }
+
+            return true;
+        }
+
+        public bool IsFootprintClear(Vector3Int originCell, Vector2Int footprint)
+        {
+            footprint = NormalizeFootprint(footprint);
+            foreach (var cell in FootprintCells(originCell, footprint))
+            {
+                if (!ContainsCell(cell) || HasObject(cell)) return false;
+            }
+
+            return true;
+        }
+
         public bool CanPlaceObject(Vector3Int originCell, Vector2Int footprint)
         {
             footprint = NormalizeFootprint(footprint);
             foreach (var cell in FootprintCells(originCell, footprint))
             {
-                if (!ContainsCell(cell) || IsOccupied(cell)) return false;
+                if (!ContainsCell(cell) || IsBlockedForBuilding(cell)) return false;
             }
 
             return true;
@@ -527,6 +585,9 @@ namespace AreaSurvivors
             int x, y;
             if (!TryWorldToGrid(world, out x, out y) || controlValues == null) return 1f;
 
+            var cell = GridToCell(x, y);
+            if (IsBlockedForMovement(cell)) return 0f;
+
             float control = controlValues[x, y];
             float target = targetControlValues[x, y];
             if (!paintDirty[x, y] && Mathf.Abs(control) < 0.01f && Mathf.Abs(target) < 0.01f) return 1f;
@@ -534,6 +595,31 @@ namespace AreaSurvivors
             if (mover == TileOwner.Player && control >= 0f) return 1f;
             if (mover == TileOwner.Enemy && control <= 0f) return 1f;
             return Mathf.Clamp01(slowedMultiplier);
+        }
+
+        public TileControlSummary GetControlSummary()
+        {
+            int totalCells = width * height;
+            return new TileControlSummary
+            {
+                playerCells = playerControlledCellCount,
+                enemyCells = enemyControlledCellCount,
+                neutralCells = Mathf.Max(0, totalCells - playerControlledCellCount - enemyControlledCellCount),
+                totalCells = totalCells
+            };
+        }
+
+        public float GetPlayerControlRatio()
+        {
+            return GetControlSummary().playerRatio;
+        }
+
+        public void GetControlCellCounts(out int playerCells, out int enemyCells, out int neutralCells)
+        {
+            var summary = GetControlSummary();
+            playerCells = summary.playerCells;
+            enemyCells = summary.enemyCells;
+            neutralCells = summary.neutralCells;
         }
 
         public void Paint(Vector3 world, TileOwner owner, int radius)
@@ -599,7 +685,13 @@ namespace AreaSurvivors
 
         void ApplyPaintVisual(int x, int y, float control)
         {
-            owners[x, y] = OwnerFromControl(control);
+            var previousOwner = owners[x, y];
+            var nextOwner = OwnerFromControl(control);
+            if (previousOwner != nextOwner)
+            {
+                AdjustOwnerCounts(previousOwner, nextOwner);
+                owners[x, y] = nextOwner;
+            }
             var cell = GridToCell(x, y);
             if (Mathf.Abs(control) < 0.01f && Mathf.Abs(targetControlValues[x, y]) < 0.01f)
             {
@@ -613,6 +705,16 @@ namespace AreaSurvivors
             var color = Color.Lerp(enemy, player, t);
             color.a = Mathf.Lerp(0.38f, Mathf.Max(enemy.a, player.a), Mathf.Abs(control));
             paintTilemap.SetColor(cell, color);
+        }
+
+        void AdjustOwnerCounts(TileOwner previousOwner, TileOwner nextOwner)
+        {
+            if (previousOwner == nextOwner) return;
+            if (previousOwner == TileOwner.Player) playerControlledCellCount = Mathf.Max(0, playerControlledCellCount - 1);
+            else if (previousOwner == TileOwner.Enemy) enemyControlledCellCount = Mathf.Max(0, enemyControlledCellCount - 1);
+
+            if (nextOwner == TileOwner.Player) playerControlledCellCount++;
+            else if (nextOwner == TileOwner.Enemy) enemyControlledCellCount++;
         }
 
         TileOwner OwnerFromControl(float control)

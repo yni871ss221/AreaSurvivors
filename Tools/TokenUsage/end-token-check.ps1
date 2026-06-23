@@ -1,4 +1,12 @@
-param([switch]$IncludeUnity, [switch]$RunUnity, [int]$ArchiveOlderThanDays = 3)
+param(
+    [switch]$IncludeUnity,
+    [switch]$RunUnity,
+    [int]$ArchiveOlderThanDays = 3,
+    [double]$StartPercent = -1,
+    [double]$CurrentPercent = -1,
+    [int]$BudgetTokens = 0,
+    [string]$CoverageNote = ""
+)
 
 $ErrorActionPreference = "Stop"
 Write-Output "[end-token-check] token report ignore"
@@ -24,3 +32,11 @@ Write-Output "[end-token-check] token health"
 Write-Output ""
 Write-Output "[end-token-check] report summary"
 & "$PSScriptRoot\token-report-summary.ps1" -Days 1 -Kind safe_command,daily_health -Top 8
+Write-Output ""
+Write-Output "[end-token-check] session coverage"
+$coverageArgs = @()
+if ($StartPercent -ge 0) { $coverageArgs += @("-StartPercent", $StartPercent) }
+if ($CurrentPercent -ge 0) { $coverageArgs += @("-CurrentPercent", $CurrentPercent) }
+if ($BudgetTokens -gt 0) { $coverageArgs += @("-BudgetTokens", $BudgetTokens) }
+if (-not [string]::IsNullOrWhiteSpace($CoverageNote)) { $coverageArgs += @("-Note", $CoverageNote) }
+& "$PSScriptRoot\session-coverage.ps1" @coverageArgs -Save

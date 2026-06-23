@@ -6,6 +6,7 @@ namespace AreaSurvivors
 {
     public static class SimpleUi
     {
+        static readonly bool DisableNonKnightSelectionForPhase1 = true;
         static readonly Color PanelEdge = new Color(0.47f, 0.56f, 0.38f, 0.88f);
         static readonly Color PanelGlow = new Color(0.95f, 0.86f, 0.52f, 0.12f);
         static readonly Color TextShadow = new Color(0.02f, 0.025f, 0.018f, 0.82f);
@@ -158,8 +159,11 @@ namespace AreaSurvivors
         public static void CharacterSelector(Transform parent)
         {
             CharacterCard(parent, "\u30ca\u30a4\u30c8", "\u524d\u65b9\u3092\u5207\u308a\u6255\u3046", "Generated/Knight", CharacterType.Knight, new Vector2(-250, -10));
-            CharacterCard(parent, "\u30a2\u30fc\u30c1\u30e3\u30fc", "\u9060\u304f\u306e\u6575\u3092\u72d9\u3046", "Generated/Archer", CharacterType.Archer, new Vector2(0, -10));
-            CharacterCard(parent, "\u30e1\u30a4\u30b8", "\u706b\u7403\u3067\u7fa4\u308c\u3092\u6255\u3046", "Generated/Mage", CharacterType.Mage, new Vector2(250, -10));
+            if (!DisableNonKnightSelectionForPhase1)
+            {
+                CharacterCard(parent, "\u30a2\u30fc\u30c1\u30e3\u30fc", "\u9060\u304f\u306e\u6575\u3092\u72d9\u3046", "Generated/Archer", CharacterType.Archer, new Vector2(0, -10));
+                CharacterCard(parent, "\u30e1\u30a4\u30b8", "\u706b\u7403\u3067\u7fa4\u308c\u3092\u6255\u3046", "Generated/Mage", CharacterType.Mage, new Vector2(250, -10));
+            }
         }
 
         public static Sprite Sprite(string resource)
@@ -171,6 +175,7 @@ namespace AreaSurvivors
         {
             var button = Button(parent, "", pos, () =>
             {
+                if (DisableNonKnightSelectionForPhase1 && type != CharacterType.Knight) return;
                 RunState.SelectedCharacter = type;
                 ProgressionStore.Data.selectedCharacter = type;
                 ProgressionStore.Save();

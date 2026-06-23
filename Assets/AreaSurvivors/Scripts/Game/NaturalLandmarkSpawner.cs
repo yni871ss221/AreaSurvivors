@@ -501,7 +501,7 @@ namespace AreaSurvivors
                 for (int y = -separation; y < footprint.y + separation; y++)
                 {
                     var cell = new Vector3Int(min.x + x, min.y + y, originCell.z);
-                    if (!grid.ContainsCell(cell) || grid.IsOccupied(cell)) return false;
+                    if (!grid.ContainsCell(cell) || grid.HasObject(cell)) return false;
                 }
             }
 

@@ -79,6 +79,7 @@ namespace AreaSurvivors
         int damage;
         float knockback;
         float knockbackDuration;
+        const int SlashPaintRadius = 1;
 
         public void Configure(BoxCollider2D source, Vector3 attackOrigin, Vector2 attackDirection, int attackDamage, float knockbackStrength, float knockbackSeconds)
         {
@@ -113,9 +114,16 @@ namespace AreaSurvivors
                 damaged.Add(enemy);
                 var health = enemy.GetComponent<Health>();
                 var dealt = health != null ? health.Damage(damage, hits[i].ClosestPoint(origin)) : 0;
+                PaintPlayerTerritory(enemy.transform.position, SlashPaintRadius);
                 ApplyKnockback(enemy);
                 GameManager.Instance?.RegisterDamageDealt(dealt);
             }
+        }
+
+        static void PaintPlayerTerritory(Vector3 position, int radius)
+        {
+            var grid = GameManager.Instance != null ? GameManager.Instance.grid : null;
+            if (grid != null) grid.Paint(position, TileOwner.Player, Mathf.Max(1, radius));
         }
 
         void ApplyKnockback(EnemyController enemy)

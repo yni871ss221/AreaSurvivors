@@ -38,7 +38,6 @@ namespace AreaSurvivors
         bool hasRegisteredCell;
         Vector3Int registeredCell;
         readonly float sparkleDuration = 0.75f;
-        const float BaseVisualHeightMultiplier = 221f / 190f;
 
         public bool IsBuilt => completed;
         public TileGrid Grid => grid;
@@ -135,7 +134,6 @@ namespace AreaSurvivors
             {
                 usingSpriteVisuals = true;
                 ConfigureSpriteVisual(completeRenderer, Color.white);
-                ApplyBaseVisualScaleOverride();
                 completeObject = completeRenderer.gameObject;
                 RefreshSortRenderers();
                 return;
@@ -220,15 +218,6 @@ namespace AreaSurvivors
                 gridVisual.ApplyFootprintWidthPreserveAspect(visual, ballistaSprite);
             }
             visual.visible = false;
-        }
-
-        void ApplyBaseVisualScaleOverride()
-        {
-            if (!usingPrefabLayout || completeRenderer == null) return;
-            var baseScale = prefabVisualSet != null && prefabVisualSet.upgradedCompleteVisual != null
-                ? prefabVisualSet.upgradedCompleteVisual.transform.localScale
-                : completeRenderer.transform.localScale;
-            completeRenderer.transform.localScale = new Vector3(baseScale.x, baseScale.y * BaseVisualHeightMultiplier, baseScale.z);
         }
 
         void CacheVisualScales()

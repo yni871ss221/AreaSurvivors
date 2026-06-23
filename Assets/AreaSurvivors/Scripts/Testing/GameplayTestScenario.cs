@@ -18,7 +18,11 @@ namespace AreaSurvivors.Testing
         TokensAtLeast,
         ConfigFloatApproximately,
         AllMonitoredObjectsInsideGrid,
-        CameraViewportInsideGrid
+        CameraViewportInsideGrid,
+        GameStageEquals,
+        WeaponSlashLevelAtLeast,
+        WeaponArrowLevelAtLeast,
+        WeaponFireballLevelAtLeast
     }
 
     public enum GameplayConfigValueType
@@ -34,7 +38,10 @@ namespace AreaSurvivors.Testing
         DamageObject,
         HealObject,
         SetObjectActive,
-        DestroyObject
+        DestroyObject,
+        LevelUpSlashWeapon,
+        LevelUpArrowWeapon,
+        LevelUpFireballWeapon
     }
 
     [CreateAssetMenu(menuName = "Area Survivors/Testing/Gameplay Test Scenario")]

@@ -165,6 +165,8 @@ namespace AreaSurvivors.Testing
 
         void ExecuteScheduledAction(GameplayTestScenario.ScheduledAction action)
         {
+            if (TryExecuteGlobalScheduledAction(action)) return;
+
             var targetObject = FindObjectByName(action.objectName);
             if (targetObject == null)
             {
@@ -189,6 +191,28 @@ namespace AreaSurvivors.Testing
                 case GameplayTestActionType.DestroyObject:
                     Destroy(targetObject);
                     break;
+            }
+        }
+
+        bool TryExecuteGlobalScheduledAction(GameplayTestScenario.ScheduledAction action)
+        {
+            var weapon = FindPlayerWeapon();
+            switch (action.type)
+            {
+                case GameplayTestActionType.LevelUpSlashWeapon:
+                    if (weapon == null) return false;
+                    weapon.LevelUpSlash();
+                    return true;
+                case GameplayTestActionType.LevelUpArrowWeapon:
+                    if (weapon == null) return false;
+                    weapon.LevelUpArrow();
+                    return true;
+                case GameplayTestActionType.LevelUpFireballWeapon:
+                    if (weapon == null) return false;
+                    weapon.LevelUpFireball();
+                    return true;
+                default:
+                    return false;
             }
         }
 
@@ -251,9 +275,46 @@ namespace AreaSurvivors.Testing
                     return EvaluateMonitoredObjectsInsideGrid(out failure);
                 case GameplayTestAssertionType.CameraViewportInsideGrid:
                     return EvaluateCameraViewportInsideGrid(out failure);
+                case GameplayTestAssertionType.GameStageEquals:
+                    return EvaluateGameStage(assertion.expectedCount, out failure);
+                case GameplayTestAssertionType.WeaponSlashLevelAtLeast:
+                    return EvaluateWeaponLevel("Slash", FindPlayerWeapon()?.SlashLevel, assertion.expectedCount, out failure);
+                case GameplayTestAssertionType.WeaponArrowLevelAtLeast:
+                    return EvaluateWeaponLevel("Arrow", FindPlayerWeapon()?.ArrowLevel, assertion.expectedCount, out failure);
+                case GameplayTestAssertionType.WeaponFireballLevelAtLeast:
+                    return EvaluateWeaponLevel("Fireball", FindPlayerWeapon()?.FireballLevel, assertion.expectedCount, out failure);
                 default:
                     return true;
             }
+        }
+
+        bool EvaluateGameStage(int expected, out string failure)
+        {
+            failure = null;
+            var gameManager = FindGameManager();
+            if (gameManager == null)
+            {
+                failure = "GameManagerが見つかりません";
+                return false;
+            }
+
+            if (gameManager.CurrentStage == expected) return true;
+            failure = $"Stage={gameManager.CurrentStage}, expected {expected}";
+            return false;
+        }
+
+        static bool EvaluateWeaponLevel(string weaponName, int? actual, int expected, out string failure)
+        {
+            failure = null;
+            if (!actual.HasValue)
+            {
+                failure = "Player WeaponControllerが見つかりません";
+                return false;
+            }
+
+            if (actual.Value >= expected) return true;
+            failure = $"{weaponName} Level={actual.Value}, expected >= {expected}";
+            return false;
         }
 
         bool EvaluateCameraViewportInsideGrid(out string failure)
@@ -518,6 +579,18 @@ namespace AreaSurvivors.Testing
             if (GameManager.Instance != null) return GameManager.Instance;
             var managers = FindObjectsOfType<GameManager>(true);
             return managers.Length > 0 ? managers[0] : null;
+        }
+
+        static WeaponController FindPlayerWeapon()
+        {
+            var player = FindGameManager()?.Player;
+            if (player != null && player.weapon != null) return player.weapon;
+            var players = FindObjectsOfType<PlayerController>(true);
+            foreach (var candidate in players)
+            {
+                if (candidate != null && candidate.weapon != null) return candidate.weapon;
+            }
+            return null;
         }
 
         static void SetEnabled<T>(T[] components, bool enabled) where T : Behaviour

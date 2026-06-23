@@ -112,7 +112,7 @@ namespace AreaSurvivors
                     bool inside = x >= min.x && x <= maxX && y >= min.y && y <= maxY;
                     if (inside) continue;
                     var cell = new Vector3Int(x, y, originCell.z);
-                    if (grid.ContainsCell(cell) && grid.GetOwner(cell) == TileOwner.Player) return true;
+                    if (grid.ContainsCell(cell) && grid.IsOwnedBy(cell, TileOwner.Player)) return true;
                 }
             }
 

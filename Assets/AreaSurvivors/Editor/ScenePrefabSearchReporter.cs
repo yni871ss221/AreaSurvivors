@@ -54,7 +54,7 @@ namespace AreaSurvivors.Editor
         static void AppendSceneMatches(StringBuilder report, string query)
         {
             report.AppendLine("[Scene Matches]");
-            var scene = OpenSceneIfNeeded(GameScenePath, out var wasLoaded);
+            var scene = OpenSceneIfNeeded(GameScenePath, out var openedHere);
             if (!scene.IsValid())
             {
                 report.AppendLine($"- missing: {GameScenePath}");
@@ -66,6 +66,7 @@ namespace AreaSurvivors.Editor
             {
                 foreach (var transform in root.GetComponentsInChildren<Transform>(true))
                 {
+                    if (IsMissingScriptShell(transform.gameObject)) continue;
                     if (!Matches(transform.gameObject, query)) continue;
                     rows.Add(FormatObjectRow(transform, scene.path));
                     if (rows.Count >= MaxRows) break;
@@ -75,7 +76,7 @@ namespace AreaSurvivors.Editor
 
             report.AppendLine($"- shown: {rows.Count}, cappedAt: {MaxRows}");
             foreach (var row in rows) report.AppendLine(row);
-            if (wasLoaded) EditorSceneManager.CloseScene(scene, true);
+            if (openedHere) EditorSceneManager.CloseScene(scene, true);
             report.AppendLine();
         }
 
@@ -90,6 +91,7 @@ namespace AreaSurvivors.Editor
                 if (prefab == null) continue;
                 foreach (var transform in prefab.GetComponentsInChildren<Transform>(true))
                 {
+                    if (IsMissingScriptShell(transform.gameObject)) continue;
                     if (!Matches(transform.gameObject, query)) continue;
                     rows.Add(FormatObjectRow(transform, path));
                     if (rows.Count >= MaxRows) break;
@@ -112,6 +114,25 @@ namespace AreaSurvivors.Editor
 
             openedHere = true;
             return EditorSceneManager.OpenScene(path, OpenSceneMode.Additive);
+        }
+
+        static bool IsMissingScriptShell(GameObject target)
+        {
+            var components = target.GetComponents<Component>();
+            var hasMissingScript = false;
+            foreach (var component in components)
+            {
+                if (component == null)
+                {
+                    hasMissingScript = true;
+                    continue;
+                }
+
+                if (!(component is Transform))
+                    return false;
+            }
+
+            return hasMissingScript;
         }
 
         static bool Matches(GameObject target, string query)

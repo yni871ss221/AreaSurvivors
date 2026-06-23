@@ -10,6 +10,11 @@ namespace AreaSurvivors
 {
     public sealed class GameManager : MonoBehaviour
     {
+        static readonly bool DisableConstructionHudForPhase1 = true;
+        static readonly bool DisableResourceHudForPhase1 = true;
+        static readonly bool DisableNaturalLandmarkSpawnsForPhase1 = true;
+        static readonly bool DisableRoundTimeLimitFailureForPhase1 = true;
+
         public static GameManager Instance { get; private set; }
 
         public GameConfig config;
@@ -38,6 +43,8 @@ namespace AreaSurvivors
         public int Stone { get; private set; }
         public int RunTokens { get; private set; }
         public MapSessionMode SessionMode => sessionMode;
+        public bool ConstructionHudEnabled => !DisableConstructionHudForPhase1 && sessionMode == MapSessionMode.Build;
+        public bool ResourceHudEnabled => !DisableResourceHudForPhase1;
 
         int kills;
         int level = 1;
@@ -99,12 +106,13 @@ namespace AreaSurvivors
             grid.PaintImmediate(towerRootWorld, TileOwner.Player, InitialTowerTerritoryRadius);
             SpawnNaturalLandmarks(towerOriginCell);
             int stage = RunState.ConsumeNextStartStage();
+            SyncFixedBuildingSlots(stage);
 
             if (sessionMode == MapSessionMode.Game)
             {
                 Player = Instantiate(playerPrefab, grid.GridToWorld(grid.width / 2, grid.height / 2 - 6), Quaternion.identity);
                 if (spawner != null) Player.damagePopupPrefab = spawner.damagePopupPrefab;
-                Player.Configure(config, grid, RunState.SelectedCharacter);
+                Player.Configure(config, grid, CharacterType.Knight);
             }
 
             if (sessionMode == MapSessionMode.Game) ProgressionStore.ReviveStageBuildings(stage);
@@ -148,8 +156,149 @@ namespace AreaSurvivors
             cannon.Configure(config);
         }
 
+        void SyncFixedBuildingSlots(int stage)
+        {
+            if (grid == null) return;
+            var fixedBuildings = BuildFixedStageBuildings(stage);
+            ProgressionStore.ReplaceStageBuildings(stage, fixedBuildings);
+        }
+
+        sealed class FixedBuildingSlotDefinition
+        {
+            public SavedBuildingKind kind;
+            public UpgradeType unlockType;
+            public Vector2Int footprint;
+            public Vector2Int desiredOffset;
+            public bool requiresUnlock = true;
+        }
+
+        static readonly FixedBuildingSlotDefinition[] FixedBuildingSlotDefinitions =
+        {
+            new FixedBuildingSlotDefinition
+            {
+                kind = SavedBuildingKind.WoodenWall,
+                unlockType = UpgradeType.StartingWood,
+                footprint = new Vector2Int(3, 1),
+                desiredOffset = new Vector2Int(-9, 0),
+                requiresUnlock = false
+            },
+            new FixedBuildingSlotDefinition
+            {
+                kind = SavedBuildingKind.WoodenGate,
+                unlockType = UpgradeType.StartingWood,
+                footprint = new Vector2Int(3, 1),
+                desiredOffset = new Vector2Int(9, 0),
+                requiresUnlock = false
+            },
+            new FixedBuildingSlotDefinition
+            {
+                kind = SavedBuildingKind.Ballista,
+                unlockType = UpgradeType.UnlockBallista,
+                footprint = new Vector2Int(2, 2),
+                desiredOffset = new Vector2Int(-8, 8)
+            },
+            new FixedBuildingSlotDefinition
+            {
+                kind = SavedBuildingKind.Ballista,
+                unlockType = UpgradeType.UnlockBallista,
+                footprint = new Vector2Int(2, 2),
+                desiredOffset = new Vector2Int(8, 8)
+            },
+            new FixedBuildingSlotDefinition
+            {
+                kind = SavedBuildingKind.WatchTower,
+                unlockType = UpgradeType.UnlockWatchTower,
+                footprint = new Vector2Int(2, 2),
+                desiredOffset = new Vector2Int(0, 10)
+            },
+            new FixedBuildingSlotDefinition
+            {
+                kind = SavedBuildingKind.CarpenterHut,
+                unlockType = UpgradeType.UnlockCarpenterHut,
+                footprint = Vector2Int.one,
+                desiredOffset = new Vector2Int(-8, -8)
+            },
+            new FixedBuildingSlotDefinition
+            {
+                kind = SavedBuildingKind.WorkerHut,
+                unlockType = UpgradeType.UnlockWorkerHut,
+                footprint = Vector2Int.one,
+                desiredOffset = new Vector2Int(8, -8)
+            }
+        };
+
+        List<SavedBuildingData> BuildFixedStageBuildings(int stage)
+        {
+            var result = new List<SavedBuildingData>();
+            if (grid == null) return result;
+
+            var existing = ProgressionStore.GetStageBuildings(stage).buildings;
+            var towerOrigin = grid.GridToCell(grid.width / 2, grid.height / 2);
+            for (int i = 0; i < FixedBuildingSlotDefinitions.Length; i++)
+            {
+                var definition = FixedBuildingSlotDefinitions[i];
+                if (definition.requiresUnlock && !ProgressionStore.IsUnlocked(definition.unlockType)) continue;
+                if (!TryFindFixedSlotOrigin(towerOrigin, definition.footprint, definition.desiredOffset, out var originCell)) continue;
+
+                var saved = i < existing.Count ? existing[i] : null;
+                if (saved == null) saved = new SavedBuildingData();
+                var previousKind = saved.kind;
+                saved.kind = definition.kind;
+                saved.x = originCell.x;
+                saved.y = originCell.y;
+                saved.destroyed = false;
+                if (previousKind != definition.kind) saved.upgraded = false;
+                result.Add(saved);
+            }
+
+            return result;
+        }
+
+        bool TryFindFixedSlotOrigin(Vector3Int towerOrigin, Vector2Int footprint, Vector2Int desiredOffset, out Vector3Int originCell)
+        {
+            footprint = new Vector2Int(Mathf.Max(1, footprint.x), Mathf.Max(1, footprint.y));
+            for (int radius = 0; radius <= 5; radius++)
+            {
+                foreach (var offset in EnumerateFixedSlotOffsets(desiredOffset, radius))
+                {
+                    originCell = towerOrigin + new Vector3Int(offset.x, offset.y, 0);
+                    if (!grid.ContainsCell(originCell)) continue;
+                    if (!grid.CanPlaceObject(originCell, footprint)) continue;
+                    if (!HasPlayerTerritory(originCell, footprint)) continue;
+                    return true;
+                }
+            }
+
+            originCell = default(Vector3Int);
+            return false;
+        }
+
+        static IEnumerable<Vector2Int> EnumerateFixedSlotOffsets(Vector2Int desiredOffset, int radius)
+        {
+            if (radius == 0)
+            {
+                yield return desiredOffset;
+                yield break;
+            }
+
+            for (int dy = -radius; dy <= radius; dy++)
+            {
+                for (int dx = -radius; dx <= radius; dx++)
+                {
+                    if (Mathf.Abs(dx) + Mathf.Abs(dy) != radius) continue;
+                    yield return desiredOffset + new Vector2Int(dx, dy);
+                }
+            }
+        }
+
+        bool HasPlayerTerritory(Vector3Int originCell, Vector2Int footprint)
+        {
+            return grid != null && grid.IsFootprintOwnedBy(originCell, footprint, TileOwner.Player);
+        }
+
         void SpawnNaturalLandmarks(Vector3Int centerCell)
         {
+            if (DisableNaturalLandmarkSpawnsForPhase1) return;
             if (grid == null) return;
             if (naturalLandmarks == null) naturalLandmarks = GetComponent<NaturalLandmarkSpawner>();
             if (naturalLandmarks == null) naturalLandmarks = gameObject.AddComponent<NaturalLandmarkSpawner>();
@@ -170,9 +319,9 @@ namespace AreaSurvivors
         {
             if (sessionMode == MapSessionMode.Game)
             {
-                elapsed += Time.deltaTime * currentStageSpeedMultiplier;
+                if (!bossActive) elapsed += Time.deltaTime * currentStageSpeedMultiplier;
                 hudElapsed = Mathf.Max(0f, roundTimeLimit - elapsed);
-                if (!gameEnding && elapsed >= roundTimeLimit) EndRun(false);
+                if (!DisableRoundTimeLimitFailureForPhase1 && !gameEnding && elapsed >= roundTimeLimit) EndRun(false);
             }
             else
             {
@@ -311,10 +460,27 @@ namespace AreaSurvivors
             };
             var result = new List<RunUpgradeChoice>();
             var weapon = Player != null ? Player.weapon : null;
-            if (weapon != null && weapon.CanLevelUp)
+            if (weapon != null)
             {
-                int nextLevel = Mathf.Min(GameConfig.MaxWeaponLevel, weapon.WeaponLevel + 1);
-                result.Add(new RunUpgradeChoice("\u6b66\u5668Lv " + weapon.WeaponLevel + " > " + nextLevel, StatIconCatalog.WeaponLevel, () => weapon.LevelUp()));
+                if (weapon.CanLevelUpSlash)
+                {
+                    int nextLevel = Mathf.Min(GameConfig.MaxWeaponLevel, weapon.SlashLevel + 1);
+                    result.Add(new RunUpgradeChoice("\u30b9\u30e9\u30c3\u30b7\u30e5 Lv " + weapon.SlashLevel + " > " + nextLevel, StatIconCatalog.WeaponLevel, () => weapon.LevelUpSlash()));
+                }
+                if (weapon.CanLevelUpArrow)
+                {
+                    string label = weapon.ArrowUnlocked
+                        ? "\u5f13 Lv " + weapon.ArrowLevel + " > " + Mathf.Min(GameConfig.MaxWeaponLevel, weapon.ArrowLevel + 1)
+                        : "\u5f13\u3092\u89e3\u653e";
+                    result.Add(new RunUpgradeChoice(label, StatIconCatalog.WeaponLevel, () => weapon.LevelUpArrow()));
+                }
+                if (weapon.CanLevelUpFireball)
+                {
+                    string label = weapon.FireballUnlocked
+                        ? "\u706b\u306e\u7389 Lv " + weapon.FireballLevel + " > " + Mathf.Min(GameConfig.MaxWeaponLevel, weapon.FireballLevel + 1)
+                        : "\u706b\u306e\u7389\u3092\u89e3\u653e";
+                    result.Add(new RunUpgradeChoice(label, StatIconCatalog.WeaponLevel, () => weapon.LevelUpFireball()));
+                }
             }
 
             while (result.Count < 3 && pool.Count > 0)
@@ -513,7 +679,15 @@ namespace AreaSurvivors
         IEnumerator BossDefeatedRoutine(EnemyController boss)
         {
             bool unlockedNextStage = ProgressionStore.MarkStageCleared(currentStage);
-            yield return GameClearRoutine(boss, currentStage, unlockedNextStage ? currentStage + 1 : 0, string.Empty);
+            if (currentStage == 1)
+            {
+                int nextStage = unlockedNextStage ? currentStage + 1 : 2;
+                yield return StageTransitionRoutine(boss, nextStage);
+            }
+            else
+            {
+                yield return GameClearRoutine(boss, currentStage, unlockedNextStage ? currentStage + 1 : 0, string.Empty);
+            }
         }
 
         IEnumerator GameClearRoutine(EnemyController boss, int clearedStage, int unlockedStage, string clearMessage)
@@ -527,7 +701,15 @@ namespace AreaSurvivors
 
         IEnumerator StageTransitionRoutine(EnemyController boss, int nextStage)
         {
-            yield break;
+            gameEnding = true;
+            spawner?.StopAndClearEnemies(boss);
+            ShowAnnouncement("ROUND " + nextStage);
+            yield return new WaitForSeconds(1.2f);
+            if (boss != null) Destroy(boss.gameObject);
+            ProgressionStore.ReviveStageBuildings(nextStage);
+            if (buildPlacement != null) buildPlacement.RestoreStageBuildings(nextStage);
+            gameEnding = false;
+            BeginStage(nextStage);
         }
 
         public void ShowAnnouncement(string message)
@@ -728,6 +910,7 @@ namespace AreaSurvivors
     public sealed class GameHudController : MonoBehaviour
     {
         const float LowHpBlinkThreshold = 0.1f;
+        static readonly bool DisableWeaponHudForPhase3 = true;
         static readonly Color PanelColor = new Color(0.035f, 0.05f, 0.045f, 0.72f);
         static readonly Color SlotColor = new Color(0.09f, 0.16f, 0.12f, 0.92f);
         static readonly Color SlotSelectedColor = new Color(0.114f, 0.529f, 0.298f, 0.98f);
@@ -743,6 +926,8 @@ namespace AreaSurvivors
         static readonly Vector2 TowerHpTextPosition = new Vector2(0f, -286f);
         static readonly Vector2 PlayerPanelSize = new Vector2(390f, 318f);
         static readonly Vector2 WeaponPanelSize = new Vector2(124f, 218f);
+        static readonly Vector2 PaintGaugePosition = new Vector2(174f, -108f);
+        static readonly Vector2 PaintGaugeSize = new Vector2(190f, 20f);
         static readonly Vector2 PlayerIconSize = new Vector2(58f, 58f);
         static readonly Vector2 WeaponIconSize = new Vector2(48f, 48f);
         static readonly Vector2 BuildStatusPanelPosition = new Vector2(14f, 15f);
@@ -775,6 +960,12 @@ namespace AreaSurvivors
         Text playerCooldownText;
         Text playerSpeedText;
         Text playerPaintText;
+        RectTransform paintControlBlueSegment;
+        RectTransform paintControlNeutralSegment;
+        RectTransform paintControlRedSegment;
+        Text paintControlBlueText;
+        Text paintControlNeutralText;
+        Text paintControlRedText;
         Text playerReviveText;
         Text playerProjectileText;
         Text playerRangeText;
@@ -827,9 +1018,9 @@ namespace AreaSurvivors
                 BindSceneBossHud(canvas.transform);
                 BuildPlayerPanel(canvas.transform);
             }
-            if (gameManager != null && gameManager.SessionMode == MapSessionMode.Build) BuildConstructionMenu(canvas.transform);
+            if (gameManager != null && gameManager.ConstructionHudEnabled) BuildConstructionMenu(canvas.transform);
             BuildTowerPanel(canvas.transform);
-            if (gameManager != null && gameManager.SessionMode == MapSessionMode.Build)
+            if (gameManager != null && gameManager.ConstructionHudEnabled)
             {
                 gameManager.ConfigureBuildingUpgrade(canvas);
                 buildingUpgrade = gameManager.buildingUpgrade;
@@ -853,7 +1044,7 @@ namespace AreaSurvivors
         void ApplySessionHudVisibility(Transform parent)
         {
             if (parent == null || gameManager == null) return;
-            bool buildMode = gameManager.SessionMode == MapSessionMode.Build;
+            bool buildMode = gameManager.ConstructionHudEnabled;
             SetDirectChildActive(parent, "Construction Menu", buildMode);
             SetDirectChildActive(parent, "Upgrade Building Button", buildMode);
             SetDirectChildActive(parent, "Build Lobby Button", buildMode);
@@ -861,9 +1052,12 @@ namespace AreaSurvivors
             SetDirectChildActive(parent, "Kill Panel", !buildMode);
             SetDirectChildActive(parent, "Boss Status", !buildMode);
             SetDirectChildActive(parent, "Player Status", !buildMode);
-            SetDirectChildActive(parent, "Weapon Status", !buildMode);
+            SetDirectChildActive(parent, "Weapon Status", !buildMode && !DisableWeaponHudForPhase3);
             SetDirectChildActive(parent, "XP Bar", !buildMode);
             SetDirectChildActive(parent, "Level Panel", !buildMode);
+            SetDirectChildActive(parent, "Wood Resource", gameManager.ResourceHudEnabled);
+            SetDirectChildActive(parent, "Stone Resource", gameManager.ResourceHudEnabled);
+            SetDirectChildActive(parent, "Token Resource", gameManager.ResourceHudEnabled);
         }
 
         static void SetDirectChildActive(Transform parent, string path, bool active)
@@ -920,6 +1114,7 @@ namespace AreaSurvivors
         void UpdateResourceHud()
         {
             if (gameManager == null) return;
+            if (!gameManager.ResourceHudEnabled) return;
             if (woodText != null) woodText.text = gameManager.Wood.ToString();
             if (stoneText != null) stoneText.text = gameManager.Stone.ToString();
             if (tokenText != null) tokenText.text = gameManager.RunTokens.ToString();
@@ -998,39 +1193,73 @@ namespace AreaSurvivors
             if (splitPlayerRoot != null) HideLegacyPlayerTiles(playerStatsPanel);
 
             weaponStatsPanel = parent.Find("Weapon Status") as RectTransform;
-            if (weaponStatsPanel == null)
+            if (DisableWeaponHudForPhase3)
+            {
+                if (weaponStatsPanel != null) weaponStatsPanel.gameObject.SetActive(false);
+                HideHudChild(playerPanel, "Weapon Frame");
+            }
+            else if (weaponStatsPanel == null)
             {
                 weaponStatsPanel = CreatePanel(parent, "Weapon Status", new Vector2(14f, -356f), WeaponPanelSize, Vector2.up, Vector2.up);
                 AddFrame(weaponStatsPanel, WeaponPanelSize);
             }
-            if (weaponStatsPanel != playerStatsPanel) HideWeaponStatTiles(playerStatsPanel);
+            if (!DisableWeaponHudForPhase3 && weaponStatsPanel != playerStatsPanel) HideWeaponStatTiles(playerStatsPanel);
 
             var portraitFrame = EnsureIconFrame(playerPanel, "Character Frame", new Vector2(18f, -36f), new Vector2(70f, 70f));
             var portrait = EnsureImage(portraitFrame, "Character Image", PlayerIconSize);
             portrait.sprite = player != null ? player.PortraitSprite : LoadHudSprite("Knight", null);
             portrait.preserveAspect = true;
 
-            var weaponFrame = EnsureIconFrame(playerPanel, "Weapon Frame", new Vector2(96f, -42f), new Vector2(58f, 58f));
-            var weapon = EnsureImage(weaponFrame, "Weapon Image", WeaponIconSize);
-            weapon.sprite = WeaponSprite(player != null ? player.characterType : CharacterType.Knight);
-            weapon.preserveAspect = true;
+            if (DisableWeaponHudForPhase3)
+            {
+                BuildPaintGauge(playerPanel);
+            }
+            else
+            {
+                var weaponFrame = EnsureIconFrame(playerPanel, "Weapon Frame", new Vector2(96f, -42f), new Vector2(58f, 58f));
+                var weapon = EnsureImage(weaponFrame, "Weapon Image", WeaponIconSize);
+                weapon.sprite = WeaponSprite(player != null ? player.characterType : CharacterType.Knight);
+                weapon.preserveAspect = true;
+            }
 
             playerHpFill = EnsureHorizontalBar(playerPanel, "Player HP Bar", new Vector2(174f, -36f), new Vector2(190f, 24f), HpRed, out playerHpText);
             playerXpFill = EnsureHorizontalBar(playerPanel, "Player XP Bar", new Vector2(174f, -72f), new Vector2(190f, 20f), HpBlue, out playerLevelText);
-            weaponLevelText = BindStatText(weaponStatsPanel, "Weapon Level Text") ?? EnsureStatText(weaponStatsPanel, "Weapon Level Text", new Vector2(8f, -18f));
-            playerAttackText = BindStatText(weaponStatsPanel, "Attack Text") ?? EnsureStatText(weaponStatsPanel, "Attack Text", new Vector2(8f, -48f));
-            playerCooldownText = BindStatText(weaponStatsPanel, "Cooldown Text") ?? EnsureStatText(weaponStatsPanel, "Cooldown Text", new Vector2(8f, -78f));
+            if (!DisableWeaponHudForPhase3)
+            {
+                weaponLevelText = BindStatText(weaponStatsPanel, "Weapon Level Text") ?? EnsureStatText(weaponStatsPanel, "Weapon Level Text", new Vector2(8f, -18f));
+                playerAttackText = BindStatText(weaponStatsPanel, "Attack Text") ?? EnsureStatText(weaponStatsPanel, "Attack Text", new Vector2(8f, -48f));
+                playerCooldownText = BindStatText(weaponStatsPanel, "Cooldown Text") ?? EnsureStatText(weaponStatsPanel, "Cooldown Text", new Vector2(8f, -78f));
+            }
             playerSpeedText = BindStatText(playerStatsPanel, "Speed Text") ?? EnsureStatText(playerStatsPanel, "Speed Text", new Vector2(8f, -18f));
             playerPaintText = BindStatText(playerStatsPanel, "Paint Text") ?? EnsureStatText(playerStatsPanel, "Paint Text", new Vector2(8f, -48f));
             playerReviveText = BindStatText(playerStatsPanel, "Revive Text") ?? EnsureStatText(playerStatsPanel, "Revive Text", new Vector2(8f, -78f));
-            playerProjectileText = BindStatText(weaponStatsPanel, "Projectile Text") ?? EnsureStatText(weaponStatsPanel, "Projectile Text", new Vector2(8f, -108f));
-            playerRangeText = BindStatText(weaponStatsPanel, "Range Text") ?? EnsureStatText(weaponStatsPanel, "Range Text", new Vector2(8f, -138f));
-            playerKnockbackText = BindStatText(weaponStatsPanel, "Knockback Text") ?? EnsureStatText(weaponStatsPanel, "Knockback Text", new Vector2(8f, -168f));
+            if (!DisableWeaponHudForPhase3)
+            {
+                playerProjectileText = BindStatText(weaponStatsPanel, "Projectile Text") ?? EnsureStatText(weaponStatsPanel, "Projectile Text", new Vector2(8f, -108f));
+                playerRangeText = BindStatText(weaponStatsPanel, "Range Text") ?? EnsureStatText(weaponStatsPanel, "Range Text", new Vector2(8f, -138f));
+                playerKnockbackText = BindStatText(weaponStatsPanel, "Knockback Text") ?? EnsureStatText(weaponStatsPanel, "Knockback Text", new Vector2(8f, -168f));
+            }
             playerDefenseText = BindStatText(playerStatsPanel, "Defense Text") ?? EnsureStatText(playerStatsPanel, "Defense Text", new Vector2(8f, -108f));
             playerXpGainText = BindStatText(playerStatsPanel, "Xp Gain Text") ?? EnsureStatText(playerStatsPanel, "Xp Gain Text", new Vector2(8f, -138f));
             playerRegenText = BindStatText(playerStatsPanel, "Regen Text") ?? EnsureStatText(playerStatsPanel, "Regen Text", new Vector2(8f, -168f));
             playerWorkText = BindStatText(playerStatsPanel, "Work Text") ?? EnsureStatText(playerStatsPanel, "Work Text", new Vector2(8f, -198f));
             playerResourceText = BindStatText(playerStatsPanel, "Resource Text") ?? EnsureStatText(playerStatsPanel, "Resource Text", new Vector2(8f, -228f));
+        }
+
+        void BuildPaintGauge(RectTransform parent)
+        {
+            var breakdown = parent.Find("Control Breakdown");
+            var breakdownRoot = breakdown != null ? breakdown.GetComponent<RectTransform>() : null;
+            if (breakdownRoot == null) return;
+
+            paintControlBlueSegment = BindControlSegment(breakdownRoot, "Blue Segment");
+            paintControlNeutralSegment = BindControlSegment(breakdownRoot, "Neutral Segment");
+            paintControlRedSegment = BindControlSegment(breakdownRoot, "Red Segment");
+            if (paintControlBlueSegment == null || paintControlNeutralSegment == null || paintControlRedSegment == null) return;
+            paintControlBlueText = BindControlSegmentText(paintControlBlueSegment);
+            paintControlNeutralText = BindControlSegmentText(paintControlNeutralSegment);
+            paintControlRedText = BindControlSegmentText(paintControlRedSegment);
+            if (paintControlBlueText == null || paintControlNeutralText == null || paintControlRedText == null) return;
         }
 
         static void HideLegacyPlayerTiles(RectTransform statsRoot)
@@ -1075,28 +1304,99 @@ namespace AreaSurvivors
                 playerXpFill.rectTransform.anchorMax = new Vector2(Mathf.Clamp01(normalized), 1f);
                 if (playerLevelText != null) playerLevelText.text = "Lv." + gameManager.CurrentLevel;
             }
+            UpdatePaintGauge();
 
             var portrait = playerPanel.Find("Character Frame/Character Image")?.GetComponent<Image>();
             if (portrait != null) portrait.sprite = player.PortraitSprite;
-            var weapon = playerPanel.Find("Weapon Frame/Weapon Image")?.GetComponent<Image>();
-            if (weapon != null) weapon.sprite = WeaponSprite(player.characterType);
-
             var weaponController = player.weapon;
-            if (weaponLevelText != null) weaponLevelText.text = weaponController != null ? weaponController.WeaponLevel.ToString() : "-";
-            if (playerAttackText != null) playerAttackText.text = weaponController != null ? weaponController.AttackPower.ToString() : "-";
-            if (playerCooldownText != null) playerCooldownText.text = weaponController != null ? weaponController.CurrentCooldown.ToString("0.0") + "s" : "-";
+            if (!DisableWeaponHudForPhase3)
+            {
+                var weapon = playerPanel.Find("Weapon Frame/Weapon Image")?.GetComponent<Image>();
+                if (weapon != null) weapon.sprite = WeaponSprite(player.characterType);
+                if (weaponLevelText != null) weaponLevelText.text = weaponController != null ? weaponController.WeaponLevel.ToString() : "-";
+                if (playerAttackText != null) playerAttackText.text = weaponController != null ? weaponController.AttackPower.ToString() : "-";
+                if (playerCooldownText != null) playerCooldownText.text = weaponController != null ? weaponController.CurrentCooldown.ToString("0.0") + "s" : "-";
+            }
             if (playerSpeedText != null) playerSpeedText.text = player.MoveSpeed.ToString("0.0");
             if (playerPaintText != null) playerPaintText.text = player.PaintRadius.ToString();
             if (playerReviveText != null) playerReviveText.text = player.ReviveSeconds.ToString("0.0") + "s";
-            if (playerProjectileText != null) playerProjectileText.text = weaponController != null && weaponController.ProjectileSpeed > 0f ? weaponController.ProjectileSpeed.ToString("0.0") : "-";
-            if (playerRangeText != null) playerRangeText.text = weaponController != null ? weaponController.WeaponRange.ToString("0.0") : "-";
             var stats = player.Stats;
-            if (playerKnockbackText != null) playerKnockbackText.text = weaponController != null ? weaponController.Knockback.ToString("0.#") : "-";
+            if (!DisableWeaponHudForPhase3)
+            {
+                if (playerProjectileText != null) playerProjectileText.text = weaponController != null && weaponController.ProjectileSpeed > 0f ? weaponController.ProjectileSpeed.ToString("0.0") : "-";
+                if (playerRangeText != null) playerRangeText.text = weaponController != null ? weaponController.WeaponRange.ToString("0.0") : "-";
+                if (playerKnockbackText != null) playerKnockbackText.text = weaponController != null ? weaponController.Knockback.ToString("0.#") : "-";
+            }
             if (playerDefenseText != null) playerDefenseText.text = stats.defense.ToString();
             if (playerXpGainText != null) playerXpGainText.text = stats.xpGainMultiplier.ToString("0.0") + "x";
             if (playerRegenText != null) playerRegenText.text = stats.autoRegen.ToString();
             if (playerWorkText != null) playerWorkText.text = stats.workSpeedMultiplier.ToString("0.0") + "x";
             if (playerResourceText != null) playerResourceText.text = "+" + stats.resourceGainBonus;
+        }
+
+        void UpdatePaintGauge()
+        {
+            if (gameManager == null || gameManager.grid == null) return;
+            if (paintControlBlueText == null && paintControlNeutralText == null && paintControlRedText == null) return;
+            var summary = gameManager.grid.GetControlSummary();
+            UpdateControlBreakdown(summary);
+        }
+
+        static RectTransform BindControlSegment(RectTransform root, string name)
+        {
+            if (root == null) return null;
+            var child = root.Find(name);
+            return child != null ? child.GetComponent<RectTransform>() : null;
+        }
+
+        static Text BindControlSegmentText(RectTransform segment)
+        {
+            if (segment == null) return null;
+            var label = segment.Find("Label");
+            var labelText = label != null ? label.GetComponent<Text>() : null;
+            return labelText != null ? labelText : segment.GetComponent<Text>();
+        }
+
+        void UpdateControlBreakdown(TileControlSummary summary)
+        {
+            const float totalWidth = 190f;
+            const float minWidth = 32f;
+            int[] counts = { Mathf.Max(0, summary.playerCells), Mathf.Max(0, summary.neutralCells), Mathf.Max(0, summary.enemyCells) };
+            RectTransform[] segments = { paintControlBlueSegment, paintControlNeutralSegment, paintControlRedSegment };
+            Text[] labels = { paintControlBlueText, paintControlNeutralText, paintControlRedText };
+
+            float baseline = 0f;
+            for (int i = 0; i < counts.Length; i++)
+            {
+                baseline += minWidth;
+            }
+
+            float remaining = Mathf.Max(0f, totalWidth - baseline);
+            int totalCells = Mathf.Max(1, summary.totalCells);
+            float x = 0f;
+            for (int i = 0; i < segments.Length; i++)
+            {
+                if (segments[i] == null || labels[i] == null) continue;
+                float share = counts[i] > 0 ? remaining * counts[i] / (float)totalCells : 0f;
+                float width = minWidth + share;
+                SetControlSegment(segments[i], labels[i], width, x, counts[i]);
+                x += width;
+            }
+        }
+
+        static void SetControlSegment(RectTransform segment, Text label, float width, float x, int count)
+        {
+            segment.anchorMin = new Vector2(0f, 1f);
+            segment.anchorMax = new Vector2(0f, 1f);
+            segment.pivot = new Vector2(0f, 1f);
+            segment.anchoredPosition = new Vector2(x, 0f);
+            segment.sizeDelta = new Vector2(width, segment.sizeDelta.y);
+            label.rectTransform.anchorMin = Vector2.zero;
+            label.rectTransform.anchorMax = Vector2.one;
+            label.rectTransform.offsetMin = Vector2.zero;
+            label.rectTransform.offsetMax = Vector2.zero;
+            label.alignment = TextAnchor.MiddleCenter;
+            label.text = count.ToString();
         }
 
         static RectTransform EnsureIconFrame(RectTransform parent, string name, Vector2 position, Vector2 size)

@@ -140,6 +140,18 @@ powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/start-token-check.ps1
 powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/end-token-check.ps1 -IncludeUnity
 ```
 
+## Coverage for Untracked Usage
+
+Command reports do not include Codex fixed context, chat text, screenshots, or tool output that was run outside `safe-*` / `Run-WithTokenReport.ps1`.
+Record the Codex UI usage percentage at the start and end of a long session, then compare it with recorded command output:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/session-coverage.ps1 -StartPercent 12.5 -CurrentPercent 50.0 -BudgetTokens 1000000 -Save
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/end-token-check.ps1 -StartPercent 12.5 -CurrentPercent 50.0 -BudgetTokens 1000000 -CoverageNote "Phase 4 HUD work"
+```
+
+If `-BudgetTokens` is unknown, omit it. The script will still record the UI percentage delta and TokenReports total, but untracked token count will remain a percentage-only estimate.
+
 ## Screenshot Lightening
 
 Create a smaller image before asking Codex to inspect a large screenshot:

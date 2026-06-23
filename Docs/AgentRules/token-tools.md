@@ -10,6 +10,9 @@
 - `git diff` は対象ファイル指定、必要なら `--name-only`、`--stat`、`safe-diff.ps1` を使う。
 - TokenReportsの原因分析は `token-report-summary.ps1 -Recent <件数>` または `-SinceLastStart` を使う。
 - 作業開始時は `start-token-check.ps1`、終了時は `end-token-check.ps1` を使う。Heavyベンチは明示時だけ実行する。
+- 長時間作業ではCodex UIの消費率を開始/終了で控え、`session-coverage.ps1 -StartPercent <開始%> -CurrentPercent <現在%> [-BudgetTokens <推定枠tokens>] -Save` でTokenReports外の消費を差分推定する。
+- 直接 `exec_command` で高出力コマンドを実行しない。`Get-Content`、広域 `rg`、`git diff`、`unicli commands` は `safe-*` / `Run-WithTokenReport.ps1` / 対象コマンドの `--help` に寄せ、TokenReportsへ残す。
+- `unicli commands` は原則禁止。必要な場合は対象コマンド名を把握してから `unicli exec <Command> --help` のみにする。
 - プロジェクトの重いファイルや未参照候補は `project-weight-report.ps1` で候補だけを見る。削除判断は別作業にする。
 - Asset Reference Reporterの結果から `review-candidate` だけを見る時は `filter-asset-reference-report.ps1 -Top <件数>` を使い、全文を読み返さない。
 - アセット整理の標準手順は `run-unity-report.ps1 -Report asset-references` → `filter-asset-reference-report.ps1 -Top <件数>` → 必要時だけ `-ExportPath` で判定メモ出力、の順にする。

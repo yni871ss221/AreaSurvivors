@@ -57,6 +57,7 @@ namespace AreaSurvivors.Editor
                 report.AppendLine($"- marker: {Bool(marker != null)} footprint={Footprint(marker)}");
                 report.AppendLine($"- gridVisual: {Bool(gridVisual != null)} footprint={GridVisualFootprint(gridVisual)} fitWidth={Bool(gridVisual != null && gridVisual.fitVisualWidthToFootprint)} resetOffset={Bool(gridVisual != null && gridVisual.resetVisualOffset)}");
                 report.AppendLine($"- visualSet: {Bool(visualSet != null)} base={VisualName(visualSet != null ? visualSet.completeVisual : null)} upgrade={VisualName(visualSet != null ? visualSet.upgradedCompleteVisual : null)} sparkle={VisualName(visualSet != null ? visualSet.sparkleVisual : null)} upgradeOpenSprite={SpriteName(visualSet != null ? visualSet.upgradedOpenSprite : null)}");
+                AppendTransformHealth(report, root);
                 report.AppendLine($"- colliders: {colliders.Length}");
                 foreach (var line in ColliderLines(colliders))
                 {
@@ -76,7 +77,7 @@ namespace AreaSurvivors.Editor
             var lines = new List<string>();
             foreach (var mesh in root.GetComponentsInChildren<PaperMeshVisual>(true))
             {
-                lines.Add($"- mesh {PathFromRoot(root.transform, mesh.transform)} sprite={SpriteName(mesh.sprite)} order={mesh.order}");
+                lines.Add($"- mesh {PathFromRoot(root.transform, mesh.transform)} sprite={SpriteName(mesh.sprite)} order={mesh.order} {SpriteMetrics(mesh)}");
             }
 
             var barrier = root.GetComponent<WoodenBarrier>();
@@ -94,6 +95,30 @@ namespace AreaSurvivors.Editor
             foreach (var line in lines)
             {
                 report.AppendLine(line);
+            }
+        }
+
+        static void AppendTransformHealth(StringBuilder report, GameObject root)
+        {
+            var warnings = new List<string>();
+            foreach (var transform in root.GetComponentsInChildren<Transform>(true))
+            {
+                if (transform == root.transform) continue;
+                if (!Approximately(transform.localRotation, Quaternion.identity))
+                {
+                    warnings.Add($"rotation path={PathFromRoot(root.transform, transform)} localEuler={transform.localEulerAngles}");
+                }
+
+                if (!Approximately(transform.localScale, Vector3.one))
+                {
+                    warnings.Add($"scale path={PathFromRoot(root.transform, transform)} localScale={transform.localScale}");
+                }
+            }
+
+            report.AppendLine($"- transformWarnings: {warnings.Count}");
+            foreach (var warning in warnings)
+            {
+                report.AppendLine($"  - {warning}");
             }
         }
 
@@ -145,6 +170,27 @@ namespace AreaSurvivors.Editor
         static string SpriteName(Sprite sprite)
         {
             return sprite != null ? sprite.name : "missing";
+        }
+
+        static string SpriteMetrics(PaperMeshVisual visual)
+        {
+            if (visual == null || visual.sprite == null) return "metrics=missing";
+            var sprite = visual.sprite;
+            var bounds = sprite.bounds.size;
+            var rect = sprite.textureRect;
+            var scale = visual.transform.localScale;
+            var world = new Vector2(bounds.x * scale.x, bounds.y * scale.y);
+            return $"px=({rect.width:0},{rect.height:0}) bounds=({bounds.x:0.###},{bounds.y:0.###}) scale=({scale.x:0.###},{scale.y:0.###},{scale.z:0.###}) world=({world.x:0.###},{world.y:0.###}) ppu={sprite.pixelsPerUnit:0.###}";
+        }
+
+        static bool Approximately(Vector3 a, Vector3 b)
+        {
+            return Mathf.Abs(a.x - b.x) < 0.001f && Mathf.Abs(a.y - b.y) < 0.001f && Mathf.Abs(a.z - b.z) < 0.001f;
+        }
+
+        static bool Approximately(Quaternion a, Quaternion b)
+        {
+            return Mathf.Abs(Quaternion.Dot(a, b)) > 0.9999f;
         }
     }
 }

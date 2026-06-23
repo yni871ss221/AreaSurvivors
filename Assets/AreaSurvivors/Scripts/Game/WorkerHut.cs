@@ -7,6 +7,7 @@ namespace AreaSurvivors
     [RequireComponent(typeof(Health))]
     public sealed class WorkerHut : MonoBehaviour, IBuildableConstruction
     {
+        static readonly bool DisableWorkerHutAutoGatherForPhase1 = true;
         public GameConfig config;
         public TileGrid grid;
         public Collider2D blockingCollider;
@@ -86,6 +87,7 @@ namespace AreaSurvivors
 
         public void AutoGather(int amountPerResource)
         {
+            if (DisableWorkerHutAutoGatherForPhase1) return;
             if (!completed || grid == null || amountPerResource <= 0) return;
 
             var wood = FindNearestConnectedResource(ResourceType.Wood);
@@ -123,12 +125,12 @@ namespace AreaSurvivors
 
         bool IsConnectedByPlayerTerritory(Vector3Int targetOrigin, Vector2Int targetFootprint)
         {
-            if (grid.GetOwner(OriginCell) != TileOwner.Player) return false;
+            if (!grid.IsOwnedBy(OriginCell, TileOwner.Player)) return false;
 
             var targetCells = new HashSet<Vector3Int>();
             foreach (var cell in FootprintCells(targetOrigin, targetFootprint))
             {
-                if (grid.ContainsCell(cell) && grid.GetOwner(cell) == TileOwner.Player) targetCells.Add(cell);
+                if (grid.ContainsCell(cell) && grid.IsOwnedBy(cell, TileOwner.Player)) targetCells.Add(cell);
             }
             if (targetCells.Count == 0) return false;
             if (targetCells.Contains(OriginCell)) return true;
@@ -144,7 +146,7 @@ namespace AreaSurvivors
                 var cell = open.Dequeue();
                 foreach (var next in Neighbors(cell))
                 {
-                    if (visited.Contains(next) || !grid.ContainsCell(next) || grid.GetOwner(next) != TileOwner.Player) continue;
+                    if (visited.Contains(next) || !grid.ContainsCell(next) || !grid.IsOwnedBy(next, TileOwner.Player)) continue;
                     if (targetCells.Contains(next)) return true;
                     visited.Add(next);
                     open.Enqueue(next);

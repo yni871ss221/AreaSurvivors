@@ -21,6 +21,7 @@ namespace AreaSurvivors
         float explosionRadius = 1.1f;
         float trailTimer;
         const float ArrowVisualScaleMultiplier = 0.5f;
+        const int ArrowPaintRadius = 1;
 
         void Awake()
         {
@@ -68,15 +69,23 @@ namespace AreaSurvivors
             ImpactFlash();
             if (explosive)
             {
+                PaintPlayerTerritory(transform.position, Mathf.CeilToInt(explosionRadius));
                 ProjectileExplosionHitbox.Spawn(transform.position, explosionRadius, damage, knockback, knockbackDuration);
             }
             else
             {
                 var dealt = other.GetComponent<Health>()?.Damage(damage, other.ClosestPoint(transform.position)) ?? 0;
+                PaintPlayerTerritory(enemy.transform.position, ArrowPaintRadius);
                 ApplyKnockback(enemy, GetComponent<Rigidbody2D>() != null ? GetComponent<Rigidbody2D>().velocity.normalized : transform.right);
                 GameManager.Instance?.RegisterDamageDealt(dealt);
             }
             Destroy(gameObject);
+        }
+
+        static void PaintPlayerTerritory(Vector3 position, int radius)
+        {
+            var grid = GameManager.Instance != null ? GameManager.Instance.grid : null;
+            if (grid != null) grid.Paint(position, TileOwner.Player, Mathf.Max(1, radius));
         }
 
         void ApplyKnockback(EnemyController enemy, Vector2 direction)
@@ -112,6 +121,7 @@ namespace AreaSurvivors
 
         void TrailFleck()
         {
+            if (explosive) PaintPlayerTerritory(transform.position, 1);
             var source = GetComponentInChildren<PaperMeshVisual>();
             if (source == null || source.sprite == null) return;
             var color = explosive ? new Color(1f, 0.45f, 0.16f, 0.36f) : new Color(1f, 0.88f, 0.42f, 0.24f);
@@ -229,6 +239,7 @@ namespace AreaSurvivors
         void DamageOverlaps()
         {
             if (hitbox == null) return;
+            PaintPlayerTerritory(origin, Mathf.CeilToInt(hitbox.radius));
             Physics2D.SyncTransforms();
             hits.Clear();
             damaged.Clear();
@@ -254,6 +265,12 @@ namespace AreaSurvivors
             if (receiver == null) return;
             var direction = ((Vector2)enemy.transform.position - (Vector2)origin).normalized;
             receiver.Apply(direction, knockback, knockbackDuration);
+        }
+
+        static void PaintPlayerTerritory(Vector3 position, int radius)
+        {
+            var grid = GameManager.Instance != null ? GameManager.Instance.grid : null;
+            if (grid != null) grid.Paint(position, TileOwner.Player, Mathf.Max(1, radius));
         }
     }
 }

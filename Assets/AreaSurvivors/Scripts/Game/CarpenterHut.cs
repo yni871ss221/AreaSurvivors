@@ -7,6 +7,7 @@ namespace AreaSurvivors
     [RequireComponent(typeof(Health))]
     public sealed class CarpenterHut : MonoBehaviour, IBuildableConstruction
     {
+        static readonly bool DisableCarpenterHutRepairForPhase1 = true;
         public GameConfig config;
         public TileGrid grid;
         public Collider2D blockingCollider;
@@ -83,7 +84,7 @@ namespace AreaSurvivors
 
         void Update()
         {
-            if (!completed) return;
+            if (!completed || DisableCarpenterHutRepairForPhase1) return;
 
             RepairConnectedBuildings();
             AnimateCompletionSparkle();
@@ -97,6 +98,7 @@ namespace AreaSurvivors
 
         void RepairConnectedBuildings()
         {
+            if (DisableCarpenterHutRepairForPhase1) return;
             if (grid == null || repairAmount <= 0) return;
             repairTimer -= Time.deltaTime;
             if (repairTimer > 0f) return;
@@ -124,14 +126,14 @@ namespace AreaSurvivors
 
         bool IsConnectedByPlayerTerritory(Health targetHealth)
         {
-            if (grid.GetOwner(OriginCell) != TileOwner.Player) return false;
+            if (!grid.IsOwnedBy(OriginCell, TileOwner.Player)) return false;
 
             var targetCells = new HashSet<Vector3Int>();
             var targetOrigin = TargetOriginCell(targetHealth);
             var targetFootprint = TargetFootprint(targetHealth);
             foreach (var cell in FootprintCells(targetOrigin, targetFootprint))
             {
-                if (grid.ContainsCell(cell) && grid.GetOwner(cell) == TileOwner.Player) targetCells.Add(cell);
+                if (grid.ContainsCell(cell) && grid.IsOwnedBy(cell, TileOwner.Player)) targetCells.Add(cell);
             }
             if (targetCells.Count == 0) return false;
             if (targetCells.Contains(OriginCell)) return true;
@@ -147,7 +149,7 @@ namespace AreaSurvivors
                 var cell = open.Dequeue();
                 foreach (var next in Neighbors(cell))
                 {
-                    if (visited.Contains(next) || !grid.ContainsCell(next) || grid.GetOwner(next) != TileOwner.Player) continue;
+                    if (visited.Contains(next) || !grid.ContainsCell(next) || !grid.IsOwnedBy(next, TileOwner.Player)) continue;
                     if (targetCells.Contains(next)) return true;
                     visited.Add(next);
                     open.Enqueue(next);
