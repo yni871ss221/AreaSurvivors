@@ -345,8 +345,8 @@ Docs/RebuildPlan.md を読んで、まず Phase 0 の棚卸しから進めてく
 
 - Prefab / Scene の一括再生成はまだ行わない。
 - `BuildingPrefabVisualReporter` に子Transformの localScale / localRotation 警告を追加し、Scale `1` / Rotation `0` へ寄せる対象を低出力レポートで確認できるようにした。
-- 次に実施する場合は、このReporter結果を見てPrefab単位でScale/Rotationを調整する。
-- 最新レポート: `TokenReports/UnityReports/building-prefab-visuals-20260623-143616.md`
+- 最新レポート: `TokenReports/UnityReports/building-prefab-visuals-20260623-174912.md`
+- 2026-06-23: `WoodenWall` / `WoodenGate` / `BallistaTower` / `WatchTower` は最新レポートで `transformWarnings: 0` を確認済み。許可済み例外は各 Prefab の `Completion Sparkle` Scale のみ。
 - `Completion Sparkle` の Scale `(0.70, 0.70, 0.70)` は演出サイズ調整として例外許可し、建造物本体 / アップグレード本体の Scale 正規化警告から除外する。
 - `BuildingPrefabVisualReporter` は `Completion Sparkle` を `allowedScaleExceptions` として集計し、`transformWarnings` は本体 / アップグレード本体の Rotation / Scale 異常確認に使う。
 - 正規化方針: 建造物本体 / アップグレード本体の PNG は占有セル幅 `セル数 * 64px` を維持し、Sprite PPU を `64 / GridObjectVisual.CellWidth(0.7) = 91.42857` に寄せる。Prefab child Transform Scale は `1,1,1` を正とする。
