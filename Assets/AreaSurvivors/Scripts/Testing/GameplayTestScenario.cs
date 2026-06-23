@@ -41,7 +41,8 @@ namespace AreaSurvivors.Testing
         DestroyObject,
         LevelUpSlashWeapon,
         LevelUpArrowWeapon,
-        LevelUpFireballWeapon
+        LevelUpFireballWeapon,
+        SimulateBossDefeat
     }
 
     [CreateAssetMenu(menuName = "Area Survivors/Testing/Gameplay Test Scenario")]

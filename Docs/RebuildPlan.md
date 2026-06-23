@@ -351,9 +351,9 @@ Docs/RebuildPlan.md を読んで、まず Phase 0 の棚卸しから進めてく
 - Stage 2 は 0:30 エリートゴブリン、1:00 オーガへ切替、1:30 エリートオーガ、2:00 ゴブリンロード。
 - ボス出現中は `GameManager.Update()` のタイマー加算を止め、既存の赤タイマー表示とBoss HUDを維持する。
 - Stage 1 ボス討伐後は同一Scene内で Stage 2 へ連続進行し、Stage 2 ボス討伐でGameClearへ進む。
-- GameplayTest 側は Stage 値 Assertion を追加済み。ボス討伐による Stage 1 -> Stage 2 連続進行は実プレイ確認または専用 PlayMode Scenario 追加で検証する。
+- GameplayTest 側は Stage 値 Assertion を追加済み。`Gameplay_Stage_Progression` で Stage 1 ボス撃破相当の短縮 Action 後に Stage 2 へ進むことを検証する。
 - 2026-06-23: `Gameplay_Navigation_Default` は通常ゲームで自然物スポーンを使わない現仕様に合わせ、古い Rock / Tree 配置を削除。障害物なしの基本移動確認として PASS。
-- 検証: `unicli exec Compile` 成功、`unicli exec Console.GetLog` 空。主要 Scene (`05_Game` / `90_GameplayTest` / `03_Lobby` / `04_Upgrades`) は UniCli で open 成功。GameplayTest は `Gameplay_Reboot_Weapons` / `Gameplay_Prefab_Smoke` / `Gameplay_Navigation_Default` / `Gameplay_Map_Perimeter` が PASS。
+- 検証: `unicli exec Compile` 成功、`unicli exec Console.GetLog` 空。主要 Scene (`05_Game` / `90_GameplayTest` / `03_Lobby` / `04_Upgrades`) は UniCli で open 成功。GameplayTest は `Gameplay_Reboot_Weapons` / `Gameplay_Prefab_Smoke` / `Gameplay_Navigation_Default` / `Gameplay_Map_Perimeter` / `Gameplay_Stage_Progression` が PASS。
 
 ### Phase 7: 画像 Scale 問題の収束
 

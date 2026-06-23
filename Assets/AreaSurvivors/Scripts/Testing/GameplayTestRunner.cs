@@ -211,6 +211,11 @@ namespace AreaSurvivors.Testing
                     if (weapon == null) return false;
                     weapon.LevelUpFireball();
                     return true;
+                case GameplayTestActionType.SimulateBossDefeat:
+                    var gameManager = FindGameManager();
+                    if (gameManager == null) return false;
+                    gameManager.BossDefeated(null);
+                    return true;
                 default:
                     return false;
             }

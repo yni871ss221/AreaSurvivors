@@ -15,6 +15,7 @@ namespace AreaSurvivors.Editor
         const string EnemyVisualsScenarioPath = TestFolder + "/Gameplay_Enemy_Visuals.asset";
         const string MapPerimeterScenarioPath = TestFolder + "/Gameplay_Map_Perimeter.asset";
         const string RebootWeaponsScenarioPath = TestFolder + "/Gameplay_Reboot_Weapons.asset";
+        const string StageProgressionScenarioPath = TestFolder + "/Gameplay_Stage_Progression.asset";
         const string SelectedScenarioEditorPref = "AreaSurvivors.GameplayTestScenarioPath";
         static bool playModeQueued;
 
@@ -28,6 +29,7 @@ namespace AreaSurvivors.Editor
             EnsureEnemyVisualsScenario();
             EnsureMapPerimeterScenario();
             EnsureRebootWeaponsScenario();
+            EnsureStageProgressionScenario();
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             var bootstrapObject = new GameObject("Gameplay Test Bootstrap");
@@ -90,6 +92,9 @@ namespace AreaSurvivors.Editor
         [MenuItem("Area Survivors/Test Scenarios/Run Samples/Reboot Weapons")]
         public static void RunRebootWeapons() => RunScenarioAsset(EnsureRebootWeaponsScenario());
 
+        [MenuItem("Area Survivors/Test Scenarios/Run Samples/Stage Progression")]
+        public static void RunStageProgression() => RunScenarioAsset(EnsureStageProgressionScenario());
+
         [MenuItem("Area Survivors/Test Scenarios/Samples/Use Navigation Default")]
         public static void UseNavigationDefault()
         {
@@ -124,6 +129,12 @@ namespace AreaSurvivors.Editor
         public static void UseRebootWeapons()
         {
             UseScenarioAsset(EnsureRebootWeaponsScenario());
+        }
+
+        [MenuItem("Area Survivors/Test Scenarios/Samples/Use Stage Progression")]
+        public static void UseStageProgression()
+        {
+            UseScenarioAsset(EnsureStageProgressionScenario());
         }
 
         [MenuItem("Area Survivors/Test Scenarios/Create New Gameplay Scenario")]
@@ -410,6 +421,43 @@ namespace AreaSurvivors.Editor
                 }
             };
             AssetDatabase.CreateAsset(scenario, RebootWeaponsScenarioPath);
+            AssetDatabase.SaveAssets();
+            return scenario;
+        }
+
+        static GameplayTestScenario EnsureStageProgressionScenario()
+        {
+            var scenario = AssetDatabase.LoadAssetAtPath<GameplayTestScenario>(StageProgressionScenarioPath);
+            if (scenario != null) return scenario;
+
+            scenario = ScriptableObject.CreateInstance<GameplayTestScenario>();
+            scenario.name = "Gameplay_Stage_Progression";
+            scenario.systems.enableGameManager = true;
+            scenario.systems.enableEnemySpawner = false;
+            scenario.systems.enableScenePlayer = false;
+            scenario.systems.enableSceneTower = true;
+            scenario.systems.clearExistingEnemies = true;
+            scenario.systems.clearExistingNaturalLandmarks = true;
+            scenario.targetCellOffset = Vector2Int.zero;
+            scenario.scheduledActions = new[]
+            {
+                new GameplayTestScenario.ScheduledAction
+                {
+                    atSeconds = 1f,
+                    type = GameplayTestActionType.SimulateBossDefeat
+                }
+            };
+            scenario.simulationTimeScale = 4f;
+            scenario.testDurationSeconds = 4f;
+            scenario.assertions = new[]
+            {
+                new GameplayTestScenario.Assertion
+                {
+                    type = GameplayTestAssertionType.GameStageEquals,
+                    expectedCount = 2
+                }
+            };
+            AssetDatabase.CreateAsset(scenario, StageProgressionScenarioPath);
             AssetDatabase.SaveAssets();
             return scenario;
         }
