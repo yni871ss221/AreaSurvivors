@@ -85,199 +85,259 @@ MonoBehaviour:
   harvestAmount4Cell: 400
   harvestAmount8Cell: 800
   baseAttackPower: 6
-  knightCooldown: 1.05
-  archerCooldown: 0.75
-  mageCooldown: 1.45
+  slashCooldown: 1.05
+  arrowCooldown: 0.75
+  fireballCooldown: 1.45
   minAttackCooldownMultiplier: 0.45
   runAttackPowerBonus: 2
   runAttackCooldownMultiplier: 0.92
-  knightDamageBonus: 2
-  knightSlashRange: 1.05
-  knightSlashOffset: 1.05
-  mageExplosionRadius: 1.1
-  knightWeaponLevels:
+  slashDamageBonus: 2
+  slashRange: 1.05
+  slashOffset: 1.05
+  fireballExplosionRadius: 1.1
+  slashWeaponLevels:
   - level: 1
     attackPower: 6
     cooldownSeconds: 1.05
     projectileSpeed: 0
     range: 1.05
     knockback: 1
+    projectileCount: 1
+    explosionRadius: 0
   - level: 2
     attackPower: 7
     cooldownSeconds: 0.9869999
     projectileSpeed: 0
     range: 1.13
     knockback: 2
+    projectileCount: 1
+    explosionRadius: 0
   - level: 3
     attackPower: 8
     cooldownSeconds: 0.92399997
     projectileSpeed: 0
     range: 1.2099999
     knockback: 3
+    projectileCount: 1
+    explosionRadius: 0
   - level: 4
     attackPower: 9
     cooldownSeconds: 0.86099994
     projectileSpeed: 0
     range: 1.29
     knockback: 4
+    projectileCount: 1
+    explosionRadius: 0
   - level: 5
     attackPower: 10
     cooldownSeconds: 0.798
     projectileSpeed: 0
     range: 1.3699999
     knockback: 5
+    projectileCount: 1
+    explosionRadius: 0
   - level: 6
     attackPower: 11
     cooldownSeconds: 0.73499995
     projectileSpeed: 0
     range: 1.4499999
     knockback: 6
+    projectileCount: 1
+    explosionRadius: 0
   - level: 7
     attackPower: 12
     cooldownSeconds: 0.67199993
     projectileSpeed: 0
     range: 1.53
     knockback: 7
+    projectileCount: 1
+    explosionRadius: 0
   - level: 8
     attackPower: 13
     cooldownSeconds: 0.60899997
     projectileSpeed: 0
     range: 1.6099999
     knockback: 8
+    projectileCount: 1
+    explosionRadius: 0
   - level: 9
     attackPower: 14
     cooldownSeconds: 0.54599994
     projectileSpeed: 0
     range: 1.6899999
     knockback: 9
+    projectileCount: 1
+    explosionRadius: 0
   - level: 10
     attackPower: 15
     cooldownSeconds: 0.48299998
     projectileSpeed: 0
     range: 1.77
     knockback: 10
-  archerWeaponLevels:
+    projectileCount: 1
+    explosionRadius: 0
+  arrowWeaponLevels:
   - level: 1
     attackPower: 6
     cooldownSeconds: 0.75
     projectileSpeed: 11.5
     range: 48.3
-    knockback: 1
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
   - level: 2
     attackPower: 7
     cooldownSeconds: 0.705
     projectileSpeed: 11.75
     range: 49.05
-    knockback: 2
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
   - level: 3
     attackPower: 8
     cooldownSeconds: 0.65999997
     projectileSpeed: 12
     range: 49.8
-    knockback: 3
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
   - level: 4
     attackPower: 9
     cooldownSeconds: 0.615
     projectileSpeed: 12.25
     range: 50.55
-    knockback: 4
+    knockback: 0
+    projectileCount: 2
+    explosionRadius: 0
   - level: 5
     attackPower: 10
     cooldownSeconds: 0.57
     projectileSpeed: 12.5
     range: 51.3
-    knockback: 5
+    knockback: 0
+    projectileCount: 2
+    explosionRadius: 0
   - level: 6
     attackPower: 11
     cooldownSeconds: 0.525
     projectileSpeed: 12.75
     range: 52.05
-    knockback: 6
+    knockback: 0
+    projectileCount: 2
+    explosionRadius: 0
   - level: 7
     attackPower: 12
     cooldownSeconds: 0.48
     projectileSpeed: 13
     range: 52.8
-    knockback: 7
+    knockback: 0
+    projectileCount: 3
+    explosionRadius: 0
   - level: 8
     attackPower: 13
     cooldownSeconds: 0.435
     projectileSpeed: 13.25
     range: 53.55
-    knockback: 8
+    knockback: 0
+    projectileCount: 3
+    explosionRadius: 0
   - level: 9
     attackPower: 14
     cooldownSeconds: 0.39
     projectileSpeed: 13.5
     range: 54.3
-    knockback: 9
+    knockback: 0
+    projectileCount: 3
+    explosionRadius: 0
   - level: 10
     attackPower: 15
     cooldownSeconds: 0.345
     projectileSpeed: 13.75
     range: 55.05
-    knockback: 10
-  mageWeaponLevels:
+    knockback: 0
+    projectileCount: 4
+    explosionRadius: 0
+  fireballWeaponLevels:
   - level: 1
     attackPower: 6
     cooldownSeconds: 1.45
     projectileSpeed: 11.5
-    range: 1.1
-    knockback: 1
+    range: 48.3
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 1.1
   - level: 2
     attackPower: 7
     cooldownSeconds: 1.363
     projectileSpeed: 11.75
-    range: 1.85
-    knockback: 2
+    range: 49.35
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 1.85
   - level: 3
     attackPower: 8
     cooldownSeconds: 1.276
     projectileSpeed: 12
-    range: 2.6
-    knockback: 3
+    range: 50.4
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 2.6
   - level: 4
     attackPower: 9
     cooldownSeconds: 1.189
     projectileSpeed: 12.25
-    range: 3.35
-    knockback: 4
+    range: 51.45
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 3.35
   - level: 5
     attackPower: 10
     cooldownSeconds: 1.102
     projectileSpeed: 12.5
-    range: 4.1
-    knockback: 5
+    range: 52.5
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 4.1
   - level: 6
     attackPower: 11
     cooldownSeconds: 1.015
     projectileSpeed: 12.75
-    range: 4.85
-    knockback: 6
+    range: 53.55
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 4.85
   - level: 7
     attackPower: 12
     cooldownSeconds: 0.92800003
     projectileSpeed: 13
-    range: 5.6
-    knockback: 7
+    range: 54.6
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 5.6
   - level: 8
     attackPower: 13
     cooldownSeconds: 0.841
     projectileSpeed: 13.25
-    range: 6.35
-    knockback: 8
+    range: 55.65
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 6.35
   - level: 9
     attackPower: 14
     cooldownSeconds: 0.754
     projectileSpeed: 13.5
-    range: 7.1
-    knockback: 9
+    range: 56.7
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 7.1
   - level: 10
     attackPower: 15
     cooldownSeconds: 0.66700006
     projectileSpeed: 13.75
-    range: 7.85
-    knockback: 10
+    range: 57.75
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 7.85
   baseKnockback: 1
   knockbackForceUnit: 2.2
   knockbackDuration: 0.16

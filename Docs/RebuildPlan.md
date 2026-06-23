@@ -93,7 +93,7 @@
   - `LobbyUiFactory.cs`
   - 理由: メニュー導線に影響するため、タイトル / ロビー側の最終方針確認後に削る。
   - 2026-06-23: ナイト固定を仕様として直書きし、アーチャー / メイジ生成・バインド用の停止分岐を削除済み。
-  - 2026-06-23: `03_Lobby.unity` から `Character Archer` / `Character Mage` を Unity API 経由で物理削除済み。`CharacterType.Archer` / `CharacterType.Mage` と武器データ参照は、弓 / 火の玉が既存配列を流用しているため、武器仕様整理まで互換として保持。
+  - 2026-06-23: `03_Lobby.unity` から `Character Archer` / `Character Mage` を Unity API 経由で物理削除済み。`CharacterType.Archer` / `CharacterType.Mage` は武器データ参照から外し、旧セーブ / 旧表示分岐の互換としてのみ保持。
   - 2026-06-23: `SimpleUi.CharacterSelector` と旧 `CharacterCard` 生成処理、`LobbyScreen` のキャラ選択ボタンバインド、Lobby UI の Runtime fallback 生成を削除済み。`SaveData.selectedCharacter` は既存セーブ互換、`CharacterSelectionHighlight` は Scene / Lobby のナイト表示用として保持。
 - 優先度D: 不要になった建造補助
   - `CarpenterHut.cs`
@@ -115,8 +115,7 @@
   - `SavedBuildingKind.CarpenterHut` / `SavedBuildingKind.WorkerHut`: 旧セーブの enum 値互換用。Prefab / Sprite / 実機能は削除済み。
   - 廃止 `UpgradeType`: `UnlockCarpenterHut` / `UnlockWorkerHut` / `AutoResourceInterval` / `AutoResourceGain` / `UnlockDefenseCharacter` / `UnlockClassChange` / `RoundTimeLimit` は旧セーブ互換と `ProgressionStore.IsRetiredUpgrade` 判定用に保持。
 - 武器仕様整理まで保持:
-  - `CharacterType.Archer` / `CharacterType.Mage`: プレイヤーキャラとしては使わないが、現時点では `GameConfig.GetWeaponStats()` と `WeaponController` が弓 / 火の玉の既存データ配列を参照するキーとして使っているため保持。
-  - `GameConfig.archerWeaponLevels` / `GameConfig.mageWeaponLevels`: キャラ用ではなく、リブート中はそれぞれ弓 / 火の玉の武器レベル定義として流用する。武器仕様確定後に `arrowWeaponLevels` / `fireballWeaponLevels` 相当へ改名または新構造化を検討する。
+  - `CharacterType.Archer` / `CharacterType.Mage`: プレイヤーキャラとしては使わない。武器データのキーとしては使わない状態へ整理済みで、残用途は旧セーブ / 旧 PlayerController 表示分岐の互換のみ。
 - Scene 表示用に保持:
   - `CharacterSelectionHighlight`: キャラ選択機能ではなく、Lobby のナイト固定表示ハイライト用として保持。
 
@@ -337,8 +336,9 @@ Docs/RebuildPlan.md を読んで、まず Phase 0 の棚卸しから進めてく
 - `GameManager` のゲーム開始時プレイヤー生成は `CharacterType.Knight` 固定に変更済み。
 - 初期状態はスラッシュのみ。弓 / 火の玉はレベルアップ選択肢で Lv1 解放される。
 - レベルアップ選択肢は `GameManager.RollUpgrades()` でスラッシュ強化、弓解放 / 強化、火の玉解放 / 強化を優先表示する。
-- 既存 `GameConfig` の `knightWeaponLevels` / `archerWeaponLevels` / `mageWeaponLevels` を流用し、新規Asset構造はまだ追加しない。
-- 2026-06-23: `archerWeaponLevels` / `mageWeaponLevels` はキャラ選択用ではなく、弓 / 火の玉の武器データとして暫定利用する境界を明文化。武器仕様の細部確定までは改名や新Asset化を急がない。
+- 2026-06-23: 武器ラインナップはスラッシュ / 弓 / 火の玉の3種で確定。初期スラッシュのみ、弓 / 火の玉はレベルアップ選択肢で解放する。
+- 2026-06-23: `GameConfig` の武器レベル配列を `slashWeaponLevels` / `arrowWeaponLevels` / `fireballWeaponLevels` へ改名。`WeaponType.Slash` / `Arrow` / `Fireball` をキーにし、武器データ取得から `CharacterType.Archer` / `Mage` 流用を廃止。
+- 2026-06-23: 強化軸はスラッシュ=攻撃力 / 攻撃間隔 / ノックバック / 攻撃範囲、弓=攻撃力 / 攻撃間隔 / 矢の本数 / 射程、火の玉=攻撃力 / 攻撃間隔 / 爆発範囲 / 射程。
 - `GameplayTestRunner` に武器レベル / Stage の Assertion と、武器レベルアップ用 ScheduledAction を追加済み。
 - `GameplayTestTools` に `Gameplay_Reboot_Weapons` サンプル生成メニューを追加済み。メニュー実行で Scenario asset を生成してから PlayMode 検証する。
 - 検証: `unicli exec Compile` 成功、`unicli exec Console.GetLog` 空。`Gameplay_Reboot_Weapons` は PASS。

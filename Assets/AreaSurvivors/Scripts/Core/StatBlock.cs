@@ -21,5 +21,14 @@ namespace AreaSurvivors
         public float projectileSpeed;
         public float range;
         public float knockback;
+        public int projectileCount;
+        public float explosionRadius;
+    }
+
+    public enum WeaponType
+    {
+        Slash,
+        Arrow,
+        Fireball
     }
 }

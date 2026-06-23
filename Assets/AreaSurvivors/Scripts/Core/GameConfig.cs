@@ -47,6 +47,8 @@ namespace AreaSurvivors
         public float projectileSpeed = 11.5f;
         public float range = 1f;
         public float knockback = 1f;
+        public int projectileCount = 1;
+        public float explosionRadius;
     }
 
     [CreateAssetMenu(menuName = "Area Survivors/Game Config")]
@@ -143,20 +145,20 @@ namespace AreaSurvivors
 
         [Header("Combat")]
         public int baseAttackPower = 6;
-        public float knightCooldown = 1.05f;
-        public float archerCooldown = 0.75f;
-        public float mageCooldown = 1.45f;
+        public float slashCooldown = 1.05f;
+        public float arrowCooldown = 0.75f;
+        public float fireballCooldown = 1.45f;
         public float minAttackCooldownMultiplier = 0.45f;
         public int runAttackPowerBonus = 2;
         public float runAttackCooldownMultiplier = 0.92f;
-        public int knightDamageBonus = 2;
-        public float knightSlashRange = 1.05f;
-        public float knightSlashOffset = 1.05f;
-        public float mageExplosionRadius = 1.1f;
+        public int slashDamageBonus = 2;
+        public float slashRange = 1.05f;
+        public float slashOffset = 1.05f;
+        public float fireballExplosionRadius = 1.1f;
         [Header("Weapon Levels")]
-        public WeaponLevelDefinition[] knightWeaponLevels;
-        public WeaponLevelDefinition[] archerWeaponLevels;
-        public WeaponLevelDefinition[] mageWeaponLevels;
+        public WeaponLevelDefinition[] slashWeaponLevels;
+        public WeaponLevelDefinition[] arrowWeaponLevels;
+        public WeaponLevelDefinition[] fireballWeaponLevels;
         [Header("Player Advanced Stats")]
         public float baseKnockback = 1f;
         public float knockbackForceUnit = 2.2f;
@@ -212,37 +214,40 @@ namespace AreaSurvivors
 
         public void EnsureWeaponLevelDefaults()
         {
-            knightWeaponLevels = EnsureWeaponLevels(
-                knightWeaponLevels,
-                knightCooldown,
+            slashWeaponLevels = EnsureWeaponLevels(
+                slashWeaponLevels,
+                WeaponType.Slash,
+                slashCooldown,
                 0f,
-                knightSlashRange,
+                slashRange,
                 baseKnockback,
-                false);
-            archerWeaponLevels = EnsureWeaponLevels(
-                archerWeaponLevels,
-                archerCooldown,
+                0f);
+            arrowWeaponLevels = EnsureWeaponLevels(
+                arrowWeaponLevels,
+                WeaponType.Arrow,
+                arrowCooldown,
                 projectileSpeed,
                 projectileSpeed * projectileLifetime,
                 baseKnockback,
-                true);
-            mageWeaponLevels = EnsureWeaponLevels(
-                mageWeaponLevels,
-                mageCooldown,
+                0f);
+            fireballWeaponLevels = EnsureWeaponLevels(
+                fireballWeaponLevels,
+                WeaponType.Fireball,
+                fireballCooldown,
                 projectileSpeed,
-                mageExplosionRadius,
+                projectileSpeed * projectileLifetime,
                 baseKnockback,
-                true);
+                fireballExplosionRadius);
         }
 
-        public WeaponStatBlock GetWeaponStats(CharacterType type, int level)
+        public WeaponStatBlock GetWeaponStats(WeaponType type, int level)
         {
             EnsureWeaponLevelDefaults();
-            var source = type == CharacterType.Archer
-                ? archerWeaponLevels
-                : type == CharacterType.Mage
-                    ? mageWeaponLevels
-                    : knightWeaponLevels;
+            var source = type == WeaponType.Arrow
+                ? arrowWeaponLevels
+                : type == WeaponType.Fireball
+                    ? fireballWeaponLevels
+                    : slashWeaponLevels;
             int index = Mathf.Clamp(level, 1, MaxWeaponLevel) - 1;
             var definition = source[index];
             return new WeaponStatBlock
@@ -252,17 +257,20 @@ namespace AreaSurvivors
                 cooldownSeconds = Mathf.Max(0.05f, definition.cooldownSeconds),
                 projectileSpeed = Mathf.Max(0f, definition.projectileSpeed),
                 range = Mathf.Max(0f, definition.range),
-                knockback = Mathf.Max(0f, definition.knockback)
+                knockback = Mathf.Max(0f, definition.knockback),
+                projectileCount = Mathf.Max(1, definition.projectileCount),
+                explosionRadius = Mathf.Max(0f, definition.explosionRadius)
             };
         }
 
         WeaponLevelDefinition[] EnsureWeaponLevels(
             WeaponLevelDefinition[] source,
+            WeaponType type,
             float baseCooldown,
             float baseProjectileSpeed,
             float baseRange,
             float baseKnockbackValue,
-            bool usesProjectile)
+            float baseExplosionRadius)
         {
             var result = new WeaponLevelDefinition[MaxWeaponLevel];
             for (int i = 0; i < MaxWeaponLevel; i++)
@@ -270,11 +278,13 @@ namespace AreaSurvivors
                 var existing = FindWeaponLevel(source, i + 1);
                 result[i] = existing ?? CreateDefaultWeaponLevel(
                     i + 1,
+                    type,
                     baseCooldown,
                     baseProjectileSpeed,
                     baseRange,
                     baseKnockbackValue,
-                    usesProjectile);
+                    baseExplosionRadius);
+                NormalizeWeaponLevel(result[i], type, baseProjectileSpeed, baseExplosionRadius);
                 result[i].level = i + 1;
             }
 
@@ -293,13 +303,15 @@ namespace AreaSurvivors
 
         WeaponLevelDefinition CreateDefaultWeaponLevel(
             int level,
+            WeaponType type,
             float baseCooldown,
             float baseProjectileSpeed,
             float baseRange,
             float baseKnockbackValue,
-            bool usesProjectile)
+            float baseExplosionRadius)
         {
             int bonusLevel = Mathf.Max(0, level - 1);
+            bool usesProjectile = type != WeaponType.Slash;
             return new WeaponLevelDefinition
             {
                 level = level,
@@ -307,8 +319,44 @@ namespace AreaSurvivors
                 cooldownSeconds = Mathf.Max(0.05f, baseCooldown * Mathf.Max(minAttackCooldownMultiplier, 1f - bonusLevel * 0.06f)),
                 projectileSpeed = usesProjectile ? baseProjectileSpeed + bonusLevel * 0.25f : 0f,
                 range = baseRange + bonusLevel * (usesProjectile ? 0.75f : 0.08f),
-                knockback = baseKnockbackValue + bonusLevel
+                knockback = type == WeaponType.Slash ? baseKnockbackValue + bonusLevel : 0f,
+                projectileCount = type == WeaponType.Arrow ? 1 + bonusLevel / 3 : 1,
+                explosionRadius = type == WeaponType.Fireball ? baseExplosionRadius + bonusLevel * 0.25f : 0f
             };
+        }
+
+        void NormalizeWeaponLevel(WeaponLevelDefinition definition, WeaponType type, float baseProjectileSpeed, float baseExplosionRadius)
+        {
+            if (definition == null) return;
+            int bonusLevel = Mathf.Max(0, definition.level - 1);
+            if (type == WeaponType.Arrow)
+            {
+                if (definition.projectileCount <= 0) definition.projectileCount = 1 + bonusLevel / 3;
+                definition.explosionRadius = 0f;
+                definition.knockback = 0f;
+                return;
+            }
+
+            if (type == WeaponType.Fireball)
+            {
+                float defaultFlightRange = Mathf.Max(0.05f, (baseProjectileSpeed + bonusLevel * 0.25f) * projectileLifetime);
+                if (definition.explosionRadius <= 0f)
+                {
+                    definition.explosionRadius = definition.range > 0f ? definition.range : baseExplosionRadius + bonusLevel * 0.25f;
+                }
+
+                if (definition.range <= definition.explosionRadius + 0.001f)
+                {
+                    definition.range = defaultFlightRange;
+                }
+
+                if (definition.projectileCount <= 0) definition.projectileCount = 1;
+                definition.knockback = 0f;
+                return;
+            }
+
+            definition.projectileCount = 1;
+            definition.explosionRadius = 0f;
         }
 
 #if UNITY_EDITOR
