@@ -1,0 +1,80 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ff4efad9b94e2b4ca9cd09cca12394d, type: 3}
+  m_Name: Gameplay_Reboot_Weapons
+  m_EditorClassIdentifier: 
+  systems:
+    buildGrid: 1
+    enableGameManager: 1
+    enableEnemySpawner: 0
+    enableNaturalLandmarkSpawner: 0
+    enableBuildPlacement: 0
+    enableScenePlayer: 0
+    enableSceneTower: 1
+    clearExistingEnemies: 1
+    clearExistingNaturalLandmarks: 1
+  configOverrides: []
+  targetCellOffset: {x: 0, y: 0}
+  enemies: []
+  landmarks: []
+  prefabs: []
+  scheduledActions:
+  - atSeconds: 0.2
+    type: 6
+    objectName: 
+    cellOffset: {x: 0, y: 0}
+    worldOffset: {x: 0, y: 0, z: 0}
+    amount: 0
+    active: 1
+  - atSeconds: 0.4
+    type: 7
+    objectName: 
+    cellOffset: {x: 0, y: 0}
+    worldOffset: {x: 0, y: 0, z: 0}
+    amount: 0
+    active: 1
+  useFixedRandomSeed: 1
+  randomSeed: 12345
+  focusCameraOnSetup: 1
+  cameraFocusCellOffset: {x: 0, y: 0}
+  simulationTimeScale: 4
+  testDurationSeconds: 1
+  reachDistance: 1.25
+  stallSeconds: 2.5
+  stallMovementThreshold: 0.08
+  pauseOnComplete: 0
+  autoExitPlayModeOnComplete: 1
+  assertions:
+  - type: 14
+    expectedCount: 1
+    expectedValue: 0
+    tolerance: 0.001
+    objectName: 
+    fieldName: 
+  - type: 15
+    expectedCount: 1
+    expectedValue: 0
+    tolerance: 0.001
+    objectName: 
+    fieldName: 
+  - type: 16
+    expectedCount: 1
+    expectedValue: 0
+    tolerance: 0.001
+    objectName: 
+    fieldName: 
+  - type: 17
+    expectedCount: 1
+    expectedValue: 0
+    tolerance: 0.001
+    objectName: 
+    fieldName: 

@@ -108,6 +108,18 @@
   - 理由: Scene YAML 破損リスクがあるため、Reporter / Validator で対象を絞ってから行う。
   - 2026-06-23: `05_Game.unity` に temporary / bootstrap 名の Scene オブジェクトが残っていないことを確認。`SyncFixedBuildingSlots` は固定スロット建造物の保存状態入口として残しつつ、旧任意配置リストの index による状態引き継ぎを廃止し、同じ種類かつ同じセルの固定スロット状態だけを引き継ぐよう整理。
 
+残互換コードの分類:
+
+- 既存セーブ互換で保持:
+  - `SaveData.selectedCharacter`: 旧セーブJSONの読み込み互換用。Lobby / Game は `CharacterType.Knight` 固定で上書きする。
+  - `SavedBuildingKind.CarpenterHut` / `SavedBuildingKind.WorkerHut`: 旧セーブの enum 値互換用。Prefab / Sprite / 実機能は削除済み。
+  - 廃止 `UpgradeType`: `UnlockCarpenterHut` / `UnlockWorkerHut` / `AutoResourceInterval` / `AutoResourceGain` / `UnlockDefenseCharacter` / `UnlockClassChange` / `RoundTimeLimit` は旧セーブ互換と `ProgressionStore.IsRetiredUpgrade` 判定用に保持。
+- 武器仕様整理まで保持:
+  - `CharacterType.Archer` / `CharacterType.Mage`: プレイヤーキャラとしては使わないが、現時点では `GameConfig.GetWeaponStats()` と `WeaponController` が弓 / 火の玉の既存データ配列を参照するキーとして使っているため保持。
+  - `GameConfig.archerWeaponLevels` / `GameConfig.mageWeaponLevels`: キャラ用ではなく、リブート中はそれぞれ弓 / 火の玉の武器レベル定義として流用する。武器仕様確定後に `arrowWeaponLevels` / `fireballWeaponLevels` 相当へ改名または新構造化を検討する。
+- Scene 表示用に保持:
+  - `CharacterSelectionHighlight`: キャラ選択機能ではなく、Lobby のナイト固定表示ハイライト用として保持。
+
 置き換えるもの:
 
 - 建造物配置を固定スロット方式へ変更
@@ -326,9 +338,10 @@ Docs/RebuildPlan.md を読んで、まず Phase 0 の棚卸しから進めてく
 - 初期状態はスラッシュのみ。弓 / 火の玉はレベルアップ選択肢で Lv1 解放される。
 - レベルアップ選択肢は `GameManager.RollUpgrades()` でスラッシュ強化、弓解放 / 強化、火の玉解放 / 強化を優先表示する。
 - 既存 `GameConfig` の `knightWeaponLevels` / `archerWeaponLevels` / `mageWeaponLevels` を流用し、新規Asset構造はまだ追加しない。
+- 2026-06-23: `archerWeaponLevels` / `mageWeaponLevels` はキャラ選択用ではなく、弓 / 火の玉の武器データとして暫定利用する境界を明文化。武器仕様の細部確定までは改名や新Asset化を急がない。
 - `GameplayTestRunner` に武器レベル / Stage の Assertion と、武器レベルアップ用 ScheduledAction を追加済み。
 - `GameplayTestTools` に `Gameplay_Reboot_Weapons` サンプル生成メニューを追加済み。メニュー実行で Scenario asset を生成してから PlayMode 検証する。
-- 検証: `unicli exec Compile` 成功、`unicli exec Console.GetLog` 空。
+- 検証: `unicli exec Compile` 成功、`unicli exec Console.GetLog` 空。`Gameplay_Reboot_Weapons` は PASS。
 
 ### Phase 6: 敵出現 / ラウンド仕様調整
 
@@ -339,7 +352,8 @@ Docs/RebuildPlan.md を読んで、まず Phase 0 の棚卸しから進めてく
 - ボス出現中は `GameManager.Update()` のタイマー加算を止め、既存の赤タイマー表示とBoss HUDを維持する。
 - Stage 1 ボス討伐後は同一Scene内で Stage 2 へ連続進行し、Stage 2 ボス討伐でGameClearへ進む。
 - GameplayTest 側は Stage 値 Assertion を追加済み。ボス討伐による Stage 1 -> Stage 2 連続進行は実プレイ確認または専用 PlayMode Scenario 追加で検証する。
-- 検証: `unicli exec Compile` 成功、`unicli exec Console.GetLog` 空。
+- 2026-06-23: `Gameplay_Navigation_Default` は通常ゲームで自然物スポーンを使わない現仕様に合わせ、古い Rock / Tree 配置を削除。障害物なしの基本移動確認として PASS。
+- 検証: `unicli exec Compile` 成功、`unicli exec Console.GetLog` 空。主要 Scene (`05_Game` / `90_GameplayTest` / `03_Lobby` / `04_Upgrades`) は UniCli で open 成功。GameplayTest は `Gameplay_Reboot_Weapons` / `Gameplay_Prefab_Smoke` / `Gameplay_Navigation_Default` / `Gameplay_Map_Perimeter` が PASS。
 
 ### Phase 7: 画像 Scale 問題の収束
 

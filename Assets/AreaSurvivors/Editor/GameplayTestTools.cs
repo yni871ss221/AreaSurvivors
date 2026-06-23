@@ -192,12 +192,7 @@ namespace AreaSurvivors.Editor
                 new GameplayTestScenario.EnemyPlacement { kind = EnemyKind.Orc, cellOffset = new Vector2Int(-12, 0) },
                 new GameplayTestScenario.EnemyPlacement { kind = EnemyKind.Orc, cellOffset = new Vector2Int(-12, 1) }
             };
-            scenario.landmarks = new[]
-            {
-                new GameplayTestScenario.LandmarkPlacement { landmarkName = "Rock4", cellOffset = new Vector2Int(-7, 0) },
-                new GameplayTestScenario.LandmarkPlacement { landmarkName = "Rock1", cellOffset = new Vector2Int(-3, 3) },
-                new GameplayTestScenario.LandmarkPlacement { landmarkName = "Tree1", cellOffset = new Vector2Int(-3, -3) }
-            };
+            scenario.landmarks = System.Array.Empty<GameplayTestScenario.LandmarkPlacement>();
             scenario.simulationTimeScale = 4f;
             scenario.testDurationSeconds = 12f;
             scenario.stallSeconds = 3f;

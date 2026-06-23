@@ -28,19 +28,7 @@ MonoBehaviour:
     monitorForStall: 1
     requireReachTarget: 1
     suppressStuckRecovery: 0
-  landmarks:
-  - landmarkName: Rock4
-    cellOffset: {x: -7, y: 0}
-    count: 1
-    spacing: {x: 1, y: 0}
-  - landmarkName: Rock1
-    cellOffset: {x: -3, y: 3}
-    count: 1
-    spacing: {x: 1, y: 0}
-  - landmarkName: Tree1
-    cellOffset: {x: -3, y: -3}
-    count: 1
-    spacing: {x: 1, y: 0}
+  landmarks: []
   prefabs: []
   simulationTimeScale: 4
   testDurationSeconds: 12
