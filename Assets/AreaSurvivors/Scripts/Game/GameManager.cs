@@ -10,7 +10,6 @@ namespace AreaSurvivors
 {
     public sealed class GameManager : MonoBehaviour
     {
-        static readonly bool DisableConstructionHudForPhase1 = true;
         static readonly bool DisableNaturalLandmarkSpawnsForPhase1 = true;
         static readonly bool DisableRoundTimeLimitFailureForPhase1 = true;
 
@@ -42,7 +41,6 @@ namespace AreaSurvivors
         public int Stone { get; private set; }
         public int RunTokens { get; private set; }
         public MapSessionMode SessionMode => sessionMode;
-        public bool ConstructionHudEnabled => !DisableConstructionHudForPhase1 && sessionMode == MapSessionMode.Build;
 
         int kills;
         int level = 1;
@@ -850,13 +848,6 @@ namespace AreaSurvivors
             gameHud.Initialize(buildPlacement, Tower, this);
         }
 
-        public void ConfigureBuildingUpgrade(Canvas hudCanvas)
-        {
-            if (buildingUpgrade == null) buildingUpgrade = GetComponent<BuildingUpgradeController>();
-            if (buildingUpgrade == null) buildingUpgrade = gameObject.AddComponent<BuildingUpgradeController>();
-            buildingUpgrade.Initialize(this, config, grid, Tower, hudCanvas);
-        }
-
         void HideLegacyPlayerProgressHud()
         {
             if (levelText != null)
@@ -925,13 +916,11 @@ namespace AreaSurvivors
         static readonly Vector2 PlayerIconSize = new Vector2(58f, 58f);
 
         BuildPlacementController buildPlacement;
-        BuildingUpgradeController buildingUpgrade;
         GameManager gameManager;
         PlayerController player;
         TowerController towerController;
         Health towerHealth;
         Image towerImage;
-        Button upgradeButton;
         RectTransform towerPanel;
         RectTransform playerPanel;
         RectTransform playerStatsPanel;
@@ -990,13 +979,6 @@ namespace AreaSurvivors
                 BuildPlayerPanel(canvas.transform);
             }
             BuildTowerPanel(canvas.transform);
-            if (gameManager != null && gameManager.ConstructionHudEnabled)
-            {
-                gameManager.ConfigureBuildingUpgrade(canvas);
-                buildingUpgrade = gameManager.buildingUpgrade;
-                BindUpgradeButton(canvas.transform);
-                BindBuildModeLobbyButton(canvas.transform);
-            }
             UpdatePlayerPanel();
             UpdateTokenHud();
             UpdateTowerPanel();
@@ -1013,16 +995,13 @@ namespace AreaSurvivors
         void ApplySessionHudVisibility(Transform parent)
         {
             if (parent == null || gameManager == null) return;
-            bool buildMode = gameManager.ConstructionHudEnabled;
-            SetDirectChildActive(parent, "Upgrade Building Button", buildMode);
-            SetDirectChildActive(parent, "Build Lobby Button", buildMode);
-            SetDirectChildActive(parent, "Timer Panel", !buildMode);
-            SetDirectChildActive(parent, "Kill Panel", !buildMode);
-            SetDirectChildActive(parent, "Boss Status", !buildMode);
-            SetDirectChildActive(parent, "Player Status", !buildMode);
-            SetDirectChildActive(parent, "Token Resource", !buildMode);
-            SetDirectChildActive(parent, "XP Bar", !buildMode);
-            SetDirectChildActive(parent, "Level Panel", !buildMode);
+            SetDirectChildActive(parent, "Timer Panel", true);
+            SetDirectChildActive(parent, "Kill Panel", true);
+            SetDirectChildActive(parent, "Boss Status", true);
+            SetDirectChildActive(parent, "Player Status", true);
+            SetDirectChildActive(parent, "Token Resource", true);
+            SetDirectChildActive(parent, "XP Bar", true);
+            SetDirectChildActive(parent, "Level Panel", true);
         }
 
         static void SetDirectChildActive(Transform parent, string path, bool active)
@@ -1519,81 +1498,6 @@ namespace AreaSurvivors
                 hpText = CreateText(towerPanel, "Tower HP Text", "", 13, TowerHpTextPosition, new Vector2(88f, 20f), TextAnchor.MiddleCenter);
                 AnchorTopCenter(hpText.rectTransform);
             }
-        }
-
-        void BindUpgradeButton(Transform parent)
-        {
-            if (parent == null) return;
-            var buttonTransform = parent.Find("Upgrade Building Button");
-            upgradeButton = buttonTransform != null ? buttonTransform.GetComponent<Button>() : null;
-            if (upgradeButton == null) upgradeButton = CreateUpgradeButton(parent);
-            upgradeButton.onClick.RemoveAllListeners();
-            upgradeButton.onClick.AddListener(() =>
-            {
-                if (buildingUpgrade != null) buildingUpgrade.Toggle();
-            });
-            upgradeButton.interactable = ProgressionStore.IsUnlocked(UpgradeType.UnlockTowerUpgrade);
-            var icon = upgradeButton.transform.Find("Icon")?.GetComponent<Image>();
-            if (icon != null)
-            {
-                icon.preserveAspect = true;
-                icon.color = upgradeButton.interactable ? Color.white : new Color(0.35f, 0.38f, 0.36f, 1f);
-            }
-        }
-
-        void BindBuildModeLobbyButton(Transform parent)
-        {
-            if (parent == null) return;
-            var buttonTransform = parent.Find("Build Lobby Button");
-            var button = buttonTransform != null ? buttonTransform.GetComponent<Button>() : null;
-            if (button == null)
-            {
-                var image = new GameObject("Build Lobby Button").AddComponent<Image>();
-                image.transform.SetParent(parent, false);
-                image.color = new Color(0.10f, 0.16f, 0.18f, 0.94f);
-                var rect = image.rectTransform;
-                rect.anchorMin = new Vector2(1f, 0f);
-                rect.anchorMax = new Vector2(1f, 0f);
-                rect.pivot = new Vector2(1f, 0f);
-                rect.anchoredPosition = new Vector2(-16f, 16f);
-                rect.sizeDelta = new Vector2(148f, 44f);
-                AddFrame(rect, rect.sizeDelta);
-                button = image.gameObject.AddComponent<Button>();
-                button.targetGraphic = image;
-                CreateText(rect, "Label", "ロビーへ", 18, Vector2.zero, rect.sizeDelta, TextAnchor.MiddleCenter);
-            }
-
-            button.onClick.RemoveAllListeners();
-            button.onClick.AddListener(() =>
-            {
-                SceneManager.LoadScene(SceneNames.Lobby);
-            });
-            button.gameObject.SetActive(true);
-        }
-
-        Button CreateUpgradeButton(Transform parent)
-        {
-            var image = new GameObject("Upgrade Building Button").AddComponent<Image>();
-            image.transform.SetParent(parent, false);
-            image.color = new Color(0.10f, 0.19f, 0.14f, 0.94f);
-            var rect = image.rectTransform;
-            rect.anchorMin = Vector2.one;
-            rect.anchorMax = Vector2.one;
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = new Vector2(-69f, -354f);
-            rect.sizeDelta = new Vector2(54f, 54f);
-            var button = image.gameObject.AddComponent<Button>();
-            button.targetGraphic = image;
-
-            var icon = new GameObject("Icon").AddComponent<Image>();
-            icon.transform.SetParent(image.transform, false);
-            icon.preserveAspect = true;
-            icon.raycastTarget = false;
-            icon.rectTransform.anchorMin = Vector2.zero;
-            icon.rectTransform.anchorMax = Vector2.one;
-            icon.rectTransform.offsetMin = new Vector2(7f, 7f);
-            icon.rectTransform.offsetMax = new Vector2(-7f, -7f);
-            return button;
         }
 
         void OnTowerUpgraded(Sprite sprite)

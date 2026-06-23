@@ -32,6 +32,9 @@ namespace AreaSurvivors.Editor
             removed += DestroyDirectChild(hud.transform, "Construction Menu");
             removed += DestroyDirectChild(hud.transform, "Wood Resource");
             removed += DestroyDirectChild(hud.transform, "Stone Resource");
+            removed += DestroyDirectChild(hud.transform, "Upgrade Building Button");
+            removed += DestroyDirectChild(hud.transform, "Build Lobby Button");
+            removed += DestroyDirectChild(hud.transform, "Upgrade Cursor Icon");
             removed += DestroyDeepChild(hud.transform, "Weapon Frame");
 
             if (removed > 0)

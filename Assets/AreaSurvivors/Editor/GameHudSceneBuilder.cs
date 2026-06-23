@@ -113,29 +113,6 @@ namespace AreaSurvivors.Editor
             Debug.Log("Token HUD panel was restored in the scene.");
         }
 
-        public static void CreateTowerUpgradeButton()
-        {
-            ImportGeneratedSprite("UpgradeBuildingIcon");
-            var canvas = FindHudCanvas();
-            if (canvas == null)
-            {
-                Debug.LogError("HUD Canvas was not found.");
-                return;
-            }
-
-            var button = EnsureButton(canvas.transform, "Upgrade Building Button", new Vector2(-69f, -354f), new Vector2(54f, 54f), Vector2.one);
-            button.image.color = new Color(0.10f, 0.19f, 0.14f, 0.94f);
-            EnsureFrame(button.transform, button.image.rectTransform.sizeDelta);
-            var icon = EnsureImage(button.transform, "Icon", new Vector2(40f, 40f));
-            icon.sprite = LoadGeneratedSprite("UpgradeBuildingIcon");
-            icon.preserveAspect = true;
-            AddIconOutline(icon);
-
-            EditorSceneManager.MarkSceneDirty(canvas.gameObject.scene);
-            EditorSceneManager.SaveScene(canvas.gameObject.scene);
-            Debug.Log("Tower upgrade HUD button was created in the scene.");
-        }
-
         [MenuItem("AreaSurvivors/Config/Normalize Enemy Spawn Defaults")]
         public static void NormalizeEnemySpawnDefaults()
         {

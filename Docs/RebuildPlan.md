@@ -79,7 +79,7 @@
   - 理由: Scene 配置の HUD を正にしたため、残すほど疎結合ルールと衝突しやすい。
   - 2026-06-23: `GameHudController` から旧武器HUD生成、旧建造メニュー生成、テスト用木石追加ボタン生成、旧建造スロット更新を削除済み。
   - 2026-06-23: `05_Game.unity` から `Weapon Status`、`Construction Menu`、`Wood Resource`、`Stone Resource`、`Player/Weapon Frame` を Unity Editor cleanup メニュー経由で削除済み。右上の `Token Resource` はトークン獲得数表示として必要なため Scene 配置で復旧済み。`GameHudSceneBuilder` / `AreaSurvivorsBootstrap` から木 / 石 / 旧HUD再生成は削除済み。
-  - 未着手: `ConstructionHudEnabled` 周辺の互換分岐。Scene YAML の破損を避けるため、削除は個別検証しながら実施する。
+  - 2026-06-23: `ConstructionHudEnabled`、旧Build Mode用の `Upgrade Building Button` / `Build Lobby Button` のHUDバインド、ランタイム生成、Sceneオブジェクトを削除済み。
 - 優先度B: Phase 1 / 3 の一時停止フラグと互換分岐
   - `GameManager.cs` の HUD / リソース / 制限時間停止系フラグ
   - `BuildPlacementController.cs` の build scene 用の停止分岐
