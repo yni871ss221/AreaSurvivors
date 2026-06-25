@@ -46,7 +46,7 @@ namespace AreaSurvivors
             get
             {
                 var marker = GetComponent<GridObjectMarker>();
-                return marker != null ? marker.footprint : new Vector2Int(3, 1);
+                return marker != null ? marker.footprint : (gate ? new Vector2Int(3, 1) : Vector2Int.one);
             }
         }
 
@@ -103,8 +103,9 @@ namespace AreaSurvivors
             var upgradeTarget = GetComponent<BuildingUpgradeTarget>();
             if (config != null && (upgradeTarget == null || !upgradeTarget.IsUpgraded))
             {
-                maxHp = config.woodenWallMaxHp;
+                maxHp = config.woodenWallMaxHp + BuildingSkillEffects.WallMaxHpBonus(config);
             }
+            BuildingSkillEffects.ConfigureAutoRegeneration(gameObject, config);
 
             EnsureSpriteVisuals();
 

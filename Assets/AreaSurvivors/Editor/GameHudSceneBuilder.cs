@@ -113,6 +113,22 @@ namespace AreaSurvivors.Editor
             Debug.Log("Token HUD panel was restored in the scene.");
         }
 
+        [MenuItem("Area Survivors/Rebuild/Restore Weapon Status HUD")]
+        public static void RestoreWeaponStatusHud()
+        {
+            var canvas = FindHudCanvas();
+            if (canvas == null)
+            {
+                Debug.LogError("HUD Canvas was not found.");
+                return;
+            }
+
+            EnsureWeaponStatusPanels(canvas.transform);
+            EditorSceneManager.MarkSceneDirty(canvas.gameObject.scene);
+            EditorSceneManager.SaveScene(canvas.gameObject.scene);
+            Debug.Log("Weapon Status HUD panel was restored in the scene.");
+        }
+
         [MenuItem("AreaSurvivors/Config/Normalize Enemy Spawn Defaults")]
         public static void NormalizeEnemySpawnDefaults()
         {
@@ -264,40 +280,161 @@ namespace AreaSurvivors.Editor
             announcement.gameObject.SetActive(false);
         }
 
+        static void EnsureWeaponStatusPanels(Transform parent)
+        {
+            AssetDatabase.Refresh();
+            ImportGeneratedSprite("ArrowHudIcon");
+            ImportGeneratedSprite("FireballHudIcon");
+            DestroyChild(parent, "Weapon Status");
+            var playerStats = parent.Find("Player Status") as RectTransform;
+            if (playerStats != null)
+            {
+                playerStats.sizeDelta = new Vector2(138f, 140f);
+                EnsureFrame(playerStats, playerStats.sizeDelta);
+                DestroyChild(playerStats, "Work Text Box");
+                DestroyChild(playerStats, "Resource Text Box");
+            }
+
+            EnsureWeaponPanel(parent, "Slash Weapon Status", "スラッシュ", "Slash_0", new Vector2(14f, -277f), new Vector2(16f, 16f), new Vector2(7f, -4f), new[]
+            {
+                new WeaponRow("Attack Row", "攻撃力", "0", StatIconCatalog.Attack),
+                new WeaponRow("Cooldown Row", "攻撃間隔", "0.00s", StatIconCatalog.Cooldown),
+                new WeaponRow("Knockback Row", "ノックバック", "0", StatIconCatalog.Knockback),
+                new WeaponRow("Range Row", "攻撃範囲", "0", StatIconCatalog.Range)
+            });
+            EnsureWeaponPanel(parent, "Arrow Weapon Status", "弓", "ArrowHudIcon", new Vector2(14f, -403f), new Vector2(18f, 18f), new Vector2(6f, -3f), new[]
+            {
+                new WeaponRow("Attack Row", "攻撃力", "-", StatIconCatalog.Attack),
+                new WeaponRow("Cooldown Row", "攻撃間隔", "-", StatIconCatalog.Cooldown),
+                new WeaponRow("Projectile Count Row", "矢の本数", "-", StatIconCatalog.Projectile),
+                new WeaponRow("Range Row", "射程", "-", StatIconCatalog.Range)
+            });
+            EnsureWeaponPanel(parent, "Fireball Weapon Status", "火の玉", "FireballHudIcon", new Vector2(14f, -529f), new Vector2(18f, 18f), new Vector2(6f, -3f), new[]
+            {
+                new WeaponRow("Attack Row", "攻撃力", "-", StatIconCatalog.Attack),
+                new WeaponRow("Cooldown Row", "攻撃間隔", "-", StatIconCatalog.Cooldown),
+                new WeaponRow("Explosion Row", "爆発範囲", "-", StatIconCatalog.Range),
+                new WeaponRow("Range Row", "射程", "-", StatIconCatalog.Range)
+            });
+        }
+
+        static RectTransform EnsureWeaponPanel(Transform parent, string name, string titleText, string titleIcon, Vector2 position, Vector2 titleIconSize, Vector2 titleIconPosition, WeaponRow[] rows)
+        {
+            var root = EnsurePanel(parent, name, position, new Vector2(138f, 116f), Vector2.up, PanelColor);
+            SetAnchored(root, position, new Vector2(138f, 116f), Vector2.up);
+            EnsureFrame(root, root.sizeDelta);
+            EnsureHeaderIcon(root, titleIcon, titleIconSize, titleIconPosition);
+
+            var title = EnsureText(root, "Title", titleText, 13, TextAnchor.MiddleCenter);
+            title.color = new Color(0.96f, 0.90f, 0.62f, 1f);
+            title.rectTransform.anchorMin = new Vector2(0f, 1f);
+            title.rectTransform.anchorMax = new Vector2(1f, 1f);
+            title.rectTransform.pivot = new Vector2(0.5f, 1f);
+            title.rectTransform.anchoredPosition = new Vector2(0f, -3f);
+            title.rectTransform.offsetMin = new Vector2(24f, title.rectTransform.offsetMin.y);
+            title.rectTransform.offsetMax = new Vector2(-6f, title.rectTransform.offsetMax.y);
+            title.rectTransform.sizeDelta = new Vector2(0f, 18f);
+
+            for (int i = 0; i < rows.Length; i++)
+            {
+                EnsureWeaponRow(root, rows[i], new Vector2(6f, -24f - i * 22f));
+            }
+
+            return root;
+        }
+
+        static void EnsureHeaderIcon(RectTransform parent, string spriteName, Vector2 size, Vector2 position)
+        {
+            var icon = EnsureImage(parent, "Icon", size);
+            icon.sprite = LoadGeneratedSprite(spriteName);
+            icon.preserveAspect = true;
+            AddIconOutline(icon);
+            icon.rectTransform.anchorMin = new Vector2(0f, 1f);
+            icon.rectTransform.anchorMax = new Vector2(0f, 1f);
+            icon.rectTransform.pivot = new Vector2(0f, 1f);
+            icon.rectTransform.anchoredPosition = position;
+        }
+
+        static void EnsureWeaponRow(RectTransform parent, WeaponRow row, Vector2 position)
+        {
+            var box = EnsurePanel(parent, row.name, position, new Vector2(126f, 20f), Vector2.up, SlotColor);
+            SetAnchored(box, position, new Vector2(126f, 20f), Vector2.up);
+            EnsureFrame(box, box.sizeDelta);
+            EnsureRowIcon(box, row.icon);
+
+            var label = EnsureText(box, "Name", row.label, 11, TextAnchor.MiddleLeft);
+            SetColumns(label.rectTransform, 0f, 0.72f, 19f, -2f);
+
+            var value = EnsureText(box, "Value", row.value, 11, TextAnchor.MiddleRight);
+            SetColumns(value.rectTransform, 0.72f, 1f, 2f, -5f);
+
+            var divider = box.Find("Divider");
+            Image dividerImage;
+            if (divider == null)
+            {
+                var dividerObject = new GameObject("Divider");
+                dividerObject.transform.SetParent(box, false);
+                dividerImage = dividerObject.AddComponent<Image>();
+            }
+            else
+            {
+                dividerImage = divider.GetComponent<Image>();
+                if (dividerImage == null) dividerImage = divider.gameObject.AddComponent<Image>();
+            }
+
+            ConfigureDivider(dividerImage, 0.72f);
+        }
+
+        readonly struct WeaponRow
+        {
+            public readonly string name;
+            public readonly string label;
+            public readonly string value;
+            public readonly string icon;
+
+            public WeaponRow(string name, string label, string value, string icon)
+            {
+                this.name = name;
+                this.label = label;
+                this.value = value;
+                this.icon = icon;
+            }
+        }
+
         static void ConfigurePlayerStatColumn(RectTransform root, bool splitLayout)
         {
             if (splitLayout)
             {
-                root.sizeDelta = new Vector2(124f, 246f);
+                root.sizeDelta = new Vector2(138f, 140f);
                 EnsureFrame(root, root.sizeDelta);
-                EnsureStatBox(root, "Speed Text", new Vector2(8f, -18f), "速度", "2.5");
-                EnsureStatBox(root, "Paint Text", new Vector2(8f, -48f), "塗り", "3");
-                EnsureStatBox(root, "Revive Text", new Vector2(8f, -78f), "復活", "6.0s");
+                EnsureStatBox(root, "Speed Text", new Vector2(6f, -6f), "移動速度", "2.5", StatIconCatalog.MoveSpeed);
+                EnsureStatBox(root, "Paint Text", new Vector2(6f, -28f), "塗り範囲", "3", StatIconCatalog.Paint);
+                EnsureStatBox(root, "Revive Text", new Vector2(6f, -50f), "復活時間", "6.0s", StatIconCatalog.Revive);
                 return;
             }
 
-            EnsureStatBox(root, "Speed Text", new Vector2(8f, -162f), "速度", "2.5");
-            EnsureStatBox(root, "Paint Text", new Vector2(8f, -192f), "塗り", "3");
-            EnsureStatBox(root, "Revive Text", new Vector2(8f, -222f), "復活", "6.0s");
+            EnsureStatBox(root, "Speed Text", new Vector2(6f, -162f), "移動速度", "2.5", StatIconCatalog.MoveSpeed);
+            EnsureStatBox(root, "Paint Text", new Vector2(6f, -192f), "塗り範囲", "3", StatIconCatalog.Paint);
+            EnsureStatBox(root, "Revive Text", new Vector2(6f, -222f), "復活時間", "6.0s", StatIconCatalog.Revive);
         }
 
         static void EnsureAdvancedStatBoxes(RectTransform root, bool splitLayout)
         {
             if (splitLayout)
             {
-                EnsureStatBox(root, "Defense Text", new Vector2(8f, -108f), "防御", "0");
-                EnsureStatBox(root, "Xp Gain Text", new Vector2(8f, -138f), "経験", "1.0x");
-                EnsureStatBox(root, "Regen Text", new Vector2(8f, -168f), "回復", "0");
-                EnsureStatBox(root, "Work Text", new Vector2(8f, -198f), "作業", "1.0x");
-                EnsureStatBox(root, "Resource Text", new Vector2(8f, -228f), "資源", "+0");
+                EnsureStatBox(root, "Defense Text", new Vector2(6f, -72f), "防御力", "0", StatIconCatalog.Defense);
+                EnsureStatBox(root, "Xp Gain Text", new Vector2(6f, -94f), "経験値倍率", "1.0x", StatIconCatalog.Xp);
+                EnsureStatBox(root, "Regen Text", new Vector2(6f, -116f), "自動回復", "0", StatIconCatalog.Regen);
+                DestroyChild(root, "Work Text Box");
+                DestroyChild(root, "Resource Text Box");
                 return;
             }
 
-            EnsureStatBox(root, "Defense Text", new Vector2(8f, -342f), "防御", "0");
-            EnsureStatBox(root, "Xp Gain Text", new Vector2(8f, -372f), "経験", "1.0x");
-            EnsureStatBox(root, "Regen Text", new Vector2(8f, -402f), "回復", "0");
-            EnsureStatBox(root, "Work Text", new Vector2(8f, -432f), "作業", "1.0x");
-            EnsureStatBox(root, "Resource Text", new Vector2(8f, -462f), "資源", "+0");
+            EnsureStatBox(root, "Defense Text", new Vector2(6f, -342f), "防御力", "0", StatIconCatalog.Defense);
+            EnsureStatBox(root, "Xp Gain Text", new Vector2(6f, -372f), "経験値倍率", "1.0x", StatIconCatalog.Xp);
+            EnsureStatBox(root, "Regen Text", new Vector2(6f, -402f), "自動回復", "0", StatIconCatalog.Regen);
+            DestroyChild(root, "Work Text Box");
+            DestroyChild(root, "Resource Text Box");
         }
 
         static void RemoveWeaponStatBoxes(RectTransform root)
@@ -398,33 +535,58 @@ namespace AreaSurvivors.Editor
             text.rectTransform.offsetMax = Vector2.zero;
         }
 
-        static void EnsureStatBox(RectTransform parent, string name, Vector2 position, string label, string valueText)
+        static void EnsureStatBox(RectTransform parent, string name, Vector2 position, string label, string valueText, string iconResource)
         {
-            var box = EnsurePanel(parent, name + " Box", position, new Vector2(104f, 26f), Vector2.up, SlotColor);
-            SetAnchored(box, position, new Vector2(104f, 26f), Vector2.up);
+            var box = EnsurePanel(parent, name + " Box", position, new Vector2(126f, 20f), Vector2.up, SlotColor);
+            SetAnchored(box, position, new Vector2(126f, 20f), Vector2.up);
             EnsureFrame(box, box.sizeDelta);
+            EnsureRowIcon(box, iconResource);
             var oldLabel = box.Find("Label");
-            var nameText = EnsureText(box, oldLabel != null ? "Label" : "Name", label, 13, TextAnchor.MiddleLeft);
+            var nameText = EnsureText(box, oldLabel != null ? "Label" : "Name", label, 11, TextAnchor.MiddleLeft);
             nameText.gameObject.name = "Name";
-            SetColumns(nameText.rectTransform, 0f, 0.62f, 5f, -2f);
+            SetColumns(nameText.rectTransform, 0f, 0.72f, 19f, -2f);
 
-            var value = EnsureText(box, "Value", valueText, 13, TextAnchor.MiddleRight);
-            SetColumns(value.rectTransform, 0.62f, 1f, 2f, -5f);
+            var value = EnsureText(box, "Value", valueText, 11, TextAnchor.MiddleRight);
+            SetColumns(value.rectTransform, 0.72f, 1f, 2f, -5f);
 
             var divider = box.Find("Divider");
+            Image dividerImage;
             if (divider == null)
             {
                 var dividerObject = new GameObject("Divider");
                 dividerObject.transform.SetParent(box, false);
-                var image = dividerObject.AddComponent<Image>();
-                image.color = new Color(0.58f, 0.68f, 0.40f, 0.65f);
-                image.raycastTarget = false;
-                var rect = image.rectTransform;
-                rect.anchorMin = new Vector2(0.62f, 0.15f);
-                rect.anchorMax = new Vector2(0.62f, 0.85f);
-                rect.sizeDelta = new Vector2(1f, 0f);
-                rect.anchoredPosition = Vector2.zero;
+                dividerImage = dividerObject.AddComponent<Image>();
             }
+            else
+            {
+                dividerImage = divider.GetComponent<Image>();
+                if (dividerImage == null) dividerImage = divider.gameObject.AddComponent<Image>();
+            }
+
+            ConfigureDivider(dividerImage, 0.72f);
+        }
+
+        static void EnsureRowIcon(RectTransform parent, string iconResource)
+        {
+            var icon = EnsureImage(parent, "Icon", new Vector2(14f, 14f));
+            icon.sprite = StatIconCatalog.Load(iconResource);
+            icon.preserveAspect = true;
+            AddIconOutline(icon);
+            icon.rectTransform.anchorMin = new Vector2(0f, 0.5f);
+            icon.rectTransform.anchorMax = new Vector2(0f, 0.5f);
+            icon.rectTransform.pivot = new Vector2(0f, 0.5f);
+            icon.rectTransform.anchoredPosition = new Vector2(5f, 0f);
+        }
+
+        static void ConfigureDivider(Image image, float anchorX)
+        {
+            image.color = new Color(0.58f, 0.68f, 0.40f, 0.65f);
+            image.raycastTarget = false;
+            var rect = image.rectTransform;
+            rect.anchorMin = new Vector2(anchorX, 0.15f);
+            rect.anchorMax = new Vector2(anchorX, 0.85f);
+            rect.sizeDelta = new Vector2(1f, 0f);
+            rect.anchoredPosition = Vector2.zero;
         }
 
         static Text EnsureText(Transform parent, string name, string value, int fontSize, TextAnchor alignment)

@@ -155,6 +155,8 @@ namespace AreaSurvivors
         public float slashRange = 1.05f;
         public float slashOffset = 1.05f;
         public float fireballExplosionRadius = 1.1f;
+        public float fireballFlightCells = 10f;
+        public float fireballFlightCellsPerLevel = 1f;
         [Header("Weapon Levels")]
         public WeaponLevelDefinition[] slashWeaponLevels;
         public WeaponLevelDefinition[] arrowWeaponLevels;
@@ -182,9 +184,15 @@ namespace AreaSurvivors
         public int runResourceGainBonus = 1;
         [Header("Permanent Skill Effects")]
         public float ballistaRangePerUpgradeLevel = 0.75f;
+        public int ballistaDamagePerUpgradeLevel = 2;
+        public int wallMaxHpPerSkill = 20;
+        public int watchTowerMaxHpPerUpgradeLevel = 20;
+        public int watchTowerRangePerUpgradeLevel = 2;
+        public int buildingAutoRegenPerUpgradeLevel = 1;
+        public float enemyTerritorySlowReductionPerUpgradeLevel = 0.05f;
         public int towerAutoRegenPerUpgradeLevel = 1;
         public float endTokenGainMultiplierPerUpgradeLevel = 0.1f;
-        public float eliteSpawnRatePerUpgradeLevel = 0.1f;
+        public int eliteTimedSpawnCountPerUpgradeLevel = 1;
         public float autoBuildSpeedPerUpgradeLevel = 0.1f;
         public float baseRoundTimeLimitSeconds = 60f;
         public float projectileSpeed = 11.5f;
@@ -235,7 +243,7 @@ namespace AreaSurvivors
                 WeaponType.Fireball,
                 fireballCooldown,
                 projectileSpeed,
-                projectileSpeed * projectileLifetime,
+                FireballFlightRangeWorld(1, TileGrid.DefaultCellSize),
                 baseKnockback,
                 fireballExplosionRadius);
         }
@@ -318,7 +326,9 @@ namespace AreaSurvivors
                 attackPower = baseAttackPower + bonusLevel,
                 cooldownSeconds = Mathf.Max(0.05f, baseCooldown * Mathf.Max(minAttackCooldownMultiplier, 1f - bonusLevel * 0.06f)),
                 projectileSpeed = usesProjectile ? baseProjectileSpeed + bonusLevel * 0.25f : 0f,
-                range = baseRange + bonusLevel * (usesProjectile ? 0.75f : 0.08f),
+                range = type == WeaponType.Fireball
+                    ? FireballFlightRangeWorld(level, TileGrid.DefaultCellSize)
+                    : baseRange + bonusLevel * (usesProjectile ? 0.75f : 0.08f),
                 knockback = type == WeaponType.Slash ? baseKnockbackValue + bonusLevel : 0f,
                 projectileCount = type == WeaponType.Arrow ? 1 + bonusLevel / 3 : 1,
                 explosionRadius = type == WeaponType.Fireball ? baseExplosionRadius + bonusLevel * 0.25f : 0f
@@ -339,13 +349,13 @@ namespace AreaSurvivors
 
             if (type == WeaponType.Fireball)
             {
-                float defaultFlightRange = Mathf.Max(0.05f, (baseProjectileSpeed + bonusLevel * 0.25f) * projectileLifetime);
+                float defaultFlightRange = FireballFlightRangeWorld(definition.level, TileGrid.DefaultCellSize);
                 if (definition.explosionRadius <= 0f)
                 {
-                    definition.explosionRadius = definition.range > 0f ? definition.range : baseExplosionRadius + bonusLevel * 0.25f;
+                    definition.explosionRadius = baseExplosionRadius + bonusLevel * 0.25f;
                 }
 
-                if (definition.range <= definition.explosionRadius + 0.001f)
+                if (definition.range <= definition.explosionRadius + 0.001f || definition.range > defaultFlightRange + 0.001f)
                 {
                     definition.range = defaultFlightRange;
                 }
@@ -357,6 +367,13 @@ namespace AreaSurvivors
 
             definition.projectileCount = 1;
             definition.explosionRadius = 0f;
+        }
+
+        public float FireballFlightRangeWorld(int level, float cellSize)
+        {
+            int bonusLevel = Mathf.Max(0, level - 1);
+            float cells = fireballFlightCells + bonusLevel * Mathf.Max(0f, fireballFlightCellsPerLevel);
+            return Mathf.Max(0.05f, cells * Mathf.Max(0.01f, cellSize));
         }
 
 #if UNITY_EDITOR

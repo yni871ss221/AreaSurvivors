@@ -91,9 +91,10 @@ namespace AreaSurvivors
             {
                 attackRange = config.ballistaRange + ProgressionStore.GetLevel(UpgradeType.BallistaRange) * config.ballistaRangePerUpgradeLevel;
                 attackCooldown = config.ballistaCooldown;
-                damage = config.ballistaDamage;
+                damage = config.ballistaDamage + ProgressionStore.GetLevel(UpgradeType.BallistaDamage) * config.ballistaDamagePerUpgradeLevel;
                 maxHp = config.ballistaMaxHp;
             }
+            BuildingSkillEffects.ConfigureAutoRegeneration(gameObject, config);
 
             CacheVisualScales();
             if (completeObject != null)
@@ -363,7 +364,10 @@ namespace AreaSurvivors
             var direction = (Vector2)(nearest.transform.position - transform.position);
             var go = Instantiate(arrowPrefab, transform.position + (Vector3)(direction.normalized * 0.35f), Quaternion.identity);
             float speed = config != null ? config.projectileSpeed * 1.15f : 10f;
-            go.GetComponent<Projectile>().Launch(direction.normalized, damage, speed, false);
+            var projectile = go.GetComponent<Projectile>();
+            if (projectile == null) return;
+            projectile.paintsTerritory = false;
+            projectile.Launch(direction.normalized, damage, speed, false);
         }
 
         static void SetActive(GameObject target, bool active)

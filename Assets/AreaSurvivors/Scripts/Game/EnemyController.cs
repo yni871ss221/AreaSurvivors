@@ -28,6 +28,7 @@ namespace AreaSurvivors
         PaperMeshVisual visual;
         RuntimeSpriteOutline outline;
         float contactTimer;
+        float footRadius = 0.24f;
         float speedMultiplier = 1f;
         bool dying;
         Color desiredOutlineColor = Color.black;
@@ -117,6 +118,7 @@ namespace AreaSurvivors
             }
             var circle = GetComponent<CircleCollider2D>();
             gridVisual.ConfigureCharacterCircle(circle);
+            if (circle != null) footRadius = circle.radius * Mathf.Max(0.001f, Mathf.Abs(transform.lossyScale.x));
             colliders = GetComponents<Collider2D>();
         }
 
@@ -145,10 +147,66 @@ namespace AreaSurvivors
                 return;
             }
             var direction = ((Vector2)(target.position - transform.position)).normalized;
+            if (TryHandleGridObjectContact(direction))
+            {
+                body.velocity = Vector2.zero;
+                if (directionalAnimator != null) directionalAnimator.Tick(direction, false);
+                grid.Paint(transform.position, TileOwner.Enemy, 1);
+                return;
+            }
+
             float slow = grid.GetMoveMultiplier(transform.position, TileOwner.Enemy, config.playerTerritorySlow);
             body.velocity = direction * config.enemyBaseSpeed * slow * speedMultiplier;
             if (directionalAnimator != null) directionalAnimator.Tick(direction, body.velocity.sqrMagnitude > 0.01f);
             grid.Paint(transform.position, TileOwner.Enemy, 1);
+        }
+
+        bool TryHandleGridObjectContact(Vector2 direction)
+        {
+            if (grid == null || direction.sqrMagnitude < 0.001f) return false;
+            float probeDistance = Mathf.Max(footRadius, grid.cellSize * 0.5f);
+            if (!TryGetBlockingObject(transform.position + (Vector3)(direction.normalized * probeDistance), out var record))
+            {
+                if (!TryGetBlockingObject(transform.position, out record)) return false;
+            }
+
+            DamageGridObject(record, transform.position + (Vector3)(direction.normalized * probeDistance));
+            return true;
+        }
+
+        bool TryGetBlockingObject(Vector3 world, out GridObjectRecord record)
+        {
+            record = null;
+            if (grid == null) return false;
+            var cell = grid.WorldToCell(world);
+            record = grid.GetObject(cell);
+            if (record == null || record.instance == null) return false;
+            if ((record.flags & (GridCellFlags.BlocksMovement | GridCellFlags.BlocksBuilding)) == 0) return false;
+            return IsAttackableGridObject(record.instance);
+        }
+
+        bool IsAttackableGridObject(GameObject instance)
+        {
+            if (instance == null) return false;
+            var barrier = instance.GetComponentInParent<WoodenBarrier>();
+            if (barrier != null) return barrier.IsBuilt;
+            var ballista = instance.GetComponentInParent<BallistaTower>();
+            if (ballista != null) return ballista.IsBuilt;
+            var watchTower = instance.GetComponentInParent<WatchTower>();
+            if (watchTower != null) return watchTower.IsBuilt;
+            return instance.GetComponentInParent<TowerController>() != null;
+        }
+
+        void DamageGridObject(GridObjectRecord record, Vector3 hitPoint)
+        {
+            if (record == null || record.instance == null) return;
+            contactTimer -= Time.deltaTime;
+            if (contactTimer > 0f) return;
+            var otherHealth = record.instance.GetComponentInParent<Health>();
+            if (otherHealth == null) return;
+            int dealt = otherHealth.Damage(attackDamage, hitPoint);
+            DamagePopup.Show(damagePopupPrefab, hitPoint + Vector3.up * 0.18f, dealt, Color.red);
+            contactTimer = 0.75f;
         }
 
         void OnCollisionStay2D(Collision2D collision)

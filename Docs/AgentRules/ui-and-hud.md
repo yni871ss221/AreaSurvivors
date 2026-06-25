@@ -1,6 +1,7 @@
 # UI And HUD Rules
 
 - HUD、ロビー、建造メニュー、ステージ表示、撃破数表示、資源表示、ステータス表示、アイコンは原則Scene上へ直接配置する。
+- HUDの新規UI要素は必ずScene上に配置し、実行時コードでは参照と値更新だけを行う。`GameManager` / `GameHudController` で `CreatePanel`、`CreateText`、`Ensure*`、`new GameObject` を使って新規HUDを生成してはいけない。
 - SceneやPrefab上の `RectTransform`、Sprite、Collider、Scale、RotationをRuntimeで固定値へ戻さない。
 - HUD画像、アイコン、`Source Image` はScene上で設定する。GameManagerなどの実行時処理で作成・差し替え・サイズ補正しない。
 - HUDの位置調整はユーザーがEditorで行う前提。正規化ツールや固定座標上書きで位置を戻さない。

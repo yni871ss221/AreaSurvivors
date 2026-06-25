@@ -63,9 +63,18 @@ namespace AreaSurvivors
             {
                 case UpgradeType.UnlockBallista:
                 case UpgradeType.UnlockWatchTower:
+                case UpgradeType.UnlockWall:
                 case UpgradeType.UnlockLargeWorkshop:
                 case UpgradeType.UnlockTowerCannon:
                 case UpgradeType.UnlockTowerUpgrade:
+                case UpgradeType.WallMaxHp1:
+                case UpgradeType.WallMaxHp2:
+                case UpgradeType.WallMaxHp3:
+                case UpgradeType.WallUpgrade:
+                case UpgradeType.BallistaUpgrade:
+                case UpgradeType.WatchTowerUpgrade:
+                case UpgradeType.StartingArrow:
+                case UpgradeType.StartingFireball:
                     return 1;
                 case UpgradeType.StartingWeaponLevel:
                     return 4;
@@ -102,17 +111,28 @@ namespace AreaSurvivors
         {
             switch (type)
             {
+                case UpgradeType.UnlockWall: return 2;
                 case UpgradeType.UnlockBallista: return 3;
                 case UpgradeType.UnlockWatchTower:
                 case UpgradeType.UnlockLargeWorkshop:
                 case UpgradeType.UnlockTowerCannon:
                 case UpgradeType.UnlockTowerUpgrade:
+                case UpgradeType.WallUpgrade:
+                case UpgradeType.BallistaUpgrade:
+                case UpgradeType.WatchTowerUpgrade:
                     return 8;
                 case UpgradeType.TowerMaxHp:
+                case UpgradeType.WallMaxHp1:
+                case UpgradeType.WallMaxHp2:
+                case UpgradeType.WallMaxHp3:
+                case UpgradeType.WatchTowerMaxHp:
                 case UpgradeType.TowerAutoRegen:
+                case UpgradeType.BuildingAutoRegen:
                 case UpgradeType.EndTokenGain:
-                case UpgradeType.EliteSpawnRate:
+                case UpgradeType.EliteSpawnCount:
                 case UpgradeType.StartingWeaponLevel:
+                case UpgradeType.StartingArrow:
+                case UpgradeType.StartingFireball:
                     return 6;
                 default:
                     return 4;

@@ -45,7 +45,6 @@ namespace AreaSurvivors
         int damageDealt;
         float elapsed;
         float hudElapsed;
-        float roundTimeLimit;
         float xpRemainder;
         int currentStage = 1;
         float currentStageSpeedMultiplier = 1f;
@@ -65,7 +64,7 @@ namespace AreaSurvivors
         void Start()
         {
             Time.timeScale = 1f;
-            sessionMode = RunState.ConsumeNextMapMode();
+            sessionMode = MapSessionMode.Game;
             config = Instantiate(config);
             config.EnsureEnemySpawnDefaults();
             config.EnsureWeaponLevelDefaults();
@@ -114,8 +113,7 @@ namespace AreaSurvivors
 
             var cameraFollow = Camera.main.GetComponent<CameraFollow>();
             if (cameraFollow != null && sessionMode == MapSessionMode.Game && Player != null) cameraFollow.Configure(Player.transform, Tower.transform, config);
-            if (sessionMode == MapSessionMode.Game) BeginStage(stage);
-            else BeginBuildMode(stage);
+            BeginStage(stage);
             UpdateHud();
         }
 
@@ -162,46 +160,71 @@ namespace AreaSurvivors
             public bool requiresUnlock = true;
         }
 
-        static readonly FixedBuildingSlotDefinition[] FixedBuildingSlotDefinitions =
+        const int FixedLayoutTowerCenterColumn = 13;
+        const int FixedLayoutTowerCenterRow = 13;
+
+        static readonly FixedBuildingSlotDefinition[] FixedBuildingSlotDefinitions = BuildFixedBuildingSlotDefinitions();
+
+        static FixedBuildingSlotDefinition[] BuildFixedBuildingSlotDefinitions()
         {
-            new FixedBuildingSlotDefinition
+            var slots = new List<FixedBuildingSlotDefinition>();
+
+            AddWallLine(slots, 6, 6, 11, 6);
+            AddWallLine(slots, 6, 7, 6, 11);
+            AddWallLine(slots, 15, 6, 20, 6);
+            AddWallLine(slots, 20, 7, 20, 11);
+            AddWallLine(slots, 6, 15, 6, 20);
+            AddWallLine(slots, 7, 20, 11, 20);
+            AddWallLine(slots, 20, 15, 20, 20);
+            AddWallLine(slots, 15, 20, 19, 20);
+
+            AddBallista(slots, 7, 8);
+            AddBallista(slots, 18, 8);
+            AddBallista(slots, 7, 19);
+            AddBallista(slots, 18, 19);
+
+            return slots.ToArray();
+        }
+
+        static void AddWallLine(List<FixedBuildingSlotDefinition> slots, int startColumn, int startRow, int endColumn, int endRow)
+        {
+            int columnStep = Math.Sign(endColumn - startColumn);
+            int rowStep = Math.Sign(endRow - startRow);
+            int length = Mathf.Max(Mathf.Abs(endColumn - startColumn), Mathf.Abs(endRow - startRow));
+            for (int i = 0; i <= length; i++)
+            {
+                slots.Add(CreateFixedWallSlot(startColumn + columnStep * i, startRow + rowStep * i));
+            }
+        }
+
+        static void AddBallista(List<FixedBuildingSlotDefinition> slots, int leftColumn, int lowerRow)
+        {
+            slots.Add(new FixedBuildingSlotDefinition
+            {
+                kind = SavedBuildingKind.Ballista,
+                unlockType = UpgradeType.UnlockBallista,
+                footprint = new Vector2Int(2, 2),
+                desiredOffset = OffsetFromLayoutCell(leftColumn, lowerRow),
+                requiresUnlock = false
+            });
+        }
+
+        static FixedBuildingSlotDefinition CreateFixedWallSlot(int column, int row)
+        {
+            return new FixedBuildingSlotDefinition
             {
                 kind = SavedBuildingKind.WoodenWall,
                 unlockType = UpgradeType.StartingWood,
-                footprint = new Vector2Int(3, 1),
-                desiredOffset = new Vector2Int(-9, 0),
+                footprint = Vector2Int.one,
+                desiredOffset = OffsetFromLayoutCell(column, row),
                 requiresUnlock = false
-            },
-            new FixedBuildingSlotDefinition
-            {
-                kind = SavedBuildingKind.WoodenGate,
-                unlockType = UpgradeType.StartingWood,
-                footprint = new Vector2Int(3, 1),
-                desiredOffset = new Vector2Int(9, 0),
-                requiresUnlock = false
-            },
-            new FixedBuildingSlotDefinition
-            {
-                kind = SavedBuildingKind.Ballista,
-                unlockType = UpgradeType.UnlockBallista,
-                footprint = new Vector2Int(2, 2),
-                desiredOffset = new Vector2Int(-8, 8)
-            },
-            new FixedBuildingSlotDefinition
-            {
-                kind = SavedBuildingKind.Ballista,
-                unlockType = UpgradeType.UnlockBallista,
-                footprint = new Vector2Int(2, 2),
-                desiredOffset = new Vector2Int(8, 8)
-            },
-            new FixedBuildingSlotDefinition
-            {
-                kind = SavedBuildingKind.WatchTower,
-                unlockType = UpgradeType.UnlockWatchTower,
-                footprint = new Vector2Int(2, 2),
-                desiredOffset = new Vector2Int(0, 10)
-            }
-        };
+            };
+        }
+
+        static Vector2Int OffsetFromLayoutCell(int column, int row)
+        {
+            return new Vector2Int(column - FixedLayoutTowerCenterColumn, FixedLayoutTowerCenterRow - row);
+        }
 
         List<SavedBuildingData> BuildFixedStageBuildings(int stage)
         {
@@ -288,8 +311,8 @@ namespace AreaSurvivors
         {
             if (sessionMode == MapSessionMode.Game)
             {
-                if (!bossActive) elapsed += Time.deltaTime * currentStageSpeedMultiplier;
-                hudElapsed = Mathf.Max(0f, roundTimeLimit - elapsed);
+                if (!bossActive) elapsed += Time.deltaTime;
+                hudElapsed = elapsed;
             }
             else
             {
@@ -415,42 +438,30 @@ namespace AreaSurvivors
 
         List<RunUpgradeChoice> RollUpgrades()
         {
-            var pool = new List<RunUpgradeChoice>
-            {
-                new RunUpgradeChoice("\u79fb\u52d5\u901f\u5ea6 +" + Mathf.RoundToInt((config.runMoveSpeedMultiplier - 1f) * 100f) + "%", StatIconCatalog.MoveSpeed, () => Player.StatsSource.MultiplyMoveSpeed(config.runMoveSpeedMultiplier)),
-                new RunUpgradeChoice("\u5857\u308a\u7bc4\u56f2 +" + config.runPaintRadiusBonus, StatIconCatalog.Paint, () => Player.StatsSource.AddPaintRadius(config.runPaintRadiusBonus)),
-                new RunUpgradeChoice("\u6700\u5927HP +" + config.runMaxHpBonus, StatIconCatalog.MaxHp, () => Player.StatsSource.AddMaxHp(config.runMaxHpBonus)),
-                new RunUpgradeChoice("\u9632\u5fa1 +" + config.runDefenseBonus, StatIconCatalog.Defense, () => Player.StatsSource.AddDefense(config.runDefenseBonus)),
-                new RunUpgradeChoice("\u7d4c\u9a13\u5024 +" + config.runXpGainMultiplierBonus.ToString("0.0") + "x", StatIconCatalog.Xp, () => Player.StatsSource.AddXpGainMultiplier(config.runXpGainMultiplierBonus)),
-                new RunUpgradeChoice("\u81ea\u52d5\u56de\u5fa9 +" + config.runAutoRegenBonus, StatIconCatalog.Regen, () => Player.StatsSource.AddAutoRegen(config.runAutoRegenBonus)),
-                new RunUpgradeChoice("\u4f5c\u696d\u901f\u5ea6 +" + config.runWorkSpeedMultiplierBonus.ToString("0.0") + "x", StatIconCatalog.Work, () => Player.StatsSource.AddWorkSpeedMultiplier(config.runWorkSpeedMultiplierBonus)),
-                new RunUpgradeChoice("\u8cc7\u6e90\u7372\u5f97 +" + config.runResourceGainBonus, StatIconCatalog.Resource, () => Player.StatsSource.AddResourceGain(config.runResourceGainBonus))
-            };
-            var result = new List<RunUpgradeChoice>();
+            var pool = new List<RunUpgradeChoice>();
             var weapon = Player != null ? Player.weapon : null;
             if (weapon != null)
             {
-                if (weapon.CanLevelUpSlash)
+                int unlockedWeaponCount = 1 + (weapon.ArrowUnlocked ? 1 : 0) + (weapon.FireballUnlocked ? 1 : 0);
+                if (unlockedWeaponCount < 3)
                 {
-                    int nextLevel = Mathf.Min(GameConfig.MaxWeaponLevel, weapon.SlashLevel + 1);
-                    result.Add(new RunUpgradeChoice("\u30b9\u30e9\u30c3\u30b7\u30e5 Lv " + weapon.SlashLevel + " > " + nextLevel, StatIconCatalog.WeaponLevel, () => weapon.LevelUpSlash()));
+                    if (!weapon.ArrowUnlocked)
+                    {
+                        pool.Add(new RunUpgradeChoice("新武器: 弓を獲得", StatIconCatalog.Projectile, () => weapon.UnlockArrow()));
+                    }
+
+                    if (!weapon.FireballUnlocked)
+                    {
+                        pool.Add(new RunUpgradeChoice("新武器: 火の玉を獲得", StatIconCatalog.Projectile, () => weapon.UnlockFireball()));
+                    }
                 }
-                if (weapon.CanLevelUpArrow)
-                {
-                    string label = weapon.ArrowUnlocked
-                        ? "\u5f13 Lv " + weapon.ArrowLevel + " > " + Mathf.Min(GameConfig.MaxWeaponLevel, weapon.ArrowLevel + 1)
-                        : "\u5f13\u3092\u89e3\u653e";
-                    result.Add(new RunUpgradeChoice(label, StatIconCatalog.WeaponLevel, () => weapon.LevelUpArrow()));
-                }
-                if (weapon.CanLevelUpFireball)
-                {
-                    string label = weapon.FireballUnlocked
-                        ? "\u706b\u306e\u7389 Lv " + weapon.FireballLevel + " > " + Mathf.Min(GameConfig.MaxWeaponLevel, weapon.FireballLevel + 1)
-                        : "\u706b\u306e\u7389\u3092\u89e3\u653e";
-                    result.Add(new RunUpgradeChoice(label, StatIconCatalog.WeaponLevel, () => weapon.LevelUpFireball()));
-                }
+
+                AddSlashUpgradeChoices(pool, weapon);
+                if (weapon.ArrowUnlocked) AddArrowUpgradeChoices(pool, weapon);
+                if (weapon.FireballUnlocked) AddFireballUpgradeChoices(pool, weapon);
             }
 
+            var result = new List<RunUpgradeChoice>();
             while (result.Count < 3 && pool.Count > 0)
             {
                 int index = UnityEngine.Random.Range(0, pool.Count);
@@ -458,6 +469,85 @@ namespace AreaSurvivors
                 pool.RemoveAt(index);
             }
             return result;
+        }
+
+        void AddSlashUpgradeChoices(List<RunUpgradeChoice> pool, WeaponController weapon)
+        {
+            var stats = weapon.SlashStats;
+            int attackBonus = Mathf.Max(1, config.runAttackPowerBonus);
+            float cooldownMultiplier = Mathf.Clamp(config.runAttackCooldownMultiplier, 0.05f, 1f);
+            pool.Add(new RunUpgradeChoice(
+                "スラッシュ 攻撃力 " + weapon.SlashAttackPower + ">" + (weapon.SlashAttackPower + attackBonus),
+                StatIconCatalog.Attack,
+                () => weapon.AddSlashAttack(attackBonus)));
+            pool.Add(new RunUpgradeChoice(
+                "スラッシュ 攻撃間隔 " + Seconds(stats.cooldownSeconds) + ">" + Seconds(stats.cooldownSeconds * cooldownMultiplier),
+                StatIconCatalog.Cooldown,
+                () => weapon.MultiplySlashCooldown(cooldownMultiplier)));
+            pool.Add(new RunUpgradeChoice(
+                "スラッシュ ノックバック " + Number(stats.knockback) + ">" + Number(stats.knockback + WeaponController.SlashKnockbackUpgradeAmount),
+                StatIconCatalog.Knockback,
+                () => weapon.AddSlashKnockback(WeaponController.SlashKnockbackUpgradeAmount)));
+            pool.Add(new RunUpgradeChoice(
+                "スラッシュ 攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + WeaponController.SlashRangeUpgradeAmount),
+                StatIconCatalog.Range,
+                () => weapon.AddSlashRange(WeaponController.SlashRangeUpgradeAmount)));
+        }
+
+        void AddArrowUpgradeChoices(List<RunUpgradeChoice> pool, WeaponController weapon)
+        {
+            var stats = weapon.ArrowStats;
+            int attackBonus = Mathf.Max(1, config.runAttackPowerBonus);
+            float cooldownMultiplier = Mathf.Clamp(config.runAttackCooldownMultiplier, 0.05f, 1f);
+            pool.Add(new RunUpgradeChoice(
+                "弓 攻撃力 " + stats.attackPower + ">" + (stats.attackPower + attackBonus),
+                StatIconCatalog.Attack,
+                () => weapon.AddArrowAttack(attackBonus)));
+            pool.Add(new RunUpgradeChoice(
+                "弓 攻撃間隔 " + Seconds(stats.cooldownSeconds) + ">" + Seconds(stats.cooldownSeconds * cooldownMultiplier),
+                StatIconCatalog.Cooldown,
+                () => weapon.MultiplyArrowCooldown(cooldownMultiplier)));
+            pool.Add(new RunUpgradeChoice(
+                "弓 矢の本数 " + stats.projectileCount + ">" + (stats.projectileCount + 1),
+                StatIconCatalog.Projectile,
+                () => weapon.AddArrowProjectileCount(1)));
+            pool.Add(new RunUpgradeChoice(
+                "弓 射程 " + Number(stats.range) + ">" + Number(stats.range + WeaponController.ProjectileRangeUpgradeAmount),
+                StatIconCatalog.Range,
+                () => weapon.AddArrowRange(WeaponController.ProjectileRangeUpgradeAmount)));
+        }
+
+        void AddFireballUpgradeChoices(List<RunUpgradeChoice> pool, WeaponController weapon)
+        {
+            var stats = weapon.FireballStats;
+            int attackBonus = Mathf.Max(1, config.runAttackPowerBonus);
+            float cooldownMultiplier = Mathf.Clamp(config.runAttackCooldownMultiplier, 0.05f, 1f);
+            pool.Add(new RunUpgradeChoice(
+                "火の玉 攻撃力 " + stats.attackPower + ">" + (stats.attackPower + attackBonus),
+                StatIconCatalog.Attack,
+                () => weapon.AddFireballAttack(attackBonus)));
+            pool.Add(new RunUpgradeChoice(
+                "火の玉 攻撃間隔 " + Seconds(stats.cooldownSeconds) + ">" + Seconds(stats.cooldownSeconds * cooldownMultiplier),
+                StatIconCatalog.Cooldown,
+                () => weapon.MultiplyFireballCooldown(cooldownMultiplier)));
+            pool.Add(new RunUpgradeChoice(
+                "火の玉 爆発範囲 " + Number(stats.explosionRadius) + ">" + Number(stats.explosionRadius + WeaponController.FireballExplosionUpgradeAmount),
+                StatIconCatalog.Range,
+                () => weapon.AddFireballExplosionRadius(WeaponController.FireballExplosionUpgradeAmount)));
+            pool.Add(new RunUpgradeChoice(
+                "火の玉 射程 " + Number(weapon.FireballRange) + ">" + Number(weapon.FireballRange + WeaponController.ProjectileRangeUpgradeAmount),
+                StatIconCatalog.Range,
+                () => weapon.AddFireballRange(WeaponController.ProjectileRangeUpgradeAmount)));
+        }
+
+        static string Number(float value)
+        {
+            return value.ToString("0.##");
+        }
+
+        static string Seconds(float value)
+        {
+            return value.ToString("0.##") + "s";
         }
 
         void ApplyRunUpgrade(RunUpgradeChoice choice)
@@ -753,9 +843,7 @@ namespace AreaSurvivors
         {
             currentStage = Mathf.Max(1, stage);
             currentStageSpeedMultiplier = ProgressionStore.IsFastStage(currentStage) ? 2f : 1f;
-            roundTimeLimit = RoundTimeLimitSeconds();
-            elapsed = 0f;
-            hudElapsed = roundTimeLimit;
+            hudElapsed = elapsed;
             bossActive = false;
             if (timerText != null) timerText.color = Color.white;
             if (spawner != null)
@@ -764,42 +852,6 @@ namespace AreaSurvivors
                 spawner.BeginStage(config, grid, Tower.EnemyTarget, currentStage, 0f, currentStageSpeedMultiplier);
             }
             gameHud?.SetStage(currentStage);
-        }
-
-        void BeginBuildMode(int stage)
-        {
-            currentStage = Mathf.Max(1, stage);
-            currentStageSpeedMultiplier = 1f;
-            elapsed = 0f;
-            hudElapsed = 0f;
-            bossActive = false;
-            if (spawner != null) spawner.gameObject.SetActive(false);
-            if (levelUpPanel != null) levelUpPanel.SetActive(false);
-            if (timerText != null) timerText.text = string.Empty;
-            ConfigureBuildModeCamera();
-            gameHud?.SetStage(currentStage);
-        }
-
-        void ConfigureBuildModeCamera()
-        {
-            var camera = Camera.main;
-            if (camera == null) return;
-            var follow = camera.GetComponent<CameraFollow>();
-            if (follow != null)
-            {
-                follow.target = null;
-                follow.anchor = null;
-                follow.enabled = false;
-            }
-            var buildCamera = camera.GetComponent<BuildModeCameraController>();
-            if (buildCamera == null) buildCamera = camera.gameObject.AddComponent<BuildModeCameraController>();
-            buildCamera.enabled = true;
-            buildCamera.Configure(grid, Tower != null ? Tower.transform : null);
-        }
-
-        float RoundTimeLimitSeconds()
-        {
-            return Mathf.Max(1f, config.baseRoundTimeLimitSeconds);
         }
 
         float StageStartDisplaySeconds()
@@ -904,6 +956,7 @@ namespace AreaSurvivors
         Text playerLevelText;
         Text playerSpeedText;
         Text playerPaintText;
+        RectTransform paintControlRoot;
         RectTransform paintControlBlueSegment;
         RectTransform paintControlNeutralSegment;
         RectTransform paintControlRedSegment;
@@ -914,8 +967,23 @@ namespace AreaSurvivors
         Text playerDefenseText;
         Text playerXpGainText;
         Text playerRegenText;
-        Text playerWorkText;
-        Text playerResourceText;
+        RectTransform slashWeaponPanel;
+        RectTransform arrowWeaponPanel;
+        RectTransform fireballWeaponPanel;
+        Text slashAttackText;
+        Text slashCooldownText;
+        Text slashKnockbackText;
+        Text slashRangeText;
+        Text arrowAttackText;
+        Text arrowCooldownText;
+        Text arrowProjectileCountText;
+        Text arrowRangeText;
+        Text fireballAttackText;
+        Text fireballCooldownText;
+        Text fireballExplosionText;
+        Text fireballRangeText;
+        bool warnedMissingPlayerStatsHud;
+        bool warnedMissingWeaponStatsHud;
         Text tokenText;
         RectTransform bossPanel;
         Text bossNameText;
@@ -1086,49 +1154,118 @@ namespace AreaSurvivors
             var splitPlayerRoot = parent.Find("Player");
             var existing = splitPlayerRoot != null ? splitPlayerRoot : parent.Find("Player Status");
             playerPanel = existing != null ? existing.GetComponent<RectTransform>() : null;
-            if (playerPanel == null)
-            {
-                playerPanel = CreatePanel(parent, "Player Status", new Vector2(14f, -12f), PlayerPanelSize, Vector2.up, Vector2.up);
-                AddFrame(playerPanel, PlayerPanelSize);
-            }
 
             var statsRoot = splitPlayerRoot != null ? parent.Find("Player Status") : playerPanel;
             playerStatsPanel = statsRoot != null ? statsRoot.GetComponent<RectTransform>() : playerPanel;
-            if (splitPlayerRoot != null) HideLegacyPlayerTiles(playerStatsPanel);
+            if (playerPanel == null || playerStatsPanel == null) WarnMissingPlayerStatsHud();
+            if (splitPlayerRoot != null && playerStatsPanel != null) HideLegacyPlayerTiles(playerStatsPanel);
 
-            var portraitFrame = EnsureIconFrame(playerPanel, "Character Frame", new Vector2(18f, -36f), new Vector2(70f, 70f));
-            var portrait = EnsureImage(portraitFrame, "Character Image", PlayerIconSize);
-            portrait.sprite = player != null ? player.PortraitSprite : LoadHudSprite("Knight", null);
-            portrait.preserveAspect = true;
+            var portrait = FindImage(playerPanel, "Character Frame/Character Image");
+            if (portrait != null)
+            {
+                portrait.sprite = player != null ? player.PortraitSprite : LoadHudSprite("Knight", null);
+                portrait.preserveAspect = true;
+            }
 
-            BuildPaintGauge(playerPanel);
+            BuildPaintGauge(parent, playerPanel);
 
-            playerHpFill = EnsureHorizontalBar(playerPanel, "Player HP Bar", new Vector2(174f, -36f), new Vector2(190f, 24f), HpRed, out playerHpText);
-            playerXpFill = EnsureHorizontalBar(playerPanel, "Player XP Bar", new Vector2(174f, -72f), new Vector2(190f, 20f), HpBlue, out playerLevelText);
-            playerSpeedText = BindStatText(playerStatsPanel, "Speed Text") ?? EnsureStatText(playerStatsPanel, "Speed Text", new Vector2(8f, -18f));
-            playerPaintText = BindStatText(playerStatsPanel, "Paint Text") ?? EnsureStatText(playerStatsPanel, "Paint Text", new Vector2(8f, -48f));
-            playerReviveText = BindStatText(playerStatsPanel, "Revive Text") ?? EnsureStatText(playerStatsPanel, "Revive Text", new Vector2(8f, -78f));
-            playerDefenseText = BindStatText(playerStatsPanel, "Defense Text") ?? EnsureStatText(playerStatsPanel, "Defense Text", new Vector2(8f, -108f));
-            playerXpGainText = BindStatText(playerStatsPanel, "Xp Gain Text") ?? EnsureStatText(playerStatsPanel, "Xp Gain Text", new Vector2(8f, -138f));
-            playerRegenText = BindStatText(playerStatsPanel, "Regen Text") ?? EnsureStatText(playerStatsPanel, "Regen Text", new Vector2(8f, -168f));
-            playerWorkText = BindStatText(playerStatsPanel, "Work Text") ?? EnsureStatText(playerStatsPanel, "Work Text", new Vector2(8f, -198f));
-            playerResourceText = BindStatText(playerStatsPanel, "Resource Text") ?? EnsureStatText(playerStatsPanel, "Resource Text", new Vector2(8f, -228f));
+            playerHpFill = BindHorizontalBar(playerPanel, "Player HP Bar", out playerHpText);
+            playerXpFill = BindHorizontalBar(playerPanel, "Player XP Bar", out playerLevelText);
+            playerSpeedText = BindSceneStatText(playerStatsPanel, "Speed Text");
+            playerPaintText = BindSceneStatText(playerStatsPanel, "Paint Text");
+            playerReviveText = BindSceneStatText(playerStatsPanel, "Revive Text");
+            playerDefenseText = BindSceneStatText(playerStatsPanel, "Defense Text");
+            playerXpGainText = BindSceneStatText(playerStatsPanel, "Xp Gain Text");
+            playerRegenText = BindSceneStatText(playerStatsPanel, "Regen Text");
+            BindSceneWeaponStatsPanel(parent, playerStatsPanel);
         }
 
-        void BuildPaintGauge(RectTransform parent)
+        Text BindSceneStatText(RectTransform statsRoot, string name)
         {
-            var breakdown = parent.Find("Control Breakdown");
-            var breakdownRoot = breakdown != null ? breakdown.GetComponent<RectTransform>() : null;
-            if (breakdownRoot == null) return;
+            var text = BindStatText(statsRoot, name);
+            if (text == null) WarnMissingPlayerStatsHud();
+            return text;
+        }
 
-            paintControlBlueSegment = BindControlSegment(breakdownRoot, "Blue Segment");
-            paintControlNeutralSegment = BindControlSegment(breakdownRoot, "Neutral Segment");
-            paintControlRedSegment = BindControlSegment(breakdownRoot, "Red Segment");
+        void WarnMissingPlayerStatsHud()
+        {
+            if (warnedMissingPlayerStatsHud) return;
+            warnedMissingPlayerStatsHud = true;
+            Debug.LogWarning("Player status HUD rows are missing. Place Player Status stat boxes in 05_Game.unity; runtime HUD generation is intentionally disabled.");
+        }
+
+        static Image BindHorizontalBar(RectTransform parent, string name, out Text label)
+        {
+            label = null;
+            if (parent == null) return null;
+            label = FindText(parent, name + "/Label");
+            return FindImage(parent, name + "/Fill");
+        }
+
+        void BindSceneWeaponStatsPanel(Transform hudRoot, RectTransform statsRoot)
+        {
+            slashWeaponPanel = BindWeaponPanel(hudRoot, statsRoot, "Slash Weapon Status");
+            arrowWeaponPanel = BindWeaponPanel(hudRoot, statsRoot, "Arrow Weapon Status");
+            fireballWeaponPanel = BindWeaponPanel(hudRoot, statsRoot, "Fireball Weapon Status");
+            slashAttackText = BindWeaponValue(hudRoot, statsRoot, "Slash Weapon Status", "Attack Row");
+            slashCooldownText = BindWeaponValue(hudRoot, statsRoot, "Slash Weapon Status", "Cooldown Row");
+            slashKnockbackText = BindWeaponValue(hudRoot, statsRoot, "Slash Weapon Status", "Knockback Row");
+            slashRangeText = BindWeaponValue(hudRoot, statsRoot, "Slash Weapon Status", "Range Row");
+            arrowAttackText = BindWeaponValue(hudRoot, statsRoot, "Arrow Weapon Status", "Attack Row");
+            arrowCooldownText = BindWeaponValue(hudRoot, statsRoot, "Arrow Weapon Status", "Cooldown Row");
+            arrowProjectileCountText = BindWeaponValue(hudRoot, statsRoot, "Arrow Weapon Status", "Projectile Count Row");
+            arrowRangeText = BindWeaponValue(hudRoot, statsRoot, "Arrow Weapon Status", "Range Row");
+            fireballAttackText = BindWeaponValue(hudRoot, statsRoot, "Fireball Weapon Status", "Attack Row");
+            fireballCooldownText = BindWeaponValue(hudRoot, statsRoot, "Fireball Weapon Status", "Cooldown Row");
+            fireballExplosionText = BindWeaponValue(hudRoot, statsRoot, "Fireball Weapon Status", "Explosion Row");
+            fireballRangeText = BindWeaponValue(hudRoot, statsRoot, "Fireball Weapon Status", "Range Row");
+        }
+
+        RectTransform BindWeaponPanel(Transform hudRoot, Transform statsRoot, string panelName)
+        {
+            var panel = FindRect(hudRoot, panelName);
+            if (panel == null) panel = FindRect(statsRoot, panelName);
+            if (panel == null) WarnMissingWeaponStatsHud();
+            return panel;
+        }
+
+        Text BindWeaponValue(Transform hudRoot, Transform statsRoot, string panelName, string rowName)
+        {
+            var value = FindText(hudRoot, panelName + "/" + rowName + "/Value");
+            if (value == null) value = FindText(statsRoot, panelName + "/" + rowName + "/Value");
+            if (value == null) WarnMissingWeaponStatsHud();
+            return value;
+        }
+
+        void WarnMissingWeaponStatsHud()
+        {
+            if (warnedMissingWeaponStatsHud) return;
+            warnedMissingWeaponStatsHud = true;
+            Debug.LogWarning("Weapon status HUD rows are missing. Place Slash/Arrow/Fireball Weapon Status panels in 05_Game.unity; runtime HUD generation is intentionally disabled.");
+        }
+
+        void BuildPaintGauge(Transform hudRoot, RectTransform fallbackParent)
+        {
+            paintControlRoot = FindPaintGaugeRoot(hudRoot, fallbackParent);
+            if (paintControlRoot == null) return;
+
+            paintControlBlueSegment = BindControlSegment(paintControlRoot, "Blue Segment");
+            paintControlNeutralSegment = BindControlSegment(paintControlRoot, "Neutral Segment");
+            paintControlRedSegment = BindControlSegment(paintControlRoot, "Red Segment");
             if (paintControlBlueSegment == null || paintControlNeutralSegment == null || paintControlRedSegment == null) return;
             paintControlBlueText = BindControlSegmentText(paintControlBlueSegment);
             paintControlNeutralText = BindControlSegmentText(paintControlNeutralSegment);
             paintControlRedText = BindControlSegmentText(paintControlRedSegment);
             if (paintControlBlueText == null || paintControlNeutralText == null || paintControlRedText == null) return;
+        }
+
+        static RectTransform FindPaintGaugeRoot(Transform hudRoot, RectTransform fallbackParent)
+        {
+            var topPanelGauge = hudRoot != null ? hudRoot.Find("Area Control Panel/Control Breakdown") : null;
+            if (topPanelGauge != null) return topPanelGauge.GetComponent<RectTransform>();
+
+            var fallbackGauge = fallbackParent != null ? fallbackParent.Find("Control Breakdown") : null;
+            return fallbackGauge != null ? fallbackGauge.GetComponent<RectTransform>() : null;
         }
 
         static void HideLegacyPlayerTiles(RectTransform statsRoot)
@@ -1173,8 +1310,66 @@ namespace AreaSurvivors
             if (playerDefenseText != null) playerDefenseText.text = stats.defense.ToString();
             if (playerXpGainText != null) playerXpGainText.text = stats.xpGainMultiplier.ToString("0.0") + "x";
             if (playerRegenText != null) playerRegenText.text = stats.autoRegen.ToString();
-            if (playerWorkText != null) playerWorkText.text = stats.workSpeedMultiplier.ToString("0.0") + "x";
-            if (playerResourceText != null) playerResourceText.text = "+" + stats.resourceGainBonus;
+            UpdateWeaponStatsPanel();
+        }
+
+        void UpdateWeaponStatsPanel()
+        {
+            var weapon = player != null ? player.weapon : null;
+            if (weapon == null)
+            {
+                SetWeaponPanelContentVisible(slashWeaponPanel, false);
+                SetWeaponPanelContentVisible(arrowWeaponPanel, false);
+                SetWeaponPanelContentVisible(fireballWeaponPanel, false);
+                return;
+            }
+
+            var slash = weapon.SlashStats;
+            var arrow = weapon.ArrowStats;
+            var fireball = weapon.FireballStats;
+            SetWeaponPanelContentVisible(slashWeaponPanel, true);
+            SetWeaponPanelContentVisible(arrowWeaponPanel, weapon.ArrowUnlocked);
+            SetWeaponPanelContentVisible(fireballWeaponPanel, weapon.FireballUnlocked);
+            SetText(slashAttackText, weapon.SlashAttackPower.ToString());
+            SetText(slashCooldownText, Seconds(slash.cooldownSeconds));
+            SetText(slashKnockbackText, Number(slash.knockback));
+            SetText(slashRangeText, Number(slash.range));
+            SetText(arrowAttackText, arrow.attackPower.ToString());
+            SetText(arrowCooldownText, Seconds(arrow.cooldownSeconds));
+            SetText(arrowProjectileCountText, arrow.projectileCount.ToString());
+            SetText(arrowRangeText, Number(arrow.range));
+            SetText(fireballAttackText, fireball.attackPower.ToString());
+            SetText(fireballCooldownText, Seconds(fireball.cooldownSeconds));
+            SetText(fireballExplosionText, Number(fireball.explosionRadius));
+            SetText(fireballRangeText, Number(weapon.FireballRange));
+        }
+
+        static void SetWeaponPanelContentVisible(RectTransform panel, bool visible)
+        {
+            if (panel == null) return;
+            SetDirectChildActive(panel, "Icon", visible);
+            SetDirectChildActive(panel, "Title", visible);
+            SetDirectChildActive(panel, "Attack Row", visible);
+            SetDirectChildActive(panel, "Cooldown Row", visible);
+            SetDirectChildActive(panel, "Knockback Row", visible);
+            SetDirectChildActive(panel, "Projectile Count Row", visible);
+            SetDirectChildActive(panel, "Explosion Row", visible);
+            SetDirectChildActive(panel, "Range Row", visible);
+        }
+
+        static void SetText(Text text, string value)
+        {
+            if (text != null) text.text = value;
+        }
+
+        static string Number(float value)
+        {
+            return value.ToString("0.##");
+        }
+
+        static string Seconds(float value)
+        {
+            return value.ToString("0.##") + "s";
         }
 
         void UpdatePaintGauge()
@@ -1202,8 +1397,8 @@ namespace AreaSurvivors
 
         void UpdateControlBreakdown(TileControlSummary summary)
         {
-            const float totalWidth = 190f;
             const float minWidth = 32f;
+            float totalWidth = paintControlRoot != null ? Mathf.Max(96f, paintControlRoot.rect.width) : 190f;
             int[] counts = { Mathf.Max(0, summary.playerCells), Mathf.Max(0, summary.neutralCells), Mathf.Max(0, summary.enemyCells) };
             RectTransform[] segments = { paintControlBlueSegment, paintControlNeutralSegment, paintControlRedSegment };
             Text[] labels = { paintControlBlueText, paintControlNeutralText, paintControlRedText };
@@ -1320,68 +1515,6 @@ namespace AreaSurvivors
             var value = parent.Find(name + " Box/Value");
             if (value != null && value.GetComponent<Text>() != null) return value.GetComponent<Text>();
             return null;
-        }
-
-        static Text EnsureStatText(RectTransform parent, string name, Vector2 position)
-        {
-            var oldDirectText = parent.Find(name);
-            if (oldDirectText != null && oldDirectText.GetComponent<Text>() != null) oldDirectText.gameObject.SetActive(false);
-
-            var boxName = name + " Box";
-            var box = parent.Find(boxName) as RectTransform;
-            if (box == null)
-            {
-                box = CreatePanel(parent, boxName, position, new Vector2(104f, 26f), Vector2.up, Vector2.up);
-                box.GetComponent<Image>().color = SlotColor;
-                AddFrame(box, box.sizeDelta);
-            }
-
-            var labelTransform = box.Find("Name") ?? box.Find("Label");
-            var label = labelTransform != null ? labelTransform.GetComponent<Text>() : null;
-            if (label == null) label = CreateText(box, "Name", "", 13, Vector2.zero, new Vector2(64f, 22f), TextAnchor.MiddleLeft);
-            label.gameObject.name = "Name";
-            label.text = StatLabel(name);
-            label.alignment = TextAnchor.MiddleLeft;
-            SetStatColumns(label.rectTransform, 0f, 0.62f, 5f, -2f);
-
-            var valueTransform = box.Find("Value");
-            var value = valueTransform != null ? valueTransform.GetComponent<Text>() : null;
-            if (value == null) value = CreateText(box, "Value", "-", 13, Vector2.zero, new Vector2(38f, 22f), TextAnchor.MiddleRight);
-            value.alignment = TextAnchor.MiddleRight;
-            SetStatColumns(value.rectTransform, 0.62f, 1f, 2f, -5f);
-
-            var divider = box.Find("Divider");
-            if (divider == null)
-            {
-                var dividerObject = new GameObject("Divider");
-                dividerObject.transform.SetParent(box, false);
-                var image = dividerObject.AddComponent<Image>();
-                image.color = new Color(0.58f, 0.68f, 0.40f, 0.65f);
-                image.raycastTarget = false;
-                var rect = image.rectTransform;
-                rect.anchorMin = new Vector2(0.62f, 0.15f);
-                rect.anchorMax = new Vector2(0.62f, 0.85f);
-                rect.sizeDelta = new Vector2(1f, 0f);
-                rect.anchoredPosition = Vector2.zero;
-            }
-
-            return value;
-        }
-
-        static string StatLabel(string name)
-        {
-            switch (name)
-            {
-                case "Speed Text": return "速度";
-                case "Paint Text": return "塗り";
-                case "Revive Text": return "復活";
-                case "Defense Text": return "防御";
-                case "Xp Gain Text": return "経験";
-                case "Regen Text": return "回復";
-                case "Work Text": return "作業";
-                case "Resource Text": return "資源";
-                default: return name;
-            }
         }
 
         static void SetStatColumns(RectTransform rect, float minX, float maxX, float left, float right)
@@ -1573,6 +1706,20 @@ namespace AreaSurvivors
             if (parent == null || string.IsNullOrEmpty(path)) return null;
             var target = parent.Find(path);
             return target != null ? target.GetComponent<Text>() : null;
+        }
+
+        static Image FindImage(Transform parent, string path)
+        {
+            if (parent == null || string.IsNullOrEmpty(path)) return null;
+            var target = parent.Find(path);
+            return target != null ? target.GetComponent<Image>() : null;
+        }
+
+        static RectTransform FindRect(Transform parent, string path)
+        {
+            if (parent == null || string.IsNullOrEmpty(path)) return null;
+            var target = parent.Find(path);
+            return target != null ? target.GetComponent<RectTransform>() : null;
         }
 
         static void ConfigureStaticHudIcon(Transform parent, string path)

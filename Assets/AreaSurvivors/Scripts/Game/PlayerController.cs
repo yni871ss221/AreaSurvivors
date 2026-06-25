@@ -131,7 +131,9 @@ namespace AreaSurvivors
             if (input.sqrMagnitude > 1f) input.Normalize();
             if (input.sqrMagnitude > 0.01f) facing = input;
 
-            float territory = grid.GetMoveMultiplier(transform.position, TileOwner.Player, config.enemyTerritorySlow);
+            float enemyTerritoryMultiplier = config.enemyTerritorySlow +
+                ProgressionStore.GetLevel(UpgradeType.MovePenaltyReduction) * config.enemyTerritorySlowReductionPerUpgradeLevel;
+            float territory = grid.GetMoveMultiplier(transform.position, TileOwner.Player, Mathf.Clamp01(enemyTerritoryMultiplier));
             body.velocity = input * moveSpeed * territory;
             if (directionalAnimator != null) directionalAnimator.Tick(facing, input.sqrMagnitude > 0.01f);
             grid.Paint(transform.position, TileOwner.Player, paintRadius);

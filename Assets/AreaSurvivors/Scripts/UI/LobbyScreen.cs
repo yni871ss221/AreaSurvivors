@@ -57,7 +57,6 @@ namespace AreaSurvivors
         void BindStaticActions()
         {
             BindButton("Start Game Button", StartSelectedStage);
-            BindButton("Build Button", StartBuildForSelectedStage);
             BindButton("Upgrade Button", navigator.LoadUpgrades);
             BindButton("Title Button", navigator.LoadTitle);
         }
@@ -135,14 +134,6 @@ namespace AreaSurvivors
         void StartSelectedStage()
         {
             StartGameFromStage(ProgressionStore.SelectedStage);
-        }
-
-        void StartBuildForSelectedStage()
-        {
-            int stage = ProgressionStore.SelectedStage;
-            if (!ProgressionStore.IsStageUnlocked(stage)) return;
-            RunState.SetNextBuildStage(stage);
-            navigator.LoadGame();
         }
 
         void StartGameFromStage(int stage)

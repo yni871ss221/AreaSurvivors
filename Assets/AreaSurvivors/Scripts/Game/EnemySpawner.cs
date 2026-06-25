@@ -132,7 +132,7 @@ namespace AreaSurvivors
                 var timed = timedSpawns[i];
                 if (timed == null || stageElapsed < timed.timeSeconds) continue;
                 timedSpawned[i] = true;
-                SpawnBatch(timed.enemyKind, Mathf.Max(1, timed.count), true);
+                SpawnBatch(timed.enemyKind, TimedSpawnCount(timed), true);
                 if (timed.announce && !string.IsNullOrEmpty(timed.announcement))
                 {
                     GameManager.Instance?.ShowAnnouncement(timed.announcement);
@@ -162,7 +162,6 @@ namespace AreaSurvivors
 
         void SpawnOne(EnemyKind kind)
         {
-            kind = ApplyEliteSpawnChance(kind);
             var definition = config.GetEnemyDefinition(kind);
             if (definition == null) return;
             var spawnPosition = ResolveSpawnPosition(definition);
@@ -183,17 +182,23 @@ namespace AreaSurvivors
             if (definition.boss) GameManager.Instance?.BossSpawned(enemy);
         }
 
-        EnemyKind ApplyEliteSpawnChance(EnemyKind kind)
+        int TimedSpawnCount(TimedEnemySpawn timed)
         {
-            int level = ProgressionStore.GetLevel(UpgradeType.EliteSpawnRate);
-            if (level <= 0 || config == null) return kind;
-            float chance = Mathf.Clamp01(level * config.eliteSpawnRatePerUpgradeLevel);
-            if (Random.value >= chance) return kind;
-            if (kind == EnemyKind.Boar) return EnemyKind.EliteBoar;
-            if (kind == EnemyKind.Orc) return EnemyKind.EliteOrc;
-            if (kind == EnemyKind.Goblin) return EnemyKind.EliteGoblin;
-            if (kind == EnemyKind.Ogre) return EnemyKind.EliteOgre;
-            return kind;
+            int count = Mathf.Max(1, timed != null ? timed.count : 1);
+            if (!IsEliteTimedSpawn(timed)) return count;
+
+            int skillLevel = ProgressionStore.GetLevel(UpgradeType.EliteSpawnCount);
+            int countPerLevel = config != null ? Mathf.Max(0, config.eliteTimedSpawnCountPerUpgradeLevel) : 1;
+            return count + skillLevel * countPerLevel;
+        }
+
+        static bool IsEliteTimedSpawn(TimedEnemySpawn timed)
+        {
+            if (timed == null) return false;
+            return timed.enemyKind == EnemyKind.EliteBoar ||
+                timed.enemyKind == EnemyKind.EliteOrc ||
+                timed.enemyKind == EnemyKind.EliteGoblin ||
+                timed.enemyKind == EnemyKind.EliteOgre;
         }
 
         Vector3 ClampSpawnInsideGrid(Vector3 candidate, float enemyCellSize)

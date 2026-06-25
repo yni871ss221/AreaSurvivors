@@ -83,9 +83,10 @@ namespace AreaSurvivors
             var upgradeTarget = GetComponent<BuildingUpgradeTarget>();
             if (config != null && (upgradeTarget == null || !upgradeTarget.IsUpgraded))
             {
-                maxHp = config.watchTowerMaxHp;
-                autoPaintRadiusCells = config.watchTowerAutoPaintRadiusCells;
+                maxHp = config.watchTowerMaxHp + ProgressionStore.GetLevel(UpgradeType.WatchTowerMaxHp) * config.watchTowerMaxHpPerUpgradeLevel;
+                autoPaintRadiusCells = config.watchTowerAutoPaintRadiusCells + ProgressionStore.GetLevel(UpgradeType.WatchTowerRange) * config.watchTowerRangePerUpgradeLevel;
             }
+            BuildingSkillEffects.ConfigureAutoRegeneration(gameObject, config);
 
             EnsureSpriteVisuals();
 

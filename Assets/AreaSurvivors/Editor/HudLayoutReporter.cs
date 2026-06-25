@@ -51,8 +51,10 @@ namespace AreaSurvivors.Editor
             else
             {
                 AppendHudOverview(report, hud.transform);
+                AppendPlayerHud(report, hud.transform);
                 AppendConstructionMenu(report, hud.transform);
                 AppendResourceHud(report, hud.transform);
+                AppendWeaponHud(report, hud.transform);
             }
 
             CloseIfOpened(scene, openedAdditive);
@@ -170,6 +172,61 @@ namespace AreaSurvivors.Editor
             AppendNamedChild(report, hud, "Token Resource");
             AppendNamedChild(report, hud, "Token Resource/Amount");
             AppendNamedChild(report, hud, "Token Resource/Icon");
+        }
+
+        static void AppendPlayerHud(StringBuilder report, Transform hud)
+        {
+            report.AppendLine();
+            report.AppendLine("[Player HUD]");
+            AppendNamedChild(report, hud, "Player Status");
+            AppendPlayerStatRow(report, hud, "Speed Text Box");
+            AppendPlayerStatRow(report, hud, "Paint Text Box");
+            AppendPlayerStatRow(report, hud, "Revive Text Box");
+            AppendPlayerStatRow(report, hud, "Defense Text Box");
+            AppendPlayerStatRow(report, hud, "Xp Gain Text Box");
+            AppendPlayerStatRow(report, hud, "Regen Text Box");
+        }
+
+        static void AppendPlayerStatRow(StringBuilder report, Transform hud, string rowName)
+        {
+            AppendNamedChild(report, hud, "Player Status/" + rowName);
+            AppendNamedChild(report, hud, "Player Status/" + rowName + "/Icon");
+            AppendNamedChild(report, hud, "Player Status/" + rowName + "/Name");
+            AppendNamedChild(report, hud, "Player Status/" + rowName + "/Value");
+        }
+
+        static void AppendWeaponHud(StringBuilder report, Transform hud)
+        {
+            report.AppendLine();
+            report.AppendLine("[Weapon HUD]");
+            AppendWeaponPanel(report, hud, "Slash Weapon Status");
+            AppendWeaponPanel(report, hud, "Arrow Weapon Status");
+            AppendWeaponPanel(report, hud, "Fireball Weapon Status");
+        }
+
+        static void AppendWeaponPanel(StringBuilder report, Transform hud, string panelName)
+        {
+            AppendNamedChild(report, hud, panelName);
+            AppendOptionalNamedChild(report, hud, panelName + "/Icon");
+            AppendNamedChild(report, hud, panelName + "/Title");
+            AppendOptionalNamedChild(report, hud, panelName + "/Attack Row/Icon");
+            AppendOptionalNamedChild(report, hud, panelName + "/Attack Row/Value");
+            AppendOptionalNamedChild(report, hud, panelName + "/Cooldown Row/Icon");
+            AppendOptionalNamedChild(report, hud, panelName + "/Cooldown Row/Value");
+            AppendOptionalNamedChild(report, hud, panelName + "/Knockback Row/Icon");
+            AppendOptionalNamedChild(report, hud, panelName + "/Knockback Row/Value");
+            AppendOptionalNamedChild(report, hud, panelName + "/Projectile Count Row/Icon");
+            AppendOptionalNamedChild(report, hud, panelName + "/Projectile Count Row/Value");
+            AppendOptionalNamedChild(report, hud, panelName + "/Explosion Row/Icon");
+            AppendOptionalNamedChild(report, hud, panelName + "/Explosion Row/Value");
+            AppendOptionalNamedChild(report, hud, panelName + "/Range Row/Icon");
+            AppendOptionalNamedChild(report, hud, panelName + "/Range Row/Value");
+        }
+
+        static void AppendOptionalNamedChild(StringBuilder report, Transform root, string path)
+        {
+            if (root == null || root.Find(path) == null) return;
+            AppendNamedChild(report, root, path);
         }
 
         static void AppendNamedChild(StringBuilder report, Transform root, string path)

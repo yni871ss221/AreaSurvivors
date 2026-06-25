@@ -54,7 +54,7 @@ namespace AreaSurvivors
 
         public void SetActive(bool enabled)
         {
-            active = enabled && IsUnlocked();
+            active = enabled && IsAnyUpgradeUnlocked();
             if (active && owner != null && owner.buildPlacement != null) owner.buildPlacement.CancelActiveSelection();
             if (!active) ClearHover();
             if (cursorIcon != null) cursorIcon.gameObject.SetActive(active);
@@ -115,7 +115,7 @@ namespace AreaSurvivors
             if (target == null || config == null || owner == null) return false;
             return target.CanStartUpgrade() &&
                 HasUpgradeResources(config.towerUpgradeWoodCost, config.towerUpgradeStoneCost) &&
-                IsUnlocked();
+                IsTowerUpgradeUnlocked();
         }
 
         bool CanReserve(BuildingUpgradeTarget target)
@@ -123,7 +123,7 @@ namespace AreaSurvivors
             if (target == null || config == null || owner == null) return false;
             return target.CanStartUpgrade() &&
                 HasUpgradeResources(target.woodCost, target.stoneCost) &&
-                IsUnlocked();
+                IsBuildingUpgradeUnlocked(target.kind);
         }
 
         bool HasUpgradeResources(int wood, int stone)
@@ -213,9 +213,33 @@ namespace AreaSurvivors
             hoverBuilding = null;
         }
 
-        bool IsUnlocked()
+        static bool IsTowerUpgradeUnlocked()
         {
             return ProgressionStore.IsUnlocked(UpgradeType.UnlockTowerUpgrade);
+        }
+
+        static bool IsAnyUpgradeUnlocked()
+        {
+            return IsTowerUpgradeUnlocked() ||
+                ProgressionStore.IsUnlocked(UpgradeType.WallUpgrade) ||
+                ProgressionStore.IsUnlocked(UpgradeType.BallistaUpgrade) ||
+                ProgressionStore.IsUnlocked(UpgradeType.WatchTowerUpgrade);
+        }
+
+        static bool IsBuildingUpgradeUnlocked(BuildingUpgradeKind kind)
+        {
+            switch (kind)
+            {
+                case BuildingUpgradeKind.WoodenWall:
+                case BuildingUpgradeKind.WoodenGate:
+                    return ProgressionStore.IsUnlocked(UpgradeType.WallUpgrade);
+                case BuildingUpgradeKind.Ballista:
+                    return ProgressionStore.IsUnlocked(UpgradeType.BallistaUpgrade);
+                case BuildingUpgradeKind.WatchTower:
+                    return ProgressionStore.IsUnlocked(UpgradeType.WatchTowerUpgrade);
+                default:
+                    return false;
+            }
         }
 
         void EnsureCursorIcon(Canvas hudCanvas)

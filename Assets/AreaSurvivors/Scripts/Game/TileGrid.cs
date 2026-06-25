@@ -60,10 +60,11 @@ namespace AreaSurvivors
         public const int DefaultChunkCells = 25;
         public const int DefaultMapChunkColumns = 3;
         public const int DefaultMapChunkRows = 3;
+        public const float DefaultCellSize = 0.7f;
 
         public int width = 96;
         public int height = 136;
-        public float cellSize = 0.7f;
+        public float cellSize = DefaultCellSize;
         public Sprite tileSprite;
         public Sprite paintSprite;
         public Tilemap groundTilemap;
@@ -464,7 +465,17 @@ namespace AreaSurvivors
 
         public bool IsBlockedForMovement(Vector3Int cell)
         {
-            return HasFlag(cell, GridCellFlags.BlocksMovement) || HasFlag(cell, GridCellFlags.BlocksBuilding);
+            return HasFlag(cell, GridCellFlags.BlocksMovement);
+        }
+
+        public bool IsBlockedForMovement(Vector3Int cell, TileOwner mover)
+        {
+            if (mover == TileOwner.Enemy)
+            {
+                return HasFlag(cell, GridCellFlags.BlocksMovement) || HasFlag(cell, GridCellFlags.BlocksBuilding);
+            }
+
+            return IsBlockedForMovement(cell);
         }
 
         public bool IsOwnedBy(Vector3Int cell, TileOwner owner)
@@ -584,7 +595,7 @@ namespace AreaSurvivors
             if (!TryWorldToGrid(world, out x, out y) || controlValues == null) return 1f;
 
             var cell = GridToCell(x, y);
-            if (IsBlockedForMovement(cell)) return 0f;
+            if (IsBlockedForMovement(cell, mover)) return 0f;
 
             float control = controlValues[x, y];
             float target = targetControlValues[x, y];

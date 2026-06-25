@@ -54,11 +54,19 @@ namespace AreaSurvivors
             switch (type)
             {
                 case UpgradeType.StartingWeaponLevel: return WeaponLevel;
+                case UpgradeType.StartingArrow:
+                case UpgradeType.StartingFireball:
+                    return Projectile;
                 case UpgradeType.MoveSpeed: return MoveSpeed;
+                case UpgradeType.MovePenaltyReduction: return MoveSpeed;
                 case UpgradeType.PaintRadius: return Paint;
                 case UpgradeType.MaxHp:
                     return MaxHp;
                 case UpgradeType.TowerMaxHp:
+                case UpgradeType.WallMaxHp1:
+                case UpgradeType.WallMaxHp2:
+                case UpgradeType.WallMaxHp3:
+                case UpgradeType.WatchTowerMaxHp:
                     return fallback ?? MaxHp;
                 case UpgradeType.ReviveSpeed: return Revive;
                 case UpgradeType.Defense: return Defense;
@@ -71,9 +79,22 @@ namespace AreaSurvivors
                 case UpgradeType.ResourceGain:
                 case UpgradeType.StartingWood:
                 case UpgradeType.StartingStone:
+                case UpgradeType.UnlockWall:
+                case UpgradeType.UnlockBallista:
+                case UpgradeType.UnlockWatchTower:
                     return Resource;
                 case UpgradeType.BallistaRange:
+                case UpgradeType.WatchTowerRange:
                     return Range;
+                case UpgradeType.BallistaDamage:
+                case UpgradeType.UnlockTowerCannon:
+                    return Attack;
+                case UpgradeType.BuildingAutoRegen:
+                case UpgradeType.WallUpgrade:
+                case UpgradeType.BallistaUpgrade:
+                case UpgradeType.WatchTowerUpgrade:
+                case UpgradeType.UnlockTowerUpgrade:
+                    return Regen;
                 default:
                     return fallback;
             }

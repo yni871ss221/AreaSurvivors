@@ -101,6 +101,7 @@ namespace AreaSurvivors
             projectile.impactVisualScale = 0.9f * explosionRadiusMultiplier;
             projectile.knockback = config != null ? config.towerCannonKnockback : 2.2f;
             projectile.knockbackDuration = config != null ? config.knockbackDuration : 0.16f;
+            projectile.paintsTerritory = false;
             projectile.Launch(
                 direction,
                 (config != null ? config.towerCannonDamage : 8) + damageBonus,

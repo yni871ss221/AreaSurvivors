@@ -252,7 +252,6 @@ namespace AreaSurvivors
                 UpdateBuildStatus();
                 return false;
             }
-
             RegisterPlacedObject(instance, footprintOrigin);
 
             if (buildSceneMode)
@@ -618,7 +617,8 @@ namespace AreaSurvivors
             var marker = prefab != null ? prefab.GetComponent<GridObjectMarker>() : null;
             if (marker != null) return marker.footprint;
             if (kind == SavedBuildingKind.WatchTower) return new Vector2Int(2, 2);
-            if (kind == SavedBuildingKind.WoodenWall || kind == SavedBuildingKind.WoodenGate) return new Vector2Int(3, 1);
+            if (kind == SavedBuildingKind.WoodenWall) return Vector2Int.one;
+            if (kind == SavedBuildingKind.WoodenGate) return new Vector2Int(3, 1);
             return Vector2Int.one;
         }
 
@@ -697,6 +697,7 @@ namespace AreaSurvivors
         {
             if (buildMode == BuildMode.Ballista) return new Vector2Int(2, 2);
             if (buildMode == BuildMode.WatchTower) return new Vector2Int(2, 2);
+            if (buildMode == BuildMode.WoodenWall) return Vector2Int.one;
             return new Vector2Int(3, 1);
         }
 
@@ -783,6 +784,7 @@ namespace AreaSurvivors
         public bool IsSlotUnlocked(int slot)
         {
             if (slot == 4 || slot == 5) return false;
+            if (slot == 0 || slot == 1) return ProgressionStore.IsUnlocked(UpgradeType.UnlockWall);
             if (slot == 2) return ProgressionStore.IsUnlocked(UpgradeType.UnlockBallista);
             if (slot == 3) return ProgressionStore.IsUnlocked(UpgradeType.UnlockWatchTower);
             return true;

@@ -16,8 +16,10 @@ namespace AreaSurvivors
         public Sprite impactSprite;
         public Color impactColor = Color.white;
         public float impactVisualScale = 1f;
+        public bool paintsTerritory = true;
         int damage;
         bool explosive;
+        bool resolved;
         float explosionRadius = 1.1f;
         float trailTimer;
         const float ArrowVisualScaleMultiplier = 0.5f;
@@ -44,6 +46,7 @@ namespace AreaSurvivors
         public void Launch(Vector2 direction, int amount, float speed, bool isExplosive, float radius, float seconds, float scale)
         {
             EnsureVisibleProjectile();
+            resolved = false;
             damage = amount;
             explosive = isExplosive;
             explosionRadius = Mathf.Max(0.05f, radius);
@@ -52,6 +55,7 @@ namespace AreaSurvivors
             ApplyWeaponSortingOrder(WeaponSortingOrders.Projectile);
             if (visualScale > 0f) transform.localScale = Vector3.one * (visualScale * (isExplosive ? 1f : ArrowVisualScaleMultiplier));
             var normalizedDirection = direction.normalized;
+            if (normalizedDirection.sqrMagnitude < 0.001f) normalizedDirection = Vector2.right;
             GetComponent<Rigidbody2D>().velocity = normalizedDirection * speed;
             transform.right = normalizedDirection;
             var billboard = GetComponentInChildren<PaperBillboard>();
@@ -59,26 +63,51 @@ namespace AreaSurvivors
             {
                 billboard.rollDegrees = Mathf.Atan2(normalizedDirection.y, normalizedDirection.x) * Mathf.Rad2Deg;
             }
-            Destroy(gameObject, lifetime);
+            CancelInvoke(nameof(Expire));
+            Invoke(nameof(Expire), lifetime);
         }
 
         void OnTriggerEnter2D(Collider2D other)
         {
+            if (resolved) return;
             var enemy = other.GetComponent<EnemyController>();
             if (enemy == null) return;
-            ImpactFlash();
             if (explosive)
             {
-                PaintPlayerTerritory(transform.position, Mathf.CeilToInt(explosionRadius));
-                ProjectileExplosionHitbox.Spawn(transform.position, explosionRadius, damage, knockback, knockbackDuration);
+                Detonate();
             }
             else
             {
+                ImpactFlash();
                 var dealt = other.GetComponent<Health>()?.Damage(damage, other.ClosestPoint(transform.position)) ?? 0;
-                PaintPlayerTerritory(enemy.transform.position, ArrowPaintRadius);
+                if (paintsTerritory) PaintPlayerTerritory(enemy.transform.position, ArrowPaintRadius);
                 ApplyKnockback(enemy, GetComponent<Rigidbody2D>() != null ? GetComponent<Rigidbody2D>().velocity.normalized : transform.right);
                 GameManager.Instance?.RegisterDamageDealt(dealt);
+                resolved = true;
+                Destroy(gameObject);
             }
+        }
+
+        void Expire()
+        {
+            if (resolved) return;
+            if (explosive)
+            {
+                Detonate();
+                return;
+            }
+
+            resolved = true;
+            Destroy(gameObject);
+        }
+
+        void Detonate()
+        {
+            if (resolved) return;
+            resolved = true;
+            ImpactFlash();
+            if (paintsTerritory) PaintPlayerTerritory(transform.position, Mathf.CeilToInt(explosionRadius));
+            ProjectileExplosionHitbox.Spawn(transform.position, explosionRadius, damage, knockback, knockbackDuration, paintsTerritory);
             Destroy(gameObject);
         }
 
@@ -121,7 +150,7 @@ namespace AreaSurvivors
 
         void TrailFleck()
         {
-            if (explosive) PaintPlayerTerritory(transform.position, 1);
+            if (explosive && paintsTerritory) PaintPlayerTerritory(transform.position, 1);
             var source = GetComponentInChildren<PaperMeshVisual>();
             if (source == null || source.sprite == null) return;
             var color = explosive ? new Color(1f, 0.45f, 0.16f, 0.36f) : new Color(1f, 0.88f, 0.42f, 0.24f);
@@ -202,8 +231,9 @@ namespace AreaSurvivors
         int damage;
         float knockback;
         float knockbackDuration;
+        bool paintsTerritory;
 
-        public static void Spawn(Vector3 position, float radius, int damage, float knockback, float knockbackDuration)
+        public static void Spawn(Vector3 position, float radius, int damage, float knockback, float knockbackDuration, bool paintsTerritory = true)
         {
             var go = new GameObject("Projectile Explosion Hitbox");
             go.transform.position = position;
@@ -216,16 +246,17 @@ namespace AreaSurvivors
             body.bodyType = RigidbodyType2D.Kinematic;
             body.simulated = true;
 
-            go.AddComponent<ProjectileExplosionHitbox>().Configure(hitbox, position, damage, knockback, knockbackDuration);
+            go.AddComponent<ProjectileExplosionHitbox>().Configure(hitbox, position, damage, knockback, knockbackDuration, paintsTerritory);
         }
 
-        void Configure(CircleCollider2D source, Vector3 hitOrigin, int hitDamage, float knockbackStrength, float knockbackSeconds)
+        void Configure(CircleCollider2D source, Vector3 hitOrigin, int hitDamage, float knockbackStrength, float knockbackSeconds, bool shouldPaintTerritory)
         {
             hitbox = source;
             origin = hitOrigin;
             damage = hitDamage;
             knockback = knockbackStrength;
             knockbackDuration = knockbackSeconds;
+            paintsTerritory = shouldPaintTerritory;
             StartCoroutine(DamageAfterPhysicsSync());
         }
 
@@ -239,7 +270,7 @@ namespace AreaSurvivors
         void DamageOverlaps()
         {
             if (hitbox == null) return;
-            PaintPlayerTerritory(origin, Mathf.CeilToInt(hitbox.radius));
+            if (paintsTerritory) PaintPlayerTerritory(origin, Mathf.CeilToInt(hitbox.radius));
             Physics2D.SyncTransforms();
             hits.Clear();
             damaged.Clear();

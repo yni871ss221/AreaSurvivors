@@ -29,9 +29,23 @@ namespace AreaSurvivors
         AutoResourceInterval = 34,
         AutoResourceGain = 35,
         EndTokenGain = 36,
-        EliteSpawnRate = 37,
+        EliteSpawnCount = 37,
         UnlockClassChange = 38,
         StartingWeaponLevel = 39,
-        RoundTimeLimit = 40
+        RoundTimeLimit = 40,
+        UnlockWall = 41,
+        WallMaxHp1 = 42,
+        WallMaxHp2 = 43,
+        WallMaxHp3 = 44,
+        BallistaDamage = 45,
+        WatchTowerRange = 46,
+        WatchTowerMaxHp = 47,
+        BuildingAutoRegen = 48,
+        WallUpgrade = 49,
+        BallistaUpgrade = 50,
+        WatchTowerUpgrade = 51,
+        MovePenaltyReduction = 52,
+        StartingArrow = 53,
+        StartingFireball = 54
     }
 }

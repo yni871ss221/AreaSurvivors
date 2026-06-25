@@ -9,6 +9,10 @@ namespace AreaSurvivors
         public GameObject fireballPrefab;
         public Transform slashOrigin;
         const float FireballProjectileVisualScale = 0.38f;
+        public const float SlashRangeUpgradeAmount = 0.08f;
+        public const float SlashKnockbackUpgradeAmount = 1f;
+        public const float ProjectileRangeUpgradeAmount = 0.75f;
+        public const float FireballExplosionUpgradeAmount = 0.25f;
         GameConfig config;
         PlayerController player;
         WeaponStatBlock slashStats;
@@ -17,6 +21,18 @@ namespace AreaSurvivors
         int slashLevel = 1;
         int arrowLevel;
         int fireballLevel;
+        int slashAttackBonus;
+        int arrowAttackBonus;
+        int fireballAttackBonus;
+        float slashCooldownMultiplier = 1f;
+        float arrowCooldownMultiplier = 1f;
+        float fireballCooldownMultiplier = 1f;
+        float slashKnockbackBonus;
+        float slashRangeBonus;
+        int arrowProjectileCountBonus;
+        float arrowRangeBonus;
+        float fireballExplosionRadiusBonus;
+        float fireballRangeBonus;
         public int WeaponLevel => slashLevel;
         public int SlashLevel => slashLevel;
         public int ArrowLevel => arrowLevel;
@@ -32,6 +48,11 @@ namespace AreaSurvivors
         public float ProjectileSpeed => Mathf.Max(arrowStats.projectileSpeed, fireballStats.projectileSpeed);
         public float WeaponRange => Mathf.Max(slashStats.range, Mathf.Max(arrowStats.range, fireballStats.range));
         public float Knockback => slashStats.knockback;
+        public WeaponStatBlock SlashStats => slashStats;
+        public WeaponStatBlock ArrowStats => arrowStats;
+        public WeaponStatBlock FireballStats => fireballStats;
+        public int SlashAttackPower => slashStats.attackPower + (config != null ? config.slashDamageBonus : 0);
+        public float FireballRange => FireballFlightRange(fireballStats);
 
         public void Configure(GameConfig gameConfig, PlayerController owner)
         {
@@ -39,13 +60,30 @@ namespace AreaSurvivors
             player = owner;
             if (config != null) config.EnsureWeaponLevelDefaults();
             slashLevel = Mathf.Clamp(1 + ProgressionStore.GetLevel(UpgradeType.StartingWeaponLevel), 1, GameConfig.MaxWeaponLevel);
-            arrowLevel = 0;
-            fireballLevel = 0;
+            arrowLevel = ProgressionStore.IsUnlocked(UpgradeType.StartingArrow) ? 1 : 0;
+            fireballLevel = ProgressionStore.IsUnlocked(UpgradeType.StartingFireball) ? 1 : 0;
+            ResetRunWeaponUpgrades();
             RefreshFromStats();
             StopAllCoroutines();
             StartCoroutine(SlashLoop());
             StartCoroutine(ArrowLoop());
             StartCoroutine(FireballLoop());
+        }
+
+        void ResetRunWeaponUpgrades()
+        {
+            slashAttackBonus = 0;
+            arrowAttackBonus = 0;
+            fireballAttackBonus = 0;
+            slashCooldownMultiplier = 1f;
+            arrowCooldownMultiplier = 1f;
+            fireballCooldownMultiplier = 1f;
+            slashKnockbackBonus = 0f;
+            slashRangeBonus = 0f;
+            arrowProjectileCountBonus = 0;
+            arrowRangeBonus = 0f;
+            fireballExplosionRadiusBonus = 0f;
+            fireballRangeBonus = 0f;
         }
 
         public void RefreshFromStats()
@@ -54,6 +92,25 @@ namespace AreaSurvivors
             slashStats = config.GetWeaponStats(WeaponType.Slash, slashLevel);
             arrowStats = config.GetWeaponStats(WeaponType.Arrow, Mathf.Max(1, arrowLevel));
             fireballStats = config.GetWeaponStats(WeaponType.Fireball, Mathf.Max(1, fireballLevel));
+            ApplyRunWeaponUpgrades();
+        }
+
+        void ApplyRunWeaponUpgrades()
+        {
+            slashStats.attackPower += slashAttackBonus;
+            slashStats.cooldownSeconds = Mathf.Max(0.05f, slashStats.cooldownSeconds * slashCooldownMultiplier);
+            slashStats.knockback += slashKnockbackBonus;
+            slashStats.range += slashRangeBonus;
+
+            arrowStats.attackPower += arrowAttackBonus;
+            arrowStats.cooldownSeconds = Mathf.Max(0.05f, arrowStats.cooldownSeconds * arrowCooldownMultiplier);
+            arrowStats.projectileCount = Mathf.Max(1, arrowStats.projectileCount + arrowProjectileCountBonus);
+            arrowStats.range += arrowRangeBonus;
+
+            fireballStats.attackPower += fireballAttackBonus;
+            fireballStats.cooldownSeconds = Mathf.Max(0.05f, fireballStats.cooldownSeconds * fireballCooldownMultiplier);
+            fireballStats.explosionRadius += fireballExplosionRadiusBonus;
+            fireballStats.range += fireballRangeBonus;
         }
 
         public bool LevelUp()
@@ -85,6 +142,94 @@ namespace AreaSurvivors
             return true;
         }
 
+        public bool UnlockArrow()
+        {
+            if (ArrowUnlocked) return false;
+            arrowLevel = 1;
+            RefreshFromStats();
+            return true;
+        }
+
+        public bool UnlockFireball()
+        {
+            if (FireballUnlocked) return false;
+            fireballLevel = 1;
+            RefreshFromStats();
+            return true;
+        }
+
+        public void AddSlashAttack(int amount)
+        {
+            slashAttackBonus += Mathf.Max(0, amount);
+            RefreshFromStats();
+        }
+
+        public void MultiplySlashCooldown(float multiplier)
+        {
+            slashCooldownMultiplier *= Mathf.Clamp(multiplier, 0.05f, 1f);
+            RefreshFromStats();
+        }
+
+        public void AddSlashKnockback(float amount)
+        {
+            slashKnockbackBonus += Mathf.Max(0f, amount);
+            RefreshFromStats();
+        }
+
+        public void AddSlashRange(float amount)
+        {
+            slashRangeBonus += Mathf.Max(0f, amount);
+            RefreshFromStats();
+        }
+
+        public void AddArrowAttack(int amount)
+        {
+            arrowAttackBonus += Mathf.Max(0, amount);
+            RefreshFromStats();
+        }
+
+        public void MultiplyArrowCooldown(float multiplier)
+        {
+            arrowCooldownMultiplier *= Mathf.Clamp(multiplier, 0.05f, 1f);
+            RefreshFromStats();
+        }
+
+        public void AddArrowProjectileCount(int amount)
+        {
+            arrowProjectileCountBonus += Mathf.Max(0, amount);
+            RefreshFromStats();
+        }
+
+        public void AddArrowRange(float amount)
+        {
+            arrowRangeBonus += Mathf.Max(0f, amount);
+            RefreshFromStats();
+        }
+
+        public void AddFireballAttack(int amount)
+        {
+            fireballAttackBonus += Mathf.Max(0, amount);
+            RefreshFromStats();
+        }
+
+        public void MultiplyFireballCooldown(float multiplier)
+        {
+            fireballCooldownMultiplier *= Mathf.Clamp(multiplier, 0.05f, 1f);
+            RefreshFromStats();
+        }
+
+        public void AddFireballExplosionRadius(float amount)
+        {
+            fireballExplosionRadiusBonus += Mathf.Max(0f, amount);
+            RefreshFromStats();
+        }
+
+        public void AddFireballRange(float amount)
+        {
+            fireballRangeBonus += Mathf.Max(0f, amount);
+            RefreshFromStats();
+        }
+
         IEnumerator SlashLoop()
         {
             while (true)
@@ -107,7 +252,7 @@ namespace AreaSurvivors
         {
             while (true)
             {
-                if (player != null && !player.IsReviving && FireballUnlocked) ShootAtNearest(fireballPrefab, true, fireballStats);
+                if (player != null && !player.IsReviving && FireballUnlocked) ShootForward(fireballPrefab, fireballStats);
                 yield return new WaitForSeconds(GetCooldown(fireballStats));
             }
         }
@@ -155,6 +300,21 @@ namespace AreaSurvivors
                 var shotDirection = Rotate(dir.normalized, spreadStart + spreadStep * i);
                 LaunchProjectile(prefab, explosive, stats, shotDirection, projectileSpeed, radius, lifetime);
             }
+        }
+
+        void ShootForward(GameObject prefab, WeaponStatBlock stats)
+        {
+            if (prefab == null || player == null) return;
+            var direction = player.Facing.sqrMagnitude > 0.01f ? player.Facing.normalized : Vector2.down;
+            float projectileSpeed = Mathf.Max(0.01f, stats.projectileSpeed);
+            float lifetime = Mathf.Max(0.05f, FireballFlightRange(stats) / projectileSpeed);
+            float radius = Mathf.Max(0.05f, stats.explosionRadius);
+            LaunchProjectile(prefab, true, stats, direction, projectileSpeed, radius, lifetime);
+        }
+
+        float FireballFlightRange(WeaponStatBlock stats)
+        {
+            return Mathf.Max(0.05f, stats.range);
         }
 
         void LaunchProjectile(GameObject prefab, bool explosive, WeaponStatBlock stats, Vector2 direction, float projectileSpeed, float radius, float lifetime)

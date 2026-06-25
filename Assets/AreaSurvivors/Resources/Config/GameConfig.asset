@@ -361,7 +361,7 @@ MonoBehaviour:
   ballistaRangePerUpgradeLevel: 0.75
   towerAutoRegenPerUpgradeLevel: 1
   endTokenGainMultiplierPerUpgradeLevel: 0.1
-  eliteSpawnRatePerUpgradeLevel: 0.1
+  eliteTimedSpawnCountPerUpgradeLevel: 1
   autoBuildSpeedPerUpgradeLevel: 0.1
   projectileSpeed: 11.5
   projectileLifetime: 4.2
