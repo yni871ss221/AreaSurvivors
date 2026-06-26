@@ -36,7 +36,6 @@ namespace AreaSurvivors
     public enum SavedBuildingKind
     {
         WoodenWall = 0,
-        WoodenGate = 1,
         Ballista = 2,
         WatchTower = 3,
         CarpenterHut = 4,

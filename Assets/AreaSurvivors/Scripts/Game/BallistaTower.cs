@@ -163,7 +163,7 @@ namespace AreaSurvivors
         {
             var target = GetComponent<BuildingUpgradeTarget>();
             if (target == null) target = gameObject.AddComponent<BuildingUpgradeTarget>();
-            target.Configure(BuildingUpgradeKind.Ballista, 20, 50, "BallistaUpgrade", null, 100, 5);
+            target.Configure(BuildingUpgradeKind.Ballista, 20, 50, "BallistaUpgrade", 100, 5);
         }
 
         void ApplyConfiguredSpriteToVisuals()

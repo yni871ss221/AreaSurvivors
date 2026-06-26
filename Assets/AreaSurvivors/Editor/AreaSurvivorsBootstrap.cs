@@ -87,10 +87,11 @@ namespace AreaSurvivors.Editor
             ImportGeneratedSprites();
 
             var config = CreateConfig();
-            var arrow = AssetDatabase.LoadAssetAtPath<GameObject>(Prefabs + "/Arrow.prefab");
-            if (arrow == null)
+            var playerArrow = AssetDatabase.LoadAssetAtPath<GameObject>(Prefabs + "/PlayerArrow.prefab");
+            if (playerArrow == null)
             {
-                arrow = SavePrefab(CreateProjectile("Arrow", LoadSprite("Arrow"), new Color(0.85f, 0.72f, 0.35f), config), Prefabs + "/Arrow.prefab");
+                var playerArrowSprite = LoadSprite("PlayerArrow") ?? LoadSprite("Arrow");
+                playerArrow = SavePrefab(CreateProjectile("PlayerArrow", playerArrowSprite, new Color(0.85f, 0.72f, 0.35f), config, 1f, 1f, false), Prefabs + "/PlayerArrow.prefab");
             }
 
             var fireball = AssetDatabase.LoadAssetAtPath<GameObject>(Prefabs + "/Fireball.prefab");
@@ -99,7 +100,7 @@ namespace AreaSurvivors.Editor
                 fireball = SavePrefab(CreateProjectile("Fireball", LoadSprite("Fireball"), new Color(1f, 0.35f, 0.16f), config), Prefabs + "/Fireball.prefab");
             }
 
-            SavePrefab(CreatePlayer(arrow, fireball), Prefabs + "/Player.prefab");
+            SavePrefab(CreatePlayer(playerArrow, fireball), Prefabs + "/Player.prefab");
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log("Area Survivors player prefab rebuilt.");
@@ -197,6 +198,8 @@ namespace AreaSurvivors.Editor
             config.slashDamageBonus = 2;
             config.slashRange = 1.05f;
             config.slashOffset = 1.05f;
+            config.arrowRangeCells = 10f;
+            config.arrowRangeCellsPerLevel = 1f;
             config.fireballExplosionRadius = 1.1f;
             config.baseKnockback = 1f;
             config.knockbackForceUnit = 2.2f;
@@ -241,7 +244,7 @@ namespace AreaSurvivors.Editor
         static void CreateTilePalette()
         {
             ImportGeneratedSprites();
-            foreach (var name in new[] { "Ground", "Paint", "Tower", "Ballista", "WoodenWall", "WoodenGateClosed" })
+            foreach (var name in new[] { "Ground", "Paint", "Tower", "Ballista", "WoodenWall" })
             {
                 CreateTileAsset(name);
             }
@@ -250,7 +253,7 @@ namespace AreaSurvivors.Editor
             var grid = palette.AddComponent<Grid>();
             grid.cellSize = new Vector3(TileCellWidth, TileCellHeight, 0f);
             var tilemap = CreateTilemap(palette.transform, "Palette Tiles", 0);
-            var tiles = new[] { "Ground", "Paint", "Tower", "Ballista", "WoodenWall", "WoodenGateClosed" };
+            var tiles = new[] { "Ground", "Paint", "Tower", "Ballista", "WoodenWall" };
             for (int i = 0; i < tiles.Length; i++)
             {
                 tilemap.SetTile(new Vector3Int(i, 0, 0), LoadTile(tiles[i]));
@@ -298,18 +301,18 @@ namespace AreaSurvivors.Editor
         {
             ImportGeneratedSprites();
             var arrow = SavePrefab(CreateProjectile("Arrow", LoadSprite("Arrow"), new Color(0.85f, 0.72f, 0.35f), config), Prefabs + "/Arrow.prefab");
+            var playerArrowSprite = LoadSprite("PlayerArrow") ?? LoadSprite("Arrow");
+            var playerArrow = SavePrefab(CreateProjectile("PlayerArrow", playerArrowSprite, new Color(0.85f, 0.72f, 0.35f), config, 1f, 1f, false), Prefabs + "/PlayerArrow.prefab");
             var fireball = SavePrefab(CreateProjectile("Fireball", LoadSprite("Fireball"), new Color(1f, 0.35f, 0.16f), config), Prefabs + "/Fireball.prefab");
             var ballista = SavePrefab(CreateBallista(arrow), Prefabs + "/BallistaTower.prefab");
             var woodenWall = SavePrefab(CreateWoodenWall(), Prefabs + "/WoodenWall.prefab");
-            var woodenGate = AssetDatabase.LoadAssetAtPath<GameObject>(Prefabs + "/WoodenGate.prefab") ?? woodenWall;
             var set = new PrefabSet
             {
                 arrow = arrow,
                 fireball = fireball,
                 ballista = ballista,
                 woodenWall = woodenWall,
-                woodenGate = woodenGate,
-                player = SavePrefab(CreatePlayer(arrow, fireball), Prefabs + "/Player.prefab").GetComponent<PlayerController>(),
+                player = SavePrefab(CreatePlayer(playerArrow, fireball), Prefabs + "/Player.prefab").GetComponent<PlayerController>(),
                 enemy = SavePrefab(CreateEnemy(), Prefabs + "/Enemy.prefab"),
                 xpOrb = SavePrefab(CreateXpOrb(), Prefabs + "/ExperienceOrb.prefab"),
                 damagePopup = SavePrefab(CreateDamagePopup(), Prefabs + "/DamagePopup.prefab")
@@ -606,10 +609,12 @@ namespace AreaSurvivors.Editor
             return visual;
         }
 
-        static GameObject CreateProjectile(string name, Sprite sprite, Color color, GameConfig config)
+        static GameObject CreateProjectile(string name, Sprite sprite, Color color, GameConfig config, float prefabScale = -1f, float launchVisualScale = -1f, bool applyLaunchScale = true)
         {
             var go = new GameObject(name);
-            go.transform.localScale = Vector3.one * Mathf.Max(0.1f, config.projectileVisualScale);
+            float resolvedPrefabScale = prefabScale > 0f ? prefabScale : config.projectileVisualScale;
+            float resolvedLaunchScale = launchVisualScale > 0f ? launchVisualScale : config.projectileVisualScale;
+            go.transform.localScale = Vector3.one * Mathf.Max(0.1f, resolvedPrefabScale);
             MeshChild(go.transform, "Paper Visual", sprite, color, 20);
             var rb = go.AddComponent<Rigidbody2D>();
             rb.gravityScale = 0f;
@@ -620,7 +625,8 @@ namespace AreaSurvivors.Editor
             projectile.fallbackSprite = sprite;
             projectile.fallbackColor = color;
             projectile.lifetime = config.projectileLifetime;
-            projectile.visualScale = config.projectileVisualScale;
+            projectile.visualScale = resolvedLaunchScale;
+            projectile.applyLaunchScale = applyLaunchScale;
             return go;
         }
 
@@ -755,14 +761,10 @@ namespace AreaSurvivors.Editor
             if (buildPlacement == null) return;
             buildPlacement.ballistaPrefab = prefabs.ballista;
             buildPlacement.woodenWallPrefab = prefabs.woodenWall;
-            buildPlacement.woodenGatePrefab = prefabs.woodenGate != null ? prefabs.woodenGate : prefabs.woodenWall;
             buildPlacement.ballistaPreviewSprite = LoadGeneratedSprite("Ballista") ?? LoadSprite("Ballista");
             buildPlacement.woodenWallPreviewSprite = LoadGeneratedSprite("WoodenWall") ?? LoadSprite("WoodenWall");
-            buildPlacement.woodenGatePreviewSprite = LoadGeneratedSprite("WoodenGateClosed");
-            buildPlacement.woodenGateOpenSprite = LoadGeneratedSprite("WoodenGateOpen");
             buildPlacement.ballistaTile = LoadTile("Ballista");
             buildPlacement.woodenWallTile = LoadTile("WoodenWall");
-            buildPlacement.woodenGateTile = LoadTile("WoodenGateClosed");
         }
 
         static Vector3 CellToWorld(TileGrid grid, Vector2Int cell)
@@ -1097,6 +1099,7 @@ namespace AreaSurvivors.Editor
         static float GetPixelsPerUnit(string assetPath)
         {
             if (assetPath.EndsWith("/Arrow.png")) return 256;
+            if (assetPath.EndsWith("/PlayerArrow.png")) return 256;
             if (assetPath.EndsWith("/Fireball.png")) return 96;
             if (assetPath.Contains("/Walk/")) return 256;
             if (assetPath.Contains("/Slash_")) return 256;
@@ -1200,7 +1203,6 @@ namespace AreaSurvivors.Editor
             public GameObject fireball;
             public GameObject ballista;
             public GameObject woodenWall;
-            public GameObject woodenGate;
             public GameObject damagePopup;
         }
 

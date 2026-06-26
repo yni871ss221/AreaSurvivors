@@ -11,6 +11,7 @@ namespace AreaSurvivors
         public Color fallbackColor = Color.white;
         public float lifetime = 3f;
         public float visualScale = 1f;
+        public bool applyLaunchScale = true;
         public float knockback;
         public float knockbackDuration = 0.16f;
         public Sprite impactSprite;
@@ -53,15 +54,16 @@ namespace AreaSurvivors
             lifetime = Mathf.Max(0.05f, seconds);
             visualScale = Mathf.Max(0.05f, scale);
             ApplyWeaponSortingOrder(WeaponSortingOrders.Projectile);
-            if (visualScale > 0f) transform.localScale = Vector3.one * (visualScale * (isExplosive ? 1f : ArrowVisualScaleMultiplier));
+            if (applyLaunchScale && visualScale > 0f) transform.localScale = Vector3.one * (visualScale * (isExplosive ? 1f : ArrowVisualScaleMultiplier));
             var normalizedDirection = direction.normalized;
             if (normalizedDirection.sqrMagnitude < 0.001f) normalizedDirection = Vector2.right;
             GetComponent<Rigidbody2D>().velocity = normalizedDirection * speed;
-            transform.right = normalizedDirection;
+            float zDegrees = Mathf.Atan2(normalizedDirection.y, normalizedDirection.x) * Mathf.Rad2Deg;
+            transform.rotation = Quaternion.Euler(0f, 0f, zDegrees);
             var billboard = GetComponentInChildren<PaperBillboard>();
             if (billboard != null)
             {
-                billboard.rollDegrees = Mathf.Atan2(normalizedDirection.y, normalizedDirection.x) * Mathf.Rad2Deg;
+                billboard.rollDegrees = zDegrees;
             }
             CancelInvoke(nameof(Expire));
             Invoke(nameof(Expire), lifetime);

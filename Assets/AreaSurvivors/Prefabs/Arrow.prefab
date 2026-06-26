@@ -95,8 +95,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7fa5a912dec849d4ca60b09970a366d4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
   sourceSprite: {fileID: 21300000, guid: a3bba4c78c8395d4c814a6ea2480f7b7, type: 3}
   tint: {r: 0.85, g: 0.72, b: 0.35, a: 1}
   sortingOrder: 20
@@ -110,8 +110,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: af95e33ef29cde24c9c5b191152bad53, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
   faceCamera: 1
   rollDegrees: 0
 --- !u!1 &6415672035725512546
@@ -221,7 +221,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: abfe49e5b54eed94da0442210810d50a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
   lifetime: 4.2
   visualScale: 1.35
+  applyLaunchScale: 1

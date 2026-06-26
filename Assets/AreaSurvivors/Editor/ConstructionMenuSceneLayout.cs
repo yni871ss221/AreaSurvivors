@@ -59,9 +59,8 @@ namespace AreaSurvivors.EditorTools
             if (menu == null) return;
 
             SetSlotIconSprite(menu, 1, "WoodenWall");
-            SetSlotIconSprite(menu, 2, "WoodenGateClosed");
-            SetSlotIconSprite(menu, 3, "Ballista");
-            SetSlotIconSprite(menu, 4, "WatchTower");
+            SetSlotIconSprite(menu, 2, "Ballista");
+            SetSlotIconSprite(menu, 3, "WatchTower");
         }
 
         public static void ApplyToOpenScene()
@@ -75,13 +74,15 @@ namespace AreaSurvivors.EditorTools
 
             var menu = menuObject.GetComponent<RectTransform>();
             if (menu == null) return;
-            menu.sizeDelta = new Vector2(Mathf.Max(menu.sizeDelta.x, 440f), Mathf.Max(menu.sizeDelta.y, 96f));
+            menu.sizeDelta = new Vector2(Mathf.Max(menu.sizeDelta.x, 370f), Mathf.Max(menu.sizeDelta.y, 96f));
 
             var statusText = EnsureStatusPanel(menu);
             ConfigureSlot(menu, 1, "WoodenWall", "1", "木10", new Vector2(46f, 44f), true);
-            ConfigureSlot(menu, 2, "WoodenGateClosed", "2", "木20", new Vector2(46f, 44f), true);
-            ConfigureSlot(menu, 3, "Ballista", "3", "ロック", new Vector2(46f, 44f), false);
-            ConfigureSlot(menu, 4, "WatchTower", "4", "ロック", new Vector2(46f, 44f), false);
+            ConfigureSlot(menu, 2, "Ballista", "2", "ロック", new Vector2(46f, 44f), false);
+            ConfigureSlot(menu, 3, "WatchTower", "3", "ロック", new Vector2(46f, 44f), false);
+            RemoveSlot(menu, 4);
+            RemoveSlot(menu, 5);
+            RemoveSlot(menu, 6);
 
             if (statusText != null)
             {
@@ -184,6 +185,13 @@ namespace AreaSurvivors.EditorTools
             icon.enabled = iconVisible;
             iconTransform.anchoredPosition = new Vector2(0f, -2f);
             iconTransform.sizeDelta = iconSize;
+        }
+
+        static void RemoveSlot(RectTransform menu, int number)
+        {
+            var slot = menu.Find("Build Slot " + number);
+            if (slot == null) return;
+            Object.DestroyImmediate(slot.gameObject);
         }
 
         static void SetSlotIconSprite(RectTransform menu, int number, string spriteName)

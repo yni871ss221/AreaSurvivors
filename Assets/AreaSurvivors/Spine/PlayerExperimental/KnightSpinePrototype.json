@@ -1,0 +1,123 @@
+{
+  "skeleton": {
+    "hash": "area-survivors-prototype",
+    "spine": "4.3.74",
+    "x": -192,
+    "y": 0,
+    "width": 384,
+    "height": 384,
+    "images": "./",
+    "audio": ""
+  },
+  "bones": [
+    { "name": "root" },
+    { "name": "body", "parent": "root", "y": 0 }
+  ],
+  "slots": [
+    { "name": "body", "bone": "body", "attachment": "body" }
+  ],
+  "skins": [
+    {
+      "name": "default",
+      "attachments": {
+        "body": {
+          "body": {
+            "x": 0,
+            "y": 192,
+            "width": 384,
+            "height": 384
+          }
+        }
+      }
+    }
+  ],
+  "animations": {
+    "idle-down": {
+      "bones": {
+        "body": {
+          "translate": [
+            { "time": 0, "y": 0 },
+            { "time": 0.45, "y": 2 },
+            { "time": 0.9, "y": 0 }
+          ]
+        }
+      }
+    },
+    "idle-up": {
+      "bones": {
+        "body": {
+          "translate": [
+            { "time": 0, "y": 0 },
+            { "time": 0.45, "y": 2 },
+            { "time": 0.9, "y": 0 }
+          ]
+        }
+      }
+    },
+    "idle-side": {
+      "bones": {
+        "body": {
+          "translate": [
+            { "time": 0, "y": 0 },
+            { "time": 0.45, "y": 2 },
+            { "time": 0.9, "y": 0 }
+          ]
+        }
+      }
+    },
+    "walk-down": {
+      "bones": {
+        "body": {
+          "translate": [
+            { "time": 0, "x": -3, "y": 0 },
+            { "time": 0.125, "x": 0, "y": 8 },
+            { "time": 0.25, "x": 3, "y": 0 },
+            { "time": 0.375, "x": 0, "y": 8 },
+            { "time": 0.5, "x": -3, "y": 0 }
+          ],
+          "rotate": [
+            { "time": 0, "angle": -2 },
+            { "time": 0.25, "angle": 2 },
+            { "time": 0.5, "angle": -2 }
+          ]
+        }
+      }
+    },
+    "walk-up": {
+      "bones": {
+        "body": {
+          "translate": [
+            { "time": 0, "x": 3, "y": 0 },
+            { "time": 0.125, "x": 0, "y": 7 },
+            { "time": 0.25, "x": -3, "y": 0 },
+            { "time": 0.375, "x": 0, "y": 7 },
+            { "time": 0.5, "x": 3, "y": 0 }
+          ],
+          "rotate": [
+            { "time": 0, "angle": 2 },
+            { "time": 0.25, "angle": -2 },
+            { "time": 0.5, "angle": 2 }
+          ]
+        }
+      }
+    },
+    "walk-side": {
+      "bones": {
+        "body": {
+          "translate": [
+            { "time": 0, "x": -5, "y": 0 },
+            { "time": 0.125, "x": 0, "y": 7 },
+            { "time": 0.25, "x": 5, "y": 0 },
+            { "time": 0.375, "x": 0, "y": 7 },
+            { "time": 0.5, "x": -5, "y": 0 }
+          ],
+          "rotate": [
+            { "time": 0, "angle": -3 },
+            { "time": 0.25, "angle": 3 },
+            { "time": 0.5, "angle": -3 }
+          ]
+        }
+      }
+    }
+  }
+}

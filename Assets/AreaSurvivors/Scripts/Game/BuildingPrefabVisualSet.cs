@@ -7,7 +7,10 @@ namespace AreaSurvivors
         public bool usePrefabLayout = true;
         public PaperMeshVisual completeVisual;
         public PaperMeshVisual upgradedCompleteVisual;
-        public Sprite upgradedOpenSprite;
+        public Sprite destroyedCompleteSprite;
+        public Sprite destroyedUpgradedCompleteSprite;
+        public PaperMeshVisual destroyedCompleteVisual;
+        public PaperMeshVisual destroyedUpgradedCompleteVisual;
         public PaperMeshVisual sparkleVisual;
 
         public bool HasBaseVisuals => completeVisual != null;
@@ -24,6 +27,8 @@ namespace AreaSurvivors
         {
             if (completeVisual == null) completeVisual = FindVisual("Complete Image");
             if (upgradedCompleteVisual == null) upgradedCompleteVisual = FindVisual("Upgraded Building Image");
+            if (destroyedCompleteVisual == null) destroyedCompleteVisual = FindVisual("Destroyed Image");
+            if (destroyedUpgradedCompleteVisual == null) destroyedUpgradedCompleteVisual = FindVisual("Destroyed Upgraded Image");
             if (sparkleVisual == null) sparkleVisual = FindVisual("Completion Sparkle");
             ConfigureSparkleVisual();
         }
@@ -32,6 +37,8 @@ namespace AreaSurvivors
         {
             DisableBillboard(completeVisual);
             DisableBillboard(upgradedCompleteVisual);
+            DisableBillboard(destroyedCompleteVisual);
+            DisableBillboard(destroyedUpgradedCompleteVisual);
         }
 
         public void ApplyInitialVisibility()
@@ -40,7 +47,42 @@ namespace AreaSurvivors
             SetFill(upgradedCompleteVisual, 1f);
             SetVisible(completeVisual, true);
             SetVisible(upgradedCompleteVisual, false);
+            SetVisible(destroyedCompleteVisual, false);
+            SetVisible(destroyedUpgradedCompleteVisual, false);
             SetVisible(sparkleVisual, false);
+        }
+
+        public bool ApplyDestroyedVisual(bool upgraded)
+        {
+            BindMissingVisualsFromChildren();
+
+            var targetVisual = upgraded && destroyedUpgradedCompleteVisual != null
+                ? destroyedUpgradedCompleteVisual
+                : destroyedCompleteVisual;
+            var destroyedSprite = targetVisual != null && targetVisual.sprite != null
+                ? targetVisual.sprite
+                : upgraded && destroyedUpgradedCompleteSprite != null
+                    ? destroyedUpgradedCompleteSprite
+                    : destroyedCompleteSprite;
+
+            if (destroyedSprite == null || targetVisual == null) return false;
+
+            SetVisible(completeVisual, false);
+            SetVisible(upgradedCompleteVisual, false);
+            SetVisible(destroyedCompleteVisual, targetVisual == destroyedCompleteVisual);
+            SetVisible(destroyedUpgradedCompleteVisual, targetVisual == destroyedUpgradedCompleteVisual);
+            SetVisible(sparkleVisual, false);
+            targetVisual.SetVerticalFill(1f);
+            targetVisual.sprite = destroyedSprite;
+            targetVisual.color = Color.white;
+
+            var ySort = GetComponent<YSort>();
+            if (ySort != null)
+            {
+                ySort.renderers = new[] { targetVisual.Renderer };
+                ySort.Apply();
+            }
+            return true;
         }
 
         void ConfigureSparkleVisual()

@@ -49,6 +49,12 @@
       "dependencies": {},
       "hash": "77ddefc136a3c59376a4000f98a9dc6bb2484441"
     },
+    "com.unity.modules.animation": {
+      "version": "1.0.0",
+      "depth": 0,
+      "source": "builtin",
+      "dependencies": {}
+    },
     "com.unity.modules.audio": {
       "version": "1.0.0",
       "depth": 0,
@@ -62,6 +68,12 @@
       "dependencies": {}
     },
     "com.unity.modules.jsonserialize": {
+      "version": "1.0.0",
+      "depth": 0,
+      "source": "builtin",
+      "dependencies": {}
+    },
+    "com.unity.modules.physics": {
       "version": "1.0.0",
       "depth": 0,
       "source": "builtin",

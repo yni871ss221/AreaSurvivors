@@ -220,8 +220,7 @@ namespace AreaSurvivors
 
         static bool IsAnyUpgradeUnlocked()
         {
-            return IsTowerUpgradeUnlocked() ||
-                ProgressionStore.IsUnlocked(UpgradeType.WallUpgrade) ||
+            return ProgressionStore.IsUnlocked(UpgradeType.WallUpgrade) ||
                 ProgressionStore.IsUnlocked(UpgradeType.BallistaUpgrade) ||
                 ProgressionStore.IsUnlocked(UpgradeType.WatchTowerUpgrade);
         }
@@ -231,7 +230,6 @@ namespace AreaSurvivors
             switch (kind)
             {
                 case BuildingUpgradeKind.WoodenWall:
-                case BuildingUpgradeKind.WoodenGate:
                     return ProgressionStore.IsUnlocked(UpgradeType.WallUpgrade);
                 case BuildingUpgradeKind.Ballista:
                     return ProgressionStore.IsUnlocked(UpgradeType.BallistaUpgrade);
@@ -291,7 +289,6 @@ namespace AreaSurvivors
     public enum BuildingUpgradeKind
     {
         WoodenWall,
-        WoodenGate,
         Ballista,
         WatchTower
     }
@@ -305,7 +302,6 @@ namespace AreaSurvivors
         public int attackBonus;
         public int paintRadiusBonus;
         public string upgradedSpriteResource;
-        public string upgradedOpenSpriteResource;
 
         Health health;
         GridObjectMarker marker;
@@ -314,7 +310,6 @@ namespace AreaSurvivors
         PaperMeshVisual upgradedCompleteVisual;
         PaperMeshVisual upgradeSparkleVisual;
         Sprite upgradedSprite;
-        Sprite upgradedOpenSprite;
         Vector3 upgradedCompleteBaseScale = Vector3.one;
         float sparkleTimer;
         bool isUpgraded;
@@ -346,18 +341,16 @@ namespace AreaSurvivors
             AnimateUpgradeSparkle();
         }
 
-        public void Configure(BuildingUpgradeKind upgradeKind, int wood, int stone, string spriteName, string openSpriteName = null, int hp = 100, int attack = 0, int paintRadius = 0)
+        public void Configure(BuildingUpgradeKind upgradeKind, int wood, int stone, string spriteName, int hp = 100, int attack = 0, int paintRadius = 0)
         {
             kind = upgradeKind;
             woodCost = Mathf.Max(0, wood);
             stoneCost = Mathf.Max(0, stone);
             upgradedSpriteResource = spriteName;
-            upgradedOpenSpriteResource = openSpriteName;
             hpBonus = Mathf.Max(0, hp);
             attackBonus = Mathf.Max(0, attack);
             paintRadiusBonus = Mathf.Max(0, paintRadius);
             upgradedSprite = null;
-            upgradedOpenSprite = null;
             visualsPrepared = false;
             EnsureGridObjectVisual();
         }
@@ -426,7 +419,7 @@ namespace AreaSurvivors
             var barrier = GetComponent<WoodenBarrier>();
             if (barrier != null)
             {
-                barrier.ApplyBuildingUpgrade(upgradedSprite, upgradedOpenSprite, hpBonus);
+                barrier.ApplyBuildingUpgrade(upgradedSprite, hpBonus);
                 return;
             }
 
@@ -482,24 +475,12 @@ namespace AreaSurvivors
             RefreshYSortRenderers();
         }
 
-        public void SetUpgradedGateOpen(bool open)
-        {
-            if (!isUpgraded) return;
-            EnsureSprites();
-            var sprite = open && upgradedOpenSprite != null ? upgradedOpenSprite : upgradedSprite;
-            SetUpgradedCompleteSprite(sprite);
-        }
-
         void EnsureSprites()
         {
             UsePrefabVisualSetIfAvailable();
             if (upgradedSprite == null && prefabVisualSet != null && prefabVisualSet.upgradedCompleteVisual != null)
             {
                 upgradedSprite = prefabVisualSet.upgradedCompleteVisual.sprite;
-            }
-            if (upgradedOpenSprite == null && prefabVisualSet != null && prefabVisualSet.upgradedOpenSprite != null)
-            {
-                upgradedOpenSprite = prefabVisualSet.upgradedOpenSprite;
             }
         }
 

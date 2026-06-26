@@ -95,8 +95,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7fa5a912dec849d4ca60b09970a366d4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
   sourceSprite: {fileID: 21300000, guid: 17ce1d72f0444324ab1e99a94d9cf5c3, type: 3}
   tint: {r: 1, g: 0.35, b: 0.16, a: 1}
   sortingOrder: 20
@@ -110,8 +110,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: af95e33ef29cde24c9c5b191152bad53, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
   faceCamera: 1
   rollDegrees: 0
 --- !u!1 &233849472752207496
@@ -221,12 +221,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: abfe49e5b54eed94da0442210810d50a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
   fallbackSprite: {fileID: 0}
   fallbackColor: {r: 1, g: 1, b: 1, a: 1}
   lifetime: 4.2
   visualScale: 0.38
+  applyLaunchScale: 1
   knockback: 0
   knockbackDuration: 0.16
   impactSprite: {fileID: 21300000, guid: cdbe110e60164bdfaf916542e9e5bc3e, type: 3}

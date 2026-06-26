@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace AreaSurvivors
@@ -243,7 +244,7 @@ namespace AreaSurvivors
         {
             while (true)
             {
-                if (player != null && !player.IsReviving && ArrowUnlocked) ShootAtNearest(arrowPrefab, false, arrowStats);
+                if (player != null && !player.IsReviving && ArrowUnlocked) ShootArrowsAtNearestTargets(arrowPrefab, arrowStats);
                 yield return new WaitForSeconds(GetCooldown(arrowStats));
             }
         }
@@ -272,34 +273,43 @@ namespace AreaSurvivors
             SlashView.Flash(transform.position, direction, range, baseRange, damage, knockback, config.knockbackDuration);
         }
 
-        void ShootAtNearest(GameObject prefab, bool explosive, WeaponStatBlock stats)
+        void ShootArrowsAtNearestTargets(GameObject prefab, WeaponStatBlock stats)
         {
             if (prefab == null) return;
-            var enemies = FindObjectsOfType<EnemyController>();
-            EnemyController nearest = null;
-            float best = float.MaxValue;
-            foreach (var enemy in enemies)
-            {
-                float d = (enemy.transform.position - transform.position).sqrMagnitude;
-                if (d < best)
-                {
-                    best = d;
-                    nearest = enemy;
-                }
-            }
+            var targets = CollectArrowTargetsInRange(stats);
+            if (targets.Count <= 0) return;
 
-            var dir = nearest == null ? player.Facing : (Vector2)(nearest.transform.position - transform.position);
             float projectileSpeed = Mathf.Max(0.01f, stats.projectileSpeed);
-            float lifetime = Mathf.Max(0.05f, stats.range / projectileSpeed);
-            float radius = explosive ? Mathf.Max(0.05f, stats.explosionRadius) : 0f;
-            int projectileCount = explosive ? 1 : Mathf.Max(1, stats.projectileCount);
-            float spreadStep = projectileCount > 1 ? 8f : 0f;
-            float spreadStart = -spreadStep * (projectileCount - 1) * 0.5f;
+            float range = Mathf.Max(0.01f, stats.range);
+            float lifetime = Mathf.Max(0.05f, range / projectileSpeed);
+            int projectileCount = Mathf.Min(Mathf.Max(1, stats.projectileCount), targets.Count);
             for (int i = 0; i < projectileCount; i++)
             {
-                var shotDirection = Rotate(dir.normalized, spreadStart + spreadStep * i);
-                LaunchProjectile(prefab, explosive, stats, shotDirection, projectileSpeed, radius, lifetime);
+                var enemy = targets[i].enemy;
+                if (enemy == null) continue;
+                var shotDirection = (Vector2)(enemy.transform.position - transform.position);
+                LaunchProjectile(prefab, false, stats, shotDirection.normalized, projectileSpeed, 0f, lifetime);
             }
+        }
+
+        List<ArrowTargetCandidate> CollectArrowTargetsInRange(WeaponStatBlock stats)
+        {
+            var targets = new List<ArrowTargetCandidate>();
+            var enemies = FindObjectsOfType<EnemyController>();
+            float range = Mathf.Max(0.01f, stats.range);
+            float rangeSqr = range * range;
+            foreach (var enemy in enemies)
+            {
+                if (enemy == null) continue;
+                var health = enemy.GetComponent<Health>();
+                if (health == null || health.IsDead) continue;
+                float distanceSqr = (enemy.transform.position - transform.position).sqrMagnitude;
+                if (distanceSqr > rangeSqr) continue;
+                targets.Add(new ArrowTargetCandidate(enemy, distanceSqr));
+            }
+
+            targets.Sort((a, b) => a.distanceSqr.CompareTo(b.distanceSqr));
+            return targets;
         }
 
         void ShootForward(GameObject prefab, WeaponStatBlock stats)
@@ -339,13 +349,16 @@ namespace AreaSurvivors
             }
         }
 
-        static Vector2 Rotate(Vector2 direction, float degrees)
+        readonly struct ArrowTargetCandidate
         {
-            if (Mathf.Abs(degrees) <= 0.001f) return direction;
-            float radians = degrees * Mathf.Deg2Rad;
-            float sin = Mathf.Sin(radians);
-            float cos = Mathf.Cos(radians);
-            return new Vector2(direction.x * cos - direction.y * sin, direction.x * sin + direction.y * cos).normalized;
+            public readonly EnemyController enemy;
+            public readonly float distanceSqr;
+
+            public ArrowTargetCandidate(EnemyController enemy, float distanceSqr)
+            {
+                this.enemy = enemy;
+                this.distanceSqr = distanceSqr;
+            }
         }
 
     }

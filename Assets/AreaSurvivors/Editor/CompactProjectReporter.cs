@@ -22,7 +22,6 @@ namespace AreaSurvivors.Editor
             "Assets/AreaSurvivors/Prefabs/CenterTower.prefab",
             "Assets/AreaSurvivors/Prefabs/BallistaTower.prefab",
             "Assets/AreaSurvivors/Prefabs/WoodenWall.prefab",
-            "Assets/AreaSurvivors/Prefabs/WoodenGate.prefab",
             "Assets/AreaSurvivors/Prefabs/WatchTower.prefab",
             "Assets/AreaSurvivors/Prefabs/Player.prefab",
             "Assets/AreaSurvivors/Prefabs/Enemy.prefab",
@@ -160,8 +159,7 @@ namespace AreaSurvivors.Editor
 
                 string baseSprite = SpriteName(visualSet.completeVisual != null ? visualSet.completeVisual.sprite : null);
                 string upgradedSprite = SpriteName(visualSet.upgradedCompleteVisual != null ? visualSet.upgradedCompleteVisual.sprite : null);
-                string openSprite = SpriteName(visualSet.upgradedOpenSprite);
-                report.AppendLine($"- {prefab.name}: visualSet, missingScripts={missingScripts}, base={baseSprite}, upgraded={upgradedSprite}, open={openSprite}");
+                report.AppendLine($"- {prefab.name}: visualSet, missingScripts={missingScripts}, base={baseSprite}, upgraded={upgradedSprite}");
             }
             report.AppendLine();
         }

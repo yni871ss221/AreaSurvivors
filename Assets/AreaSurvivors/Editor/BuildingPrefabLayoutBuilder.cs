@@ -19,21 +19,8 @@ namespace AreaSurvivors.EditorTools
             SetupWoodenBarrierPrefab(
                 $"{PrefabRoot}/WoodenWall.prefab",
                 "WoodenWall",
-                false,
                 "WoodenWall",
-                null,
-                "WoodenWallUpgrade",
-                null);
-
-            SetupWoodenBarrierPrefab(
-                $"{PrefabRoot}/WoodenGate.prefab",
-                "WoodenGate",
-                true,
-                "WoodenGateClosed",
-                "WoodenGateOpen",
-                "WoodenGateUpgradeClosed",
-                "WoodenGateUpgradeOpen",
-                $"{PrefabRoot}/WoodenWall.prefab");
+                "WoodenWallUpgrade");
 
             SetupBallistaPrefab($"{PrefabRoot}/BallistaTower.prefab");
             SetupWatchTowerPrefab($"{PrefabRoot}/WatchTower.prefab");
@@ -43,7 +30,7 @@ namespace AreaSurvivors.EditorTools
             AssetDatabase.Refresh();
         }
 
-        static void SetupWoodenBarrierPrefab(string path, string rootName, bool gate, string baseSpriteName, string openSpriteName, string upgradeSpriteName, string upgradeOpenSpriteName, string sourcePrefabPath = null)
+        static void SetupWoodenBarrierPrefab(string path, string rootName, string baseSpriteName, string upgradeSpriteName, string sourcePrefabPath = null)
         {
             EnsurePrefabExists(path, sourcePrefabPath);
             var root = PrefabUtility.LoadPrefabContents(path);
@@ -59,13 +46,10 @@ namespace AreaSurvivors.EditorTools
                 gridVisual.resetVisualOffset = false;
 
                 var barrier = Ensure<WoodenBarrier>(root);
-                barrier.gate = gate;
                 barrier.barrierSprite = LoadGeneratedSprite(baseSpriteName);
-                barrier.openGateSprite = !string.IsNullOrEmpty(openSpriteName) ? LoadGeneratedSprite(openSpriteName) : null;
 
                 var set = Ensure<BuildingPrefabVisualSet>(root);
                 ConfigureVisualSet(root, set, marker.footprint, barrier.barrierSprite, LoadGeneratedSprite(upgradeSpriteName), 0.026f, WoodenBarrierBaseHeightMultiplier);
-                set.upgradedOpenSprite = !string.IsNullOrEmpty(upgradeOpenSpriteName) ? LoadGeneratedSprite(upgradeOpenSpriteName) : null;
 
                 barrier.completeRenderer = set.completeVisual;
                 barrier.sparkleRenderer = set.sparkleVisual;
@@ -341,10 +325,6 @@ namespace AreaSurvivors.EditorTools
                 "TowerUpgrade",
                 "WatchTower",
                 "WatchTowerUpgrade",
-                "WoodenGateClosed",
-                "WoodenGateOpen",
-                "WoodenGateUpgradeClosed",
-                "WoodenGateUpgradeOpen",
                 "WoodenWall",
                 "WoodenWallUpgrade",
             };
@@ -361,10 +341,6 @@ namespace AreaSurvivors.EditorTools
                 "TowerUpgradeSquareSource_20260614_234350",
                 "WatchTowerSquareSource_20260615_000239",
                 "WatchTowerUpgradeSource_20260615_154952",
-                "WoodenGateClosedSource_20260616_210514",
-                "WoodenGateOpenSource_20260616_210906",
-                "WoodenGateUpgradeClosedSource_20260616_215543",
-                "WoodenGateUpgradeOpenSource_20260616_220654",
                 "WoodenWallSource_20260616_204904",
                 "WoodenWallUpgradeSource_20260616_221042",
             };
@@ -422,12 +398,9 @@ namespace AreaSurvivors.EditorTools
             if (placement != null)
             {
                 placement.woodenWallPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabRoot}/WoodenWall.prefab");
-                placement.woodenGatePrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabRoot}/WoodenGate.prefab");
                 placement.ballistaPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabRoot}/BallistaTower.prefab");
                 placement.watchTowerPrefab = AssetDatabase.LoadAssetAtPath<GameObject>($"{PrefabRoot}/WatchTower.prefab");
                 placement.woodenWallPreviewSprite = LoadGeneratedSprite("WoodenWall");
-                placement.woodenGatePreviewSprite = LoadGeneratedSprite("WoodenGateClosed");
-                placement.woodenGateOpenSprite = LoadGeneratedSprite("WoodenGateOpen");
                 EditorUtility.SetDirty(placement);
             }
 

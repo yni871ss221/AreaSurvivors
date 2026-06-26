@@ -95,6 +95,7 @@ namespace AreaSurvivors
             if (towerMarker != null) towerMarker.Register(grid);
             var towerRootWorld = GridObjectVisual.FootprintOriginToWorld(grid, towerOriginCell);
             grid.PaintImmediate(towerRootWorld, TileOwner.Player, InitialTowerTerritoryRadius);
+            ApplyUnlockedCenterTowerUpgrade();
             int stage = RunState.ConsumeNextStartStage();
             SyncFixedBuildingSlots(stage);
 
@@ -144,6 +145,12 @@ namespace AreaSurvivors
             cannon.Configure(config);
         }
 
+        void ApplyUnlockedCenterTowerUpgrade()
+        {
+            if (Tower == null || !ProgressionStore.IsUnlocked(UpgradeType.UnlockTowerUpgrade)) return;
+            Tower.CompleteUpgrade(config, grid, Tower.GetConfiguredUpgradeSprite());
+        }
+
         void SyncFixedBuildingSlots(int stage)
         {
             if (grid == null) return;
@@ -155,9 +162,11 @@ namespace AreaSurvivors
         {
             public SavedBuildingKind kind;
             public UpgradeType unlockType;
+            public UpgradeType fixedSlotUpgradeType;
             public Vector2Int footprint;
             public Vector2Int desiredOffset;
             public bool requiresUnlock = true;
+            public bool upgradesWithFixedSlotSkill;
         }
 
         const int FixedLayoutTowerCenterColumn = 13;
@@ -203,9 +212,10 @@ namespace AreaSurvivors
             {
                 kind = SavedBuildingKind.Ballista,
                 unlockType = UpgradeType.UnlockBallista,
+                fixedSlotUpgradeType = UpgradeType.BallistaUpgrade,
                 footprint = new Vector2Int(2, 2),
                 desiredOffset = OffsetFromLayoutCell(leftColumn, lowerRow),
-                requiresUnlock = false
+                upgradesWithFixedSlotSkill = true
             });
         }
 
@@ -214,10 +224,11 @@ namespace AreaSurvivors
             return new FixedBuildingSlotDefinition
             {
                 kind = SavedBuildingKind.WoodenWall,
-                unlockType = UpgradeType.StartingWood,
+                unlockType = UpgradeType.UnlockWall,
+                fixedSlotUpgradeType = UpgradeType.WallUpgrade,
                 footprint = Vector2Int.one,
                 desiredOffset = OffsetFromLayoutCell(column, row),
-                requiresUnlock = false
+                upgradesWithFixedSlotSkill = true
             };
         }
 
@@ -247,6 +258,7 @@ namespace AreaSurvivors
                 saved.y = originCell.y;
                 saved.destroyed = false;
                 if (previousKind != definition.kind) saved.upgraded = false;
+                if (definition.upgradesWithFixedSlotSkill) saved.upgraded = ProgressionStore.IsUnlocked(definition.fixedSlotUpgradeType);
                 result.Add(saved);
             }
 
@@ -737,9 +749,9 @@ namespace AreaSurvivors
         IEnumerator BossDefeatedRoutine(EnemyController boss)
         {
             bool unlockedNextStage = ProgressionStore.MarkStageCleared(currentStage);
-            if (currentStage == 1)
+            if (currentStage < 4)
             {
-                int nextStage = unlockedNextStage ? currentStage + 1 : 2;
+                int nextStage = unlockedNextStage ? currentStage + 1 : Mathf.Min(currentStage + 1, 4);
                 yield return StageTransitionRoutine(boss, nextStage);
             }
             else
@@ -967,21 +979,7 @@ namespace AreaSurvivors
         Text playerDefenseText;
         Text playerXpGainText;
         Text playerRegenText;
-        RectTransform slashWeaponPanel;
-        RectTransform arrowWeaponPanel;
-        RectTransform fireballWeaponPanel;
-        Text slashAttackText;
-        Text slashCooldownText;
-        Text slashKnockbackText;
-        Text slashRangeText;
-        Text arrowAttackText;
-        Text arrowCooldownText;
-        Text arrowProjectileCountText;
-        Text arrowRangeText;
-        Text fireballAttackText;
-        Text fireballCooldownText;
-        Text fireballExplosionText;
-        Text fireballRangeText;
+        readonly WeaponHudPanelBinding weaponHud = new WeaponHudPanelBinding();
         bool warnedMissingPlayerStatsHud;
         bool warnedMissingWeaponStatsHud;
         Text tokenText;
@@ -1177,7 +1175,8 @@ namespace AreaSurvivors
             playerDefenseText = BindSceneStatText(playerStatsPanel, "Defense Text");
             playerXpGainText = BindSceneStatText(playerStatsPanel, "Xp Gain Text");
             playerRegenText = BindSceneStatText(playerStatsPanel, "Regen Text");
-            BindSceneWeaponStatsPanel(parent, playerStatsPanel);
+            weaponHud.Bind(parent, playerStatsPanel);
+            if (weaponHud.HasMissingReferences) WarnMissingWeaponStatsHud();
         }
 
         Text BindSceneStatText(RectTransform statsRoot, string name)
@@ -1200,41 +1199,6 @@ namespace AreaSurvivors
             if (parent == null) return null;
             label = FindText(parent, name + "/Label");
             return FindImage(parent, name + "/Fill");
-        }
-
-        void BindSceneWeaponStatsPanel(Transform hudRoot, RectTransform statsRoot)
-        {
-            slashWeaponPanel = BindWeaponPanel(hudRoot, statsRoot, "Slash Weapon Status");
-            arrowWeaponPanel = BindWeaponPanel(hudRoot, statsRoot, "Arrow Weapon Status");
-            fireballWeaponPanel = BindWeaponPanel(hudRoot, statsRoot, "Fireball Weapon Status");
-            slashAttackText = BindWeaponValue(hudRoot, statsRoot, "Slash Weapon Status", "Attack Row");
-            slashCooldownText = BindWeaponValue(hudRoot, statsRoot, "Slash Weapon Status", "Cooldown Row");
-            slashKnockbackText = BindWeaponValue(hudRoot, statsRoot, "Slash Weapon Status", "Knockback Row");
-            slashRangeText = BindWeaponValue(hudRoot, statsRoot, "Slash Weapon Status", "Range Row");
-            arrowAttackText = BindWeaponValue(hudRoot, statsRoot, "Arrow Weapon Status", "Attack Row");
-            arrowCooldownText = BindWeaponValue(hudRoot, statsRoot, "Arrow Weapon Status", "Cooldown Row");
-            arrowProjectileCountText = BindWeaponValue(hudRoot, statsRoot, "Arrow Weapon Status", "Projectile Count Row");
-            arrowRangeText = BindWeaponValue(hudRoot, statsRoot, "Arrow Weapon Status", "Range Row");
-            fireballAttackText = BindWeaponValue(hudRoot, statsRoot, "Fireball Weapon Status", "Attack Row");
-            fireballCooldownText = BindWeaponValue(hudRoot, statsRoot, "Fireball Weapon Status", "Cooldown Row");
-            fireballExplosionText = BindWeaponValue(hudRoot, statsRoot, "Fireball Weapon Status", "Explosion Row");
-            fireballRangeText = BindWeaponValue(hudRoot, statsRoot, "Fireball Weapon Status", "Range Row");
-        }
-
-        RectTransform BindWeaponPanel(Transform hudRoot, Transform statsRoot, string panelName)
-        {
-            var panel = FindRect(hudRoot, panelName);
-            if (panel == null) panel = FindRect(statsRoot, panelName);
-            if (panel == null) WarnMissingWeaponStatsHud();
-            return panel;
-        }
-
-        Text BindWeaponValue(Transform hudRoot, Transform statsRoot, string panelName, string rowName)
-        {
-            var value = FindText(hudRoot, panelName + "/" + rowName + "/Value");
-            if (value == null) value = FindText(statsRoot, panelName + "/" + rowName + "/Value");
-            if (value == null) WarnMissingWeaponStatsHud();
-            return value;
         }
 
         void WarnMissingWeaponStatsHud()
@@ -1315,61 +1279,7 @@ namespace AreaSurvivors
 
         void UpdateWeaponStatsPanel()
         {
-            var weapon = player != null ? player.weapon : null;
-            if (weapon == null)
-            {
-                SetWeaponPanelContentVisible(slashWeaponPanel, false);
-                SetWeaponPanelContentVisible(arrowWeaponPanel, false);
-                SetWeaponPanelContentVisible(fireballWeaponPanel, false);
-                return;
-            }
-
-            var slash = weapon.SlashStats;
-            var arrow = weapon.ArrowStats;
-            var fireball = weapon.FireballStats;
-            SetWeaponPanelContentVisible(slashWeaponPanel, true);
-            SetWeaponPanelContentVisible(arrowWeaponPanel, weapon.ArrowUnlocked);
-            SetWeaponPanelContentVisible(fireballWeaponPanel, weapon.FireballUnlocked);
-            SetText(slashAttackText, weapon.SlashAttackPower.ToString());
-            SetText(slashCooldownText, Seconds(slash.cooldownSeconds));
-            SetText(slashKnockbackText, Number(slash.knockback));
-            SetText(slashRangeText, Number(slash.range));
-            SetText(arrowAttackText, arrow.attackPower.ToString());
-            SetText(arrowCooldownText, Seconds(arrow.cooldownSeconds));
-            SetText(arrowProjectileCountText, arrow.projectileCount.ToString());
-            SetText(arrowRangeText, Number(arrow.range));
-            SetText(fireballAttackText, fireball.attackPower.ToString());
-            SetText(fireballCooldownText, Seconds(fireball.cooldownSeconds));
-            SetText(fireballExplosionText, Number(fireball.explosionRadius));
-            SetText(fireballRangeText, Number(weapon.FireballRange));
-        }
-
-        static void SetWeaponPanelContentVisible(RectTransform panel, bool visible)
-        {
-            if (panel == null) return;
-            SetDirectChildActive(panel, "Icon", visible);
-            SetDirectChildActive(panel, "Title", visible);
-            SetDirectChildActive(panel, "Attack Row", visible);
-            SetDirectChildActive(panel, "Cooldown Row", visible);
-            SetDirectChildActive(panel, "Knockback Row", visible);
-            SetDirectChildActive(panel, "Projectile Count Row", visible);
-            SetDirectChildActive(panel, "Explosion Row", visible);
-            SetDirectChildActive(panel, "Range Row", visible);
-        }
-
-        static void SetText(Text text, string value)
-        {
-            if (text != null) text.text = value;
-        }
-
-        static string Number(float value)
-        {
-            return value.ToString("0.##");
-        }
-
-        static string Seconds(float value)
-        {
-            return value.ToString("0.##") + "s";
+            weaponHud.Update(player != null ? player.weapon : null);
         }
 
         void UpdatePaintGauge()

@@ -142,6 +142,12 @@ powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/start-token-check.ps1 
 powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/end-token-check.ps1 -CurrentPercent 50.0 -IncludeUnity
 ```
 
+For task-oriented starts, prefer the wrapper that also prints routed rules and core files:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/start-task-token-check.ps1 -Task "Skill tree icon update" -UiPercent 12.5 -BudgetTokens 1000000
+```
+
 ## Coverage for Untracked Usage
 
 Command reports do not include Codex fixed context, chat text, screenshots, or tool output that was run outside `safe-*` / `Run-WithTokenReport.ps1`.

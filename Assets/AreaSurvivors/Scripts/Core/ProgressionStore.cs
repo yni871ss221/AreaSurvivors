@@ -6,7 +6,7 @@ namespace AreaSurvivors
     public static class ProgressionStore
     {
         const string SaveKey = "AreaSurvivors.Save.v1";
-        const int ImplementedStageCount = 2;
+        const int ImplementedStageCount = 4;
         static SaveData cached;
 
         public static SaveData Data
@@ -77,6 +77,7 @@ namespace AreaSurvivors
                 case UpgradeType.StartingFireball:
                     return 1;
                 case UpgradeType.StartingWeaponLevel:
+                case UpgradeType.EliteSpawnCount:
                     return 4;
                 default:
                     return 10;

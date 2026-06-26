@@ -73,8 +73,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: af95e33ef29cde24c9c5b191152bad53, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
   faceCamera: 1
   rollDegrees: 0
 --- !u!114 &2382903243143012373
@@ -87,8 +87,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 67db9e8f0e2ae9c40bc1e2b64352a6b4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
   m_Navigation:
     m_Mode: 3
     m_WrapAround: 0
@@ -178,8 +178,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d373fe48ec0e33b449b93419fd0f6277, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
   baseOrder: 1000
   orderOffset: 0
   sortPivotOffsetY: 0
@@ -257,8 +257,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 53cb414f69600e74f8d1d03abde39972, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
   maxHp: 40
   currentHp: 10
   defense: 0
@@ -272,8 +272,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fb4ca01ae0cac8d47b7656f99460a48e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
   downFrames: []
   leftFrames: []
   rightFrames: []
@@ -289,8 +289,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1780268375fa4a847a649add50fe6388, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
   characterType: 0
   config: {fileID: 0}
   grid: {fileID: 0}
@@ -359,9 +359,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6588ce345ad40e140a334c705f36db40, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  arrowPrefab: {fileID: 6415672035725512546, guid: 21329bd9a3729d24ca898c874fb32605, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  arrowPrefab: {fileID: 6415672035725512546, guid: 4fff427d22da444295e8051c155c8933, type: 3}
   fireballPrefab: {fileID: 233849472752207496, guid: 67a5e3fcf592beb4d8617154d124e986, type: 3}
   slashOrigin: {fileID: 0}
 --- !u!1 &3101405684633296734
@@ -455,8 +455,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
   m_Material: {fileID: 0}
   m_Color: {r: 0.25, g: 0.88, b: 0.35, a: 0.9}
   m_RaycastTarget: 1
@@ -530,8 +530,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
   m_Material: {fileID: 0}
   m_Color: {r: 0.12, g: 0.04, b: 0.04, a: 0.74}
   m_RaycastTarget: 1
@@ -562,7 +562,6 @@ GameObject:
   - component: {fileID: 7483612439917177067}
   - component: {fileID: 940987762023602898}
   - component: {fileID: 8323513492433126272}
-  - component: {fileID: 1270828196143006062}
   m_Layer: 0
   m_Name: Paper Visual
   m_TagString: Untagged
@@ -580,7 +579,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.46666667, y: 0.46666667, z: 1}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 5138416424574747348}
@@ -645,24 +644,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7fa5a912dec849d4ca60b09970a366d4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
   sourceSprite: {fileID: 21300000, guid: d21065662d338ce4c9baae72c8186739, type: 3}
   tint: {r: 1, g: 1, b: 1, a: 1}
   sortingOrder: 1000
   anchorBottomCenter: 0
   verticalFill: 1
---- !u!114 &1270828196143006062
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7464594867759238010}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: af95e33ef29cde24c9c5b191152bad53, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  faceCamera: 1
-  rollDegrees: 0

@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -13,9 +12,7 @@ namespace AreaSurvivors
         public PaperMeshVisual sparkleRenderer;
         public GameObject completeObject;
         public int maxHp = 70;
-        public bool gate;
         public Sprite barrierSprite;
-        public Sprite openGateSprite;
         public Vector2 spriteVisualSize = new Vector2(1.4f, 0.86f);
 
         Health health;
@@ -27,7 +24,6 @@ namespace AreaSurvivors
         Vector3 completeVisualScale = Vector3.one;
         Renderer[] completeObjectRenderers;
         Color[][] completeObjectColors;
-        int touchingPlayers;
         bool completed;
         bool spriteVisualsPrepared;
         bool usingSpriteVisuals;
@@ -35,7 +31,6 @@ namespace AreaSurvivors
         bool breaking;
         bool hasRegisteredCell;
         Vector3Int registeredCell;
-        readonly HashSet<Collider2D> ignoredPlayerColliders = new HashSet<Collider2D>();
         const float SparkleDuration = 0.75f;
 
         public bool IsBuilt => completed;
@@ -46,7 +41,7 @@ namespace AreaSurvivors
             get
             {
                 var marker = GetComponent<GridObjectMarker>();
-                return marker != null ? marker.footprint : (gate ? new Vector2Int(3, 1) : Vector2Int.one);
+                return marker != null ? marker.footprint : Vector2Int.one;
             }
         }
 
@@ -80,12 +75,11 @@ namespace AreaSurvivors
             EnsureUpgradeTarget();
         }
 
-        public void ApplyBuildingUpgrade(Sprite upgradedSprite, Sprite upgradedOpenSprite, int hpBonus)
+        public void ApplyBuildingUpgrade(Sprite upgradedSprite, int hpBonus)
         {
             maxHp += Mathf.Max(0, hpBonus);
             if (health != null) health.SetMax(maxHp);
             if (upgradedSprite != null) barrierSprite = upgradedSprite;
-            if (upgradedOpenSprite != null) openGateSprite = upgradedOpenSprite;
             spriteVisualsPrepared = false;
             EnsureSpriteVisuals();
             CacheVisualScales();
@@ -118,16 +112,6 @@ namespace AreaSurvivors
             }
 
             ApplyVisuals();
-        }
-
-        void OnDestroy()
-        {
-            if (blockingCollider == null) return;
-            foreach (var playerCollider in ignoredPlayerColliders)
-            {
-                if (playerCollider != null) Physics2D.IgnoreCollision(blockingCollider, playerCollider, false);
-            }
-            ignoredPlayerColliders.Clear();
         }
 
         void EnsureSpriteVisuals()
@@ -170,20 +154,12 @@ namespace AreaSurvivors
         {
             var target = GetComponent<BuildingUpgradeTarget>();
             if (target == null) target = gameObject.AddComponent<BuildingUpgradeTarget>();
-            if (gate)
-            {
-                target.Configure(BuildingUpgradeKind.WoodenGate, 0, 30, "WoodenGateUpgradeClosed", "WoodenGateUpgradeOpen", 100);
-            }
-            else
-            {
-                target.Configure(BuildingUpgradeKind.WoodenWall, 0, 20, "WoodenWallUpgrade", null, 100);
-            }
+            target.Configure(BuildingUpgradeKind.WoodenWall, 0, 20, "WoodenWallUpgrade", 100);
         }
 
         void ApplyConfiguredSpriteToVisuals()
         {
             ConfigureSpriteVisual(completeRenderer, Color.white);
-            ApplyGateVisualState();
         }
 
         void DestroyLegacyObject(GameObject legacyObject, GameObject replacementObject)
@@ -284,22 +260,6 @@ namespace AreaSurvivors
             AnimateCompletionSparkle();
         }
 
-        void OnTriggerEnter2D(Collider2D other)
-        {
-            if (other.GetComponent<PlayerController>() == null) return;
-            touchingPlayers++;
-            if (completed && gate) SetPlayerGateCollision(other, true);
-            ApplyGateVisualState();
-        }
-
-        void OnTriggerExit2D(Collider2D other)
-        {
-            if (other.GetComponent<PlayerController>() == null) return;
-            touchingPlayers = Mathf.Max(0, touchingPlayers - 1);
-            if (gate) SetPlayerGateCollision(other, false);
-            ApplyGateVisualState();
-        }
-
         public void CompleteImmediately()
         {
             if (completed) return;
@@ -345,29 +305,6 @@ namespace AreaSurvivors
                 SetActive(completeObject, completed && !hideBaseVisual);
             }
             if (sparkleRenderer != null) sparkleRenderer.visible = completed && !hideBaseVisual ? sparkleRenderer.visible : false;
-            ApplyGateVisualState();
-        }
-
-        void ApplyGateVisualState()
-        {
-            if (!gate || completeRenderer == null || openGateSprite == null || barrierSprite == null) return;
-            var upgradeTarget = GetComponent<BuildingUpgradeTarget>();
-            if (upgradeTarget != null && upgradeTarget.IsUpgraded)
-            {
-                upgradeTarget.SetUpgradedGateOpen(completed && touchingPlayers > 0);
-                return;
-            }
-
-            var sprite = completed && touchingPlayers > 0 ? openGateSprite : barrierSprite;
-            completeRenderer.sprite = sprite;
-        }
-
-        void SetPlayerGateCollision(Collider2D playerCollider, bool ignored)
-        {
-            if (blockingCollider == null || playerCollider == null) return;
-            Physics2D.IgnoreCollision(blockingCollider, playerCollider, ignored);
-            if (ignored) ignoredPlayerColliders.Add(playerCollider);
-            else ignoredPlayerColliders.Remove(playerCollider);
         }
 
         void AnimateCompletionSparkle()

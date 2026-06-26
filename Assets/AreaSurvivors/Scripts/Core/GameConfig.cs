@@ -14,7 +14,17 @@ namespace AreaSurvivors
         EliteGoblin,
         Ogre,
         EliteOgre,
-        GoblinLord
+        GoblinLord,
+        Skeleton,
+        EliteSkeleton,
+        SkeletonKnight,
+        EliteSkeletonKnight,
+        Lich,
+        Lizard,
+        EliteLizard,
+        Lizardman,
+        EliteLizardman,
+        Dragon
     }
 
     [System.Serializable]
@@ -126,8 +136,6 @@ namespace AreaSurvivors
         public int startingStonePerUpgradeLevel = 25;
         public int woodenWallWoodCost = 10;
         public int woodenWallStoneCost = 0;
-        public int woodenGateWoodCost = 20;
-        public int woodenGateStoneCost = 0;
         public int ballistaWoodCost = 50;
         public int ballistaStoneCost = 30;
         public int watchTowerWoodCost = 50;
@@ -154,6 +162,8 @@ namespace AreaSurvivors
         public int slashDamageBonus = 2;
         public float slashRange = 1.05f;
         public float slashOffset = 1.05f;
+        public float arrowRangeCells = 10f;
+        public float arrowRangeCellsPerLevel = 1f;
         public float fireballExplosionRadius = 1.1f;
         public float fireballFlightCells = 10f;
         public float fireballFlightCellsPerLevel = 1f;
@@ -235,7 +245,7 @@ namespace AreaSurvivors
                 WeaponType.Arrow,
                 arrowCooldown,
                 projectileSpeed,
-                projectileSpeed * projectileLifetime,
+                ArrowRangeWorld(1, TileGrid.DefaultCellSize),
                 baseKnockback,
                 0f);
             fireballWeaponLevels = EnsureWeaponLevels(
@@ -328,7 +338,9 @@ namespace AreaSurvivors
                 projectileSpeed = usesProjectile ? baseProjectileSpeed + bonusLevel * 0.25f : 0f,
                 range = type == WeaponType.Fireball
                     ? FireballFlightRangeWorld(level, TileGrid.DefaultCellSize)
-                    : baseRange + bonusLevel * (usesProjectile ? 0.75f : 0.08f),
+                    : type == WeaponType.Arrow
+                        ? ArrowRangeWorld(level, TileGrid.DefaultCellSize)
+                        : baseRange + bonusLevel * 0.08f,
                 knockback = type == WeaponType.Slash ? baseKnockbackValue + bonusLevel : 0f,
                 projectileCount = type == WeaponType.Arrow ? 1 + bonusLevel / 3 : 1,
                 explosionRadius = type == WeaponType.Fireball ? baseExplosionRadius + bonusLevel * 0.25f : 0f
@@ -341,6 +353,12 @@ namespace AreaSurvivors
             int bonusLevel = Mathf.Max(0, definition.level - 1);
             if (type == WeaponType.Arrow)
             {
+                float defaultRange = ArrowRangeWorld(definition.level, TileGrid.DefaultCellSize);
+                if (definition.range <= 0f || definition.range > defaultRange + TileGrid.DefaultCellSize * 2f)
+                {
+                    definition.range = defaultRange;
+                }
+
                 if (definition.projectileCount <= 0) definition.projectileCount = 1 + bonusLevel / 3;
                 definition.explosionRadius = 0f;
                 definition.knockback = 0f;
@@ -373,6 +391,13 @@ namespace AreaSurvivors
         {
             int bonusLevel = Mathf.Max(0, level - 1);
             float cells = fireballFlightCells + bonusLevel * Mathf.Max(0f, fireballFlightCellsPerLevel);
+            return Mathf.Max(0.05f, cells * Mathf.Max(0.01f, cellSize));
+        }
+
+        public float ArrowRangeWorld(int level, float cellSize)
+        {
+            int bonusLevel = Mathf.Max(0, level - 1);
+            float cells = arrowRangeCells + bonusLevel * Mathf.Max(0f, arrowRangeCellsPerLevel);
             return Mathf.Max(0.05f, cells * Mathf.Max(0.01f, cellSize));
         }
 
@@ -583,6 +608,162 @@ namespace AreaSurvivors
                     cellSize = 4f,
                     xpValue = 100,
                     tokenValue = 5,
+                    boss = true,
+                    outlineColor = new Color(1f, 0.08f, 0.04f, 1f),
+                    outlineThickness = 0.075f
+                },
+                new EnemyDefinition
+                {
+                    kind = EnemyKind.Skeleton,
+                    displayName = "スケルトン",
+                    spriteKey = "EnemySkeleton",
+                    animationSpeedMultiplier = 0.45f,
+                    hpMultiplier = 4f,
+                    damageMultiplier = 4f,
+                    speedMultiplier = 1.02f,
+                    cellSize = 1f,
+                    xpValue = Mathf.Max(4, xpPerEnemy * 4),
+                    tokenValue = 0,
+                    outlineColor = Color.black,
+                    outlineThickness = 0.018f
+                },
+                new EnemyDefinition
+                {
+                    kind = EnemyKind.EliteSkeleton,
+                    displayName = "エリートスケルトン",
+                    spriteKey = "EnemySkeleton",
+                    animationSpeedMultiplier = 0.45f,
+                    hpMultiplier = 20f,
+                    damageMultiplier = 8f,
+                    speedMultiplier = 0.95f,
+                    cellSize = 1.5f,
+                    xpValue = Mathf.Max(20, xpPerEnemy * 20),
+                    tokenValue = 1,
+                    elite = true,
+                    outlineColor = new Color(1f, 0.86f, 0.12f, 1f),
+                    outlineThickness = 0.055f
+                },
+                new EnemyDefinition
+                {
+                    kind = EnemyKind.SkeletonKnight,
+                    displayName = "スケルトンナイト",
+                    spriteKey = "EnemySkeletonKnight",
+                    animationSpeedMultiplier = 0.45f,
+                    hpMultiplier = 8f,
+                    damageMultiplier = 8f,
+                    speedMultiplier = 0.8f,
+                    cellSize = 2f,
+                    xpValue = Mathf.Max(12, xpPerEnemy * 12),
+                    tokenValue = 0,
+                    outlineColor = Color.black,
+                    outlineThickness = 0.02f
+                },
+                new EnemyDefinition
+                {
+                    kind = EnemyKind.EliteSkeletonKnight,
+                    displayName = "エリートスケルトンナイト",
+                    spriteKey = "EnemySkeletonKnight",
+                    animationSpeedMultiplier = 0.45f,
+                    hpMultiplier = 40f,
+                    damageMultiplier = 16f,
+                    speedMultiplier = 0.74f,
+                    cellSize = 2.5f,
+                    xpValue = Mathf.Max(48, xpPerEnemy * 48),
+                    tokenValue = 1,
+                    elite = true,
+                    outlineColor = new Color(1f, 0.86f, 0.12f, 1f),
+                    outlineThickness = 0.055f
+                },
+                new EnemyDefinition
+                {
+                    kind = EnemyKind.Lich,
+                    displayName = "リッチ",
+                    spriteKey = "EnemyLich",
+                    animationSpeedMultiplier = 0.45f,
+                    hpMultiplier = 120f,
+                    damageMultiplier = 24f,
+                    speedMultiplier = 0.58f,
+                    cellSize = 4f,
+                    xpValue = 150,
+                    tokenValue = 7,
+                    boss = true,
+                    outlineColor = new Color(1f, 0.08f, 0.04f, 1f),
+                    outlineThickness = 0.075f
+                },
+                new EnemyDefinition
+                {
+                    kind = EnemyKind.Lizard,
+                    displayName = "リザード",
+                    spriteKey = "EnemyLizard",
+                    animationSpeedMultiplier = 0.45f,
+                    hpMultiplier = 8f,
+                    damageMultiplier = 8f,
+                    speedMultiplier = 1f,
+                    cellSize = 1f,
+                    xpValue = Mathf.Max(8, xpPerEnemy * 8),
+                    tokenValue = 0,
+                    outlineColor = Color.black,
+                    outlineThickness = 0.018f
+                },
+                new EnemyDefinition
+                {
+                    kind = EnemyKind.EliteLizard,
+                    displayName = "エリートリザード",
+                    spriteKey = "EnemyLizard",
+                    animationSpeedMultiplier = 0.45f,
+                    hpMultiplier = 40f,
+                    damageMultiplier = 16f,
+                    speedMultiplier = 0.94f,
+                    cellSize = 1.5f,
+                    xpValue = Mathf.Max(40, xpPerEnemy * 40),
+                    tokenValue = 1,
+                    elite = true,
+                    outlineColor = new Color(1f, 0.86f, 0.12f, 1f),
+                    outlineThickness = 0.055f
+                },
+                new EnemyDefinition
+                {
+                    kind = EnemyKind.Lizardman,
+                    displayName = "リザードマン",
+                    spriteKey = "EnemyLizardman",
+                    animationSpeedMultiplier = 0.45f,
+                    hpMultiplier = 16f,
+                    damageMultiplier = 16f,
+                    speedMultiplier = 0.78f,
+                    cellSize = 2f,
+                    xpValue = Mathf.Max(24, xpPerEnemy * 24),
+                    tokenValue = 0,
+                    outlineColor = Color.black,
+                    outlineThickness = 0.02f
+                },
+                new EnemyDefinition
+                {
+                    kind = EnemyKind.EliteLizardman,
+                    displayName = "エリートリザードマン",
+                    spriteKey = "EnemyLizardman",
+                    animationSpeedMultiplier = 0.45f,
+                    hpMultiplier = 80f,
+                    damageMultiplier = 32f,
+                    speedMultiplier = 0.72f,
+                    cellSize = 2.5f,
+                    xpValue = Mathf.Max(96, xpPerEnemy * 96),
+                    tokenValue = 1,
+                    elite = true,
+                    outlineColor = new Color(1f, 0.86f, 0.12f, 1f),
+                    outlineThickness = 0.055f
+                },
+                new EnemyDefinition
+                {
+                    kind = EnemyKind.Dragon,
+                    displayName = "ドラゴン",
+                    spriteKey = "EnemyDragon",
+                    animationSpeedMultiplier = 0.45f,
+                    hpMultiplier = 240f,
+                    damageMultiplier = 48f,
+                    speedMultiplier = 0.56f,
+                    cellSize = 4f,
+                    xpValue = 250,
+                    tokenValue = 10,
                     boss = true,
                     outlineColor = new Color(1f, 0.08f, 0.04f, 1f),
                     outlineThickness = 0.075f

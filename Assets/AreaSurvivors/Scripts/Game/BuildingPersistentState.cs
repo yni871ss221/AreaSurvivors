@@ -48,6 +48,13 @@ namespace AreaSurvivors
 
         void ApplyDestroyedVisual(bool destroyed)
         {
+            bool hasDestroyedVisual = false;
+            if (destroyed)
+            {
+                var visualSet = GetComponent<BuildingPrefabVisualSet>();
+                hasDestroyedVisual = visualSet != null && visualSet.ApplyDestroyedVisual(data != null && data.upgraded);
+            }
+
             foreach (var behaviour in GetComponents<MonoBehaviour>())
             {
                 if (behaviour == null || behaviour == this) continue;
@@ -67,12 +74,12 @@ namespace AreaSurvivors
 
             foreach (var renderer in GetComponentsInChildren<SpriteRenderer>(true))
             {
-                renderer.color = destroyed ? new Color(0.38f, 0.38f, 0.38f, 0.46f) : Color.white;
+                renderer.color = destroyed && !hasDestroyedVisual ? new Color(0.38f, 0.38f, 0.38f, 0.46f) : Color.white;
             }
 
             foreach (var visual in GetComponentsInChildren<PaperMeshVisual>(true))
             {
-                visual.color = destroyed ? new Color(0.38f, 0.38f, 0.38f, 0.46f) : Color.white;
+                visual.color = destroyed && !hasDestroyedVisual ? new Color(0.38f, 0.38f, 0.38f, 0.46f) : Color.white;
             }
         }
     }

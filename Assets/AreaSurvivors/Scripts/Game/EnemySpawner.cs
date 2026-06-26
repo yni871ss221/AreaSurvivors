@@ -187,7 +187,10 @@ namespace AreaSurvivors
             int count = Mathf.Max(1, timed != null ? timed.count : 1);
             if (!IsEliteTimedSpawn(timed)) return count;
 
-            int skillLevel = ProgressionStore.GetLevel(UpgradeType.EliteSpawnCount);
+            int skillLevel = Mathf.Clamp(
+                ProgressionStore.GetLevel(UpgradeType.EliteSpawnCount),
+                0,
+                ProgressionStore.GetMaxLevel(UpgradeType.EliteSpawnCount));
             int countPerLevel = config != null ? Mathf.Max(0, config.eliteTimedSpawnCountPerUpgradeLevel) : 1;
             return count + skillLevel * countPerLevel;
         }
@@ -198,7 +201,11 @@ namespace AreaSurvivors
             return timed.enemyKind == EnemyKind.EliteBoar ||
                 timed.enemyKind == EnemyKind.EliteOrc ||
                 timed.enemyKind == EnemyKind.EliteGoblin ||
-                timed.enemyKind == EnemyKind.EliteOgre;
+                timed.enemyKind == EnemyKind.EliteOgre ||
+                timed.enemyKind == EnemyKind.EliteSkeleton ||
+                timed.enemyKind == EnemyKind.EliteSkeletonKnight ||
+                timed.enemyKind == EnemyKind.EliteLizard ||
+                timed.enemyKind == EnemyKind.EliteLizardman;
         }
 
         Vector3 ClampSpawnInsideGrid(Vector3 candidate, float enemyCellSize)
@@ -295,6 +302,24 @@ namespace AreaSurvivors
 
         SpawnPhase[] SpawnPhasesForCurrentStage()
         {
+            if (currentStage == 4)
+            {
+                return new[]
+                {
+                    new SpawnPhase { startSeconds = 0f, enemyKind = EnemyKind.Lizard, spawnInterval = config.spawnInterval, baseBatchCount = 1, batchIncreasePerDirectionChange = 1, maxBatchCount = 10 },
+                    new SpawnPhase { startSeconds = 60f, enemyKind = EnemyKind.Lizardman, spawnInterval = Mathf.Max(0.5f, config.spawnInterval * 1.05f), baseBatchCount = 1, batchIncreasePerDirectionChange = 1, maxBatchCount = 14 }
+                };
+            }
+
+            if (currentStage == 3)
+            {
+                return new[]
+                {
+                    new SpawnPhase { startSeconds = 0f, enemyKind = EnemyKind.Skeleton, spawnInterval = config.spawnInterval, baseBatchCount = 1, batchIncreasePerDirectionChange = 1, maxBatchCount = 10 },
+                    new SpawnPhase { startSeconds = 60f, enemyKind = EnemyKind.SkeletonKnight, spawnInterval = Mathf.Max(0.5f, config.spawnInterval * 1.05f), baseBatchCount = 1, batchIncreasePerDirectionChange = 1, maxBatchCount = 14 }
+                };
+            }
+
             if (currentStage == 2)
             {
                 return new[]
@@ -313,6 +338,26 @@ namespace AreaSurvivors
 
         TimedEnemySpawn[] TimedSpawnsForCurrentStage()
         {
+            if (currentStage == 4)
+            {
+                return new[]
+                {
+                    new TimedEnemySpawn { timeSeconds = 30f, enemyKind = EnemyKind.EliteLizard, count = 1, announce = true, announcement = "エリートリザード出現！" },
+                    new TimedEnemySpawn { timeSeconds = 90f, enemyKind = EnemyKind.EliteLizardman, count = 1, announce = true, announcement = "エリートリザードマン出現！" },
+                    new TimedEnemySpawn { timeSeconds = 120f, enemyKind = EnemyKind.Dragon, count = 1, announce = true, announcement = "ドラゴン出現！" }
+                };
+            }
+
+            if (currentStage == 3)
+            {
+                return new[]
+                {
+                    new TimedEnemySpawn { timeSeconds = 30f, enemyKind = EnemyKind.EliteSkeleton, count = 1, announce = true, announcement = "エリートスケルトン出現！" },
+                    new TimedEnemySpawn { timeSeconds = 90f, enemyKind = EnemyKind.EliteSkeletonKnight, count = 1, announce = true, announcement = "エリートスケルトンナイト出現！" },
+                    new TimedEnemySpawn { timeSeconds = 120f, enemyKind = EnemyKind.Lich, count = 1, announce = true, announcement = "リッチ出現！" }
+                };
+            }
+
             if (currentStage == 2)
             {
                 return new[]
@@ -333,6 +378,8 @@ namespace AreaSurvivors
 
         static string BossAnnouncementForStage(int stage)
         {
+            if (stage == 4) return "ドラゴン出現！";
+            if (stage == 3) return "リッチ出現！";
             return stage == 2 ? "ゴブリンロード出現！" : "オークキング出現！";
         }
     }

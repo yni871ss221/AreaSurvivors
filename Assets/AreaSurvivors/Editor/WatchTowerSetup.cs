@@ -170,13 +170,13 @@ namespace AreaSurvivors.Editor
                 if (text != null) text.fontSize = 13;
             }
 
-            var existing = menu.Find("Build Slot 4");
+            var existing = menu.Find("Build Slot 3");
             if (existing == null)
             {
-                var source = menu.Find("Build Slot 3");
+                var source = menu.Find("Build Slot 2");
                 if (source == null) return;
                 existing = Object.Instantiate(source.gameObject, menu).transform;
-                existing.name = "Build Slot 4";
+                existing.name = "Build Slot 3";
             }
 
             var slotRect = existing.GetComponent<RectTransform>();
@@ -185,9 +185,9 @@ namespace AreaSurvivors.Editor
                 slotRect.anchorMin = Vector2.zero;
                 slotRect.anchorMax = Vector2.zero;
                 slotRect.pivot = Vector2.zero;
-                slotRect.anchoredPosition = slotPositions[3];
+                slotRect.anchoredPosition = slotPositions[2];
             }
-            SetText(existing, "Key", "4");
+            SetText(existing, "Key", "3");
             SetText(existing, "Stock", "ロック");
 
             var icon = existing.Find("Icon");

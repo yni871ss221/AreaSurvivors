@@ -28,7 +28,6 @@
 - `Assets/AreaSurvivors/Editor/BuildingPrefabLayoutBuilder.cs`
 - `Assets/AreaSurvivors/Prefabs/BallistaTower.prefab`
 - `Assets/AreaSurvivors/Prefabs/WatchTower.prefab`
-- `Assets/AreaSurvivors/Prefabs/WoodenGate.prefab`
 - `Assets/AreaSurvivors/Prefabs/WoodenWall.prefab`
 - `Assets/AreaSurvivors/Scripts/Game/BallistaTower.cs`
 - `Assets/AreaSurvivors/Scripts/Game/WatchTower.cs`
@@ -360,12 +359,11 @@ Docs/RebuildPlan.md を読んで、まず Phase 0 の棚卸しから進めてく
 - Prefab / Scene の一括再生成はまだ行わない。
 - `BuildingPrefabVisualReporter` に子Transformの localScale / localRotation 警告を追加し、Scale `1` / Rotation `0` へ寄せる対象を低出力レポートで確認できるようにした。
 - 最新レポート: `TokenReports/UnityReports/building-prefab-visuals-20260623-174912.md`
-- 2026-06-23: `WoodenWall` / `WoodenGate` / `BallistaTower` / `WatchTower` は最新レポートで `transformWarnings: 0` を確認済み。許可済み例外は各 Prefab の `Completion Sparkle` Scale のみ。
+- 2026-06-23: `WoodenWall` / `BallistaTower` / `WatchTower` は最新レポートで `transformWarnings: 0` を確認済み。許可済み例外は各 Prefab の `Completion Sparkle` Scale のみ。
 - `Completion Sparkle` の Scale `(0.70, 0.70, 0.70)` は演出サイズ調整として例外許可し、建造物本体 / アップグレード本体の Scale 正規化警告から除外する。
 - `BuildingPrefabVisualReporter` は `Completion Sparkle` を `allowedScaleExceptions` として集計し、`transformWarnings` は本体 / アップグレード本体の Rotation / Scale 異常確認に使う。
 - 正規化方針: 建造物本体 / アップグレード本体の PNG は占有セル幅 `セル数 * 64px` を維持し、Sprite PPU を `64 / GridObjectVisual.CellWidth(0.7) = 91.42857` に寄せる。Prefab child Transform Scale は `1,1,1` を正とする。
 - `WoodenWall` は通常 / アップグレード画像の PPU を `91.42857` に変更し、`Complete Image` / `Upgraded Building Image` の Scale を `1,1,1` 化済み。
-- `WoodenGate` は通常閉 / 通常開 / アップグレード閉 / アップグレード開画像の PPU を `91.42857` に変更し、`Complete Image` / `Upgraded Building Image` の Scale を `1,1,1` 化済み。
 - `BallistaTower` / `WatchTower` は通常 / アップグレード画像の PPU を `91.42857` に変更し、`Complete Image` / `Upgraded Building Image` の Scale を `1,1,1` 化済み。
 - `CarpenterHut` / `WorkerHut` は 2026-06-23 の優先度D対応で機能 / Prefab / Sprite を削除済み。
 - `WoodenBarrier` の Prefab レイアウト時Y倍率補正は停止済み。通常 / アップグレード画像の高さ差は PNG のアスペクト比を正とし、Y Scale では補正しない。

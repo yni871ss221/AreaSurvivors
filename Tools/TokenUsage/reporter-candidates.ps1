@@ -19,6 +19,7 @@ $candidates = @(
 $runCommands = @(
     [pscustomobject]@{ Report = "hud-layout"; Command = "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/run-unity-report.ps1 -Report hud-layout" },
     [pscustomobject]@{ Report = "construction-menu-layout"; Command = "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/run-unity-report.ps1 -Report construction-menu-layout" },
+    [pscustomobject]@{ Report = "skill-tree-layout"; Command = "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/run-unity-report.ps1 -Report skill-tree-layout" },
     [pscustomobject]@{ Report = "building-prefab-visuals"; Command = "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/run-unity-report.ps1 -Report building-prefab-visuals" },
     [pscustomobject]@{ Report = "asset-references"; Command = "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/run-unity-report.ps1 -Report asset-references" }
 )

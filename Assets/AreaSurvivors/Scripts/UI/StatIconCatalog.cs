@@ -5,6 +5,7 @@ namespace AreaSurvivors
     public static class StatIconCatalog
     {
         const string Prefix = "StatIcons/";
+        const string SkillPrefix = "SkillIcons/";
 
         public const string WeaponLevel = Prefix + "StatWeaponLevel";
         public const string Attack = Prefix + "StatAttack";
@@ -21,6 +22,25 @@ namespace AreaSurvivors
         public const string Regen = Prefix + "StatRegen";
         public const string Work = Prefix + "StatWork";
         public const string Resource = Prefix + "StatResource";
+        public const string SkillPlayerFireball = SkillPrefix + "SkillPlayerFireball";
+        public const string SkillWoodenWall = SkillPrefix + "SkillWoodenWall";
+        public const string SkillWoodenWallHp = SkillPrefix + "SkillWoodenWallHp";
+        public const string SkillWoodenWallRegen = SkillPrefix + "SkillWoodenWallRegen";
+        public const string SkillWoodenWallUpgrade = SkillPrefix + "SkillWoodenWallUpgrade";
+        public const string SkillBallista = SkillPrefix + "SkillBallista";
+        public const string SkillBallistaRange = SkillPrefix + "SkillBallistaRange";
+        public const string SkillBallistaDamage = SkillPrefix + "SkillBallistaDamage";
+        public const string SkillBallistaUpgrade = SkillPrefix + "SkillBallistaUpgrade";
+        public const string SkillWatchTower = SkillPrefix + "SkillWatchTower";
+        public const string SkillWatchTowerPaint = SkillPrefix + "SkillWatchTowerPaint";
+        public const string SkillWatchTowerShield = SkillPrefix + "SkillWatchTowerShield";
+        public const string SkillWatchTowerUpgrade = SkillPrefix + "SkillWatchTowerUpgrade";
+        public const string SkillTowerHp = SkillPrefix + "SkillTowerHp";
+        public const string SkillTowerRegen = SkillPrefix + "SkillTowerRegen";
+        public const string SkillCannonball = SkillPrefix + "SkillCannonball";
+        public const string SkillToken = SkillPrefix + "SkillToken";
+        public const string SkillEliteBoar = SkillPrefix + "SkillEliteBoar";
+        public const string SkillTowerUpgrade = SkillPrefix + "SkillTowerUpgrade";
 
         public static Sprite Load(string resource)
         {
@@ -54,47 +74,60 @@ namespace AreaSurvivors
             switch (type)
             {
                 case UpgradeType.StartingWeaponLevel: return WeaponLevel;
-                case UpgradeType.StartingArrow:
-                case UpgradeType.StartingFireball:
-                    return Projectile;
+                case UpgradeType.StartingArrow: return Projectile;
+                case UpgradeType.StartingFireball: return SkillPlayerFireball;
                 case UpgradeType.MoveSpeed: return MoveSpeed;
                 case UpgradeType.MovePenaltyReduction: return MoveSpeed;
                 case UpgradeType.PaintRadius: return Paint;
                 case UpgradeType.MaxHp:
                     return MaxHp;
                 case UpgradeType.TowerMaxHp:
+                    return SkillTowerHp;
                 case UpgradeType.WallMaxHp1:
                 case UpgradeType.WallMaxHp2:
                 case UpgradeType.WallMaxHp3:
+                    return SkillWoodenWallHp;
                 case UpgradeType.WatchTowerMaxHp:
-                    return fallback ?? MaxHp;
+                    return SkillWatchTowerShield;
                 case UpgradeType.ReviveSpeed: return Revive;
                 case UpgradeType.Defense: return Defense;
                 case UpgradeType.XpGain: return Xp;
-                case UpgradeType.AutoRegen:
-                case UpgradeType.TowerAutoRegen:
-                    return Regen;
+                case UpgradeType.AutoRegen: return Regen;
+                case UpgradeType.TowerAutoRegen: return SkillTowerRegen;
                 case UpgradeType.WorkSpeed:
                     return Work;
                 case UpgradeType.ResourceGain:
                 case UpgradeType.StartingWood:
                 case UpgradeType.StartingStone:
-                case UpgradeType.UnlockWall:
-                case UpgradeType.UnlockBallista:
-                case UpgradeType.UnlockWatchTower:
                     return Resource;
+                case UpgradeType.UnlockWall:
+                    return SkillWoodenWall;
+                case UpgradeType.UnlockBallista:
+                    return SkillBallista;
+                case UpgradeType.UnlockWatchTower:
+                    return SkillWatchTower;
                 case UpgradeType.BallistaRange:
+                    return SkillBallistaRange;
                 case UpgradeType.WatchTowerRange:
-                    return Range;
+                    return SkillWatchTowerPaint;
                 case UpgradeType.BallistaDamage:
+                    return SkillBallistaDamage;
                 case UpgradeType.UnlockTowerCannon:
-                    return Attack;
+                    return SkillCannonball;
                 case UpgradeType.BuildingAutoRegen:
+                    return SkillWoodenWallRegen;
                 case UpgradeType.WallUpgrade:
+                    return SkillWoodenWallUpgrade;
                 case UpgradeType.BallistaUpgrade:
+                    return SkillBallistaUpgrade;
                 case UpgradeType.WatchTowerUpgrade:
+                    return SkillWatchTowerUpgrade;
                 case UpgradeType.UnlockTowerUpgrade:
-                    return Regen;
+                    return SkillTowerUpgrade;
+                case UpgradeType.EndTokenGain:
+                    return SkillToken;
+                case UpgradeType.EliteSpawnCount:
+                    return SkillEliteBoar;
                 default:
                     return fallback;
             }

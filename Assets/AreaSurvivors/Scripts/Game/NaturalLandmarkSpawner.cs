@@ -549,6 +549,7 @@ namespace AreaSurvivors
             var ySort = root.AddComponent<YSort>();
             ySort.baseOrder = 1000;
             ySort.renderers = new[] { visual.Renderer };
+            gridVisual.ApplyFootprintYSortPivot();
 
             var collider = root.AddComponent<BoxCollider2D>();
             gridVisual.ConfigureFootprintBox(collider, false);

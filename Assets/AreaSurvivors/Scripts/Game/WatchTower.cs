@@ -197,7 +197,7 @@ namespace AreaSurvivors
         {
             var target = GetComponent<BuildingUpgradeTarget>();
             if (target == null) target = gameObject.AddComponent<BuildingUpgradeTarget>();
-            target.Configure(BuildingUpgradeKind.WatchTower, 20, 50, "WatchTowerUpgrade", null, 100, 0, 5);
+            target.Configure(BuildingUpgradeKind.WatchTower, 20, 50, "WatchTowerUpgrade", 100, 0, 5);
         }
 
         PaperMeshVisual CreateSpriteVisual(string objectName, Color color, int sortingOrder)

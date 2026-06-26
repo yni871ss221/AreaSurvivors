@@ -38,6 +38,7 @@ namespace AreaSurvivors
         {
             kind = GridObjectVisualKind.FootprintObject;
             footprint = NormalizeFootprint(objectFootprint);
+            ApplyFootprintYSortPivot();
         }
 
         public void AlignRootToFootprint(TileGrid grid, Vector3Int originCell)
@@ -57,6 +58,17 @@ namespace AreaSurvivors
         {
             kind = GridObjectVisualKind.Character;
             footprint = new Vector2Int(Mathf.Max(1, Mathf.CeilToInt(cellWidthLimit)), 1);
+            var ySort = GetComponent<YSort>();
+            if (ySort != null) ySort.sortPivotOffsetY = 0f;
+        }
+
+        public void ApplyFootprintYSortPivot()
+        {
+            var ySort = GetComponent<YSort>();
+            if (ySort == null) return;
+            var normalized = NormalizeFootprint(footprint);
+            ySort.sortPivotOffsetY = Mathf.Max(0, normalized.y - 1) * CellHeight * 0.5f;
+            ySort.Apply();
         }
 
         public void ApplyToVisual(PaperMeshVisual visual, Sprite sprite, Vector2 fallbackSize)

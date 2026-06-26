@@ -9,6 +9,8 @@ AreaSurvivors リポジトリ全体に適用する低トークン運用の入口
 - 手作業のコード編集は `apply_patch` を使う。破壊的なGit操作や削除は、明示依頼または承認なしに行わない。
 - 通常作業開始時のObsidian外部記憶読み込みは行わない。履歴確認・記録・締め作業を明示された時だけ使う。
 - Scene/Prefabとゲーム処理を疎結合にし、Editor調整したいものはSceneまたはPrefabを正とする。Runtimeで既存の位置、サイズ、Sprite、Collider、Scale、Rotationを固定値へ戻さない。
+- ゲーム実行中にGameObject/UI/静的Visualを新規配置・生成・差し替えしない。静的オブジェクトはSceneへ直接配置し、動的オブジェクトはPrefab化してScene/Prefab参照から生成することを絶対ルールとする。
+- スキルツリー、HUD、建造メニューなどのアイコンや `Source Image` はScene/Prefab上の参照を正とし、RuntimeコードでSpriteを差し替えない。
 - HUD全体、Scene全体、Gameplay Test Scene全体を安易に再生成しない。必要な対象だけ変更する。
 
 ## Low Token First

@@ -10,7 +10,6 @@ namespace AreaSurvivors.Editor
         static readonly string[] PrefabPaths =
         {
             "Assets/AreaSurvivors/Prefabs/WoodenWall.prefab",
-            "Assets/AreaSurvivors/Prefabs/WoodenGate.prefab",
             "Assets/AreaSurvivors/Prefabs/BallistaTower.prefab",
             "Assets/AreaSurvivors/Prefabs/WatchTower.prefab"
         };
@@ -54,7 +53,7 @@ namespace AreaSurvivors.Editor
                 report.AppendLine($"- name: {root.name}");
                 report.AppendLine($"- marker: {Bool(marker != null)} footprint={Footprint(marker)}");
                 report.AppendLine($"- gridVisual: {Bool(gridVisual != null)} footprint={GridVisualFootprint(gridVisual)} fitWidth={Bool(gridVisual != null && gridVisual.fitVisualWidthToFootprint)} resetOffset={Bool(gridVisual != null && gridVisual.resetVisualOffset)}");
-                report.AppendLine($"- visualSet: {Bool(visualSet != null)} base={VisualName(visualSet != null ? visualSet.completeVisual : null)} upgrade={VisualName(visualSet != null ? visualSet.upgradedCompleteVisual : null)} sparkle={VisualName(visualSet != null ? visualSet.sparkleVisual : null)} upgradeOpenSprite={SpriteName(visualSet != null ? visualSet.upgradedOpenSprite : null)}");
+                report.AppendLine($"- visualSet: {Bool(visualSet != null)} base={VisualName(visualSet != null ? visualSet.completeVisual : null)} upgrade={VisualName(visualSet != null ? visualSet.upgradedCompleteVisual : null)} sparkle={VisualName(visualSet != null ? visualSet.sparkleVisual : null)}");
                 AppendTransformHealth(report, root);
                 report.AppendLine($"- colliders: {colliders.Length}");
                 foreach (var line in ColliderLines(colliders))
@@ -81,7 +80,7 @@ namespace AreaSurvivors.Editor
             var barrier = root.GetComponent<WoodenBarrier>();
             if (barrier != null)
             {
-                lines.Add($"- woodenBarrier barrierSprite={SpriteName(barrier.barrierSprite)} openSprite={SpriteName(barrier.openGateSprite)} gate={Bool(barrier.gate)}");
+                lines.Add($"- woodenBarrier barrierSprite={SpriteName(barrier.barrierSprite)}");
             }
 
             if (root.GetComponent<BallistaTower>() != null) lines.Add("- component BallistaTower=yes");

@@ -15,18 +15,14 @@ namespace AreaSurvivors
         public GameObject ballistaPrefab;
         [FormerlySerializedAs("woodenWallPrefab")]
         public GameObject woodenWallPrefab;
-        public GameObject woodenGatePrefab;
         public GameObject watchTowerPrefab;
         public Sprite ballistaPreviewSprite;
         [FormerlySerializedAs("woodenWallPreviewSprite")]
         public Sprite woodenWallPreviewSprite;
-        public Sprite woodenGatePreviewSprite;
-        public Sprite woodenGateOpenSprite;
         public Sprite watchTowerPreviewSprite;
         public TileBase ballistaTile;
         [FormerlySerializedAs("woodenWallTile")]
         public TileBase woodenWallTile;
-        public TileBase woodenGateTile;
         public TileBase watchTowerTile;
         public Tilemap buildPreviewTilemap;
         public TileBase buildPreviewTile;
@@ -57,7 +53,6 @@ namespace AreaSurvivors
         {
             Ballista,
             WoodenWall,
-            WoodenGate,
             WatchTower
         }
 
@@ -90,12 +85,6 @@ namespace AreaSurvivors
             if (woodenWallPreviewSprite == null)
             {
                 woodenWallPreviewSprite = GetPrefabBaseSprite(woodenWallPrefab);
-            }
-            if (woodenGatePreviewSprite == null) woodenGatePreviewSprite = GetPrefabBaseSprite(woodenGatePrefab);
-            if (woodenGateOpenSprite == null)
-            {
-                var gate = woodenGatePrefab != null ? woodenGatePrefab.GetComponent<WoodenBarrier>() : null;
-                woodenGateOpenSprite = gate != null ? gate.openGateSprite : null;
             }
         }
 
@@ -169,7 +158,7 @@ namespace AreaSurvivors
 
         public void SelectBallista()
         {
-            if (!IsSlotUnlocked(2))
+            if (!IsSlotUnlocked(1))
             {
                 buildSelectionActive = false;
                 SelectedHudSlot = -1;
@@ -178,7 +167,7 @@ namespace AreaSurvivors
             }
             buildMode = BuildMode.Ballista;
             buildSelectionActive = true;
-            SelectedHudSlot = 2;
+            SelectedHudSlot = 1;
             UpdateBuildStatus();
         }
 
@@ -191,18 +180,9 @@ namespace AreaSurvivors
             UpdateBuildStatus();
         }
 
-        public void SelectWoodenGate()
-        {
-            buildMode = BuildMode.WoodenGate;
-            buildSelectionActive = true;
-            SelectedHudSlot = 1;
-            HideBuildPreview();
-            UpdateBuildStatus();
-        }
-
         public void SelectWatchTower()
         {
-            if (!IsSlotUnlocked(3))
+            if (!IsSlotUnlocked(2))
             {
                 buildSelectionActive = false;
                 SelectedHudSlot = -1;
@@ -212,7 +192,7 @@ namespace AreaSurvivors
 
             buildMode = BuildMode.WatchTower;
             buildSelectionActive = true;
-            SelectedHudSlot = 3;
+            SelectedHudSlot = 2;
             UpdateBuildStatus();
         }
 
@@ -281,6 +261,7 @@ namespace AreaSurvivors
         void RestoreSavedBuilding(SavedBuildingData saved)
         {
             if (saved == null) return;
+            if ((int)saved.kind == 1) return;
             var prefab = PrefabForSavedKind(saved.kind);
             if (prefab == null) return;
             var originCell = new Vector3Int(saved.x, saved.y, 0);
@@ -326,15 +307,11 @@ namespace AreaSurvivors
             }
             if (Input.GetKeyDown(KeyCode.Alpha2))
             {
-                SelectWoodenGate();
+                if (IsSlotUnlocked(1)) SelectBallista();
             }
             if (Input.GetKeyDown(KeyCode.Alpha3))
             {
-                if (IsSlotUnlocked(2)) SelectBallista();
-            }
-            if (Input.GetKeyDown(KeyCode.Alpha4))
-            {
-                if (IsSlotUnlocked(3)) SelectWatchTower();
+                if (IsSlotUnlocked(2)) SelectWatchTower();
             }
         }
 
@@ -540,18 +517,11 @@ namespace AreaSurvivors
             var barrier = instance.GetComponent<WoodenBarrier>();
             if (barrier != null)
             {
-                instance.name = kind == SavedBuildingKind.WoodenGate ? "WoodenGate" : "WoodenWall";
+                instance.name = "WoodenWall";
                 barrier.config = config;
-                barrier.gate = kind == SavedBuildingKind.WoodenGate;
-                if (barrier.gate)
-                {
-                    if (woodenGatePreviewSprite != null) barrier.barrierSprite = woodenGatePreviewSprite;
-                    if (woodenGateOpenSprite != null) barrier.openGateSprite = woodenGateOpenSprite;
-                }
-                else if (woodenWallPreviewSprite != null)
+                if (woodenWallPreviewSprite != null)
                 {
                     barrier.barrierSprite = woodenWallPreviewSprite;
-                    barrier.openGateSprite = null;
                 }
                 barrier.RefreshConfiguredSprites();
             }
@@ -594,7 +564,6 @@ namespace AreaSurvivors
             switch (buildMode)
             {
                 case BuildMode.WoodenWall: return SavedBuildingKind.WoodenWall;
-                case BuildMode.WoodenGate: return SavedBuildingKind.WoodenGate;
                 case BuildMode.WatchTower: return SavedBuildingKind.WatchTower;
                 default: return SavedBuildingKind.Ballista;
             }
@@ -605,7 +574,6 @@ namespace AreaSurvivors
             switch (kind)
             {
                 case SavedBuildingKind.WoodenWall: return woodenWallPrefab;
-                case SavedBuildingKind.WoodenGate: return woodenGatePrefab != null ? woodenGatePrefab : woodenWallPrefab;
                 case SavedBuildingKind.WatchTower: return watchTowerPrefab;
                 default: return ballistaPrefab;
             }
@@ -618,7 +586,6 @@ namespace AreaSurvivors
             if (marker != null) return marker.footprint;
             if (kind == SavedBuildingKind.WatchTower) return new Vector2Int(2, 2);
             if (kind == SavedBuildingKind.WoodenWall) return Vector2Int.one;
-            if (kind == SavedBuildingKind.WoodenGate) return new Vector2Int(3, 1);
             return Vector2Int.one;
         }
 
@@ -636,7 +603,7 @@ namespace AreaSurvivors
                 return;
             }
 
-            grid.objectTilemap.SetTile(cell, buildMode == BuildMode.WoodenGate ? (woodenGateTile != null ? woodenGateTile : woodenWallTile) : woodenWallTile);
+            grid.objectTilemap.SetTile(cell, woodenWallTile);
         }
 
         void SetBuildObjectTile(Vector3Int cell, SavedBuildingKind kind)
@@ -649,9 +616,6 @@ namespace AreaSurvivors
                     return;
                 case SavedBuildingKind.WatchTower:
                     grid.objectTilemap.SetTile(cell, watchTowerTile);
-                    return;
-                case SavedBuildingKind.WoodenGate:
-                    grid.objectTilemap.SetTile(cell, woodenGateTile != null ? woodenGateTile : woodenWallTile);
                     return;
                 default:
                     grid.objectTilemap.SetTile(cell, woodenWallTile);
@@ -689,7 +653,6 @@ namespace AreaSurvivors
         {
             if (buildMode == BuildMode.Ballista) return ballistaPrefab;
             if (buildMode == BuildMode.WatchTower) return watchTowerPrefab;
-            if (buildMode == BuildMode.WoodenGate) return woodenGatePrefab != null ? woodenGatePrefab : woodenWallPrefab;
             return woodenWallPrefab;
         }
 
@@ -697,8 +660,7 @@ namespace AreaSurvivors
         {
             if (buildMode == BuildMode.Ballista) return new Vector2Int(2, 2);
             if (buildMode == BuildMode.WatchTower) return new Vector2Int(2, 2);
-            if (buildMode == BuildMode.WoodenWall) return Vector2Int.one;
-            return new Vector2Int(3, 1);
+            return Vector2Int.one;
         }
 
         Vector2Int CurrentBuildCost()
@@ -707,7 +669,6 @@ namespace AreaSurvivors
             {
                 if (buildMode == BuildMode.Ballista) return new Vector2Int(50, 30);
                 if (buildMode == BuildMode.WatchTower) return new Vector2Int(50, 50);
-                if (buildMode == BuildMode.WoodenGate) return new Vector2Int(20, 0);
                 return new Vector2Int(10, 0);
             }
             if (buildMode == BuildMode.Ballista)
@@ -718,11 +679,6 @@ namespace AreaSurvivors
             {
                 return new Vector2Int(Mathf.Max(0, config.watchTowerWoodCost), Mathf.Max(0, config.watchTowerStoneCost));
             }
-            if (buildMode == BuildMode.WoodenGate)
-            {
-                return new Vector2Int(Mathf.Max(0, config.woodenGateWoodCost), Mathf.Max(0, config.woodenGateStoneCost));
-            }
-
             return new Vector2Int(Mathf.Max(0, config.woodenWallWoodCost), Mathf.Max(0, config.woodenWallStoneCost));
         }
 
@@ -740,15 +696,10 @@ namespace AreaSurvivors
                 }
                 else if (slot == 1)
                 {
-                    wood = config.woodenGateWoodCost;
-                    stone = config.woodenGateStoneCost;
-                }
-                else if (slot == 2)
-                {
                     wood = config.ballistaWoodCost;
                     stone = config.ballistaStoneCost;
                 }
-                else if (slot == 3)
+                else if (slot == 2)
                 {
                     wood = config.watchTowerWoodCost;
                     stone = config.watchTowerStoneCost;
@@ -763,15 +714,10 @@ namespace AreaSurvivors
                 }
                 else if (slot == 1)
                 {
-                    wood = 20;
-                    stone = 0;
-                }
-                else if (slot == 2)
-                {
                     wood = 50;
                     stone = 30;
                 }
-                else if (slot == 3)
+                else if (slot == 2)
                 {
                     wood = 50;
                     stone = 50;
@@ -783,11 +729,10 @@ namespace AreaSurvivors
 
         public bool IsSlotUnlocked(int slot)
         {
-            if (slot == 4 || slot == 5) return false;
-            if (slot == 0 || slot == 1) return ProgressionStore.IsUnlocked(UpgradeType.UnlockWall);
-            if (slot == 2) return ProgressionStore.IsUnlocked(UpgradeType.UnlockBallista);
-            if (slot == 3) return ProgressionStore.IsUnlocked(UpgradeType.UnlockWatchTower);
-            return true;
+            if (slot == 0) return ProgressionStore.IsUnlocked(UpgradeType.UnlockWall);
+            if (slot == 1) return ProgressionStore.IsUnlocked(UpgradeType.UnlockBallista);
+            if (slot == 2) return ProgressionStore.IsUnlocked(UpgradeType.UnlockWatchTower);
+            return false;
         }
 
         static string BuildCostLabel(int wood, int stone)
@@ -956,9 +901,8 @@ namespace AreaSurvivors
         void UpdateBuildStatus()
         {
             if (buildText == null) return;
-            var label = buildMode == BuildMode.Ballista ? "3 \u30d0\u30ea\u30b9\u30bf" :
-                buildMode == BuildMode.WatchTower ? "4 \u76e3\u8996\u5854" :
-                buildMode == BuildMode.WoodenGate ? "2 \u6728\u306e\u57ce\u9580" : "1 \u6728\u306e\u57ce\u58c1";
+            var label = buildMode == BuildMode.Ballista ? "2 \u30d0\u30ea\u30b9\u30bf" :
+                buildMode == BuildMode.WatchTower ? "3 \u76e3\u8996\u5854" : "1 \u6728\u306e\u57ce\u58c1";
             var cost = CurrentBuildCost();
             var status = !buildSelectionActive ? "選択待ち" : hasBuildCell || buildBlockReason != BuildBlockReason.NoCell ? BuildStatusLabel(buildBlockReason) : "E/Click";
             buildText.text = $"{label}\n{BuildCostLabel(cost.x, cost.y)}\n{status}";

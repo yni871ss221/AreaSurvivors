@@ -57,6 +57,9 @@ namespace AreaSurvivors
         void BindStaticActions()
         {
             BindButton("Start Game Button", StartSelectedStage);
+            BindButton("Start Stage 2 Test Button", StartStage2ForTesting);
+            BindButton("Start Stage 3 Test Button", StartStage3ForTesting);
+            BindButton("Start Stage 4 Test Button", StartStage4ForTesting);
             BindButton("Upgrade Button", navigator.LoadUpgrades);
             BindButton("Title Button", navigator.LoadTitle);
         }
@@ -136,9 +139,30 @@ namespace AreaSurvivors
             StartGameFromStage(ProgressionStore.SelectedStage);
         }
 
+        void StartStage2ForTesting()
+        {
+            StartGameFromStageForTesting(2);
+        }
+
+        void StartStage3ForTesting()
+        {
+            StartGameFromStageForTesting(3);
+        }
+
+        void StartStage4ForTesting()
+        {
+            StartGameFromStageForTesting(4);
+        }
+
         void StartGameFromStage(int stage)
         {
             if (!ProgressionStore.IsStageUnlocked(stage)) return;
+            RunState.SetNextStartStage(stage);
+            navigator.LoadGame();
+        }
+
+        void StartGameFromStageForTesting(int stage)
+        {
             RunState.SetNextStartStage(stage);
             navigator.LoadGame();
         }
@@ -210,6 +234,8 @@ namespace AreaSurvivors
         {
             if (stage == 1) return GeneratedSpriteLoader.Load("Walk/EnemyOrcKing/Down_1");
             if (stage == 2) return GeneratedSpriteLoader.Load("Walk/EnemyGoblinLord/Down_1");
+            if (stage == 3) return GeneratedSpriteLoader.Load("Walk/EnemyLich/Down_1");
+            if (stage == 4) return GeneratedSpriteLoader.Load("Walk/EnemyDragon/Down_1");
             return null;
         }
 
@@ -217,6 +243,8 @@ namespace AreaSurvivors
         {
             if (stage == 1) return "\u30aa\u30fc\u30af\u30ad\u30f3\u30b0";
             if (stage == 2) return "\u30b4\u30d6\u30ea\u30f3\u30ed\u30fc\u30c9";
+            if (stage == 3) return "\u30ea\u30c3\u30c1";
+            if (stage == 4) return "\u30c9\u30e9\u30b4\u30f3";
             return "\u672a\u78ba\u8a8d";
         }
     }

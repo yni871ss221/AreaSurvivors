@@ -1,0 +1,8 @@
+KnightSpineBody.png
+size: 384,384
+format: RGBA8888
+filter: Nearest,Nearest
+repeat: none
+pma: false
+body
+  bounds: 0,0,384,384
