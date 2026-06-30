@@ -71,6 +71,9 @@ namespace AreaSurvivors.Editor
             marker.footprint = new Vector2Int(2, 2);
             var gridVisual = go.AddComponent<GridObjectVisual>();
             gridVisual.ConfigureFootprint(marker.footprint);
+            gridVisual.blockingColliderBottomInset = 0.1f;
+            gridVisual.blockingColliderEdgeRadius = 0.04f;
+            gridVisual.blockingColliderMaterial = AssetDatabase.LoadAssetAtPath<PhysicsMaterial2D>("Assets/AreaSurvivors/Physics/CharacterSlide.physicsMaterial2D");
 
             var rb = go.AddComponent<Rigidbody2D>();
             rb.bodyType = RigidbodyType2D.Static;

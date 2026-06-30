@@ -10,6 +10,7 @@ namespace AreaSurvivors
         public int tokensEarned;
         public int woodEarned;
         public int stoneEarned;
+        public int reachedStage;
         public float survivedSeconds;
         public bool gameClear;
         public int clearedStage;

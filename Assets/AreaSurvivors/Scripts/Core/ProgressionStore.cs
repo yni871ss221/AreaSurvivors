@@ -71,10 +71,21 @@ namespace AreaSurvivors
                 case UpgradeType.WallMaxHp2:
                 case UpgradeType.WallMaxHp3:
                 case UpgradeType.WallUpgrade:
+                case UpgradeType.UnlockWall2:
+                case UpgradeType.Wall2Upgrade:
                 case UpgradeType.BallistaUpgrade:
                 case UpgradeType.WatchTowerUpgrade:
-                case UpgradeType.StartingArrow:
-                case UpgradeType.StartingFireball:
+                case UpgradeType.UnlockArrow:
+                case UpgradeType.UnlockFireball:
+                case UpgradeType.UnlockShield:
+                case UpgradeType.UnlockArrowRain:
+                case UpgradeType.UnlockGun:
+                case UpgradeType.UnlockFrost:
+                case UpgradeType.UnlockThunderBall:
+                case UpgradeType.UnlockFlag:
+                case UpgradeType.UnlockBoomerangSword:
+                case UpgradeType.UnlockAuraSword:
+                case UpgradeType.RemoveStartingSlash:
                     return 1;
                 case UpgradeType.StartingWeaponLevel:
                 case UpgradeType.EliteSpawnCount:
@@ -119,6 +130,8 @@ namespace AreaSurvivors
                 case UpgradeType.UnlockTowerCannon:
                 case UpgradeType.UnlockTowerUpgrade:
                 case UpgradeType.WallUpgrade:
+                case UpgradeType.UnlockWall2:
+                case UpgradeType.Wall2Upgrade:
                 case UpgradeType.BallistaUpgrade:
                 case UpgradeType.WatchTowerUpgrade:
                     return 8;
@@ -132,8 +145,17 @@ namespace AreaSurvivors
                 case UpgradeType.EndTokenGain:
                 case UpgradeType.EliteSpawnCount:
                 case UpgradeType.StartingWeaponLevel:
-                case UpgradeType.StartingArrow:
-                case UpgradeType.StartingFireball:
+                case UpgradeType.UnlockArrow:
+                case UpgradeType.UnlockFireball:
+                case UpgradeType.UnlockShield:
+                case UpgradeType.UnlockArrowRain:
+                case UpgradeType.UnlockGun:
+                case UpgradeType.UnlockFrost:
+                case UpgradeType.UnlockThunderBall:
+                case UpgradeType.UnlockFlag:
+                case UpgradeType.UnlockBoomerangSword:
+                case UpgradeType.UnlockAuraSword:
+                case UpgradeType.RemoveStartingSlash:
                     return 6;
                 default:
                     return 4;

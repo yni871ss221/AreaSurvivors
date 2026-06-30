@@ -16,6 +16,9 @@ namespace AreaSurvivors
         public bool resetVisualOffset = true;
         public Vector3 visualOffset = Vector3.zero;
         public float characterFootRadiusScale = 0.42f;
+        [Min(0f)] public float blockingColliderBottomInset;
+        [Min(0f)] public float blockingColliderEdgeRadius;
+        public PhysicsMaterial2D blockingColliderMaterial;
         [SerializeField] bool hasGridOrigin;
         [SerializeField] Vector3Int gridOriginCell;
 
@@ -58,8 +61,32 @@ namespace AreaSurvivors
         {
             kind = GridObjectVisualKind.Character;
             footprint = new Vector2Int(Mathf.Max(1, Mathf.CeilToInt(cellWidthLimit)), 1);
+            ApplyCharacterYSortPivot();
+        }
+
+        public void ApplyCharacterYSortPivot()
+        {
             var ySort = GetComponent<YSort>();
-            if (ySort != null) ySort.sortPivotOffsetY = 0f;
+            if (ySort == null) return;
+
+            var footprint = GetComponent<CharacterFootprint>();
+            if (footprint != null && footprint.FootCollider != null)
+            {
+                ySort.sortPivotOffsetY = footprint.BottomCenter.y - transform.position.y;
+                ySort.Apply();
+                return;
+            }
+
+            var footCollider = GetComponent<BoxCollider2D>();
+            if (footCollider == null)
+            {
+                ySort.sortPivotOffsetY = 0f;
+                return;
+            }
+
+            float scaleY = Mathf.Max(0.001f, Mathf.Abs(transform.lossyScale.y));
+            ySort.sortPivotOffsetY = (footCollider.offset.y - footCollider.size.y * 0.5f) * scaleY;
+            ySort.Apply();
         }
 
         public void ApplyFootprintYSortPivot()
@@ -112,9 +139,16 @@ namespace AreaSurvivors
         {
             if (collider == null) collider = gameObject.AddComponent<BoxCollider2D>();
             var size = FootprintWorldSize;
+            float bottomInset = isTrigger ? 0f : Mathf.Clamp(blockingColliderBottomInset, 0f, Mathf.Max(0f, size.y - 0.01f));
+            var colliderSize = new Vector2(size.x, size.y - bottomInset);
             collider.isTrigger = isTrigger;
-            collider.size = size;
-            collider.offset = new Vector2(0f, size.y * 0.5f);
+            collider.size = colliderSize;
+            collider.offset = new Vector2(0f, bottomInset + colliderSize.y * 0.5f);
+            if (!isTrigger)
+            {
+                collider.edgeRadius = blockingColliderEdgeRadius;
+                if (blockingColliderMaterial != null) collider.sharedMaterial = blockingColliderMaterial;
+            }
             return collider;
         }
 

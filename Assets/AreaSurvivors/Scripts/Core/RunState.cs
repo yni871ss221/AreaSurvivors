@@ -10,6 +10,8 @@ namespace AreaSurvivors
     {
         public static CharacterType SelectedCharacter = CharacterType.Knight;
         static int nextStartStage = 1;
+        static bool hasNextTestStartingWeapon;
+        static WeaponType nextTestStartingWeapon;
 
         public static void SetNextStartStage(int stage)
         {
@@ -23,5 +25,20 @@ namespace AreaSurvivors
             return stage;
         }
 
+        public static void SetNextWeaponTest(WeaponType weaponType)
+        {
+            hasNextTestStartingWeapon = true;
+            nextTestStartingWeapon = weaponType;
+            SetNextStartStage(1);
+        }
+
+        public static bool TryConsumeNextTestStartingWeapon(out WeaponType weaponType)
+        {
+            weaponType = nextTestStartingWeapon;
+            if (!hasNextTestStartingWeapon) return false;
+            hasNextTestStartingWeapon = false;
+            nextTestStartingWeapon = default;
+            return true;
+        }
     }
 }

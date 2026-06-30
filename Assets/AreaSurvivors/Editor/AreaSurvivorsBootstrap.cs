@@ -21,6 +21,8 @@ namespace AreaSurvivors.Editor
         const string TilePalette = Root + "/TilePalette";
         const float TileCellWidth = 0.7f;
         const float TileCellHeight = 0.5f;
+        const float BuildingHealthBarWidth = 0.7f;
+        const float BuildingHealthBarPitch = -35f;
 
         [MenuItem("Area Survivors/Build Initial Project")]
         public static void BuildAll()
@@ -332,7 +334,7 @@ namespace AreaSurvivors.Editor
             var knightSprite = LoadCharacterSprite("Knight");
             var archerSprite = LoadCharacterSprite("Archer");
             var mageSprite = LoadCharacterSprite("Mage");
-            var go = Actor("Player", knightSprite, Color.white, 0.32f);
+            var go = Actor("Player", knightSprite, Color.white, new Vector2(0.34f, 0.18f), new Vector2(0f, -0.27f), 0.035f);
             var health = go.AddComponent<Health>();
             health.maxHp = 40;
             var animator = go.AddComponent<DirectionalSpriteAnimator>();
@@ -369,6 +371,7 @@ namespace AreaSurvivors.Editor
             ConfigureGridMarker(go, GridObjectType.Ballista, GridCellFlags.BlocksBuilding | GridCellFlags.Defensive, new Vector2Int(2, 2));
             var gridVisual = go.AddComponent<GridObjectVisual>();
             gridVisual.ConfigureFootprint(new Vector2Int(2, 2));
+            ConfigureBuildingCollision(gridVisual);
             var rb = go.AddComponent<Rigidbody2D>();
             rb.bodyType = RigidbodyType2D.Static;
             var trigger = go.AddComponent<BoxCollider2D>();
@@ -399,6 +402,7 @@ namespace AreaSurvivors.Editor
             SetVector2(ballista, "spriteVisualSize", new Vector2(1.34f, 1.65f));
             SetObjectReference(ballista, "completeObject", complete.gameObject);
             SetObjectReference(ballista, "sparkleRenderer", sparkle);
+            AttachBuildingHealthBar(go, new Vector3(0f, 1.02f, 0f));
             return go;
         }
 
@@ -409,6 +413,7 @@ namespace AreaSurvivors.Editor
             ConfigureGridMarker(go, GridObjectType.WoodenWall, GridCellFlags.BlocksMovement | GridCellFlags.BlocksBuilding | GridCellFlags.Defensive, footprint);
             var gridVisual = go.AddComponent<GridObjectVisual>();
             gridVisual.ConfigureFootprint(footprint);
+            ConfigureBuildingCollision(gridVisual);
             var rb = go.AddComponent<Rigidbody2D>();
             rb.bodyType = RigidbodyType2D.Static;
             go.AddComponent<Health>();
@@ -438,6 +443,7 @@ namespace AreaSurvivors.Editor
             SetObjectReference(barrier, "sparkleRenderer", sparkle);
             SetObjectReference(barrier, "barrierSprite", barrierSprite);
             SetVector2(barrier, "spriteVisualSize", new Vector2(1.34f, 0.58f));
+            AttachBuildingHealthBar(go, new Vector3(0f, 0.72f, 0f));
             return go;
         }
 
@@ -470,7 +476,7 @@ namespace AreaSurvivors.Editor
         static GameObject CreateEnemy()
         {
             var enemySprite = LoadCharacterSprite("EnemyBoar");
-            var go = Actor("Enemy", enemySprite, Color.white, 0.34f);
+            var go = Actor("Enemy", enemySprite, Color.white, new Vector2(0.46f, 0.22f), new Vector2(0f, -0.22f), 0.04f);
             var enemyVisual = go.GetComponentInChildren<PaperMeshVisual>();
             if (enemyVisual != null)
             {
@@ -498,6 +504,7 @@ namespace AreaSurvivors.Editor
             gridVisual.ConfigureFootprint(new Vector2Int(3, 3));
             gridVisual.fitVisualWidthToFootprint = false;
             gridVisual.resetVisualOffset = false;
+            ConfigureBuildingCollision(gridVisual);
             var towerSprite = LoadGeneratedSprite("Tower") ?? LoadSprite("Tower");
             var visual = MeshChild(go.transform, "Base Tower Image", towerSprite, Color.white, 1003);
             visual.useBottomCenterAnchor = true;
@@ -524,11 +531,11 @@ namespace AreaSurvivors.Editor
             gridVisual.ConfigureFootprintBox(col, false);
             go.AddComponent<Health>();
             var tower = go.AddComponent<TowerController>();
-            tower.hpBar = AddWorldHpBar(go.transform, new Vector3(0, -0.82f, 0), 0.9f);
+            tower.hpBar = AttachBuildingHealthBar(go, new Vector3(0f, 1.72f, 0f));
             return go;
         }
 
-        static GameObject Actor(string name, Sprite sprite, Color color, float colliderRadius)
+        static GameObject Actor(string name, Sprite sprite, Color color, Vector2 footColliderSize, Vector2 footColliderOffset, float footColliderEdgeRadius)
         {
             var go = new GameObject(name);
             var gridVisual = go.AddComponent<GridObjectVisual>();
@@ -541,20 +548,50 @@ namespace AreaSurvivors.Editor
             var rb = go.AddComponent<Rigidbody2D>();
             rb.gravityScale = 0f;
             rb.freezeRotation = true;
-            var col = go.AddComponent<CircleCollider2D>();
-            gridVisual.ConfigureCharacterCircle(col);
+            var col = go.AddComponent<BoxCollider2D>();
+            col.isTrigger = false;
+            col.size = footColliderSize;
+            col.offset = footColliderOffset;
+            col.edgeRadius = footColliderEdgeRadius;
+            col.sharedMaterial = AssetDatabase.LoadAssetAtPath<PhysicsMaterial2D>("Assets/AreaSurvivors/Physics/CharacterSlide.physicsMaterial2D");
+            var footprint = go.AddComponent<CharacterFootprint>();
+            footprint.SetFootCollider(col);
+            gridVisual.ApplyCharacterYSortPivot();
             return go;
         }
 
-        static Slider AddWorldHpBar(Transform parent, Vector3 localPos, float width = 0.55f)
+        static void ConfigureBuildingCollision(GridObjectVisual gridVisual)
         {
-            var canvas = new GameObject("HP Bar").AddComponent<Canvas>();
-            canvas.transform.SetParent(parent, false);
-            canvas.transform.localPosition = localPos;
+            if (gridVisual == null) return;
+            gridVisual.blockingColliderBottomInset = 0.1f;
+            gridVisual.blockingColliderEdgeRadius = 0.04f;
+            gridVisual.blockingColliderMaterial = AssetDatabase.LoadAssetAtPath<PhysicsMaterial2D>("Assets/AreaSurvivors/Physics/CharacterSlide.physicsMaterial2D");
+        }
+
+        static Slider AddWorldHpBar(Transform parent, Vector3 localPos, float width = 0.55f, bool faceCamera = true)
+        {
+            var anchor = new GameObject("HP Bar");
+            anchor.transform.SetParent(parent, false);
+            anchor.transform.localPosition = localPos;
+            anchor.transform.localRotation = Quaternion.identity;
+            anchor.transform.localScale = Vector3.one;
+
+            var canvas = new GameObject("World Canvas").AddComponent<Canvas>();
+            canvas.transform.SetParent(anchor.transform, false);
+            canvas.transform.localPosition = Vector3.zero;
+            canvas.transform.localRotation = faceCamera ? Quaternion.identity : Quaternion.Euler(BuildingHealthBarPitch, 0f, 0f);
+            canvas.transform.localScale = Vector3.one;
             canvas.renderMode = RenderMode.WorldSpace;
-            canvas.sortingOrder = 3000;
-            canvas.gameObject.AddComponent<PaperBillboard>();
-            canvas.GetComponent<RectTransform>().sizeDelta = new Vector2(width, 0.07f);
+            canvas.overrideSorting = true;
+            canvas.sortingOrder = 32000;
+            if (faceCamera) canvas.gameObject.AddComponent<PaperBillboard>();
+            var canvasRect = canvas.GetComponent<RectTransform>();
+            canvasRect.anchorMin = new Vector2(0.5f, 0.5f);
+            canvasRect.anchorMax = new Vector2(0.5f, 0.5f);
+            canvasRect.pivot = new Vector2(0.5f, 0.5f);
+            canvasRect.anchoredPosition = Vector2.zero;
+            canvasRect.localPosition = Vector3.zero;
+            canvasRect.sizeDelta = new Vector2(width, 0.07f);
             var slider = canvas.gameObject.AddComponent<Slider>();
             slider.transition = Selectable.Transition.None;
             slider.minValue = 0f;
@@ -574,6 +611,18 @@ namespace AreaSurvivors.Editor
             fill.rectTransform.pivot = new Vector2(0f, 0.5f);
             slider.targetGraphic = bg;
             slider.fillRect = fill.rectTransform;
+            return slider;
+        }
+
+        static Slider AttachBuildingHealthBar(GameObject root, Vector3 localPos)
+        {
+            var slider = AddWorldHpBar(root.transform, localPos, BuildingHealthBarWidth, false);
+            if (slider.transform.parent != null) slider.transform.parent.name = "Building HP Bar";
+            slider.gameObject.name = "World Canvas";
+            slider.gameObject.SetActive(false);
+            var healthBar = root.GetComponent<BuildingHealthBar>();
+            if (healthBar == null) healthBar = root.AddComponent<BuildingHealthBar>();
+            healthBar.hpBar = slider;
             return slider;
         }
 
@@ -925,7 +974,7 @@ namespace AreaSurvivors.Editor
         static void SetBuildScenes()
         {
             var entries = new List<EditorBuildSettingsScene>();
-            foreach (var sceneName in new[] { SceneNames.Title, SceneNames.Options, SceneNames.Lobby, SceneNames.Upgrades, SceneNames.Game, SceneNames.GameEnd })
+            foreach (var sceneName in new[] { SceneNames.Title, SceneNames.Options, SceneNames.Lobby, SceneNames.Upgrades, SceneNames.Game, SceneNames.GameEnd, SceneNames.WeaponBook, SceneNames.GameTestLauncher })
             {
                 entries.Add(new EditorBuildSettingsScene($"{Scenes}/{sceneName}.unity", true));
             }

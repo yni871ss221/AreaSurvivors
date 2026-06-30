@@ -10,6 +10,8 @@ namespace AreaSurvivors
         static readonly Color LockedColor = new Color(0f, 0f, 0f, 0.72f);
         static readonly Color UnlockedColor = Color.white;
 
+        public Button weaponBookButton;
+
         Canvas lobbyUi;
         SceneNavigator navigator;
 
@@ -32,6 +34,8 @@ namespace AreaSurvivors
 
         void Start()
         {
+            AudioManager.PlayBgm(BgmTrack.LobbyUpgrades);
+
             navigator = GetComponent<SceneNavigator>();
             if (navigator == null) navigator = gameObject.AddComponent<SceneNavigator>();
             NormalizeCharacterSelection();
@@ -57,10 +61,12 @@ namespace AreaSurvivors
         void BindStaticActions()
         {
             BindButton("Start Game Button", StartSelectedStage);
-            BindButton("Start Stage 2 Test Button", StartStage2ForTesting);
-            BindButton("Start Stage 3 Test Button", StartStage3ForTesting);
-            BindButton("Start Stage 4 Test Button", StartStage4ForTesting);
+            BindButton("Test Launch Button", navigator.LoadGameTestLauncher);
             BindButton("Upgrade Button", navigator.LoadUpgrades);
+            if (!BindButton(weaponBookButton, navigator.LoadWeaponBook))
+            {
+                BindButton("Weapon Book Button", navigator.LoadWeaponBook);
+            }
             BindButton("Title Button", navigator.LoadTitle);
         }
 
@@ -103,6 +109,7 @@ namespace AreaSurvivors
                     int selectedStage = stage;
                     button.onClick.AddListener(() =>
                     {
+                        AudioManager.PlayButtonConfirm();
                         ProgressionStore.SelectedStage = selectedStage;
                         RefreshStageCards();
                     });
@@ -139,21 +146,6 @@ namespace AreaSurvivors
             StartGameFromStage(ProgressionStore.SelectedStage);
         }
 
-        void StartStage2ForTesting()
-        {
-            StartGameFromStageForTesting(2);
-        }
-
-        void StartStage3ForTesting()
-        {
-            StartGameFromStageForTesting(3);
-        }
-
-        void StartStage4ForTesting()
-        {
-            StartGameFromStageForTesting(4);
-        }
-
         void StartGameFromStage(int stage)
         {
             if (!ProgressionStore.IsStageUnlocked(stage)) return;
@@ -161,18 +153,22 @@ namespace AreaSurvivors
             navigator.LoadGame();
         }
 
-        void StartGameFromStageForTesting(int stage)
-        {
-            RunState.SetNextStartStage(stage);
-            navigator.LoadGame();
-        }
-
         void BindButton(string name, UnityEngine.Events.UnityAction action)
         {
             var button = FindChild(name)?.GetComponent<Button>();
-            if (button == null) return;
+            BindButton(button, action);
+        }
+
+        bool BindButton(Button button, UnityEngine.Events.UnityAction action)
+        {
+            if (button == null) return false;
             button.onClick.RemoveAllListeners();
-            button.onClick.AddListener(action);
+            button.onClick.AddListener(() =>
+            {
+                AudioManager.PlayButtonConfirm();
+                action();
+            });
+            return true;
         }
 
         Canvas FindLobbyCanvas()

@@ -64,6 +64,8 @@ namespace AreaSurvivors
         void Start()
         {
             Time.timeScale = 1f;
+            AudioManager.PlayBgm(BgmTrack.GameNormal);
+
             sessionMode = MapSessionMode.Game;
             config = Instantiate(config);
             config.EnsureEnemySpawnDefaults();
@@ -107,7 +109,11 @@ namespace AreaSurvivors
             }
 
             if (sessionMode == MapSessionMode.Game) ProgressionStore.ReviveStageBuildings(stage);
-            if (buildPlacement != null) buildPlacement.Initialize(config, grid, sessionMode == MapSessionMode.Build ? null : Player);
+            if (buildPlacement != null)
+            {
+                if (spawner != null) buildPlacement.damagePopupPrefab = spawner.damagePopupPrefab;
+                buildPlacement.Initialize(config, grid, sessionMode == MapSessionMode.Build ? null : Player);
+            }
             if (buildPlacement != null) buildPlacement.RestoreStageBuildings(stage);
             PolishHud();
             ConfigureGameHud();
@@ -166,6 +172,7 @@ namespace AreaSurvivors
             public Vector2Int footprint;
             public Vector2Int desiredOffset;
             public bool requiresUnlock = true;
+            public bool requiresPlayerTerritory = true;
             public bool upgradesWithFixedSlotSkill;
         }
 
@@ -192,6 +199,20 @@ namespace AreaSurvivors
             AddBallista(slots, 7, 19);
             AddBallista(slots, 18, 19);
 
+            AddWatchTower(slots, 2, 3);
+            AddWatchTower(slots, 23, 3);
+            AddWatchTower(slots, 2, 24);
+            AddWatchTower(slots, 23, 24);
+
+            AddOuterWallLine(slots, 1, 1, 11, 1);
+            AddOuterWallLine(slots, 15, 1, 25, 1);
+            AddOuterWallLine(slots, 1, 2, 1, 11);
+            AddOuterWallLine(slots, 25, 2, 25, 11);
+            AddOuterWallLine(slots, 1, 15, 1, 24);
+            AddOuterWallLine(slots, 25, 15, 25, 24);
+            AddOuterWallLine(slots, 1, 25, 11, 25);
+            AddOuterWallLine(slots, 15, 25, 25, 25);
+
             return slots.ToArray();
         }
 
@@ -203,6 +224,17 @@ namespace AreaSurvivors
             for (int i = 0; i <= length; i++)
             {
                 slots.Add(CreateFixedWallSlot(startColumn + columnStep * i, startRow + rowStep * i));
+            }
+        }
+
+        static void AddOuterWallLine(List<FixedBuildingSlotDefinition> slots, int startColumn, int startRow, int endColumn, int endRow)
+        {
+            int columnStep = Math.Sign(endColumn - startColumn);
+            int rowStep = Math.Sign(endRow - startRow);
+            int length = Mathf.Max(Mathf.Abs(endColumn - startColumn), Mathf.Abs(endRow - startRow));
+            for (int i = 0; i <= length; i++)
+            {
+                slots.Add(CreateFixedOuterWallSlot(startColumn + columnStep * i, startRow + rowStep * i));
             }
         }
 
@@ -219,6 +251,20 @@ namespace AreaSurvivors
             });
         }
 
+        static void AddWatchTower(List<FixedBuildingSlotDefinition> slots, int leftColumn, int lowerRow)
+        {
+            slots.Add(new FixedBuildingSlotDefinition
+            {
+                kind = SavedBuildingKind.WatchTower,
+                unlockType = UpgradeType.UnlockWatchTower,
+                fixedSlotUpgradeType = UpgradeType.WatchTowerUpgrade,
+                footprint = new Vector2Int(2, 2),
+                desiredOffset = OffsetFromLayoutCell(leftColumn, lowerRow),
+                requiresPlayerTerritory = false,
+                upgradesWithFixedSlotSkill = true
+            });
+        }
+
         static FixedBuildingSlotDefinition CreateFixedWallSlot(int column, int row)
         {
             return new FixedBuildingSlotDefinition
@@ -228,6 +274,20 @@ namespace AreaSurvivors
                 fixedSlotUpgradeType = UpgradeType.WallUpgrade,
                 footprint = Vector2Int.one,
                 desiredOffset = OffsetFromLayoutCell(column, row),
+                upgradesWithFixedSlotSkill = true
+            };
+        }
+
+        static FixedBuildingSlotDefinition CreateFixedOuterWallSlot(int column, int row)
+        {
+            return new FixedBuildingSlotDefinition
+            {
+                kind = SavedBuildingKind.WoodenWall,
+                unlockType = UpgradeType.UnlockWall2,
+                fixedSlotUpgradeType = UpgradeType.Wall2Upgrade,
+                footprint = Vector2Int.one,
+                desiredOffset = OffsetFromLayoutCell(column, row),
+                requiresPlayerTerritory = false,
                 upgradesWithFixedSlotSkill = true
             };
         }
@@ -248,7 +308,7 @@ namespace AreaSurvivors
             {
                 var definition = FixedBuildingSlotDefinitions[i];
                 if (definition.requiresUnlock && !ProgressionStore.IsUnlocked(definition.unlockType)) continue;
-                if (!TryFindFixedSlotOrigin(towerOrigin, definition.footprint, definition.desiredOffset, out var originCell)) continue;
+                if (!TryFindFixedSlotOrigin(towerOrigin, definition.footprint, definition.desiredOffset, definition.requiresPlayerTerritory, out var originCell)) continue;
 
                 var saved = FindExistingFixedBuilding(existing, definition.kind, originCell);
                 if (saved == null) saved = new SavedBuildingData();
@@ -277,7 +337,7 @@ namespace AreaSurvivors
             return null;
         }
 
-        bool TryFindFixedSlotOrigin(Vector3Int towerOrigin, Vector2Int footprint, Vector2Int desiredOffset, out Vector3Int originCell)
+        bool TryFindFixedSlotOrigin(Vector3Int towerOrigin, Vector2Int footprint, Vector2Int desiredOffset, bool requiresPlayerTerritory, out Vector3Int originCell)
         {
             footprint = new Vector2Int(Mathf.Max(1, footprint.x), Mathf.Max(1, footprint.y));
             for (int radius = 0; radius <= 5; radius++)
@@ -287,7 +347,7 @@ namespace AreaSurvivors
                     originCell = towerOrigin + new Vector3Int(offset.x, offset.y, 0);
                     if (!grid.ContainsCell(originCell)) continue;
                     if (!grid.CanPlaceObject(originCell, footprint)) continue;
-                    if (!HasPlayerTerritory(originCell, footprint)) continue;
+                    if (requiresPlayerTerritory && !HasPlayerTerritory(originCell, footprint)) continue;
                     return true;
                 }
             }
@@ -408,6 +468,7 @@ namespace AreaSurvivors
 
         void ShowLevelUp()
         {
+            AudioManager.PlaySfx(SfxTrack.LevelUp);
             Time.timeScale = 0f;
             ShowLevelUpInputBlocker(true);
             levelUpPanel.SetActive(true);
@@ -419,8 +480,7 @@ namespace AreaSurvivors
                 EnsureSelectionHighlight(upgradeButtons[i]);
                 upgradeButtons[i].gameObject.SetActive(index < choices.Count);
                 if (index >= choices.Count) continue;
-                var label = ConfigureLevelUpButtonIcon(upgradeButtons[i], choices[index].iconResource);
-                if (label != null) label.text = choices[index].label;
+                ConfigureLevelUpButton(upgradeButtons[i], choices[index]);
                 upgradeButtons[i].onClick.RemoveAllListeners();
                 upgradeButtons[i].onClick.AddListener(() => ApplyRunUpgrade(choices[index]));
             }
@@ -454,23 +514,27 @@ namespace AreaSurvivors
             var weapon = Player != null ? Player.weapon : null;
             if (weapon != null)
             {
-                int unlockedWeaponCount = 1 + (weapon.ArrowUnlocked ? 1 : 0) + (weapon.FireballUnlocked ? 1 : 0);
-                if (unlockedWeaponCount < 3)
+                bool canAcquireNewWeapon = weapon.HasOpenWeaponSlot;
+                if (canAcquireNewWeapon)
                 {
-                    if (!weapon.ArrowUnlocked)
+                    foreach (var weaponType in WeaponCatalog.UnlockableWeapons)
                     {
-                        pool.Add(new RunUpgradeChoice("新武器: 弓を獲得", StatIconCatalog.Projectile, () => weapon.UnlockArrow()));
-                    }
-
-                    if (!weapon.FireballUnlocked)
-                    {
-                        pool.Add(new RunUpgradeChoice("新武器: 火の玉を獲得", StatIconCatalog.Projectile, () => weapon.UnlockFireball()));
+                        if (weapon.IsWeaponUnlocked(weaponType)) continue;
+                        if (!ProgressionStore.IsUnlocked(WeaponCatalog.UnlockUpgrade(weaponType))) continue;
+                        var capturedType = weaponType;
+                        pool.Add(RunUpgradeChoice.NewWeapon(capturedType, () => weapon.UnlockWeapon(capturedType)));
                     }
                 }
 
-                AddSlashUpgradeChoices(pool, weapon);
+                if (weapon.SlashUnlocked) AddSlashUpgradeChoices(pool, weapon);
                 if (weapon.ArrowUnlocked) AddArrowUpgradeChoices(pool, weapon);
                 if (weapon.FireballUnlocked) AddFireballUpgradeChoices(pool, weapon);
+                if (weapon.ShieldUnlocked) AddShieldUpgradeChoices(pool, weapon);
+                foreach (var weaponType in WeaponCatalog.UnlockableWeapons)
+                {
+                    if (!WeaponCatalog.IsAdvanced(weaponType) || !weapon.IsWeaponUnlocked(weaponType)) continue;
+                    AddAdvancedWeaponUpgradeChoices(pool, weapon, weaponType);
+                }
             }
 
             var result = new List<RunUpgradeChoice>();
@@ -489,19 +553,23 @@ namespace AreaSurvivors
             int attackBonus = Mathf.Max(1, config.runAttackPowerBonus);
             float cooldownMultiplier = Mathf.Clamp(config.runAttackCooldownMultiplier, 0.05f, 1f);
             pool.Add(new RunUpgradeChoice(
-                "スラッシュ 攻撃力 " + weapon.SlashAttackPower + ">" + (weapon.SlashAttackPower + attackBonus),
+                WeaponType.Slash,
+                "攻撃力 " + weapon.SlashAttackPower + ">" + (weapon.SlashAttackPower + attackBonus),
                 StatIconCatalog.Attack,
                 () => weapon.AddSlashAttack(attackBonus)));
             pool.Add(new RunUpgradeChoice(
-                "スラッシュ 攻撃間隔 " + Seconds(stats.cooldownSeconds) + ">" + Seconds(stats.cooldownSeconds * cooldownMultiplier),
+                WeaponType.Slash,
+                "攻撃間隔 " + Seconds(stats.cooldownSeconds) + ">" + Seconds(stats.cooldownSeconds * cooldownMultiplier),
                 StatIconCatalog.Cooldown,
                 () => weapon.MultiplySlashCooldown(cooldownMultiplier)));
             pool.Add(new RunUpgradeChoice(
-                "スラッシュ ノックバック " + Number(stats.knockback) + ">" + Number(stats.knockback + WeaponController.SlashKnockbackUpgradeAmount),
+                WeaponType.Slash,
+                "ノックバック " + Number(stats.knockback) + ">" + Number(stats.knockback + WeaponController.SlashKnockbackUpgradeAmount),
                 StatIconCatalog.Knockback,
                 () => weapon.AddSlashKnockback(WeaponController.SlashKnockbackUpgradeAmount)));
             pool.Add(new RunUpgradeChoice(
-                "スラッシュ 攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + WeaponController.SlashRangeUpgradeAmount),
+                WeaponType.Slash,
+                "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + WeaponController.SlashRangeUpgradeAmount),
                 StatIconCatalog.Range,
                 () => weapon.AddSlashRange(WeaponController.SlashRangeUpgradeAmount)));
         }
@@ -512,19 +580,23 @@ namespace AreaSurvivors
             int attackBonus = Mathf.Max(1, config.runAttackPowerBonus);
             float cooldownMultiplier = Mathf.Clamp(config.runAttackCooldownMultiplier, 0.05f, 1f);
             pool.Add(new RunUpgradeChoice(
-                "弓 攻撃力 " + stats.attackPower + ">" + (stats.attackPower + attackBonus),
+                WeaponType.Arrow,
+                "攻撃力 " + stats.attackPower + ">" + (stats.attackPower + attackBonus),
                 StatIconCatalog.Attack,
                 () => weapon.AddArrowAttack(attackBonus)));
             pool.Add(new RunUpgradeChoice(
-                "弓 攻撃間隔 " + Seconds(stats.cooldownSeconds) + ">" + Seconds(stats.cooldownSeconds * cooldownMultiplier),
+                WeaponType.Arrow,
+                "攻撃間隔 " + Seconds(stats.cooldownSeconds) + ">" + Seconds(stats.cooldownSeconds * cooldownMultiplier),
                 StatIconCatalog.Cooldown,
                 () => weapon.MultiplyArrowCooldown(cooldownMultiplier)));
             pool.Add(new RunUpgradeChoice(
-                "弓 矢の本数 " + stats.projectileCount + ">" + (stats.projectileCount + 1),
+                WeaponType.Arrow,
+                "矢の本数 " + stats.projectileCount + ">" + (stats.projectileCount + 1),
                 StatIconCatalog.Projectile,
                 () => weapon.AddArrowProjectileCount(1)));
             pool.Add(new RunUpgradeChoice(
-                "弓 射程 " + Number(stats.range) + ">" + Number(stats.range + WeaponController.ProjectileRangeUpgradeAmount),
+                WeaponType.Arrow,
+                "射程 " + Number(stats.range) + ">" + Number(stats.range + WeaponController.ProjectileRangeUpgradeAmount),
                 StatIconCatalog.Range,
                 () => weapon.AddArrowRange(WeaponController.ProjectileRangeUpgradeAmount)));
         }
@@ -535,21 +607,102 @@ namespace AreaSurvivors
             int attackBonus = Mathf.Max(1, config.runAttackPowerBonus);
             float cooldownMultiplier = Mathf.Clamp(config.runAttackCooldownMultiplier, 0.05f, 1f);
             pool.Add(new RunUpgradeChoice(
-                "火の玉 攻撃力 " + stats.attackPower + ">" + (stats.attackPower + attackBonus),
+                WeaponType.Fireball,
+                "攻撃力 " + stats.attackPower + ">" + (stats.attackPower + attackBonus),
                 StatIconCatalog.Attack,
                 () => weapon.AddFireballAttack(attackBonus)));
             pool.Add(new RunUpgradeChoice(
-                "火の玉 攻撃間隔 " + Seconds(stats.cooldownSeconds) + ">" + Seconds(stats.cooldownSeconds * cooldownMultiplier),
+                WeaponType.Fireball,
+                "攻撃間隔 " + Seconds(stats.cooldownSeconds) + ">" + Seconds(stats.cooldownSeconds * cooldownMultiplier),
                 StatIconCatalog.Cooldown,
                 () => weapon.MultiplyFireballCooldown(cooldownMultiplier)));
             pool.Add(new RunUpgradeChoice(
-                "火の玉 爆発範囲 " + Number(stats.explosionRadius) + ">" + Number(stats.explosionRadius + WeaponController.FireballExplosionUpgradeAmount),
+                WeaponType.Fireball,
+                "爆発範囲 " + Number(stats.explosionRadius) + ">" + Number(stats.explosionRadius + WeaponController.FireballExplosionUpgradeAmount),
                 StatIconCatalog.Range,
                 () => weapon.AddFireballExplosionRadius(WeaponController.FireballExplosionUpgradeAmount)));
             pool.Add(new RunUpgradeChoice(
-                "火の玉 射程 " + Number(weapon.FireballRange) + ">" + Number(weapon.FireballRange + WeaponController.ProjectileRangeUpgradeAmount),
+                WeaponType.Fireball,
+                "射程 " + Number(weapon.FireballRange) + ">" + Number(weapon.FireballRange + WeaponController.ProjectileRangeUpgradeAmount),
                 StatIconCatalog.Range,
                 () => weapon.AddFireballRange(WeaponController.ProjectileRangeUpgradeAmount)));
+        }
+
+        void AddShieldUpgradeChoices(List<RunUpgradeChoice> pool, WeaponController weapon)
+        {
+            var stats = weapon.ShieldStats;
+            int attackBonus = Mathf.Max(1, config.runAttackPowerBonus);
+            pool.Add(new RunUpgradeChoice(
+                WeaponType.Shield,
+                "攻撃力 " + stats.attackPower + ">" + (stats.attackPower + attackBonus),
+                StatIconCatalog.Attack,
+                () => weapon.AddShieldAttack(attackBonus)));
+            pool.Add(new RunUpgradeChoice(
+                WeaponType.Shield,
+                "シールド数 " + stats.projectileCount + ">" + (stats.projectileCount + 1),
+                StatIconCatalog.Defense,
+                () => weapon.AddShieldCount(1)));
+            pool.Add(new RunUpgradeChoice(
+                WeaponType.Shield,
+                "ノックバック " + Number(stats.knockback) + ">" + Number(stats.knockback + WeaponController.ShieldKnockbackUpgradeAmount),
+                StatIconCatalog.Knockback,
+                () => weapon.AddShieldKnockback(WeaponController.ShieldKnockbackUpgradeAmount)));
+            pool.Add(new RunUpgradeChoice(
+                WeaponType.Shield,
+                "回転速度 " + Number(stats.rotationSpeed) + ">" + Number(stats.rotationSpeed + WeaponController.ShieldRotationSpeedUpgradeAmount),
+                StatIconCatalog.MoveSpeed,
+                () => weapon.AddShieldRotationSpeed(WeaponController.ShieldRotationSpeedUpgradeAmount)));
+        }
+
+        void AddAdvancedWeaponUpgradeChoices(List<RunUpgradeChoice> pool, WeaponController weapon, WeaponType type)
+        {
+            var stats = weapon.GetWeaponStatsFor(type);
+            int attackBonus = Mathf.Max(1, config.runAttackPowerBonus);
+            float cooldownMultiplier = Mathf.Clamp(config.runAttackCooldownMultiplier, 0.05f, 1f);
+            pool.Add(new RunUpgradeChoice(
+                type,
+                "攻撃力 " + stats.attackPower + ">" + (stats.attackPower + attackBonus),
+                StatIconCatalog.Attack,
+                () => weapon.AddWeaponAttack(type, attackBonus)));
+
+            switch (type)
+            {
+                case WeaponType.Flag:
+                    pool.Add(new RunUpgradeChoice(type, "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + WeaponController.ProjectileRangeUpgradeAmount), StatIconCatalog.Range, () => weapon.AddWeaponRange(type, WeaponController.ProjectileRangeUpgradeAmount)));
+                    pool.Add(new RunUpgradeChoice(type, "速度低下 " + Percent(stats.slowAmount) + ">" + Percent(stats.slowAmount + 0.05f), StatIconCatalog.MoveSpeed, () => weapon.AddWeaponSlow(type, 0.05f)));
+                    pool.Add(new RunUpgradeChoice(type, "攻撃間隔 " + Seconds(stats.damageIntervalSeconds) + ">" + Seconds(stats.damageIntervalSeconds * cooldownMultiplier), StatIconCatalog.Cooldown, () => weapon.MultiplyWeaponDamageInterval(type, cooldownMultiplier)));
+                    break;
+                case WeaponType.BoomerangSword:
+                    pool.Add(new RunUpgradeChoice(type, "剣本数 " + stats.projectileCount + ">" + (stats.projectileCount + 1), StatIconCatalog.Projectile, () => weapon.AddWeaponCount(type, 1)));
+                    pool.Add(new RunUpgradeChoice(type, "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + WeaponController.SlashRangeUpgradeAmount), StatIconCatalog.Range, () => weapon.AddWeaponRange(type, WeaponController.SlashRangeUpgradeAmount)));
+                    pool.Add(new RunUpgradeChoice(type, "攻撃間隔 " + Seconds(stats.cooldownSeconds) + ">" + Seconds(stats.cooldownSeconds * cooldownMultiplier), StatIconCatalog.Cooldown, () => weapon.MultiplyWeaponCooldown(type, cooldownMultiplier)));
+                    break;
+                case WeaponType.AuraSword:
+                    pool.Add(new RunUpgradeChoice(type, "攻撃回数 " + stats.projectileCount + ">" + (stats.projectileCount + 1), StatIconCatalog.Projectile, () => weapon.AddWeaponCount(type, 1)));
+                    pool.Add(new RunUpgradeChoice(type, "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + WeaponController.ProjectileRangeUpgradeAmount), StatIconCatalog.Range, () => weapon.AddWeaponRange(type, WeaponController.ProjectileRangeUpgradeAmount)));
+                    pool.Add(new RunUpgradeChoice(type, "攻撃距離 " + Number(stats.distance) + ">" + Number(stats.distance + WeaponController.ProjectileRangeUpgradeAmount), StatIconCatalog.Range, () => weapon.AddWeaponDistance(type, WeaponController.ProjectileRangeUpgradeAmount)));
+                    break;
+                case WeaponType.ArrowRain:
+                    pool.Add(new RunUpgradeChoice(type, "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + WeaponController.ProjectileRangeUpgradeAmount), StatIconCatalog.Range, () => weapon.AddWeaponRange(type, WeaponController.ProjectileRangeUpgradeAmount)));
+                    pool.Add(new RunUpgradeChoice(type, "攻撃時間 " + Seconds(stats.durationSeconds) + ">" + Seconds(stats.durationSeconds + 0.4f), StatIconCatalog.Cooldown, () => weapon.AddWeaponDuration(type, 0.4f)));
+                    pool.Add(new RunUpgradeChoice(type, "攻撃間隔 " + Seconds(stats.cooldownSeconds) + ">" + Seconds(stats.cooldownSeconds * cooldownMultiplier), StatIconCatalog.Cooldown, () => weapon.MultiplyWeaponCooldown(type, cooldownMultiplier)));
+                    break;
+                case WeaponType.Gun:
+                    pool.Add(new RunUpgradeChoice(type, "攻撃間隔 " + Seconds(stats.cooldownSeconds) + ">" + Seconds(stats.cooldownSeconds * cooldownMultiplier), StatIconCatalog.Cooldown, () => weapon.MultiplyWeaponCooldown(type, cooldownMultiplier)));
+                    pool.Add(new RunUpgradeChoice(type, "攻撃距離 " + Number(stats.distance) + ">" + Number(stats.distance + WeaponController.ProjectileRangeUpgradeAmount), StatIconCatalog.Range, () => weapon.AddWeaponDistance(type, WeaponController.ProjectileRangeUpgradeAmount)));
+                    pool.Add(new RunUpgradeChoice(type, "攻撃回数 " + stats.projectileCount + ">" + (stats.projectileCount + 1), StatIconCatalog.Projectile, () => weapon.AddWeaponCount(type, 1)));
+                    break;
+                case WeaponType.Frost:
+                    pool.Add(new RunUpgradeChoice(type, "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + WeaponController.ProjectileRangeUpgradeAmount), StatIconCatalog.Range, () => weapon.AddWeaponRange(type, WeaponController.ProjectileRangeUpgradeAmount)));
+                    pool.Add(new RunUpgradeChoice(type, "速度低下 " + Percent(stats.slowAmount) + ">" + Percent(stats.slowAmount + 0.05f), StatIconCatalog.MoveSpeed, () => weapon.AddWeaponSlow(type, 0.05f)));
+                    pool.Add(new RunUpgradeChoice(type, "攻撃間隔 " + Seconds(stats.cooldownSeconds) + ">" + Seconds(stats.cooldownSeconds * cooldownMultiplier), StatIconCatalog.Cooldown, () => weapon.MultiplyWeaponCooldown(type, cooldownMultiplier)));
+                    break;
+                case WeaponType.ThunderBall:
+                    pool.Add(new RunUpgradeChoice(type, "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + WeaponController.ProjectileRangeUpgradeAmount), StatIconCatalog.Range, () => weapon.AddWeaponRange(type, WeaponController.ProjectileRangeUpgradeAmount)));
+                    pool.Add(new RunUpgradeChoice(type, "弾数 " + stats.projectileCount + ">" + (stats.projectileCount + 1), StatIconCatalog.Projectile, () => weapon.AddWeaponCount(type, 1)));
+                    pool.Add(new RunUpgradeChoice(type, "持続時間 " + Seconds(stats.durationSeconds) + ">" + Seconds(stats.durationSeconds + 0.5f), StatIconCatalog.Cooldown, () => weapon.AddWeaponDuration(type, 0.5f)));
+                    break;
+            }
         }
 
         static string Number(float value)
@@ -560,6 +713,11 @@ namespace AreaSurvivors
         static string Seconds(float value)
         {
             return value.ToString("0.##") + "s";
+        }
+
+        static string Percent(float value)
+        {
+            return Mathf.RoundToInt(Mathf.Clamp01(value) * 100f) + "%";
         }
 
         void ApplyRunUpgrade(RunUpgradeChoice choice)
@@ -586,43 +744,90 @@ namespace AreaSurvivors
             if (button.GetComponent<SelectOnPointerEnter>() == null) button.gameObject.AddComponent<SelectOnPointerEnter>();
         }
 
-        static Text ConfigureLevelUpButtonIcon(Button button, string iconResource)
+        static void ConfigureLevelUpButton(Button button, RunUpgradeChoice choice)
         {
-            if (button == null) return null;
+            if (button == null || choice == null) return;
+
+            var weaponIcon = FindImage(button.transform, "Weapon Icon");
+            var weaponName = FindText(button.transform, "Weapon Name Text");
+            var upgradeText = FindText(button.transform, "Upgrade Text");
+            var label = FindText(button.transform, "Label");
+            if (weaponIcon == null || weaponName == null || upgradeText == null)
+            {
+                ConfigureLegacyLevelUpButton(button, choice);
+                return;
+            }
+
+            if (label != null) label.gameObject.SetActive(false);
+            SetImage(weaponIcon, GeneratedSpriteLoader.Load(choice.weaponIconResource), true);
+            weaponName.text = choice.weaponName;
+            upgradeText.text = choice.upgradeText;
+            ConfigureLevelUpButtonTypeIcon(button, choice.hasAttributeType, choice.attributeType);
+
+            var upgradeIcon = FindImage(button.transform, "Upgrade Icon");
+            var newWeaponMark = FindText(button.transform, "New Weapon Mark");
+            if (choice.isNewWeapon)
+            {
+                if (upgradeIcon != null) upgradeIcon.gameObject.SetActive(false);
+                if (newWeaponMark != null)
+                {
+                    newWeaponMark.gameObject.SetActive(true);
+                    newWeaponMark.text = "★";
+                }
+                return;
+            }
+
+            SetImage(upgradeIcon, StatIconCatalog.Load(choice.iconResource), true);
+            if (newWeaponMark != null) newWeaponMark.gameObject.SetActive(false);
+        }
+
+        static void ConfigureLegacyLevelUpButton(Button button, RunUpgradeChoice choice)
+        {
             var label = GetLevelUpButtonLabel(button);
-            var sprite = StatIconCatalog.Load(iconResource);
-            var iconTransform = button.transform.Find("Upgrade Icon");
-            var icon = iconTransform != null ? iconTransform.GetComponent<Image>() : null;
+            var sprite = StatIconCatalog.Load(choice.iconResource);
+            var icon = FindImage(button.transform, "Upgrade Icon");
             if (sprite == null)
             {
                 if (icon != null) icon.gameObject.SetActive(false);
-                ConfigureLevelUpButtonLabel(label, false);
-                return label;
+                ConfigureLevelUpButtonTypeIcon(button, false, WeaponAttributeType.None);
+                ConfigureLevelUpButtonLabel(label, false, false);
+                if (label != null) label.text = choice.label;
+                return;
             }
 
             if (icon == null)
             {
-                icon = new GameObject("Upgrade Icon").AddComponent<Image>();
-                icon.transform.SetParent(button.transform, false);
-                icon.raycastTarget = false;
-                icon.preserveAspect = true;
-                icon.rectTransform.anchorMin = new Vector2(0f, 0.5f);
-                icon.rectTransform.anchorMax = new Vector2(0f, 0.5f);
-                icon.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-                icon.rectTransform.anchoredPosition = new Vector2(28f, 0f);
-                icon.rectTransform.sizeDelta = new Vector2(28f, 28f);
-                var outline = icon.gameObject.AddComponent<Outline>();
-                outline.effectColor = Color.black;
-                outline.effectDistance = new Vector2(2f, -2f);
-                outline.useGraphicAlpha = true;
+                ConfigureLevelUpButtonTypeIcon(button, choice.hasAttributeType, choice.attributeType);
+                ConfigureLevelUpButtonLabel(label, false, choice.hasAttributeType);
+                if (label != null) label.text = choice.label;
+                return;
             }
 
             icon.gameObject.SetActive(true);
             icon.sprite = sprite;
             icon.color = Color.white;
 
-            ConfigureLevelUpButtonLabel(label, true);
-            return label;
+            bool typeVisible = ConfigureLevelUpButtonTypeIcon(button, choice.hasAttributeType, choice.attributeType);
+            ConfigureLevelUpButtonLabel(label, true, typeVisible);
+            if (label != null) label.text = choice.label;
+        }
+
+        static bool ConfigureLevelUpButtonTypeIcon(Button button, bool hasAttributeType, WeaponAttributeType attributeType)
+        {
+            var iconSetTransform = button != null ? button.transform.Find("Weapon Type Icons") : null;
+            var iconSet = iconSetTransform != null ? iconSetTransform.GetComponent<WeaponAttributeIconSet>() : null;
+            if (iconSet == null) return false;
+
+            if (hasAttributeType && attributeType != WeaponAttributeType.None)
+            {
+                iconSet.gameObject.SetActive(true);
+                iconSet.Show(attributeType);
+                return true;
+            }
+
+            iconSet.Hide();
+            iconSet.gameObject.SetActive(false);
+            return false;
         }
 
         static Text GetLevelUpButtonLabel(Button button)
@@ -634,14 +839,34 @@ namespace AreaSurvivors
             return button.GetComponentInChildren<Text>();
         }
 
-        static void ConfigureLevelUpButtonLabel(Text label, bool hasIcon)
+        static Image FindImage(Transform parent, string name)
+        {
+            var child = parent != null ? parent.Find(name) : null;
+            return child != null ? child.GetComponent<Image>() : null;
+        }
+
+        static Text FindText(Transform parent, string name)
+        {
+            var child = parent != null ? parent.Find(name) : null;
+            return child != null ? child.GetComponent<Text>() : null;
+        }
+
+        static void SetImage(Image image, Sprite sprite, bool visible)
+        {
+            if (image == null) return;
+            image.gameObject.SetActive(visible && sprite != null);
+            image.sprite = sprite;
+            image.color = Color.white;
+        }
+
+        static void ConfigureLevelUpButtonLabel(Text label, bool hasIcon, bool hasTypeIcon)
         {
             if (label == null) return;
             label.alignment = TextAnchor.MiddleLeft;
             label.rectTransform.anchorMin = new Vector2(0f, 0f);
             label.rectTransform.anchorMax = new Vector2(1f, 1f);
             label.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            label.rectTransform.offsetMin = new Vector2(hasIcon ? 72f : 18f, 0f);
+            label.rectTransform.offsetMin = new Vector2(hasIcon ? (hasTypeIcon ? 92f : 72f) : 18f, 0f);
             label.rectTransform.offsetMax = new Vector2(-12f, 0f);
         }
 
@@ -735,6 +960,7 @@ namespace AreaSurvivors
         {
             if (boss == null) return;
             bossActive = true;
+            AudioManager.PlayBgm(BgmTrack.GameBoss);
             if (timerText != null) timerText.color = Color.red;
             gameHud?.ShowBoss(boss);
             ShowAnnouncement(spawner != null ? spawner.CurrentBossAnnouncement : config.bossAnnouncement);
@@ -809,6 +1035,7 @@ namespace AreaSurvivors
                 tokensEarned = EndTokenReward(),
                 woodEarned = woodEarned,
                 stoneEarned = stoneEarned,
+                reachedStage = currentStage,
                 survivedSeconds = elapsed,
                 gameClear = clear,
                 clearedStage = clearedStage,
@@ -857,6 +1084,7 @@ namespace AreaSurvivors
             currentStageSpeedMultiplier = ProgressionStore.IsFastStage(currentStage) ? 2f : 1f;
             hudElapsed = elapsed;
             bossActive = false;
+            AudioManager.PlayBgm(BgmTrack.GameNormal);
             if (timerText != null) timerText.color = Color.white;
             if (spawner != null)
             {
@@ -921,13 +1149,66 @@ namespace AreaSurvivors
         {
             public readonly string label;
             public readonly string iconResource;
+            public readonly string weaponName;
+            public readonly string weaponIconResource;
+            public readonly string upgradeText;
+            public readonly bool isNewWeapon;
+            public readonly bool hasAttributeType;
+            public readonly WeaponAttributeType attributeType;
             public readonly Action apply;
 
             public RunUpgradeChoice(string label, string iconResource, Action apply)
             {
                 this.label = label;
                 this.iconResource = iconResource;
+                weaponName = string.Empty;
+                weaponIconResource = null;
+                upgradeText = label;
+                isNewWeapon = false;
                 this.apply = apply;
+                hasAttributeType = false;
+                attributeType = WeaponAttributeType.None;
+            }
+
+            public RunUpgradeChoice(WeaponType weaponType, string upgradeText, string iconResource, Action apply)
+            {
+                weaponName = WeaponDisplayName(weaponType);
+                weaponIconResource = WeaponIconResource(weaponType);
+                this.upgradeText = upgradeText;
+                this.label = weaponName + " " + upgradeText;
+                this.iconResource = iconResource;
+                this.attributeType = WeaponAttributeCatalog.ForWeapon(weaponType);
+                this.apply = apply;
+                isNewWeapon = false;
+                hasAttributeType = this.attributeType != WeaponAttributeType.None;
+            }
+
+            RunUpgradeChoice(WeaponType weaponType, bool newWeapon, Action apply)
+            {
+                weaponName = WeaponDisplayName(weaponType);
+                weaponIconResource = WeaponIconResource(weaponType);
+                upgradeText = "新規武器：" + weaponName + "を獲得";
+                label = upgradeText;
+                iconResource = StatIconCatalog.WeaponLevel;
+                attributeType = WeaponAttributeCatalog.ForWeapon(weaponType);
+                this.apply = apply;
+                isNewWeapon = newWeapon;
+                hasAttributeType = attributeType != WeaponAttributeType.None;
+            }
+
+            public static RunUpgradeChoice NewWeapon(WeaponType weaponType, Action apply)
+            {
+                return new RunUpgradeChoice(weaponType, true, apply);
+            }
+
+            static string WeaponDisplayName(WeaponType weaponType)
+            {
+                return WeaponCatalog.DisplayName(weaponType);
+            }
+
+            static string WeaponIconResource(WeaponType weaponType)
+            {
+                return WeaponCatalog.IconResource(weaponType);
             }
         }
     }

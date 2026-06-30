@@ -59,6 +59,11 @@ namespace AreaSurvivors
         public float knockback = 1f;
         public int projectileCount = 1;
         public float explosionRadius;
+        public float rotationSpeed;
+        public float durationSeconds;
+        public float slowAmount;
+        public float damageIntervalSeconds;
+        public float distance;
     }
 
     [CreateAssetMenu(menuName = "Area Survivors/Game Config")]
@@ -167,10 +172,25 @@ namespace AreaSurvivors
         public float fireballExplosionRadius = 1.1f;
         public float fireballFlightCells = 10f;
         public float fireballFlightCellsPerLevel = 1f;
+        public float shieldOrbitRadiusCells = 2f;
+        public float shieldRotationSpeedDegrees = 90f;
+        public float shieldHitCooldownSeconds = 0.35f;
+        [Range(0f, 1f)]
+        public float weaponSpecialEffectControlThreshold = 0.5f;
+        [Min(1f)]
+        public float weaponSpecialEffectMultiplier = 2f;
         [Header("Weapon Levels")]
         public WeaponLevelDefinition[] slashWeaponLevels;
         public WeaponLevelDefinition[] arrowWeaponLevels;
         public WeaponLevelDefinition[] fireballWeaponLevels;
+        public WeaponLevelDefinition[] shieldWeaponLevels;
+        public WeaponLevelDefinition[] flagWeaponLevels;
+        public WeaponLevelDefinition[] boomerangSwordWeaponLevels;
+        public WeaponLevelDefinition[] auraSwordWeaponLevels;
+        public WeaponLevelDefinition[] arrowRainWeaponLevels;
+        public WeaponLevelDefinition[] gunWeaponLevels;
+        public WeaponLevelDefinition[] frostWeaponLevels;
+        public WeaponLevelDefinition[] thunderBallWeaponLevels;
         [Header("Player Advanced Stats")]
         public float baseKnockback = 1f;
         public float knockbackForceUnit = 2.2f;
@@ -256,16 +276,76 @@ namespace AreaSurvivors
                 FireballFlightRangeWorld(1, TileGrid.DefaultCellSize),
                 baseKnockback,
                 fireballExplosionRadius);
+            shieldWeaponLevels = EnsureWeaponLevels(
+                shieldWeaponLevels,
+                WeaponType.Shield,
+                1f,
+                0f,
+                ShieldOrbitRadiusWorld(TileGrid.DefaultCellSize),
+                baseKnockback,
+                0f);
+            flagWeaponLevels = EnsureWeaponLevels(
+                flagWeaponLevels,
+                WeaponType.Flag,
+                1f,
+                0f,
+                3f * TileGrid.DefaultCellSize,
+                0f,
+                0f);
+            boomerangSwordWeaponLevels = EnsureWeaponLevels(
+                boomerangSwordWeaponLevels,
+                WeaponType.BoomerangSword,
+                1.6f,
+                projectileSpeed,
+                1f * TileGrid.DefaultCellSize,
+                baseKnockback,
+                0f);
+            auraSwordWeaponLevels = EnsureWeaponLevels(
+                auraSwordWeaponLevels,
+                WeaponType.AuraSword,
+                1.35f,
+                projectileSpeed,
+                3f * TileGrid.DefaultCellSize,
+                baseKnockback,
+                0f);
+            arrowRainWeaponLevels = EnsureWeaponLevels(
+                arrowRainWeaponLevels,
+                WeaponType.ArrowRain,
+                4f,
+                0f,
+                3f * TileGrid.DefaultCellSize,
+                0f,
+                0f);
+            gunWeaponLevels = EnsureWeaponLevels(
+                gunWeaponLevels,
+                WeaponType.Gun,
+                3f,
+                projectileSpeed * 1.5f,
+                15f * TileGrid.DefaultCellSize,
+                0f,
+                0f);
+            frostWeaponLevels = EnsureWeaponLevels(
+                frostWeaponLevels,
+                WeaponType.Frost,
+                2f,
+                0f,
+                3f * TileGrid.DefaultCellSize,
+                0f,
+                0f);
+            thunderBallWeaponLevels = EnsureWeaponLevels(
+                thunderBallWeaponLevels,
+                WeaponType.ThunderBall,
+                3f,
+                projectileSpeed * 0.35f,
+                2f * TileGrid.DefaultCellSize,
+                0f,
+                0f);
         }
 
         public WeaponStatBlock GetWeaponStats(WeaponType type, int level)
         {
             EnsureWeaponLevelDefaults();
-            var source = type == WeaponType.Arrow
-                ? arrowWeaponLevels
-                : type == WeaponType.Fireball
-                    ? fireballWeaponLevels
-                    : slashWeaponLevels;
+            var source = WeaponLevelsFor(type);
             int index = Mathf.Clamp(level, 1, MaxWeaponLevel) - 1;
             var definition = source[index];
             return new WeaponStatBlock
@@ -277,8 +357,31 @@ namespace AreaSurvivors
                 range = Mathf.Max(0f, definition.range),
                 knockback = Mathf.Max(0f, definition.knockback),
                 projectileCount = Mathf.Max(1, definition.projectileCount),
-                explosionRadius = Mathf.Max(0f, definition.explosionRadius)
+                explosionRadius = Mathf.Max(0f, definition.explosionRadius),
+                rotationSpeed = Mathf.Max(0f, definition.rotationSpeed),
+                durationSeconds = Mathf.Max(0f, definition.durationSeconds),
+                slowAmount = Mathf.Clamp01(definition.slowAmount),
+                damageIntervalSeconds = Mathf.Max(0.05f, definition.damageIntervalSeconds),
+                distance = Mathf.Max(0f, definition.distance)
             };
+        }
+
+        WeaponLevelDefinition[] WeaponLevelsFor(WeaponType type)
+        {
+            switch (type)
+            {
+                case WeaponType.Arrow: return arrowWeaponLevels;
+                case WeaponType.Fireball: return fireballWeaponLevels;
+                case WeaponType.Shield: return shieldWeaponLevels;
+                case WeaponType.Flag: return flagWeaponLevels;
+                case WeaponType.BoomerangSword: return boomerangSwordWeaponLevels;
+                case WeaponType.AuraSword: return auraSwordWeaponLevels;
+                case WeaponType.ArrowRain: return arrowRainWeaponLevels;
+                case WeaponType.Gun: return gunWeaponLevels;
+                case WeaponType.Frost: return frostWeaponLevels;
+                case WeaponType.ThunderBall: return thunderBallWeaponLevels;
+                default: return slashWeaponLevels;
+            }
         }
 
         WeaponLevelDefinition[] EnsureWeaponLevels(
@@ -329,7 +432,12 @@ namespace AreaSurvivors
             float baseExplosionRadius)
         {
             int bonusLevel = Mathf.Max(0, level - 1);
-            bool usesProjectile = type != WeaponType.Slash;
+            if (IsAdvancedWeapon(type))
+            {
+                return CreateAdvancedWeaponLevel(level, type, baseCooldown, baseProjectileSpeed, baseRange, baseKnockbackValue);
+            }
+
+            bool usesProjectile = type == WeaponType.Arrow || type == WeaponType.Fireball;
             return new WeaponLevelDefinition
             {
                 level = level,
@@ -340,11 +448,104 @@ namespace AreaSurvivors
                     ? FireballFlightRangeWorld(level, TileGrid.DefaultCellSize)
                     : type == WeaponType.Arrow
                         ? ArrowRangeWorld(level, TileGrid.DefaultCellSize)
-                        : baseRange + bonusLevel * 0.08f,
-                knockback = type == WeaponType.Slash ? baseKnockbackValue + bonusLevel : 0f,
-                projectileCount = type == WeaponType.Arrow ? 1 + bonusLevel / 3 : 1,
-                explosionRadius = type == WeaponType.Fireball ? baseExplosionRadius + bonusLevel * 0.25f : 0f
+                        : type == WeaponType.Shield
+                            ? ShieldOrbitRadiusWorld(TileGrid.DefaultCellSize)
+                            : baseRange + bonusLevel * 0.08f,
+                knockback = type == WeaponType.Slash || type == WeaponType.Shield ? baseKnockbackValue + bonusLevel : 0f,
+                projectileCount = type == WeaponType.Arrow ? 1 + bonusLevel / 3 : type == WeaponType.Shield ? 3 : 1,
+                explosionRadius = type == WeaponType.Fireball ? baseExplosionRadius + bonusLevel * 0.25f : 0f,
+                rotationSpeed = type == WeaponType.Shield ? shieldRotationSpeedDegrees + bonusLevel * 10f : 0f
             };
+        }
+
+        WeaponLevelDefinition CreateAdvancedWeaponLevel(
+            int level,
+            WeaponType type,
+            float baseCooldown,
+            float baseProjectileSpeed,
+            float baseRange,
+            float baseKnockbackValue)
+        {
+            int bonusLevel = Mathf.Max(0, level - 1);
+            var definition = new WeaponLevelDefinition
+            {
+                level = level,
+                attackPower = baseAttackPower + bonusLevel,
+                cooldownSeconds = Mathf.Max(0.05f, baseCooldown * Mathf.Max(minAttackCooldownMultiplier, 1f - bonusLevel * 0.05f)),
+                projectileSpeed = baseProjectileSpeed,
+                range = Mathf.Max(0.05f, baseRange),
+                knockback = baseKnockbackValue,
+                projectileCount = 1,
+                durationSeconds = 0f,
+                slowAmount = 0f,
+                damageIntervalSeconds = 0.5f,
+                distance = 0f
+            };
+
+            switch (type)
+            {
+                case WeaponType.Flag:
+                    definition.attackPower = 4 + bonusLevel;
+                    definition.range = (3f + bonusLevel * 0.25f) * TileGrid.DefaultCellSize;
+                    definition.slowAmount = 0.3f;
+                    definition.damageIntervalSeconds = Mathf.Max(0.2f, 1f - bonusLevel * 0.04f);
+                    break;
+                case WeaponType.BoomerangSword:
+                    definition.attackPower = 7 + bonusLevel;
+                    definition.projectileCount = 1 + bonusLevel / 3;
+                    definition.range = (1f + bonusLevel * 0.08f) * TileGrid.DefaultCellSize;
+                    definition.distance = (8f + bonusLevel * 0.4f) * TileGrid.DefaultCellSize;
+                    definition.knockback = baseKnockback + bonusLevel * 0.35f;
+                    break;
+                case WeaponType.AuraSword:
+                    definition.attackPower = 6 + bonusLevel;
+                    definition.projectileCount = 1 + bonusLevel / 3;
+                    definition.range = (3f + bonusLevel * 0.2f) * TileGrid.DefaultCellSize;
+                    definition.distance = (10f + bonusLevel * 0.5f) * TileGrid.DefaultCellSize;
+                    definition.knockback = baseKnockback + bonusLevel * 0.25f;
+                    break;
+                case WeaponType.ArrowRain:
+                    definition.attackPower = 5 + bonusLevel;
+                    definition.range = (3f + bonusLevel * 0.2f) * TileGrid.DefaultCellSize;
+                    definition.distance = 10f * TileGrid.DefaultCellSize;
+                    definition.durationSeconds = 3f + bonusLevel * 0.12f;
+                    definition.damageIntervalSeconds = 0.35f;
+                    break;
+                case WeaponType.Gun:
+                    definition.attackPower = 20 + bonusLevel * 2;
+                    definition.projectileCount = 1 + bonusLevel / 4;
+                    definition.range = (15f + bonusLevel * 0.5f) * TileGrid.DefaultCellSize;
+                    definition.distance = definition.range;
+                    break;
+                case WeaponType.Frost:
+                    definition.attackPower = 5 + bonusLevel;
+                    definition.range = (3f + bonusLevel * 0.2f) * TileGrid.DefaultCellSize;
+                    definition.distance = 5f * TileGrid.DefaultCellSize;
+                    definition.durationSeconds = 2.4f + bonusLevel * 0.1f;
+                    definition.slowAmount = 0.3f;
+                    definition.damageIntervalSeconds = Mathf.Max(0.25f, baseCooldown * 0.5f);
+                    break;
+                case WeaponType.ThunderBall:
+                    definition.attackPower = 5 + bonusLevel;
+                    definition.projectileCount = 1 + bonusLevel / 3;
+                    definition.range = (2f + bonusLevel * 0.15f) * TileGrid.DefaultCellSize;
+                    definition.durationSeconds = 5f + bonusLevel * 0.2f;
+                    definition.damageIntervalSeconds = 0.45f;
+                    break;
+            }
+
+            return definition;
+        }
+
+        static bool IsAdvancedWeapon(WeaponType type)
+        {
+            return type == WeaponType.Flag ||
+                type == WeaponType.BoomerangSword ||
+                type == WeaponType.AuraSword ||
+                type == WeaponType.ArrowRain ||
+                type == WeaponType.Gun ||
+                type == WeaponType.Frost ||
+                type == WeaponType.ThunderBall;
         }
 
         void NormalizeWeaponLevel(WeaponLevelDefinition definition, WeaponType type, float baseProjectileSpeed, float baseExplosionRadius)
@@ -383,6 +584,28 @@ namespace AreaSurvivors
                 return;
             }
 
+            if (type == WeaponType.Shield)
+            {
+                definition.cooldownSeconds = 1f;
+                definition.projectileSpeed = 0f;
+                definition.range = ShieldOrbitRadiusWorld(TileGrid.DefaultCellSize);
+                if (definition.projectileCount <= 0) definition.projectileCount = 3;
+                if (definition.knockback <= 0f) definition.knockback = baseKnockback + bonusLevel;
+                definition.explosionRadius = 0f;
+                if (definition.rotationSpeed <= 0f) definition.rotationSpeed = shieldRotationSpeedDegrees + bonusLevel * 10f;
+                return;
+            }
+
+            if (IsAdvancedWeapon(type))
+            {
+                if (definition.range <= 0f) definition.range = TileGrid.DefaultCellSize;
+                if (definition.cooldownSeconds <= 0f) definition.cooldownSeconds = 1f;
+                if (definition.projectileCount <= 0) definition.projectileCount = 1;
+                if (definition.damageIntervalSeconds <= 0f) definition.damageIntervalSeconds = 0.5f;
+                definition.slowAmount = Mathf.Clamp01(definition.slowAmount);
+                return;
+            }
+
             definition.projectileCount = 1;
             definition.explosionRadius = 0f;
         }
@@ -399,6 +622,11 @@ namespace AreaSurvivors
             int bonusLevel = Mathf.Max(0, level - 1);
             float cells = arrowRangeCells + bonusLevel * Mathf.Max(0f, arrowRangeCellsPerLevel);
             return Mathf.Max(0.05f, cells * Mathf.Max(0.01f, cellSize));
+        }
+
+        public float ShieldOrbitRadiusWorld(float cellSize)
+        {
+            return Mathf.Max(0.05f, Mathf.Max(0f, shieldOrbitRadiusCells) * Mathf.Max(0.01f, cellSize));
         }
 
 #if UNITY_EDITOR

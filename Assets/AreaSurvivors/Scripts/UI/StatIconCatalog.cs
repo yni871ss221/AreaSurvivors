@@ -74,8 +74,17 @@ namespace AreaSurvivors
             switch (type)
             {
                 case UpgradeType.StartingWeaponLevel: return WeaponLevel;
-                case UpgradeType.StartingArrow: return Projectile;
-                case UpgradeType.StartingFireball: return SkillPlayerFireball;
+                case UpgradeType.UnlockArrow: return Projectile;
+                case UpgradeType.UnlockFireball: return SkillPlayerFireball;
+                case UpgradeType.UnlockShield: return "Shield";
+                case UpgradeType.UnlockArrowRain: return "ArrowRain";
+                case UpgradeType.UnlockGun: return "Gun";
+                case UpgradeType.UnlockFrost: return "Frost";
+                case UpgradeType.UnlockThunderBall: return "ThunderBall";
+                case UpgradeType.UnlockFlag: return "Flag";
+                case UpgradeType.UnlockBoomerangSword: return "BoomerangSword";
+                case UpgradeType.UnlockAuraSword: return "AuraSword";
+                case UpgradeType.RemoveStartingSlash: return "Slash_0";
                 case UpgradeType.MoveSpeed: return MoveSpeed;
                 case UpgradeType.MovePenaltyReduction: return MoveSpeed;
                 case UpgradeType.PaintRadius: return Paint;
@@ -116,7 +125,10 @@ namespace AreaSurvivors
                     return SkillCannonball;
                 case UpgradeType.BuildingAutoRegen:
                     return SkillWoodenWallRegen;
+                case UpgradeType.UnlockWall2:
+                    return SkillWoodenWall;
                 case UpgradeType.WallUpgrade:
+                case UpgradeType.Wall2Upgrade:
                     return SkillWoodenWallUpgrade;
                 case UpgradeType.BallistaUpgrade:
                     return SkillBallistaUpgrade;

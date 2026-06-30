@@ -2,6 +2,7 @@ namespace AreaSurvivors
 {
     public static class WeaponSortingOrders
     {
+        public const int AreaEffect = 900;
         public const int ProjectileTrail = 7150;
         public const int SlashBurst = 23080;
         public const int Slash = 23100;

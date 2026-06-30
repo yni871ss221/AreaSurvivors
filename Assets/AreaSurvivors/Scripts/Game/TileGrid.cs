@@ -641,17 +641,34 @@ namespace AreaSurvivors
             Paint(world, owner, radius, true);
         }
 
+        public void PaintEllipse(Vector3 world, TileOwner owner, int radiusX, int radiusY)
+        {
+            PaintEllipse(world, owner, radiusX, radiusY, false);
+        }
+
+        public void PaintEllipseImmediate(Vector3 world, TileOwner owner, int radiusX, int radiusY)
+        {
+            PaintEllipse(world, owner, radiusX, radiusY, true);
+        }
+
         void Paint(Vector3 world, TileOwner owner, int radius, bool immediate)
+        {
+            PaintEllipse(world, owner, radius, radius, immediate);
+        }
+
+        void PaintEllipse(Vector3 world, TileOwner owner, int radiusX, int radiusY, bool immediate)
         {
             int cx, cy;
             if (!TryWorldToGrid(world, out cx, out cy)) return;
+            radiusX = Mathf.Max(0, radiusX);
+            radiusY = Mathf.Max(0, radiusY);
             float target = ControlFromOwner(owner);
-            for (int y = cy - radius; y <= cy + radius; y++)
+            for (int y = cy - radiusY; y <= cy + radiusY; y++)
             {
-                for (int x = cx - radius; x <= cx + radius; x++)
+                for (int x = cx - radiusX; x <= cx + radiusX; x++)
                 {
                     if (x < 0 || y < 0 || x >= width || y >= height) continue;
-                    if ((x - cx) * (x - cx) + (y - cy) * (y - cy) > radius * radius) continue;
+                    if (!IsInsideEllipse(x - cx, y - cy, radiusX, radiusY)) continue;
                     targetControlValues[x, y] = target;
                     if (immediate)
                     {
@@ -665,6 +682,16 @@ namespace AreaSurvivors
                     }
                 }
             }
+        }
+
+        static bool IsInsideEllipse(int dx, int dy, int radiusX, int radiusY)
+        {
+            if (radiusX <= 0 && radiusY <= 0) return dx == 0 && dy == 0;
+            if (radiusX <= 0) return dx == 0 && Mathf.Abs(dy) <= radiusY;
+            if (radiusY <= 0) return dy == 0 && Mathf.Abs(dx) <= radiusX;
+            float normalizedX = dx / (float)radiusX;
+            float normalizedY = dy / (float)radiusY;
+            return normalizedX * normalizedX + normalizedY * normalizedY <= 1f;
         }
 
         void UpdatePaintTransitions()

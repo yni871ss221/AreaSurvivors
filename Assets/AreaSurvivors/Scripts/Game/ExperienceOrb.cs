@@ -22,6 +22,7 @@ namespace AreaSurvivors
         void OnTriggerEnter2D(Collider2D other)
         {
             if (other.GetComponent<PlayerController>() == null) return;
+            AudioManager.PlaySfx(SfxTrack.ExperiencePickup);
             GameManager.Instance?.AddExperience(value);
             Destroy(gameObject);
         }

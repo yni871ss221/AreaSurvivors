@@ -23,4 +23,10 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/AreaSurvivors/Scenes/06_GameEnd.unity
     guid: 86fef9145185cdd47b6cdfc356f8704c
+  - enabled: 1
+    path: Assets/AreaSurvivors/Scenes/07_WeaponBook.unity
+    guid: c760fca2813891b45a1bb15bb80bc0f0
+  - enabled: 1
+    path: Assets/AreaSurvivors/Scenes/08_GameTestLauncher.unity
+    guid: 82d2e58845225094394c97e17d15c1d5
   m_configObjects: {}

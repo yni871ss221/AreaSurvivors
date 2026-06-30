@@ -1,5 +1,6 @@
 using UnityEditor;
 using UnityEditor.SceneManagement;
+using AreaSurvivors.EditorTools;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -285,6 +286,8 @@ namespace AreaSurvivors.Editor
             AssetDatabase.Refresh();
             ImportGeneratedSprite("ArrowHudIcon");
             ImportGeneratedSprite("FireballHudIcon");
+            ImportGeneratedSprite("Shield");
+            WeaponAttributeIconSceneUtility.GenerateAndImportIcons();
             DestroyChild(parent, "Weapon Status");
             var playerStats = parent.Find("Player Status") as RectTransform;
             if (playerStats != null)
@@ -295,21 +298,21 @@ namespace AreaSurvivors.Editor
                 DestroyChild(playerStats, "Resource Text Box");
             }
 
-            EnsureWeaponPanel(parent, "Slash Weapon Status", "スラッシュ", "Slash_0", new Vector2(14f, -277f), new Vector2(16f, 16f), new Vector2(7f, -4f), new[]
+            EnsureWeaponPanel(parent, "Slash Weapon Status", "スラッシュ", "Slash_0", WeaponAttributeType.Melee, new Vector2(14f, -277f), new Vector2(16f, 16f), new Vector2(7f, -4f), new[]
             {
                 new WeaponRow("Attack Row", "攻撃力", "0", StatIconCatalog.Attack),
                 new WeaponRow("Cooldown Row", "攻撃間隔", "0.00s", StatIconCatalog.Cooldown),
                 new WeaponRow("Knockback Row", "ノックバック", "0", StatIconCatalog.Knockback),
                 new WeaponRow("Range Row", "攻撃範囲", "0", StatIconCatalog.Range)
             });
-            EnsureWeaponPanel(parent, "Arrow Weapon Status", "弓", "ArrowHudIcon", new Vector2(14f, -403f), new Vector2(18f, 18f), new Vector2(6f, -3f), new[]
+            EnsureWeaponPanel(parent, "Arrow Weapon Status", "弓", "ArrowHudIcon", WeaponAttributeType.Ranged, new Vector2(14f, -403f), new Vector2(18f, 18f), new Vector2(6f, -3f), new[]
             {
                 new WeaponRow("Attack Row", "攻撃力", "-", StatIconCatalog.Attack),
                 new WeaponRow("Cooldown Row", "攻撃間隔", "-", StatIconCatalog.Cooldown),
                 new WeaponRow("Projectile Count Row", "矢の本数", "-", StatIconCatalog.Projectile),
                 new WeaponRow("Range Row", "射程", "-", StatIconCatalog.Range)
             });
-            EnsureWeaponPanel(parent, "Fireball Weapon Status", "火の玉", "FireballHudIcon", new Vector2(14f, -529f), new Vector2(18f, 18f), new Vector2(6f, -3f), new[]
+            EnsureWeaponPanel(parent, "Fireball Weapon Status", "ファイアボール", "FireballHudIcon", WeaponAttributeType.Magic, new Vector2(14f, -529f), new Vector2(18f, 18f), new Vector2(6f, -3f), new[]
             {
                 new WeaponRow("Attack Row", "攻撃力", "-", StatIconCatalog.Attack),
                 new WeaponRow("Cooldown Row", "攻撃間隔", "-", StatIconCatalog.Cooldown),
@@ -318,12 +321,13 @@ namespace AreaSurvivors.Editor
             });
         }
 
-        static RectTransform EnsureWeaponPanel(Transform parent, string name, string titleText, string titleIcon, Vector2 position, Vector2 titleIconSize, Vector2 titleIconPosition, WeaponRow[] rows)
+        static RectTransform EnsureWeaponPanel(Transform parent, string name, string titleText, string titleIcon, WeaponAttributeType attributeType, Vector2 position, Vector2 titleIconSize, Vector2 titleIconPosition, WeaponRow[] rows)
         {
             var root = EnsurePanel(parent, name, position, new Vector2(138f, 116f), Vector2.up, PanelColor);
             SetAnchored(root, position, new Vector2(138f, 116f), Vector2.up);
             EnsureFrame(root, root.sizeDelta);
             EnsureHeaderIcon(root, titleIcon, titleIconSize, titleIconPosition);
+            WeaponAttributeIconSceneUtility.EnsureIconSet(root, "Weapon Type Icons", new Vector2(119f, -12f), new Vector2(18f, 18f), new Vector2(0f, 1f), attributeType, true);
 
             var title = EnsureText(root, "Title", titleText, 13, TextAnchor.MiddleCenter);
             title.color = new Color(0.96f, 0.90f, 0.62f, 1f);
@@ -332,7 +336,7 @@ namespace AreaSurvivors.Editor
             title.rectTransform.pivot = new Vector2(0.5f, 1f);
             title.rectTransform.anchoredPosition = new Vector2(0f, -3f);
             title.rectTransform.offsetMin = new Vector2(24f, title.rectTransform.offsetMin.y);
-            title.rectTransform.offsetMax = new Vector2(-6f, title.rectTransform.offsetMax.y);
+            title.rectTransform.offsetMax = new Vector2(-28f, title.rectTransform.offsetMax.y);
             title.rectTransform.sizeDelta = new Vector2(0f, 18f);
 
             for (int i = 0; i < rows.Length; i++)

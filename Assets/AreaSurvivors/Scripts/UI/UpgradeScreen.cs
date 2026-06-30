@@ -14,6 +14,8 @@ namespace AreaSurvivors
 
         void Start()
         {
+            AudioManager.PlayBgm(BgmTrack.LobbyUpgrades);
+
             if (!TryBindSceneTree())
             {
                 Debug.LogError("UpgradeScreen requires a Scene-authored Upgrade UI with SkillNodeView objects.");
@@ -60,7 +62,14 @@ namespace AreaSurvivors
             var button = FindDeep(root, name)?.GetComponent<Button>();
             if (button == null) return;
             button.onClick.RemoveAllListeners();
-            if (action != null) button.onClick.AddListener(action);
+            if (action != null)
+            {
+                button.onClick.AddListener(() =>
+                {
+                    AudioManager.PlayButtonConfirm();
+                    action();
+                });
+            }
         }
 
         void RefreshSceneTree()
@@ -139,6 +148,7 @@ namespace AreaSurvivors
                 node.button.colors = colors;
                 node.button.onClick.AddListener(() =>
                 {
+                    AudioManager.PlayButtonConfirm();
                     if (ProgressionStore.TryBuy(node.type)) RefreshSceneTree();
                 });
             }

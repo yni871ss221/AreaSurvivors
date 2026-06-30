@@ -190,6 +190,8 @@ namespace AreaSurvivors
             gridVisual.fitVisualWidthToFootprint = !hasPrefabVisuals;
             gridVisual.resetVisualOffset = !hasPrefabVisuals;
             if (!hasPrefabVisuals) gridVisual.visualOffset = Vector3.zero;
+            gridVisual.blockingColliderBottomInset = Mathf.Max(gridVisual.blockingColliderBottomInset, 0.1f);
+            gridVisual.blockingColliderEdgeRadius = Mathf.Max(gridVisual.blockingColliderEdgeRadius, 0.04f);
         }
 
         void EnsureFootprintCollider()

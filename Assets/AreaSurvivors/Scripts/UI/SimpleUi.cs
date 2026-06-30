@@ -99,7 +99,14 @@ namespace AreaSurvivors
             var button = go.AddComponent<Button>();
             button.targetGraphic = image;
             button.transition = Selectable.Transition.None;
-            if (action != null) button.onClick.AddListener(action);
+            if (action != null)
+            {
+                button.onClick.AddListener(() =>
+                {
+                    AudioManager.PlayButtonConfirm();
+                    action();
+                });
+            }
             button.colors = new ColorBlock
             {
                 normalColor = image.color,

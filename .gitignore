@@ -18,3 +18,5 @@
 sysinfo.txt
 crashlytics-build.properties
 TokenReports/
+tmp/
+__pycache__/

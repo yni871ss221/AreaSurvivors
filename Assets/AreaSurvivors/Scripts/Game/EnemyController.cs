@@ -24,15 +24,18 @@ namespace AreaSurvivors
         Health health;
         KnockbackReceiver knockback;
         Collider2D[] colliders;
+        BoxCollider2D footCollider;
         GridObjectVisual gridVisual;
+        CharacterFootprint footprint;
         PaperMeshVisual visual;
         RuntimeSpriteOutline outline;
+        CharacterOcclusionReveal reveal;
+        EnemySlowEffect slowEffect;
         float contactTimer;
-        float footRadius = 0.24f;
+        float footProbeDistance = 0.24f;
         float speedMultiplier = 1f;
         bool dying;
         Color desiredOutlineColor = Color.black;
-        float desiredOutlineThickness = 0.018f;
 
         void Awake()
         {
@@ -41,16 +44,18 @@ namespace AreaSurvivors
             knockback = GetComponent<KnockbackReceiver>();
             if (knockback == null) knockback = gameObject.AddComponent<KnockbackReceiver>();
             colliders = GetComponents<Collider2D>();
+            footCollider = GetComponent<BoxCollider2D>();
+            footprint = GetComponent<CharacterFootprint>();
             gridVisual = GetComponent<GridObjectVisual>();
             if (gridVisual == null) gridVisual = gameObject.AddComponent<GridObjectVisual>();
             gridVisual.ConfigureCharacter(1f);
             visual = GetComponentInChildren<PaperMeshVisual>();
             outline = visual != null ? visual.GetComponent<RuntimeSpriteOutline>() : GetComponentInChildren<RuntimeSpriteOutline>();
-            if (outline == null && visual != null) outline = visual.gameObject.AddComponent<RuntimeSpriteOutline>();
-            var reveal = GetComponent<CharacterOcclusionReveal>();
-            if (reveal == null) reveal = gameObject.AddComponent<CharacterOcclusionReveal>();
-            reveal.silhouetteColor = new Color(1f, 0.52f, 0.28f, 0.56f);
-            reveal.outlineColor = elite ? Color.yellow : boss ? Color.red : Color.white;
+            reveal = GetComponent<CharacterOcclusionReveal>();
+            slowEffect = GetComponent<EnemySlowEffect>();
+            if (outline == null) Debug.LogError("Enemy prefab is missing RuntimeSpriteOutline on its visual.");
+            if (reveal == null) Debug.LogError("Enemy prefab is missing CharacterOcclusionReveal on its root.");
+            if (reveal != null) reveal.silhouetteColor = new Color(1f, 0.52f, 0.28f, 0.56f);
             ApplyOutlineStyle();
             health.Damaged += OnDamaged;
             health.Died += OnDied;
@@ -80,6 +85,7 @@ namespace AreaSurvivors
                 xpValue = config != null ? config.xpPerEnemy : 1;
                 attackDamage = config != null ? config.enemyDamage : 3;
                 transform.localScale = Vector3.one * (config != null ? Mathf.Max(0.1f, config.enemyVisualScale) : 1f);
+                ConfigureFootCollider(1f);
                 return;
             }
 
@@ -102,9 +108,6 @@ namespace AreaSurvivors
             ConfigureFootCollider(cellScale);
 
             desiredOutlineColor = definition.outlineColor;
-            desiredOutlineThickness = Mathf.Max(0.004f, definition.outlineThickness);
-            if (definition.elite) desiredOutlineThickness = Mathf.Max(desiredOutlineThickness, 0.055f);
-            if (definition.boss) desiredOutlineThickness = Mathf.Max(desiredOutlineThickness, 0.075f);
             ApplyOutlineStyle();
         }
 
@@ -112,13 +115,26 @@ namespace AreaSurvivors
         {
             if (gridVisual == null) return;
             gridVisual.ConfigureCharacter(Mathf.Max(1f, cellScale));
-            foreach (var box in GetComponents<BoxCollider2D>())
+            footCollider = GetComponent<BoxCollider2D>();
+            if (footprint == null) footprint = GetComponent<CharacterFootprint>();
+            if (footprint != null) footprint.SetFootCollider(footCollider);
+            if (footCollider == null)
             {
-                if (box != null) Destroy(box);
+                Debug.LogError("Enemy prefab is missing the foot BoxCollider2D.");
+                footProbeDistance = Mathf.Max(0.24f, grid != null ? grid.cellSize * 0.5f : 0.24f);
             }
-            var circle = GetComponent<CircleCollider2D>();
-            gridVisual.ConfigureCharacterCircle(circle);
-            if (circle != null) footRadius = circle.radius * Mathf.Max(0.001f, Mathf.Abs(transform.lossyScale.x));
+            else if (footprint != null)
+            {
+                footProbeDistance = Mathf.Max(0.24f, footprint.ProbeRadiusWorld);
+            }
+            else
+            {
+                var size = footCollider.size;
+                var scale = transform.lossyScale;
+                float worldWidth = Mathf.Abs(size.x * scale.x);
+                float worldHeight = Mathf.Abs(size.y * scale.y);
+                footProbeDistance = Mathf.Max(worldWidth, worldHeight) * 0.5f;
+            }
             colliders = GetComponents<Collider2D>();
         }
 
@@ -130,11 +146,8 @@ namespace AreaSurvivors
         void ApplyOutlineStyle()
         {
             if (outline == null && visual != null) outline = visual.GetComponent<RuntimeSpriteOutline>();
-            if (outline == null) return;
-            outline.outlineColor = desiredOutlineColor;
-            outline.thickness = desiredOutlineThickness;
-            outline.blink = false;
-            var reveal = GetComponent<CharacterOcclusionReveal>();
+            if (outline != null) outline.outlineColor = desiredOutlineColor;
+            if (reveal == null) reveal = GetComponent<CharacterOcclusionReveal>();
             if (reveal != null) reveal.outlineColor = boss ? Color.red : elite ? Color.yellow : Color.white;
         }
 
@@ -151,27 +164,45 @@ namespace AreaSurvivors
             {
                 body.velocity = Vector2.zero;
                 if (directionalAnimator != null) directionalAnimator.Tick(direction, false);
-                grid.Paint(transform.position, TileOwner.Enemy, 1);
+                grid.Paint(MovementSamplePosition(), TileOwner.Enemy, 1);
                 return;
             }
 
-            float slow = grid.GetMoveMultiplier(transform.position, TileOwner.Enemy, config.playerTerritorySlow);
-            body.velocity = direction * config.enemyBaseSpeed * slow * speedMultiplier;
+            var movementSample = MovementSamplePosition();
+            float slow = grid.GetMoveMultiplier(movementSample, TileOwner.Enemy, config.playerTerritorySlow);
+            if (slowEffect == null) slowEffect = GetComponent<EnemySlowEffect>();
+            float weaponSlow = slowEffect != null ? slowEffect.Multiplier : 1f;
+            body.velocity = direction * config.enemyBaseSpeed * slow * speedMultiplier * weaponSlow;
             if (directionalAnimator != null) directionalAnimator.Tick(direction, body.velocity.sqrMagnitude > 0.01f);
-            grid.Paint(transform.position, TileOwner.Enemy, 1);
+            grid.Paint(movementSample, TileOwner.Enemy, 1);
         }
 
         bool TryHandleGridObjectContact(Vector2 direction)
         {
             if (grid == null || direction.sqrMagnitude < 0.001f) return false;
-            float probeDistance = Mathf.Max(footRadius, grid.cellSize * 0.5f);
-            if (!TryGetBlockingObject(transform.position + (Vector3)(direction.normalized * probeDistance), out var record))
+            float probeDistance = Mathf.Max(footProbeDistance, grid.cellSize * 0.5f);
+            var probeOrigin = FootProbeOrigin();
+            var probePoint = probeOrigin + (Vector3)(direction.normalized * probeDistance);
+            if (!TryGetBlockingObject(probePoint, out var record))
             {
-                if (!TryGetBlockingObject(transform.position, out record)) return false;
+                if (!TryGetBlockingObject(probeOrigin, out record)) return false;
             }
 
-            DamageGridObject(record, transform.position + (Vector3)(direction.normalized * probeDistance));
+            DamageGridObject(record, probePoint);
             return true;
+        }
+
+        Vector3 FootProbeOrigin()
+        {
+            if (footprint != null) return footprint.SamplePosition;
+            if (footCollider == null) return transform.position;
+            return footCollider.transform.TransformPoint(footCollider.offset);
+        }
+
+        Vector3 MovementSamplePosition()
+        {
+            if (footprint != null) return footprint.SamplePosition;
+            return FootProbeOrigin();
         }
 
         bool TryGetBlockingObject(Vector3 world, out GridObjectRecord record)
@@ -234,6 +265,7 @@ namespace AreaSurvivors
 
         void OnDamaged(Health damagedHealth, int amount)
         {
+            if (amount > 0) AudioManager.PlaySfx(SfxTrack.EnemyHit);
             DamagePopup.Show(damagePopupPrefab, damagedHealth.LastDamagePoint + Vector3.up * 0.18f, amount, Color.white);
         }
 

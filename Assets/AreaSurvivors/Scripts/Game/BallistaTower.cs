@@ -235,6 +235,8 @@ namespace AreaSurvivors
             if (gridVisual == null) gridVisual = GetComponent<GridObjectVisual>();
             if (gridVisual == null) gridVisual = gameObject.AddComponent<GridObjectVisual>();
             gridVisual.ConfigureFootprint(Footprint);
+            gridVisual.blockingColliderBottomInset = Mathf.Max(gridVisual.blockingColliderBottomInset, 0.1f);
+            gridVisual.blockingColliderEdgeRadius = Mathf.Max(gridVisual.blockingColliderEdgeRadius, 0.04f);
             gridVisual.fitVisualWidthToFootprint = true;
             gridVisual.resetVisualOffset = true;
         }

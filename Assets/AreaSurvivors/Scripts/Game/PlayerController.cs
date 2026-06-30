@@ -37,6 +37,7 @@ namespace AreaSurvivors
         AutoRegeneration autoRegen;
         Collider2D hitCollider;
         GridObjectVisual gridVisual;
+        CharacterFootprint footprint;
         Vector2 facing = Vector2.down;
         float moveSpeed;
         int paintRadius;
@@ -50,6 +51,7 @@ namespace AreaSurvivors
             autoRegen = GetComponent<AutoRegeneration>();
             if (autoRegen == null) autoRegen = gameObject.AddComponent<AutoRegeneration>();
             hitCollider = GetComponent<Collider2D>();
+            footprint = GetComponent<CharacterFootprint>();
             gridVisual = GetComponent<GridObjectVisual>();
             if (gridVisual == null) gridVisual = gameObject.AddComponent<GridObjectVisual>();
             gridVisual.ConfigureCharacter(1f);
@@ -64,6 +66,7 @@ namespace AreaSurvivors
             characterType = type;
             stats.Initialize(config);
             transform.localScale = Vector3.one * Mathf.Max(0.1f, config.playerVisualScale);
+            if (gridVisual != null) gridVisual.ConfigureCharacter(1f);
             ApplyCharacterSprite(type);
             ApplyCurrentStats(true);
             weapon.Configure(config, this);
@@ -133,10 +136,19 @@ namespace AreaSurvivors
 
             float enemyTerritoryMultiplier = config.enemyTerritorySlow +
                 ProgressionStore.GetLevel(UpgradeType.MovePenaltyReduction) * config.enemyTerritorySlowReductionPerUpgradeLevel;
-            float territory = grid.GetMoveMultiplier(transform.position, TileOwner.Player, Mathf.Clamp01(enemyTerritoryMultiplier));
+            var movementSample = MovementSamplePosition();
+            float territory = grid.GetMoveMultiplier(movementSample, TileOwner.Player, Mathf.Clamp01(enemyTerritoryMultiplier));
             body.velocity = input * moveSpeed * territory;
             if (directionalAnimator != null) directionalAnimator.Tick(facing, input.sqrMagnitude > 0.01f);
-            grid.Paint(transform.position, TileOwner.Player, paintRadius);
+            grid.Paint(movementSample, TileOwner.Player, paintRadius);
+        }
+
+        Vector3 MovementSamplePosition()
+        {
+            if (footprint != null) return footprint.SamplePosition;
+            if (hitCollider == null || !hitCollider.enabled) return transform.position;
+            var center = hitCollider.bounds.center;
+            return new Vector3(center.x, center.y, transform.position.z);
         }
 
         public Vector2 Facing => facing;

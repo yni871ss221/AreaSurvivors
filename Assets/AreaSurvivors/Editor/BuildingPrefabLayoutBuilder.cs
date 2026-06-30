@@ -265,9 +265,17 @@ namespace AreaSurvivors.EditorTools
 
             if (candidate == null) candidate = root.AddComponent<BoxCollider2D>();
             var size = new Vector2(footprint.x * GridObjectVisual.CellWidth, footprint.y * GridObjectVisual.CellHeight);
+            const float bottomInset = 0.1f;
+            float resolvedInset = trigger ? 0f : Mathf.Clamp(bottomInset, 0f, Mathf.Max(0f, size.y - 0.01f));
+            var colliderSize = new Vector2(size.x, size.y - resolvedInset);
             candidate.isTrigger = trigger;
-            candidate.size = size;
-            candidate.offset = new Vector2(0f, size.y * 0.5f);
+            candidate.size = colliderSize;
+            candidate.offset = new Vector2(0f, resolvedInset + colliderSize.y * 0.5f);
+            if (!trigger)
+            {
+                candidate.edgeRadius = 0.04f;
+                candidate.sharedMaterial = AssetDatabase.LoadAssetAtPath<PhysicsMaterial2D>("Assets/AreaSurvivors/Physics/CharacterSlide.physicsMaterial2D");
+            }
             return candidate;
         }
 

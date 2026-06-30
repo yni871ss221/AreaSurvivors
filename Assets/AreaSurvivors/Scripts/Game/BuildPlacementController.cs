@@ -16,6 +16,7 @@ namespace AreaSurvivors
         [FormerlySerializedAs("woodenWallPrefab")]
         public GameObject woodenWallPrefab;
         public GameObject watchTowerPrefab;
+        public GameObject damagePopupPrefab;
         public Sprite ballistaPreviewSprite;
         [FormerlySerializedAs("woodenWallPreviewSprite")]
         public Sprite woodenWallPreviewSprite;
@@ -532,6 +533,8 @@ namespace AreaSurvivors
                 watchTower.config = config;
                 watchTower.grid = grid;
             }
+
+            BuildingSkillEffects.ConfigureAutoRegeneration(instance, config, damagePopupPrefab);
         }
 
         void SavePlacedBuilding(GameObject instance, Vector3Int originCell)

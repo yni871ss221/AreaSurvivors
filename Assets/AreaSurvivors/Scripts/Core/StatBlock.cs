@@ -23,12 +23,34 @@ namespace AreaSurvivors
         public float knockback;
         public int projectileCount;
         public float explosionRadius;
+        public float rotationSpeed;
+        public float durationSeconds;
+        public float slowAmount;
+        public float damageIntervalSeconds;
+        public float distance;
     }
 
     public enum WeaponType
     {
         Slash,
         Arrow,
-        Fireball
+        Fireball,
+        Shield,
+        Flag,
+        BoomerangSword,
+        AuraSword,
+        ArrowRain,
+        Gun,
+        Frost,
+        ThunderBall
+    }
+
+    public enum WeaponAttributeType
+    {
+        None,
+        Melee,
+        Ranged,
+        Magic,
+        Defense
     }
 }

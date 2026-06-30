@@ -74,6 +74,10 @@ MeshRenderer:
   m_ReceiveGI: 1
   m_PreserveUVs: 0
   m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
@@ -91,11 +95,13 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 7fa5a912dec849d4ca60b09970a366d4, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   sourceSprite: {fileID: 21300000, guid: 87d2dd0222ef47a0a5e997ec9950510f, type: 3}
   tint: {r: 0.85, g: 0.72, b: 0.35, a: 1}
   sortingOrder: 20
+  anchorBottomCenter: 0
+  verticalFill: 1
 --- !u!114 &4125941134088134705
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -106,8 +112,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: af95e33ef29cde24c9c5b191152bad53, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   faceCamera: 0
   rollDegrees: 0
 --- !u!1 &6415672035725512546
@@ -217,8 +223,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: abfe49e5b54eed94da0442210810d50a, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   fallbackSprite: {fileID: 21300000, guid: 87d2dd0222ef47a0a5e997ec9950510f, type: 3}
   fallbackColor: {r: 0.85, g: 0.72, b: 0.35, a: 1}
   lifetime: 4.2

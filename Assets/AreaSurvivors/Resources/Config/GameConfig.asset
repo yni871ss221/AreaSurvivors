@@ -11,7 +11,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1de54e140f75de4418cc2a53ffedbf69, type: 3}
   m_Name: GameConfig
-  m_EditorClassIdentifier:
+  m_EditorClassIdentifier: 
   playerMoveSpeed: 2.1
   playerMaxHp: 40
   playerReviveSeconds: 6
@@ -101,6 +101,11 @@ MonoBehaviour:
   fireballExplosionRadius: 1.1
   fireballFlightCells: 10
   fireballFlightCellsPerLevel: 1
+  shieldOrbitRadiusCells: 2
+  shieldRotationSpeedDegrees: 90
+  shieldHitCooldownSeconds: 0.35
+  weaponSpecialEffectControlThreshold: 0.5
+  weaponSpecialEffectMultiplier: 2
   slashWeaponLevels:
   - level: 1
     attackPower: 6
@@ -110,6 +115,11 @@ MonoBehaviour:
     knockback: 1
     projectileCount: 1
     explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   - level: 2
     attackPower: 7
     cooldownSeconds: 0.9869999
@@ -118,6 +128,11 @@ MonoBehaviour:
     knockback: 2
     projectileCount: 1
     explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   - level: 3
     attackPower: 8
     cooldownSeconds: 0.92399997
@@ -126,6 +141,11 @@ MonoBehaviour:
     knockback: 3
     projectileCount: 1
     explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   - level: 4
     attackPower: 9
     cooldownSeconds: 0.86099994
@@ -134,6 +154,11 @@ MonoBehaviour:
     knockback: 4
     projectileCount: 1
     explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   - level: 5
     attackPower: 10
     cooldownSeconds: 0.798
@@ -142,6 +167,11 @@ MonoBehaviour:
     knockback: 5
     projectileCount: 1
     explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   - level: 6
     attackPower: 11
     cooldownSeconds: 0.73499995
@@ -150,6 +180,11 @@ MonoBehaviour:
     knockback: 6
     projectileCount: 1
     explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   - level: 7
     attackPower: 12
     cooldownSeconds: 0.67199993
@@ -158,6 +193,11 @@ MonoBehaviour:
     knockback: 7
     projectileCount: 1
     explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   - level: 8
     attackPower: 13
     cooldownSeconds: 0.60899997
@@ -166,6 +206,11 @@ MonoBehaviour:
     knockback: 8
     projectileCount: 1
     explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   - level: 9
     attackPower: 14
     cooldownSeconds: 0.54599994
@@ -174,6 +219,11 @@ MonoBehaviour:
     knockback: 9
     projectileCount: 1
     explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   - level: 10
     attackPower: 15
     cooldownSeconds: 0.48299998
@@ -182,6 +232,11 @@ MonoBehaviour:
     knockback: 10
     projectileCount: 1
     explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   arrowWeaponLevels:
   - level: 1
     attackPower: 6
@@ -191,6 +246,11 @@ MonoBehaviour:
     knockback: 0
     projectileCount: 1
     explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   - level: 2
     attackPower: 7
     cooldownSeconds: 0.705
@@ -199,6 +259,11 @@ MonoBehaviour:
     knockback: 0
     projectileCount: 1
     explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   - level: 3
     attackPower: 8
     cooldownSeconds: 0.65999997
@@ -207,6 +272,11 @@ MonoBehaviour:
     knockback: 0
     projectileCount: 1
     explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   - level: 4
     attackPower: 9
     cooldownSeconds: 0.615
@@ -215,6 +285,11 @@ MonoBehaviour:
     knockback: 0
     projectileCount: 2
     explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   - level: 5
     attackPower: 10
     cooldownSeconds: 0.57
@@ -223,6 +298,11 @@ MonoBehaviour:
     knockback: 0
     projectileCount: 2
     explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   - level: 6
     attackPower: 11
     cooldownSeconds: 0.525
@@ -231,6 +311,11 @@ MonoBehaviour:
     knockback: 0
     projectileCount: 2
     explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   - level: 7
     attackPower: 12
     cooldownSeconds: 0.48
@@ -239,6 +324,11 @@ MonoBehaviour:
     knockback: 0
     projectileCount: 3
     explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   - level: 8
     attackPower: 13
     cooldownSeconds: 0.435
@@ -247,6 +337,11 @@ MonoBehaviour:
     knockback: 0
     projectileCount: 3
     explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   - level: 9
     attackPower: 14
     cooldownSeconds: 0.39
@@ -255,6 +350,11 @@ MonoBehaviour:
     knockback: 0
     projectileCount: 3
     explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   - level: 10
     attackPower: 15
     cooldownSeconds: 0.345
@@ -263,6 +363,11 @@ MonoBehaviour:
     knockback: 0
     projectileCount: 4
     explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   fireballWeaponLevels:
   - level: 1
     attackPower: 6
@@ -272,6 +377,11 @@ MonoBehaviour:
     knockback: 0
     projectileCount: 1
     explosionRadius: 1.1
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   - level: 2
     attackPower: 7
     cooldownSeconds: 1.363
@@ -280,6 +390,11 @@ MonoBehaviour:
     knockback: 0
     projectileCount: 1
     explosionRadius: 1.85
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   - level: 3
     attackPower: 8
     cooldownSeconds: 1.276
@@ -288,6 +403,11 @@ MonoBehaviour:
     knockback: 0
     projectileCount: 1
     explosionRadius: 2.6
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   - level: 4
     attackPower: 9
     cooldownSeconds: 1.189
@@ -296,6 +416,11 @@ MonoBehaviour:
     knockback: 0
     projectileCount: 1
     explosionRadius: 3.35
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   - level: 5
     attackPower: 10
     cooldownSeconds: 1.102
@@ -304,6 +429,11 @@ MonoBehaviour:
     knockback: 0
     projectileCount: 1
     explosionRadius: 4.1
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   - level: 6
     attackPower: 11
     cooldownSeconds: 1.015
@@ -312,6 +442,11 @@ MonoBehaviour:
     knockback: 0
     projectileCount: 1
     explosionRadius: 4.85
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   - level: 7
     attackPower: 12
     cooldownSeconds: 0.92800003
@@ -320,6 +455,11 @@ MonoBehaviour:
     knockback: 0
     projectileCount: 1
     explosionRadius: 5.6
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   - level: 8
     attackPower: 13
     cooldownSeconds: 0.841
@@ -328,6 +468,11 @@ MonoBehaviour:
     knockback: 0
     projectileCount: 1
     explosionRadius: 6.35
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   - level: 9
     attackPower: 14
     cooldownSeconds: 0.754
@@ -336,6 +481,11 @@ MonoBehaviour:
     knockback: 0
     projectileCount: 1
     explosionRadius: 7.1
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
   - level: 10
     attackPower: 15
     cooldownSeconds: 0.66700006
@@ -344,6 +494,1059 @@ MonoBehaviour:
     knockback: 0
     projectileCount: 1
     explosionRadius: 7.85
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
+  shieldWeaponLevels:
+  - level: 1
+    attackPower: 6
+    cooldownSeconds: 1
+    projectileSpeed: 0
+    range: 1.4
+    knockback: 1
+    projectileCount: 3
+    explosionRadius: 0
+    rotationSpeed: 90
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
+  - level: 2
+    attackPower: 7
+    cooldownSeconds: 1
+    projectileSpeed: 0
+    range: 1.4
+    knockback: 2
+    projectileCount: 3
+    explosionRadius: 0
+    rotationSpeed: 100
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
+  - level: 3
+    attackPower: 8
+    cooldownSeconds: 1
+    projectileSpeed: 0
+    range: 1.4
+    knockback: 3
+    projectileCount: 3
+    explosionRadius: 0
+    rotationSpeed: 110
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
+  - level: 4
+    attackPower: 9
+    cooldownSeconds: 1
+    projectileSpeed: 0
+    range: 1.4
+    knockback: 4
+    projectileCount: 3
+    explosionRadius: 0
+    rotationSpeed: 120
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
+  - level: 5
+    attackPower: 10
+    cooldownSeconds: 1
+    projectileSpeed: 0
+    range: 1.4
+    knockback: 5
+    projectileCount: 3
+    explosionRadius: 0
+    rotationSpeed: 130
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
+  - level: 6
+    attackPower: 11
+    cooldownSeconds: 1
+    projectileSpeed: 0
+    range: 1.4
+    knockback: 6
+    projectileCount: 3
+    explosionRadius: 0
+    rotationSpeed: 140
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
+  - level: 7
+    attackPower: 12
+    cooldownSeconds: 1
+    projectileSpeed: 0
+    range: 1.4
+    knockback: 7
+    projectileCount: 3
+    explosionRadius: 0
+    rotationSpeed: 150
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
+  - level: 8
+    attackPower: 13
+    cooldownSeconds: 1
+    projectileSpeed: 0
+    range: 1.4
+    knockback: 8
+    projectileCount: 3
+    explosionRadius: 0
+    rotationSpeed: 160
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
+  - level: 9
+    attackPower: 14
+    cooldownSeconds: 1
+    projectileSpeed: 0
+    range: 1.4
+    knockback: 9
+    projectileCount: 3
+    explosionRadius: 0
+    rotationSpeed: 170
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
+  - level: 10
+    attackPower: 15
+    cooldownSeconds: 1
+    projectileSpeed: 0
+    range: 1.4
+    knockback: 10
+    projectileCount: 3
+    explosionRadius: 0
+    rotationSpeed: 180
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0
+    distance: 0
+  flagWeaponLevels:
+  - level: 1
+    attackPower: 4
+    cooldownSeconds: 1
+    projectileSpeed: 0
+    range: 2.1
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0.3
+    damageIntervalSeconds: 1
+    distance: 0
+  - level: 2
+    attackPower: 5
+    cooldownSeconds: 0.95
+    projectileSpeed: 0
+    range: 2.275
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0.3
+    damageIntervalSeconds: 0.96
+    distance: 0
+  - level: 3
+    attackPower: 6
+    cooldownSeconds: 0.9
+    projectileSpeed: 0
+    range: 2.45
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0.3
+    damageIntervalSeconds: 0.92
+    distance: 0
+  - level: 4
+    attackPower: 7
+    cooldownSeconds: 0.85
+    projectileSpeed: 0
+    range: 2.625
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0.3
+    damageIntervalSeconds: 0.88
+    distance: 0
+  - level: 5
+    attackPower: 8
+    cooldownSeconds: 0.8
+    projectileSpeed: 0
+    range: 2.8
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0.3
+    damageIntervalSeconds: 0.84000003
+    distance: 0
+  - level: 6
+    attackPower: 9
+    cooldownSeconds: 0.75
+    projectileSpeed: 0
+    range: 2.975
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0.3
+    damageIntervalSeconds: 0.8
+    distance: 0
+  - level: 7
+    attackPower: 10
+    cooldownSeconds: 0.7
+    projectileSpeed: 0
+    range: 3.15
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0.3
+    damageIntervalSeconds: 0.76
+    distance: 0
+  - level: 8
+    attackPower: 11
+    cooldownSeconds: 0.65
+    projectileSpeed: 0
+    range: 3.325
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0.3
+    damageIntervalSeconds: 0.72
+    distance: 0
+  - level: 9
+    attackPower: 12
+    cooldownSeconds: 0.6
+    projectileSpeed: 0
+    range: 3.5
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0.3
+    damageIntervalSeconds: 0.68
+    distance: 0
+  - level: 10
+    attackPower: 13
+    cooldownSeconds: 0.55
+    projectileSpeed: 0
+    range: 3.675
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0.3
+    damageIntervalSeconds: 0.64
+    distance: 0
+  boomerangSwordWeaponLevels:
+  - level: 1
+    attackPower: 7
+    cooldownSeconds: 1.6
+    projectileSpeed: 11.5
+    range: 0.7
+    knockback: 1
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 5.6
+  - level: 2
+    attackPower: 8
+    cooldownSeconds: 1.52
+    projectileSpeed: 11.5
+    range: 0.756
+    knockback: 1.35
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 5.88
+  - level: 3
+    attackPower: 9
+    cooldownSeconds: 1.4399999
+    projectileSpeed: 11.5
+    range: 0.812
+    knockback: 1.7
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 6.16
+  - level: 4
+    attackPower: 10
+    cooldownSeconds: 1.36
+    projectileSpeed: 11.5
+    range: 0.868
+    knockback: 2.05
+    projectileCount: 2
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 6.44
+  - level: 5
+    attackPower: 11
+    cooldownSeconds: 1.2800001
+    projectileSpeed: 11.5
+    range: 0.92399997
+    knockback: 2.4
+    projectileCount: 2
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 6.72
+  - level: 6
+    attackPower: 12
+    cooldownSeconds: 1.2
+    projectileSpeed: 11.5
+    range: 0.97999996
+    knockback: 2.75
+    projectileCount: 2
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 7
+  - level: 7
+    attackPower: 13
+    cooldownSeconds: 1.12
+    projectileSpeed: 11.5
+    range: 1.036
+    knockback: 3.1
+    projectileCount: 3
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 7.2799997
+  - level: 8
+    attackPower: 14
+    cooldownSeconds: 1.04
+    projectileSpeed: 11.5
+    range: 1.092
+    knockback: 3.45
+    projectileCount: 3
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 7.56
+  - level: 9
+    attackPower: 15
+    cooldownSeconds: 0.96000004
+    projectileSpeed: 11.5
+    range: 1.148
+    knockback: 3.8
+    projectileCount: 3
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 7.8399997
+  - level: 10
+    attackPower: 16
+    cooldownSeconds: 0.88000005
+    projectileSpeed: 11.5
+    range: 1.204
+    knockback: 4.15
+    projectileCount: 4
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 8.12
+  auraSwordWeaponLevels:
+  - level: 1
+    attackPower: 6
+    cooldownSeconds: 1.35
+    projectileSpeed: 11.5
+    range: 2.1
+    knockback: 1
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 7
+  - level: 2
+    attackPower: 7
+    cooldownSeconds: 1.2825
+    projectileSpeed: 11.5
+    range: 2.24
+    knockback: 1.25
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 7.35
+  - level: 3
+    attackPower: 8
+    cooldownSeconds: 1.215
+    projectileSpeed: 11.5
+    range: 2.3799999
+    knockback: 1.5
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 7.7
+  - level: 4
+    attackPower: 9
+    cooldownSeconds: 1.1475
+    projectileSpeed: 11.5
+    range: 2.52
+    knockback: 1.75
+    projectileCount: 2
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 8.05
+  - level: 5
+    attackPower: 10
+    cooldownSeconds: 1.08
+    projectileSpeed: 11.5
+    range: 2.6599998
+    knockback: 2
+    projectileCount: 2
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 8.4
+  - level: 6
+    attackPower: 11
+    cooldownSeconds: 1.0125
+    projectileSpeed: 11.5
+    range: 2.8
+    knockback: 2.25
+    projectileCount: 2
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 8.75
+  - level: 7
+    attackPower: 12
+    cooldownSeconds: 0.945
+    projectileSpeed: 11.5
+    range: 2.94
+    knockback: 2.5
+    projectileCount: 3
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 9.099999
+  - level: 8
+    attackPower: 13
+    cooldownSeconds: 0.8775
+    projectileSpeed: 11.5
+    range: 3.08
+    knockback: 2.75
+    projectileCount: 3
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 9.45
+  - level: 9
+    attackPower: 14
+    cooldownSeconds: 0.81000006
+    projectileSpeed: 11.5
+    range: 3.22
+    knockback: 3
+    projectileCount: 3
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 9.8
+  - level: 10
+    attackPower: 15
+    cooldownSeconds: 0.7425
+    projectileSpeed: 11.5
+    range: 3.36
+    knockback: 3.25
+    projectileCount: 4
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 10.15
+  arrowRainWeaponLevels:
+  - level: 1
+    attackPower: 5
+    cooldownSeconds: 4
+    projectileSpeed: 0
+    range: 2.1
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 3
+    slowAmount: 0
+    damageIntervalSeconds: 0.35
+    distance: 7
+  - level: 2
+    attackPower: 6
+    cooldownSeconds: 3.8
+    projectileSpeed: 0
+    range: 2.24
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 3.12
+    slowAmount: 0
+    damageIntervalSeconds: 0.35
+    distance: 7
+  - level: 3
+    attackPower: 7
+    cooldownSeconds: 3.6
+    projectileSpeed: 0
+    range: 2.3799999
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 3.24
+    slowAmount: 0
+    damageIntervalSeconds: 0.35
+    distance: 7
+  - level: 4
+    attackPower: 8
+    cooldownSeconds: 3.4
+    projectileSpeed: 0
+    range: 2.52
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 3.36
+    slowAmount: 0
+    damageIntervalSeconds: 0.35
+    distance: 7
+  - level: 5
+    attackPower: 9
+    cooldownSeconds: 3.2
+    projectileSpeed: 0
+    range: 2.6599998
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 3.48
+    slowAmount: 0
+    damageIntervalSeconds: 0.35
+    distance: 7
+  - level: 6
+    attackPower: 10
+    cooldownSeconds: 3
+    projectileSpeed: 0
+    range: 2.8
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 3.6
+    slowAmount: 0
+    damageIntervalSeconds: 0.35
+    distance: 7
+  - level: 7
+    attackPower: 11
+    cooldownSeconds: 2.8
+    projectileSpeed: 0
+    range: 2.94
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 3.72
+    slowAmount: 0
+    damageIntervalSeconds: 0.35
+    distance: 7
+  - level: 8
+    attackPower: 12
+    cooldownSeconds: 2.6
+    projectileSpeed: 0
+    range: 3.08
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 3.84
+    slowAmount: 0
+    damageIntervalSeconds: 0.35
+    distance: 7
+  - level: 9
+    attackPower: 13
+    cooldownSeconds: 2.4
+    projectileSpeed: 0
+    range: 3.22
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 3.96
+    slowAmount: 0
+    damageIntervalSeconds: 0.35
+    distance: 7
+  - level: 10
+    attackPower: 14
+    cooldownSeconds: 2.2
+    projectileSpeed: 0
+    range: 3.36
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 4.08
+    slowAmount: 0
+    damageIntervalSeconds: 0.35
+    distance: 7
+  gunWeaponLevels:
+  - level: 1
+    attackPower: 20
+    cooldownSeconds: 3
+    projectileSpeed: 17.25
+    range: 10.5
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 10.5
+  - level: 2
+    attackPower: 22
+    cooldownSeconds: 2.85
+    projectileSpeed: 17.25
+    range: 10.849999
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 10.849999
+  - level: 3
+    attackPower: 24
+    cooldownSeconds: 2.6999998
+    projectileSpeed: 17.25
+    range: 11.2
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 11.2
+  - level: 4
+    attackPower: 26
+    cooldownSeconds: 2.5500002
+    projectileSpeed: 17.25
+    range: 11.55
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 11.55
+  - level: 5
+    attackPower: 28
+    cooldownSeconds: 2.4
+    projectileSpeed: 17.25
+    range: 11.9
+    knockback: 0
+    projectileCount: 2
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 11.9
+  - level: 6
+    attackPower: 30
+    cooldownSeconds: 2.25
+    projectileSpeed: 17.25
+    range: 12.25
+    knockback: 0
+    projectileCount: 2
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 12.25
+  - level: 7
+    attackPower: 32
+    cooldownSeconds: 2.1
+    projectileSpeed: 17.25
+    range: 12.599999
+    knockback: 0
+    projectileCount: 2
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 12.599999
+  - level: 8
+    attackPower: 34
+    cooldownSeconds: 1.9499999
+    projectileSpeed: 17.25
+    range: 12.95
+    knockback: 0
+    projectileCount: 2
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 12.95
+  - level: 9
+    attackPower: 36
+    cooldownSeconds: 1.8000001
+    projectileSpeed: 17.25
+    range: 13.3
+    knockback: 0
+    projectileCount: 3
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 13.3
+  - level: 10
+    attackPower: 38
+    cooldownSeconds: 1.6500001
+    projectileSpeed: 17.25
+    range: 13.65
+    knockback: 0
+    projectileCount: 3
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 0
+    slowAmount: 0
+    damageIntervalSeconds: 0.5
+    distance: 13.65
+  frostWeaponLevels:
+  - level: 1
+    attackPower: 5
+    cooldownSeconds: 2
+    projectileSpeed: 0
+    range: 2.1
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 2.4
+    slowAmount: 0.3
+    damageIntervalSeconds: 1
+    distance: 3.5
+  - level: 2
+    attackPower: 6
+    cooldownSeconds: 1.9
+    projectileSpeed: 0
+    range: 2.24
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 2.5
+    slowAmount: 0.3
+    damageIntervalSeconds: 1
+    distance: 3.5
+  - level: 3
+    attackPower: 7
+    cooldownSeconds: 1.8
+    projectileSpeed: 0
+    range: 2.3799999
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 2.6000001
+    slowAmount: 0.3
+    damageIntervalSeconds: 1
+    distance: 3.5
+  - level: 4
+    attackPower: 8
+    cooldownSeconds: 1.7
+    projectileSpeed: 0
+    range: 2.52
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 2.7
+    slowAmount: 0.3
+    damageIntervalSeconds: 1
+    distance: 3.5
+  - level: 5
+    attackPower: 9
+    cooldownSeconds: 1.6
+    projectileSpeed: 0
+    range: 2.6599998
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 2.8000002
+    slowAmount: 0.3
+    damageIntervalSeconds: 1
+    distance: 3.5
+  - level: 6
+    attackPower: 10
+    cooldownSeconds: 1.5
+    projectileSpeed: 0
+    range: 2.8
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 2.9
+    slowAmount: 0.3
+    damageIntervalSeconds: 1
+    distance: 3.5
+  - level: 7
+    attackPower: 11
+    cooldownSeconds: 1.4
+    projectileSpeed: 0
+    range: 2.94
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 3
+    slowAmount: 0.3
+    damageIntervalSeconds: 1
+    distance: 3.5
+  - level: 8
+    attackPower: 12
+    cooldownSeconds: 1.3
+    projectileSpeed: 0
+    range: 3.08
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 3.1000001
+    slowAmount: 0.3
+    damageIntervalSeconds: 1
+    distance: 3.5
+  - level: 9
+    attackPower: 13
+    cooldownSeconds: 1.2
+    projectileSpeed: 0
+    range: 3.22
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 3.2
+    slowAmount: 0.3
+    damageIntervalSeconds: 1
+    distance: 3.5
+  - level: 10
+    attackPower: 14
+    cooldownSeconds: 1.1
+    projectileSpeed: 0
+    range: 3.36
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 3.3000002
+    slowAmount: 0.3
+    damageIntervalSeconds: 1
+    distance: 3.5
+  thunderBallWeaponLevels:
+  - level: 1
+    attackPower: 5
+    cooldownSeconds: 3
+    projectileSpeed: 4.025
+    range: 1.4
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 5
+    slowAmount: 0
+    damageIntervalSeconds: 0.45
+    distance: 0
+  - level: 2
+    attackPower: 6
+    cooldownSeconds: 2.85
+    projectileSpeed: 4.025
+    range: 1.505
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 5.2
+    slowAmount: 0
+    damageIntervalSeconds: 0.45
+    distance: 0
+  - level: 3
+    attackPower: 7
+    cooldownSeconds: 2.6999998
+    projectileSpeed: 4.025
+    range: 1.61
+    knockback: 0
+    projectileCount: 1
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 5.4
+    slowAmount: 0
+    damageIntervalSeconds: 0.45
+    distance: 0
+  - level: 4
+    attackPower: 8
+    cooldownSeconds: 2.5500002
+    projectileSpeed: 4.025
+    range: 1.715
+    knockback: 0
+    projectileCount: 2
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 5.6
+    slowAmount: 0
+    damageIntervalSeconds: 0.45
+    distance: 0
+  - level: 5
+    attackPower: 9
+    cooldownSeconds: 2.4
+    projectileSpeed: 4.025
+    range: 1.8199999
+    knockback: 0
+    projectileCount: 2
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 5.8
+    slowAmount: 0
+    damageIntervalSeconds: 0.45
+    distance: 0
+  - level: 6
+    attackPower: 10
+    cooldownSeconds: 2.25
+    projectileSpeed: 4.025
+    range: 1.925
+    knockback: 0
+    projectileCount: 2
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 6
+    slowAmount: 0
+    damageIntervalSeconds: 0.45
+    distance: 0
+  - level: 7
+    attackPower: 11
+    cooldownSeconds: 2.1
+    projectileSpeed: 4.025
+    range: 2.03
+    knockback: 0
+    projectileCount: 3
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 6.2
+    slowAmount: 0
+    damageIntervalSeconds: 0.45
+    distance: 0
+  - level: 8
+    attackPower: 12
+    cooldownSeconds: 1.9499999
+    projectileSpeed: 4.025
+    range: 2.135
+    knockback: 0
+    projectileCount: 3
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 6.4
+    slowAmount: 0
+    damageIntervalSeconds: 0.45
+    distance: 0
+  - level: 9
+    attackPower: 13
+    cooldownSeconds: 1.8000001
+    projectileSpeed: 4.025
+    range: 2.24
+    knockback: 0
+    projectileCount: 3
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 6.6
+    slowAmount: 0
+    damageIntervalSeconds: 0.45
+    distance: 0
+  - level: 10
+    attackPower: 14
+    cooldownSeconds: 1.6500001
+    projectileSpeed: 4.025
+    range: 2.345
+    knockback: 0
+    projectileCount: 4
+    explosionRadius: 0
+    rotationSpeed: 0
+    durationSeconds: 6.8
+    slowAmount: 0
+    damageIntervalSeconds: 0.45
+    distance: 0
   baseKnockback: 1
   knockbackForceUnit: 2.2
   knockbackDuration: 0.16

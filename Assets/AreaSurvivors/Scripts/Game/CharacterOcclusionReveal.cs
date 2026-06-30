@@ -22,6 +22,7 @@ namespace AreaSurvivors
         Material silhouetteMaterial;
         CommandBuffer commandBuffer;
         Camera renderCamera;
+        CharacterFootprint footprint;
         bool commandBufferAttached;
         float timer;
 
@@ -54,6 +55,7 @@ namespace AreaSurvivors
             }
             if (source == null) return;
             if (sourceRenderer == null) sourceRenderer = source.GetComponent<MeshRenderer>();
+            if (footprint == null) footprint = GetComponent<CharacterFootprint>();
 
             var camera = Camera.main;
             if (renderCamera != camera)
@@ -111,9 +113,17 @@ namespace AreaSurvivors
             if (renderer == null || renderer == sourceRenderer ||
                 renderer.transform.IsChildOf(transform) || !renderer.enabled) return false;
 
-            if (!IsOccluderInFrontOfCharacter(renderer, transform.position.y, sourceOrder)) return false;
+            if (!IsOccluderInFrontOfCharacter(renderer, CharacterFrontY(), sourceOrder)) return false;
 
             return sourceScreenRect.Overlaps(ScreenRect(renderer.bounds));
+        }
+
+        float CharacterFrontY()
+        {
+            if (footprint != null) return footprint.FrontY;
+            var collider = GetComponent<Collider2D>();
+            if (collider != null && collider.enabled) return collider.bounds.min.y;
+            return transform.position.y;
         }
 
         public static bool IsOccluderInFrontOfCharacter(Renderer renderer, float characterY, int sourceOrder)

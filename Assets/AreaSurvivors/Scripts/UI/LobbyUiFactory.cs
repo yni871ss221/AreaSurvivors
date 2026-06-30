@@ -119,9 +119,7 @@ namespace AreaSurvivors
 
         static void BuildFooterButtons(Transform parent)
         {
-            Button(parent, "Start Stage 2 Test Button", "\u30b9\u30c6\u30fc\u30b82\u30c6\u30b9\u30c8", new Vector2(-509, -45), new Vector2(180, 52), null);
-            Button(parent, "Start Stage 3 Test Button", "\u30b9\u30c6\u30fc\u30b83\u30c6\u30b9\u30c8", new Vector2(-509, -105), new Vector2(180, 52), null);
-            Button(parent, "Start Stage 4 Test Button", "\u30b9\u30c6\u30fc\u30b84\u30c6\u30b9\u30c8", new Vector2(-509, -165), new Vector2(180, 52), null);
+            Button(parent, "Test Launch Button", "\u30c6\u30b9\u30c8\u8d77\u52d5", new Vector2(-509, -105), new Vector2(180, 52), null);
             Button(parent, "Start Game Button", "\u30b2\u30fc\u30e0\u30b9\u30bf\u30fc\u30c8", new Vector2(-330, -300), new Vector2(260, 58), "Generated/Arrow");
             Button(parent, "Upgrade Button", "\u5f37\u5316", new Vector2(190, -300), new Vector2(220, 58), "Generated/Orb");
             Button(parent, "Title Button", "\u30bf\u30a4\u30c8\u30eb\u3078", new Vector2(430, -300), new Vector2(210, 52), "Generated/Slash_0");

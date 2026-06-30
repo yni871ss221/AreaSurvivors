@@ -45,7 +45,18 @@ namespace AreaSurvivors
         BallistaUpgrade = 50,
         WatchTowerUpgrade = 51,
         MovePenaltyReduction = 52,
-        StartingArrow = 53,
-        StartingFireball = 54
+        UnlockArrow = 53,
+        UnlockFireball = 54,
+        UnlockWall2 = 55,
+        Wall2Upgrade = 56,
+        UnlockShield = 57,
+        UnlockArrowRain = 58,
+        UnlockGun = 59,
+        UnlockFrost = 60,
+        UnlockThunderBall = 61,
+        UnlockFlag = 62,
+        UnlockBoomerangSword = 63,
+        UnlockAuraSword = 64,
+        RemoveStartingSlash = 65
     }
 }

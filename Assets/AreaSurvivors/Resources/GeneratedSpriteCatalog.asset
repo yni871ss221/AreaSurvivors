@@ -11,18 +11,46 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f982ef77693f4d978e5e56afc7eddf55, type: 3}
   m_Name: GeneratedSpriteCatalog
-  m_EditorClassIdentifier:
+  m_EditorClassIdentifier: 
   entries:
+  - name: AdvancedWeaponArea
+    sprite: {fileID: 21300000, guid: 21ac0265ab4d5d24194b0d3092a725a5, type: 3}
   - name: Archer.
     sprite: {fileID: 21300000, guid: dbb0336b5d5063a4da627fb81e05adfc, type: 3}
   - name: Arrow.
     sprite: {fileID: 21300000, guid: 93f11e156b313964db5487e2a0803cde, type: 3}
+  - name: ArrowRain
+    sprite: {fileID: 21300000, guid: f68d2324ae28e1f4296f91fdca40c2b0, type: 3}
+  - name: ArrowRainFrame_0
+    sprite: {fileID: 21300000, guid: a2e00873cc0f47d4e860b990ad21e87f, type: 3}
+  - name: ArrowRainFrame_1
+    sprite: {fileID: 21300000, guid: 0cc1524dba2b5c6458414943cfa2167d, type: 3}
+  - name: ArrowRainFrame_2
+    sprite: {fileID: 21300000, guid: a30c50ec1a61c714baaeed7e0af6aec2, type: 3}
+  - name: ArrowRainFrame_3
+    sprite: {fileID: 21300000, guid: d2d44598110159543ad63b37af151ed7, type: 3}
+  - name: ArrowRainFrame_4
+    sprite: {fileID: 21300000, guid: 75dbe16caa152af47b1e05969f3f2e85, type: 3}
+  - name: ArrowRainFrame_5
+    sprite: {fileID: 21300000, guid: fe2dd987f1a87e84ab014b87827f8270, type: 3}
+  - name: ArrowRainFrame_6
+    sprite: {fileID: 21300000, guid: 064fecea0f53cbc489130b76ece37573, type: 3}
+  - name: ArrowRainFrame_7
+    sprite: {fileID: 21300000, guid: a424913fd86d6f947b90f5e08cfbcbbe, type: 3}
+  - name: AuraSword
+    sprite: {fileID: 21300000, guid: eae5da43efda70741b01d3026eb402e9, type: 3}
+  - name: AuraSwordSlash
+    sprite: {fileID: 21300000, guid: ec07f98c7713abc4db831392922e909f, type: 3}
   - name: Axe.
     sprite: {fileID: 21300000, guid: bf9ccc17ca6d0d144810ed5ee8604c0d, type: 3}
   - name: Ballista.
     sprite: {fileID: 21300000, guid: 01cfba73cb681724686a120912dbc395, type: 3}
   - name: BallistaUpgrade.
     sprite: {fileID: 21300000, guid: 02cc1bf901e142c9a7a5a6db67cf4305, type: 3}
+  - name: BoomerangSword
+    sprite: {fileID: 21300000, guid: 565b272eb9124a54a911ae687be14fce, type: 3}
+  - name: BoomerangSwordBlade
+    sprite: {fileID: 21300000, guid: c5c4f8d7e3a14ff682fd13d8efbd50f7, type: 3}
   - name: Cannonball.
     sprite: {fileID: 21300000, guid: e368e2c6b2424ad8950fa2077e9458a0, type: 3}
   - name: CannonExplosion.
@@ -41,6 +69,18 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 896c833801240b54695f330c5e7d90d2, type: 3}
   - name: Fireball.
     sprite: {fileID: 21300000, guid: 132bacae8e22e2f418a6b868c4fe9ea0, type: 3}
+  - name: Flag
+    sprite: {fileID: 21300000, guid: 7a7ba1e057266b344821c92cb3a32b33, type: 3}
+  - name: Frost
+    sprite: {fileID: 21300000, guid: 359ecf2652bfeae478e12340860df121, type: 3}
+  - name: FrostFrame_0
+    sprite: {fileID: 21300000, guid: 6b8bdea7949142343b72f220e69757e6, type: 3}
+  - name: FrostFrame_1
+    sprite: {fileID: 21300000, guid: ec02fa707dfd5484babbca6870c0bcae, type: 3}
+  - name: FrostFrame_2
+    sprite: {fileID: 21300000, guid: db912dbbf14074e4d861fcb6b1a83509, type: 3}
+  - name: FrostFrame_3
+    sprite: {fileID: 21300000, guid: 0cbcbf2fc52e41b4d84cbd48428f355b, type: 3}
   - name: GeneratedEnvironmentPropsSheet.
     sprite: {fileID: 21300000, guid: e4e5f407c4573e0458f1c3f423cbb5eb, type: 3}
   - name: GeneratedGrassSource.
@@ -139,6 +179,10 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 34e549a30fe96534e851405fd275090c, type: 3}
   - name: GroundVariants/UserWindingDirtPatch.
     sprite: {fileID: 21300000, guid: 4030abc579e8f364ba6d6c2a469887a2, type: 3}
+  - name: Gun
+    sprite: {fileID: 21300000, guid: 841e2dc613f9a7c4d9eed5842da77b7f, type: 3}
+  - name: GunBullet
+    sprite: {fileID: 21300000, guid: 0dae26ed7a39ade42bdb5676031b768c, type: 3}
   - name: Hammer.
     sprite: {fileID: 21300000, guid: f676b99de6e632e4bb5fc678669464c1, type: 3}
   - name: Knight.
@@ -171,6 +215,46 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: bc08f18174fd0974786e50728bb183d8, type: 3}
   - name: Pickaxe.
     sprite: {fileID: 21300000, guid: b1ceea275f25ac6468e75c7214748e56, type: 3}
+  - name: Shield
+    sprite: {fileID: 21300000, guid: 6f6765f3a2f4d384699662b1a4ec85e1, type: 3}
+  - name: SkillIcons/SkillBallista
+    sprite: {fileID: 21300000, guid: d368ac3d282443d384fb4be2e30df71a, type: 3}
+  - name: SkillIcons/SkillBallistaDamage
+    sprite: {fileID: 21300000, guid: 3249875e683842f3ab9dd492391e3002, type: 3}
+  - name: SkillIcons/SkillBallistaRange
+    sprite: {fileID: 21300000, guid: 11bc1cb64f06491fb7dcaa068a7a57c5, type: 3}
+  - name: SkillIcons/SkillBallistaUpgrade
+    sprite: {fileID: 21300000, guid: 9074343047c84b09bb9038280a7e4728, type: 3}
+  - name: SkillIcons/SkillCannonball
+    sprite: {fileID: 21300000, guid: 4e8da92d67f84007a034f80d395c4ea7, type: 3}
+  - name: SkillIcons/SkillEliteBoar
+    sprite: {fileID: 21300000, guid: 7d4e9521e4ce4f3faee6f707282de024, type: 3}
+  - name: SkillIcons/SkillPlayerFireball
+    sprite: {fileID: 21300000, guid: 850a1e70472e44e4bab45795b7037f15, type: 3}
+  - name: SkillIcons/SkillToken
+    sprite: {fileID: 21300000, guid: d4cbe63674b84eec897668665aafc5be, type: 3}
+  - name: SkillIcons/SkillTowerHp
+    sprite: {fileID: 21300000, guid: 59c92d8fd1e64c43a6e7d1d21ee4e8ed, type: 3}
+  - name: SkillIcons/SkillTowerRegen
+    sprite: {fileID: 21300000, guid: c913414c9ad44263bd41f50fc2edf260, type: 3}
+  - name: SkillIcons/SkillTowerUpgrade
+    sprite: {fileID: 21300000, guid: 35dd50009f1c47febdbb90e7d20debc9, type: 3}
+  - name: SkillIcons/SkillWatchTower
+    sprite: {fileID: 21300000, guid: ef3423cc7e2d4b3e951cb0feb4d4ce43, type: 3}
+  - name: SkillIcons/SkillWatchTowerPaint
+    sprite: {fileID: 21300000, guid: 8a787984786845b38ef820e5f1583be1, type: 3}
+  - name: SkillIcons/SkillWatchTowerShield
+    sprite: {fileID: 21300000, guid: eb4530e8c3d046ba844561c95e0b4413, type: 3}
+  - name: SkillIcons/SkillWatchTowerUpgrade
+    sprite: {fileID: 21300000, guid: 76223f072de64fef81e3f2ef05d26615, type: 3}
+  - name: SkillIcons/SkillWoodenWall
+    sprite: {fileID: 21300000, guid: 73bbb68a34aa4d798ff1c1173d631985, type: 3}
+  - name: SkillIcons/SkillWoodenWallHp
+    sprite: {fileID: 21300000, guid: 4a20517143dc498395ddabb8ef314a59, type: 3}
+  - name: SkillIcons/SkillWoodenWallRegen
+    sprite: {fileID: 21300000, guid: f290fe8d8f37463d841677caae4e4bdf, type: 3}
+  - name: SkillIcons/SkillWoodenWallUpgrade
+    sprite: {fileID: 21300000, guid: d5c465d584034ed78f7aee1348d17293, type: 3}
   - name: SkullIcon.
     sprite: {fileID: 21300000, guid: 870356cd8343469aab6fd56ce2920ea5, type: 3}
   - name: Slash_0.
@@ -213,6 +297,8 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 102eb5c9d96f64943ab8ed6bdb670f0c, type: 3}
   - name: StoneIcon.
     sprite: {fileID: 21300000, guid: cdbc8c9ec3b25894a972176d3be268f8, type: 3}
+  - name: ThunderBall
+    sprite: {fileID: 21300000, guid: 21fb944cb3d009448af6147fdad00323, type: 3}
   - name: Tile.
     sprite: {fileID: 21300000, guid: 36dbdf04eaaf55045be984110a93d894, type: 3}
   - name: Token.
@@ -227,16 +313,16 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 7f32c1fadbf72094dad97faa1a60c543, type: 3}
   - name: UI/UpgradeBackground.
     sprite: {fileID: 21300000, guid: f3bea78236e7af1409aa5c0fe19a87bd, type: 3}
+  - name: UI/WeaponTypeDefense
+    sprite: {fileID: 21300000, guid: abad00691e3169d429ac0e83094a4d8e, type: 3}
+  - name: UI/WeaponTypeMagic
+    sprite: {fileID: 21300000, guid: b403d95eb9ffd1d47a2cfe6d620b2051, type: 3}
+  - name: UI/WeaponTypeMelee
+    sprite: {fileID: 21300000, guid: 18fd46d753513aa4e887d06c197c9884, type: 3}
+  - name: UI/WeaponTypeRanged
+    sprite: {fileID: 21300000, guid: d82662bad096ae445889a00e9d163574, type: 3}
   - name: UpgradeBuildingIcon.
     sprite: {fileID: 21300000, guid: 6b4dbe6630ca4fa8ab3858e933635458, type: 3}
-  - name: Walk_Archer_Sheet.
-    sprite: {fileID: 21300000, guid: 1dcd4b3a2418c5542913a8f776fd3d13, type: 3}
-  - name: Walk_EnemyBoar_Sheet.
-    sprite: {fileID: 21300000, guid: 0a3034a4698601e4b8243884667ccc23, type: 3}
-  - name: Walk_Knight_Sheet.
-    sprite: {fileID: 21300000, guid: 5923b01345456d94d87775472afd5c90, type: 3}
-  - name: Walk_Mage_Sheet.
-    sprite: {fileID: 21300000, guid: fee8f65d0699c1441918aa288e9aac49, type: 3}
   - name: Walk/Archer/Down_0.
     sprite: {fileID: 21300000, guid: 92d7952a5d12d314a940c006a3bcc703, type: 3}
   - name: Walk/Archer/Down_1.
@@ -333,6 +419,30 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: b9244f39c0c14cbea8adee1228f5be4c, type: 3}
   - name: Walk/EnemyGoblinLord/Up_2.
     sprite: {fileID: 21300000, guid: 59cd5d65712c4dccb4d43fbb43e0156e, type: 3}
+  - name: Walk/EnemyLich/Down_0
+    sprite: {fileID: 21300000, guid: 4f9c3803bb92d4b3f5c664816d85ef56, type: 3}
+  - name: Walk/EnemyLich/Down_1
+    sprite: {fileID: 21300000, guid: 155005ec2a5e52fa981d32789ff357a6, type: 3}
+  - name: Walk/EnemyLich/Down_2
+    sprite: {fileID: 21300000, guid: a2c4764cd7b5e2f1e5411cc455478ebd, type: 3}
+  - name: Walk/EnemyLich/Left_0
+    sprite: {fileID: 21300000, guid: ff5a20f70413967860746f145cd77acb, type: 3}
+  - name: Walk/EnemyLich/Left_1
+    sprite: {fileID: 21300000, guid: ff8c26c8ca85f563208e828dcaff2a90, type: 3}
+  - name: Walk/EnemyLich/Left_2
+    sprite: {fileID: 21300000, guid: 12e0455b4ed0b56079689c91419186b9, type: 3}
+  - name: Walk/EnemyLich/Right_0
+    sprite: {fileID: 21300000, guid: 6b3ba801a42dcbf914ae91ea6c562097, type: 3}
+  - name: Walk/EnemyLich/Right_1
+    sprite: {fileID: 21300000, guid: 0d9ba1ede0c0e66d7fe544de29366b49, type: 3}
+  - name: Walk/EnemyLich/Right_2
+    sprite: {fileID: 21300000, guid: 68eaa3de7bf6c7ae9f60327f840adc94, type: 3}
+  - name: Walk/EnemyLich/Up_0
+    sprite: {fileID: 21300000, guid: c3969b0ccf1c1bb32e71fcd999d7b8e7, type: 3}
+  - name: Walk/EnemyLich/Up_1
+    sprite: {fileID: 21300000, guid: d6b934c7d0dea9c14dffca8c996fcd77, type: 3}
+  - name: Walk/EnemyLich/Up_2
+    sprite: {fileID: 21300000, guid: e7e8c2a0d992dbaefa9e00af32a68764, type: 3}
   - name: Walk/EnemyOgre/Down_0.
     sprite: {fileID: 21300000, guid: 5383ef686eec454892a0b6812a394014, type: 3}
   - name: Walk/EnemyOgre/Down_1.
@@ -405,126 +515,6 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 9bec4bead0656b04c95969d7bf83442e, type: 3}
   - name: Walk/EnemyOrcKing/Up_2.
     sprite: {fileID: 21300000, guid: e08d0fab7ddfa2946a683e718e1579da, type: 3}
-  - name: Walk/Knight/Down_0.
-    sprite: {fileID: 21300000, guid: a2c684a9d1621a14db4466711422337a, type: 3}
-  - name: Walk/Knight/Down_1.
-    sprite: {fileID: 21300000, guid: d21065662d338ce4c9baae72c8186739, type: 3}
-  - name: Walk/Knight/Down_2.
-    sprite: {fileID: 21300000, guid: b277cc2437b33144ba340caf2721ccea, type: 3}
-  - name: Walk/Knight/Left_0.
-    sprite: {fileID: 21300000, guid: 6eaffe9c55b0c7f44b3091a8f92b3bd8, type: 3}
-  - name: Walk/Knight/Left_1.
-    sprite: {fileID: 21300000, guid: ea68293a8b937b749b74ed48d49eb28f, type: 3}
-  - name: Walk/Knight/Left_2.
-    sprite: {fileID: 21300000, guid: bb67c71e73b7b3942ae3b29ef4c4e08e, type: 3}
-  - name: Walk/Knight/Right_0.
-    sprite: {fileID: 21300000, guid: 95dad25259213a04ebb4f9908f04bbde, type: 3}
-  - name: Walk/Knight/Right_1.
-    sprite: {fileID: 21300000, guid: f2548f9c00d6fde4ca6b8a4f77e9dfa4, type: 3}
-  - name: Walk/Knight/Right_2.
-    sprite: {fileID: 21300000, guid: b16795b3fe240574dade6b25325a6cca, type: 3}
-  - name: Walk/Knight/Up_0.
-    sprite: {fileID: 21300000, guid: 1f493a1743cd1474bbb79ebf4d8953ce, type: 3}
-  - name: Walk/Knight/Up_1.
-    sprite: {fileID: 21300000, guid: 60c1fbbaed44f4446948c1202a197ad8, type: 3}
-  - name: Walk/Knight/Up_2.
-    sprite: {fileID: 21300000, guid: d68338a5ed75a0f44af4667468eb115a, type: 3}
-  - name: Walk/Mage/Down_0.
-    sprite: {fileID: 21300000, guid: af28fb21b67d3b24db35141c5a7053ad, type: 3}
-  - name: Walk/Mage/Down_1.
-    sprite: {fileID: 21300000, guid: 3a236bbfe960a164aa2152fc1de51ec5, type: 3}
-  - name: Walk/Mage/Down_2.
-    sprite: {fileID: 21300000, guid: 58d4927f54cade34686abc064ae4bb21, type: 3}
-  - name: Walk/Mage/Left_0.
-    sprite: {fileID: 21300000, guid: 345e5ef0f62e1bb4cb8d7ba7eeea0fb4, type: 3}
-  - name: Walk/Mage/Left_1.
-    sprite: {fileID: 21300000, guid: e24819eaaa4a3e54ba556e4c591d8f70, type: 3}
-  - name: Walk/Mage/Left_2.
-    sprite: {fileID: 21300000, guid: 802dd5410a1445949b40c470b162ce4c, type: 3}
-  - name: Walk/Mage/Right_0.
-    sprite: {fileID: 21300000, guid: 5dc6ebabda66d8840a386bcd698105af, type: 3}
-  - name: Walk/Mage/Right_1.
-    sprite: {fileID: 21300000, guid: 8cdcc7a693bc60942bc5c62d39738c65, type: 3}
-  - name: Walk/Mage/Right_2.
-    sprite: {fileID: 21300000, guid: 845dc3c776ec886489b1fa273bdfb3dd, type: 3}
-  - name: Walk/Mage/Up_0.
-    sprite: {fileID: 21300000, guid: 6502094460567b4458029bd2c3835076, type: 3}
-  - name: Walk/Mage/Up_1.
-    sprite: {fileID: 21300000, guid: 1fe90d3cffa228d4ba20f7de5657691a, type: 3}
-  - name: Walk/Mage/Up_2.
-    sprite: {fileID: 21300000, guid: ac94e96d9d3874f4d82ad439e3661a3a, type: 3}
-  - name: WatchTower.
-    sprite: {fileID: 21300000, guid: 21a8096036d361640b76d30c33cdc590, type: 3}
-  - name: WatchTowerUpgrade.
-    sprite: {fileID: 21300000, guid: f2970200c4d045ea9ba12f32eb71af97, type: 3}
-  - name: WoodenWall.
-    sprite: {fileID: 21300000, guid: c1c65f9d327a46ab882dc0e037fe24b9, type: 3}
-  - name: WoodenWallUpgrade.
-    sprite: {fileID: 21300000, guid: 5584e0128a7e4743a979509d03c0eb0b, type: 3}
-  - name: WoodIcon.
-    sprite: {fileID: 21300000, guid: 19845df25c834f04bb999aecaafd7a89, type: 3}
-  - name: SkillIcons/SkillPlayerFireball
-    sprite: {fileID: 21300000, guid: 850a1e70472e44e4bab45795b7037f15, type: 3}
-  - name: SkillIcons/SkillWoodenWall
-    sprite: {fileID: 21300000, guid: 73bbb68a34aa4d798ff1c1173d631985, type: 3}
-  - name: SkillIcons/SkillWoodenWallHp
-    sprite: {fileID: 21300000, guid: 4a20517143dc498395ddabb8ef314a59, type: 3}
-  - name: SkillIcons/SkillBallista
-    sprite: {fileID: 21300000, guid: d368ac3d282443d384fb4be2e30df71a, type: 3}
-  - name: SkillIcons/SkillBallistaRange
-    sprite: {fileID: 21300000, guid: 11bc1cb64f06491fb7dcaa068a7a57c5, type: 3}
-  - name: SkillIcons/SkillBallistaDamage
-    sprite: {fileID: 21300000, guid: 3249875e683842f3ab9dd492391e3002, type: 3}
-  - name: SkillIcons/SkillWatchTower
-    sprite: {fileID: 21300000, guid: ef3423cc7e2d4b3e951cb0feb4d4ce43, type: 3}
-  - name: SkillIcons/SkillWatchTowerPaint
-    sprite: {fileID: 21300000, guid: 8a787984786845b38ef820e5f1583be1, type: 3}
-  - name: SkillIcons/SkillWatchTowerShield
-    sprite: {fileID: 21300000, guid: eb4530e8c3d046ba844561c95e0b4413, type: 3}
-  - name: SkillIcons/SkillWoodenWallRegen
-    sprite: {fileID: 21300000, guid: f290fe8d8f37463d841677caae4e4bdf, type: 3}
-  - name: SkillIcons/SkillWoodenWallUpgrade
-    sprite: {fileID: 21300000, guid: d5c465d584034ed78f7aee1348d17293, type: 3}
-  - name: SkillIcons/SkillBallistaUpgrade
-    sprite: {fileID: 21300000, guid: 9074343047c84b09bb9038280a7e4728, type: 3}
-  - name: SkillIcons/SkillWatchTowerUpgrade
-    sprite: {fileID: 21300000, guid: 76223f072de64fef81e3f2ef05d26615, type: 3}
-  - name: SkillIcons/SkillTowerHp
-    sprite: {fileID: 21300000, guid: 59c92d8fd1e64c43a6e7d1d21ee4e8ed, type: 3}
-  - name: SkillIcons/SkillTowerRegen
-    sprite: {fileID: 21300000, guid: c913414c9ad44263bd41f50fc2edf260, type: 3}
-  - name: SkillIcons/SkillCannonball
-    sprite: {fileID: 21300000, guid: 4e8da92d67f84007a034f80d395c4ea7, type: 3}
-  - name: SkillIcons/SkillToken
-    sprite: {fileID: 21300000, guid: d4cbe63674b84eec897668665aafc5be, type: 3}
-  - name: SkillIcons/SkillEliteBoar
-    sprite: {fileID: 21300000, guid: 7d4e9521e4ce4f3faee6f707282de024, type: 3}
-  - name: SkillIcons/SkillTowerUpgrade
-    sprite: {fileID: 21300000, guid: 35dd50009f1c47febdbb90e7d20debc9, type: 3}
-  - name: Walk/EnemyLich/Down_0
-    sprite: {fileID: 21300000, guid: 4f9c3803bb92d4b3f5c664816d85ef56, type: 3}
-  - name: Walk/EnemyLich/Down_1
-    sprite: {fileID: 21300000, guid: 155005ec2a5e52fa981d32789ff357a6, type: 3}
-  - name: Walk/EnemyLich/Down_2
-    sprite: {fileID: 21300000, guid: a2c4764cd7b5e2f1e5411cc455478ebd, type: 3}
-  - name: Walk/EnemyLich/Left_0
-    sprite: {fileID: 21300000, guid: ff5a20f70413967860746f145cd77acb, type: 3}
-  - name: Walk/EnemyLich/Left_1
-    sprite: {fileID: 21300000, guid: ff8c26c8ca85f563208e828dcaff2a90, type: 3}
-  - name: Walk/EnemyLich/Left_2
-    sprite: {fileID: 21300000, guid: 12e0455b4ed0b56079689c91419186b9, type: 3}
-  - name: Walk/EnemyLich/Right_0
-    sprite: {fileID: 21300000, guid: 6b3ba801a42dcbf914ae91ea6c562097, type: 3}
-  - name: Walk/EnemyLich/Right_1
-    sprite: {fileID: 21300000, guid: 0d9ba1ede0c0e66d7fe544de29366b49, type: 3}
-  - name: Walk/EnemyLich/Right_2
-    sprite: {fileID: 21300000, guid: 68eaa3de7bf6c7ae9f60327f840adc94, type: 3}
-  - name: Walk/EnemyLich/Up_0
-    sprite: {fileID: 21300000, guid: c3969b0ccf1c1bb32e71fcd999d7b8e7, type: 3}
-  - name: Walk/EnemyLich/Up_1
-    sprite: {fileID: 21300000, guid: d6b934c7d0dea9c14dffca8c996fcd77, type: 3}
-  - name: Walk/EnemyLich/Up_2
-    sprite: {fileID: 21300000, guid: e7e8c2a0d992dbaefa9e00af32a68764, type: 3}
   - name: Walk/EnemySkeleton/Down_0
     sprite: {fileID: 21300000, guid: ca9d1f8f6c6ffd43e7f3c5aacdd7192b, type: 3}
   - name: Walk/EnemySkeleton/Down_1
@@ -573,3 +563,69 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: fe827fc39a4f9d88b4d6199654da6028, type: 3}
   - name: Walk/EnemySkeletonKnight/Up_2
     sprite: {fileID: 21300000, guid: 557168542f05e96594952f570f331229, type: 3}
+  - name: Walk/Knight/Down_0.
+    sprite: {fileID: 21300000, guid: a2c684a9d1621a14db4466711422337a, type: 3}
+  - name: Walk/Knight/Down_1.
+    sprite: {fileID: 21300000, guid: d21065662d338ce4c9baae72c8186739, type: 3}
+  - name: Walk/Knight/Down_2.
+    sprite: {fileID: 21300000, guid: b277cc2437b33144ba340caf2721ccea, type: 3}
+  - name: Walk/Knight/Left_0.
+    sprite: {fileID: 21300000, guid: 6eaffe9c55b0c7f44b3091a8f92b3bd8, type: 3}
+  - name: Walk/Knight/Left_1.
+    sprite: {fileID: 21300000, guid: ea68293a8b937b749b74ed48d49eb28f, type: 3}
+  - name: Walk/Knight/Left_2.
+    sprite: {fileID: 21300000, guid: bb67c71e73b7b3942ae3b29ef4c4e08e, type: 3}
+  - name: Walk/Knight/Right_0.
+    sprite: {fileID: 21300000, guid: 95dad25259213a04ebb4f9908f04bbde, type: 3}
+  - name: Walk/Knight/Right_1.
+    sprite: {fileID: 21300000, guid: f2548f9c00d6fde4ca6b8a4f77e9dfa4, type: 3}
+  - name: Walk/Knight/Right_2.
+    sprite: {fileID: 21300000, guid: b16795b3fe240574dade6b25325a6cca, type: 3}
+  - name: Walk/Knight/Up_0.
+    sprite: {fileID: 21300000, guid: 1f493a1743cd1474bbb79ebf4d8953ce, type: 3}
+  - name: Walk/Knight/Up_1.
+    sprite: {fileID: 21300000, guid: 60c1fbbaed44f4446948c1202a197ad8, type: 3}
+  - name: Walk/Knight/Up_2.
+    sprite: {fileID: 21300000, guid: d68338a5ed75a0f44af4667468eb115a, type: 3}
+  - name: Walk/Mage/Down_0.
+    sprite: {fileID: 21300000, guid: af28fb21b67d3b24db35141c5a7053ad, type: 3}
+  - name: Walk/Mage/Down_1.
+    sprite: {fileID: 21300000, guid: 3a236bbfe960a164aa2152fc1de51ec5, type: 3}
+  - name: Walk/Mage/Down_2.
+    sprite: {fileID: 21300000, guid: 58d4927f54cade34686abc064ae4bb21, type: 3}
+  - name: Walk/Mage/Left_0.
+    sprite: {fileID: 21300000, guid: 345e5ef0f62e1bb4cb8d7ba7eeea0fb4, type: 3}
+  - name: Walk/Mage/Left_1.
+    sprite: {fileID: 21300000, guid: e24819eaaa4a3e54ba556e4c591d8f70, type: 3}
+  - name: Walk/Mage/Left_2.
+    sprite: {fileID: 21300000, guid: 802dd5410a1445949b40c470b162ce4c, type: 3}
+  - name: Walk/Mage/Right_0.
+    sprite: {fileID: 21300000, guid: 5dc6ebabda66d8840a386bcd698105af, type: 3}
+  - name: Walk/Mage/Right_1.
+    sprite: {fileID: 21300000, guid: 8cdcc7a693bc60942bc5c62d39738c65, type: 3}
+  - name: Walk/Mage/Right_2.
+    sprite: {fileID: 21300000, guid: 845dc3c776ec886489b1fa273bdfb3dd, type: 3}
+  - name: Walk/Mage/Up_0.
+    sprite: {fileID: 21300000, guid: 6502094460567b4458029bd2c3835076, type: 3}
+  - name: Walk/Mage/Up_1.
+    sprite: {fileID: 21300000, guid: 1fe90d3cffa228d4ba20f7de5657691a, type: 3}
+  - name: Walk/Mage/Up_2.
+    sprite: {fileID: 21300000, guid: ac94e96d9d3874f4d82ad439e3661a3a, type: 3}
+  - name: Walk_Archer_Sheet.
+    sprite: {fileID: 21300000, guid: 1dcd4b3a2418c5542913a8f776fd3d13, type: 3}
+  - name: Walk_EnemyBoar_Sheet.
+    sprite: {fileID: 21300000, guid: 0a3034a4698601e4b8243884667ccc23, type: 3}
+  - name: Walk_Knight_Sheet.
+    sprite: {fileID: 21300000, guid: 5923b01345456d94d87775472afd5c90, type: 3}
+  - name: Walk_Mage_Sheet.
+    sprite: {fileID: 21300000, guid: fee8f65d0699c1441918aa288e9aac49, type: 3}
+  - name: WatchTower.
+    sprite: {fileID: 21300000, guid: 21a8096036d361640b76d30c33cdc590, type: 3}
+  - name: WatchTowerUpgrade.
+    sprite: {fileID: 21300000, guid: f2970200c4d045ea9ba12f32eb71af97, type: 3}
+  - name: WoodenWall.
+    sprite: {fileID: 21300000, guid: c1c65f9d327a46ab882dc0e037fe24b9, type: 3}
+  - name: WoodenWallUpgrade.
+    sprite: {fileID: 21300000, guid: 5584e0128a7e4743a979509d03c0eb0b, type: 3}
+  - name: WoodIcon.
+    sprite: {fileID: 21300000, guid: 19845df25c834f04bb999aecaafd7a89, type: 3}

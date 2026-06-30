@@ -107,6 +107,7 @@ namespace AreaSurvivors
         {
             if (resolved) return;
             resolved = true;
+            AudioManager.PlaySfx(SfxTrack.ExplosionHit);
             ImpactFlash();
             if (paintsTerritory) PaintPlayerTerritory(transform.position, Mathf.CeilToInt(explosionRadius));
             ProjectileExplosionHitbox.Spawn(transform.position, explosionRadius, damage, knockback, knockbackDuration, paintsTerritory);

@@ -8,6 +8,8 @@ namespace AreaSurvivors
     {
         public Color outlineColor = Color.black;
         public float thickness = 0.035f;
+        public bool compensateTransformScale;
+        public bool requireExistingOutlineObject;
         public bool blink;
         public float blinkSpeed = 5f;
 
@@ -64,12 +66,43 @@ namespace AreaSurvivors
             }
 
             var child = transform.Find("Runtime Outline");
-            var go = child != null ? child.gameObject : new GameObject("Runtime Outline");
-            go.transform.SetParent(transform, false);
+            if (child == null)
+            {
+                if (requireExistingOutlineObject)
+                {
+                    Debug.LogError($"{nameof(RuntimeSpriteOutline)} on {name} requires a prefab-authored Runtime Outline child.");
+                    return;
+                }
+
+                child = new GameObject("Runtime Outline").transform;
+                child.SetParent(transform, false);
+            }
+
+            var go = child.gameObject;
             outlineFilter = go.GetComponent<MeshFilter>();
-            if (outlineFilter == null) outlineFilter = go.AddComponent<MeshFilter>();
+            if (outlineFilter == null)
+            {
+                if (requireExistingOutlineObject)
+                {
+                    Debug.LogError($"{nameof(RuntimeSpriteOutline)} on {name} requires a prefab-authored MeshFilter on Runtime Outline.");
+                    return;
+                }
+
+                outlineFilter = go.AddComponent<MeshFilter>();
+            }
+
             outlineRenderer = go.GetComponent<MeshRenderer>();
-            if (outlineRenderer == null) outlineRenderer = go.AddComponent<MeshRenderer>();
+            if (outlineRenderer == null)
+            {
+                if (requireExistingOutlineObject)
+                {
+                    Debug.LogError($"{nameof(RuntimeSpriteOutline)} on {name} requires a prefab-authored MeshRenderer on Runtime Outline.");
+                    return;
+                }
+
+                outlineRenderer = go.AddComponent<MeshRenderer>();
+            }
+
             outlineRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             outlineRenderer.receiveShadows = false;
             RemoveLegacyOutlineCopies();
@@ -98,7 +131,7 @@ namespace AreaSurvivors
             outlineMaterial.color = color;
             ApplySpriteRectProperties();
 
-            bool visible = sourceRenderer.enabled && color.a > 0.001f && thickness > 0.001f;
+            bool visible = sourceRenderer.enabled && color.a > 0.001f && EffectiveThickness > 0.001f;
             var outlineTransform = outlineRenderer.transform;
             outlineTransform.localPosition = Vector3.zero;
             outlineTransform.localRotation = Quaternion.identity;
@@ -117,7 +150,8 @@ namespace AreaSurvivors
         void EnsureOutlineMesh(Mesh sourceMesh)
         {
             if (sourceMesh == null) return;
-            if (outlineMesh != null && lastSourceMesh == sourceMesh && Mathf.Approximately(lastThickness, thickness)) return;
+            float effectiveThickness = EffectiveThickness;
+            if (outlineMesh != null && lastSourceMesh == sourceMesh && Mathf.Approximately(lastThickness, effectiveThickness)) return;
 
             var vertices = sourceMesh.vertices;
             var uvs = sourceMesh.uv;
@@ -141,8 +175,8 @@ namespace AreaSurvivors
 
             float width = Mathf.Max(0.001f, max.x - min.x);
             float height = Mathf.Max(0.001f, max.y - min.y);
-            float uvPadX = (uvMax.x - uvMin.x) * thickness / width;
-            float uvPadY = (uvMax.y - uvMin.y) * thickness / height;
+            float uvPadX = (uvMax.x - uvMin.x) * effectiveThickness / width;
+            float uvPadY = (uvMax.y - uvMin.y) * effectiveThickness / height;
 
             if (outlineMesh == null)
             {
@@ -159,10 +193,10 @@ namespace AreaSurvivors
 
             outlineMesh.vertices = new[]
             {
-                new Vector3(min.x - thickness, min.y - thickness, 0f),
-                new Vector3(max.x + thickness, min.y - thickness, 0f),
-                new Vector3(min.x - thickness, max.y + thickness, 0f),
-                new Vector3(max.x + thickness, max.y + thickness, 0f)
+                new Vector3(min.x - effectiveThickness, min.y - effectiveThickness, 0f),
+                new Vector3(max.x + effectiveThickness, min.y - effectiveThickness, 0f),
+                new Vector3(min.x - effectiveThickness, max.y + effectiveThickness, 0f),
+                new Vector3(max.x + effectiveThickness, max.y + effectiveThickness, 0f)
             };
             outlineMesh.uv = new[]
             {
@@ -175,7 +209,7 @@ namespace AreaSurvivors
             outlineMesh.RecalculateBounds();
             outlineFilter.sharedMesh = outlineMesh;
             lastSourceMesh = sourceMesh;
-            lastThickness = thickness;
+            lastThickness = effectiveThickness;
         }
 
         void ApplySpriteRectProperties()
@@ -203,8 +237,9 @@ namespace AreaSurvivors
 
             float width = Mathf.Max(0.001f, max.x - min.x);
             float height = Mathf.Max(0.001f, max.y - min.y);
-            float uvPadX = (uvMax.x - uvMin.x) * thickness / width;
-            float uvPadY = (uvMax.y - uvMin.y) * thickness / height;
+            float effectiveThickness = EffectiveThickness;
+            float uvPadX = (uvMax.x - uvMin.x) * effectiveThickness / width;
+            float uvPadY = (uvMax.y - uvMin.y) * effectiveThickness / height;
             outlineMaterial.SetVector("_SpriteRect", new Vector4(uvMin.x, uvMin.y, uvMax.x, uvMax.y));
             outlineMaterial.SetVector("_OutlineUv", new Vector4(uvPadX, uvPadY, 0f, 0f));
             outlineMaterial.SetFloat("_AlphaThreshold", 0.05f);
@@ -224,6 +259,17 @@ namespace AreaSurvivors
         static float SourceAlpha(Material material)
         {
             return material.HasProperty("_Color") ? material.color.a : 1f;
+        }
+
+        float EffectiveThickness
+        {
+            get
+            {
+                if (!compensateTransformScale) return thickness;
+                var scale = transform.lossyScale;
+                float maxScale = Mathf.Max(Mathf.Abs(scale.x), Mathf.Abs(scale.y), Mathf.Abs(scale.z), 0.001f);
+                return thickness / maxScale;
+            }
         }
     }
 }
