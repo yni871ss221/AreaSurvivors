@@ -21,6 +21,7 @@ namespace AreaSurvivors
         int damage;
         bool explosive;
         bool resolved;
+        RunDamageSource damageSource;
         float explosionRadius = 1.1f;
         float trailTimer;
         const float ArrowVisualScaleMultiplier = 0.5f;
@@ -69,6 +70,11 @@ namespace AreaSurvivors
             Invoke(nameof(Expire), lifetime);
         }
 
+        public void SetDamageSource(RunDamageSource source)
+        {
+            damageSource = source;
+        }
+
         void OnTriggerEnter2D(Collider2D other)
         {
             if (resolved) return;
@@ -81,10 +87,12 @@ namespace AreaSurvivors
             else
             {
                 ImpactFlash();
-                var dealt = other.GetComponent<Health>()?.Damage(damage, other.ClosestPoint(transform.position)) ?? 0;
+                var health = other.GetComponent<Health>();
+                int creditedDamage = health != null && !health.IsDead ? health.DamageAmount(damage) : 0;
+                if (health != null) health.Damage(damage, other.ClosestPoint(transform.position));
                 if (paintsTerritory) PaintPlayerTerritory(enemy.transform.position, ArrowPaintRadius);
                 ApplyKnockback(enemy, GetComponent<Rigidbody2D>() != null ? GetComponent<Rigidbody2D>().velocity.normalized : transform.right);
-                GameManager.Instance?.RegisterDamageDealt(dealt);
+                RegisterDamage(creditedDamage);
                 resolved = true;
                 Destroy(gameObject);
             }
@@ -110,8 +118,14 @@ namespace AreaSurvivors
             AudioManager.PlaySfx(SfxTrack.ExplosionHit);
             ImpactFlash();
             if (paintsTerritory) PaintPlayerTerritory(transform.position, Mathf.CeilToInt(explosionRadius));
-            ProjectileExplosionHitbox.Spawn(transform.position, explosionRadius, damage, knockback, knockbackDuration, paintsTerritory);
+            ProjectileExplosionHitbox.Spawn(transform.position, explosionRadius, damage, knockback, knockbackDuration, paintsTerritory, damageSource);
             Destroy(gameObject);
+        }
+
+        void RegisterDamage(int amount)
+        {
+            if (damageSource.IsAssigned) GameManager.Instance?.RegisterDamageDealt(damageSource, amount);
+            else GameManager.Instance?.RegisterDamageDealt(amount);
         }
 
         static void PaintPlayerTerritory(Vector3 position, int radius)
@@ -235,8 +249,9 @@ namespace AreaSurvivors
         float knockback;
         float knockbackDuration;
         bool paintsTerritory;
+        RunDamageSource damageSource;
 
-        public static void Spawn(Vector3 position, float radius, int damage, float knockback, float knockbackDuration, bool paintsTerritory = true)
+        public static void Spawn(Vector3 position, float radius, int damage, float knockback, float knockbackDuration, bool paintsTerritory = true, RunDamageSource source = default)
         {
             var go = new GameObject("Projectile Explosion Hitbox");
             go.transform.position = position;
@@ -249,10 +264,10 @@ namespace AreaSurvivors
             body.bodyType = RigidbodyType2D.Kinematic;
             body.simulated = true;
 
-            go.AddComponent<ProjectileExplosionHitbox>().Configure(hitbox, position, damage, knockback, knockbackDuration, paintsTerritory);
+            go.AddComponent<ProjectileExplosionHitbox>().Configure(hitbox, position, damage, knockback, knockbackDuration, paintsTerritory, source);
         }
 
-        void Configure(CircleCollider2D source, Vector3 hitOrigin, int hitDamage, float knockbackStrength, float knockbackSeconds, bool shouldPaintTerritory)
+        void Configure(CircleCollider2D source, Vector3 hitOrigin, int hitDamage, float knockbackStrength, float knockbackSeconds, bool shouldPaintTerritory, RunDamageSource runDamageSource)
         {
             hitbox = source;
             origin = hitOrigin;
@@ -260,6 +275,7 @@ namespace AreaSurvivors
             knockback = knockbackStrength;
             knockbackDuration = knockbackSeconds;
             paintsTerritory = shouldPaintTerritory;
+            damageSource = runDamageSource;
             StartCoroutine(DamageAfterPhysicsSync());
         }
 
@@ -286,10 +302,17 @@ namespace AreaSurvivors
                 if (enemy == null || damaged.Contains(enemy)) continue;
                 damaged.Add(enemy);
                 var health = enemy.GetComponent<Health>();
-                var dealt = health != null ? health.Damage(damage, hits[i].ClosestPoint(origin)) : 0;
+                int creditedDamage = health != null && !health.IsDead ? health.DamageAmount(damage) : 0;
+                if (health != null) health.Damage(damage, hits[i].ClosestPoint(origin));
                 ApplyKnockback(enemy);
-                GameManager.Instance?.RegisterDamageDealt(dealt);
+                RegisterDamage(creditedDamage);
             }
+        }
+
+        void RegisterDamage(int amount)
+        {
+            if (damageSource.IsAssigned) GameManager.Instance?.RegisterDamageDealt(damageSource, amount);
+            else GameManager.Instance?.RegisterDamageDealt(amount);
         }
 
         void ApplyKnockback(EnemyController enemy)

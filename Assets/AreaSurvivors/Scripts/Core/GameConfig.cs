@@ -131,6 +131,8 @@ namespace AreaSurvivors
         public int watchTowerMaxHp = 100;
         public float watchTowerAutoPaintIntervalSeconds = 2f;
         public int watchTowerAutoPaintRadiusCells = 10;
+        public int watchTowerDamage = 1;
+        public int upgradedWatchTowerDamageBonus = 3;
         public int startingBallistaStock = 4;
         public int startingWallStock = 4;
 
@@ -195,6 +197,9 @@ namespace AreaSurvivors
         public float baseKnockback = 1f;
         public float knockbackForceUnit = 2.2f;
         public float knockbackDuration = 0.16f;
+        public float advancedNormalEnemyKnockbackWeight = 2f;
+        public float eliteEnemyKnockbackWeight = 2f;
+        public float bossEnemyKnockbackWeight = 10f;
         public int baseDefense = 0;
         public float baseXpGainMultiplier = 1f;
         public int baseAutoRegen = 0;
@@ -216,8 +221,8 @@ namespace AreaSurvivors
         public float ballistaRangePerUpgradeLevel = 0.75f;
         public int ballistaDamagePerUpgradeLevel = 2;
         public int wallMaxHpPerSkill = 20;
-        public int watchTowerMaxHpPerUpgradeLevel = 20;
         public int watchTowerRangePerUpgradeLevel = 2;
+        public int watchTowerDamagePerUpgradeLevel = 1;
         public int buildingAutoRegenPerUpgradeLevel = 1;
         public float enemyTerritorySlowReductionPerUpgradeLevel = 0.05f;
         public int towerAutoRegenPerUpgradeLevel = 1;
@@ -485,8 +490,8 @@ namespace AreaSurvivors
             switch (type)
             {
                 case WeaponType.Flag:
-                    definition.attackPower = 4 + bonusLevel;
-                    definition.range = (3f + bonusLevel * 0.25f) * TileGrid.DefaultCellSize;
+                    definition.attackPower = 3 + bonusLevel;
+                    definition.range = 1.7f + bonusLevel * 0.1f;
                     definition.slowAmount = 0.3f;
                     definition.damageIntervalSeconds = Mathf.Max(0.2f, 1f - bonusLevel * 0.04f);
                     break;
@@ -518,17 +523,17 @@ namespace AreaSurvivors
                     definition.distance = definition.range;
                     break;
                 case WeaponType.Frost:
-                    definition.attackPower = 5 + bonusLevel;
-                    definition.range = (3f + bonusLevel * 0.2f) * TileGrid.DefaultCellSize;
+                    definition.attackPower = 3 + bonusLevel;
+                    definition.range = 1.7f + bonusLevel * 0.1f;
                     definition.distance = 5f * TileGrid.DefaultCellSize;
                     definition.durationSeconds = 2.4f + bonusLevel * 0.1f;
                     definition.slowAmount = 0.3f;
                     definition.damageIntervalSeconds = Mathf.Max(0.25f, baseCooldown * 0.5f);
                     break;
                 case WeaponType.ThunderBall:
-                    definition.attackPower = 5 + bonusLevel;
+                    definition.attackPower = 3 + bonusLevel;
                     definition.projectileCount = 1 + bonusLevel / 3;
-                    definition.range = (2f + bonusLevel * 0.15f) * TileGrid.DefaultCellSize;
+                    definition.range = 1f + bonusLevel * 0.1f;
                     definition.durationSeconds = 5f + bonusLevel * 0.2f;
                     definition.damageIntervalSeconds = 0.45f;
                     break;

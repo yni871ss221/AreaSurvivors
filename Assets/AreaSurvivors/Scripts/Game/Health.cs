@@ -32,15 +32,20 @@ namespace AreaSurvivors
             return Damage(value, transform.position);
         }
 
+        public int DamageAmount(int value)
+        {
+            return Mathf.Max(0, value - Mathf.Max(0, defense));
+        }
+
         public int Damage(int value, Vector3 worldPoint)
         {
             if (IsDead) return 0;
             LastDamagePoint = worldPoint;
-            int amount = Mathf.Max(0, value - Mathf.Max(0, defense));
+            int amount = DamageAmount(value);
             int before = currentHp;
             currentHp = Mathf.Max(0, currentHp - amount);
             int dealt = before - currentHp;
-            Damaged?.Invoke(this, dealt);
+            Damaged?.Invoke(this, amount);
             if (currentHp <= 0) Died?.Invoke(this);
             return dealt;
         }

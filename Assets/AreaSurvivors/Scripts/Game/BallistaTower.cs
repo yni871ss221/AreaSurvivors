@@ -254,6 +254,7 @@ namespace AreaSurvivors
         {
             if (!completed) return;
 
+            GameManager.Instance?.MarkBuildingDamageSourceActive(RunDamageBuildingSource.Ballista);
             attackTimer -= Time.deltaTime;
             AnimateCompletionSparkle();
             if (attackTimer <= 0f)
@@ -369,7 +370,8 @@ namespace AreaSurvivors
             var projectile = go.GetComponent<Projectile>();
             if (projectile == null) return;
             projectile.paintsTerritory = false;
-            projectile.Launch(direction.normalized, damage, speed, false);
+            projectile.SetDamageSource(RunDamageSource.ForBuilding(RunDamageBuildingSource.Ballista));
+            projectile.Launch(direction.normalized, RelicEffects.ApplyBallistaDamage(damage, grid), speed, false);
         }
 
         static void SetActive(GameObject target, bool active)

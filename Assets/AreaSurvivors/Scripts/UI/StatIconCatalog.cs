@@ -41,6 +41,7 @@ namespace AreaSurvivors
         public const string SkillToken = SkillPrefix + "SkillToken";
         public const string SkillEliteBoar = SkillPrefix + "SkillEliteBoar";
         public const string SkillTowerUpgrade = SkillPrefix + "SkillTowerUpgrade";
+        public const string TreasureChest = "TreasureChest";
 
         public static Sprite Load(string resource)
         {
@@ -96,8 +97,6 @@ namespace AreaSurvivors
                 case UpgradeType.WallMaxHp2:
                 case UpgradeType.WallMaxHp3:
                     return SkillWoodenWallHp;
-                case UpgradeType.WatchTowerMaxHp:
-                    return SkillWatchTowerShield;
                 case UpgradeType.ReviveSpeed: return Revive;
                 case UpgradeType.Defense: return Defense;
                 case UpgradeType.XpGain: return Xp;
@@ -120,6 +119,7 @@ namespace AreaSurvivors
                 case UpgradeType.WatchTowerRange:
                     return SkillWatchTowerPaint;
                 case UpgradeType.BallistaDamage:
+                case UpgradeType.WatchTowerDamage:
                     return SkillBallistaDamage;
                 case UpgradeType.UnlockTowerCannon:
                     return SkillCannonball;
@@ -140,6 +140,10 @@ namespace AreaSurvivors
                     return SkillToken;
                 case UpgradeType.EliteSpawnCount:
                     return SkillEliteBoar;
+                case UpgradeType.ReviveBuildingsOnBossDefeat:
+                    return SkillTowerRegen;
+                case UpgradeType.UnlockOpeningRelicChest:
+                    return TreasureChest;
                 default:
                     return fallback;
             }

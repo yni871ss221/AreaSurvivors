@@ -112,6 +112,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   sourceSprite: {fileID: 21300000, guid: a30c50ec1a61c714baaeed7e0af6aec2, type: 3}
+  shapeSpriteOverride: {fileID: 0}
+  useEllipseShape: 0
+  ellipseSegments: 64
+  ellipseTextureCrop: 0
+  useSourceTexture: 1
   tint: {r: 1, g: 1, b: 1, a: 1}
   sortingOrder: 7220
   anchorBottomCenter: 0
@@ -228,6 +233,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   sourceSprite: {fileID: 21300000, guid: d2d44598110159543ad63b37af151ed7, type: 3}
+  shapeSpriteOverride: {fileID: 0}
+  useEllipseShape: 0
+  ellipseSegments: 64
+  ellipseTextureCrop: 0
+  useSourceTexture: 1
   tint: {r: 1, g: 1, b: 1, a: 1}
   sortingOrder: 7220
   anchorBottomCenter: 0
@@ -344,6 +354,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   sourceSprite: {fileID: 21300000, guid: 0cc1524dba2b5c6458414943cfa2167d, type: 3}
+  shapeSpriteOverride: {fileID: 0}
+  useEllipseShape: 0
+  ellipseSegments: 64
+  ellipseTextureCrop: 0
+  useSourceTexture: 1
   tint: {r: 1, g: 1, b: 1, a: 1}
   sortingOrder: 7220
   anchorBottomCenter: 0
@@ -395,7 +410,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: af95e33ef29cde24c9c5b191152bad53, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  faceCamera: 1
+  faceCamera: 0
   rollDegrees: 0
 --- !u!33 &1637234235937272101
 MeshFilter:
@@ -707,6 +722,10 @@ MonoBehaviour:
   arrowHeightJitter: 0.45
   fillColor: {r: 0.24, g: 0.62, b: 0.96, a: 0.24}
   outlineColor: {r: 0.58, g: 0.86, b: 1, a: 0.78}
+  fillSortingOrder: 900
+  outlineSortingOrder: 901
+  outlineWidth: 0.05
+  areaVerticalAspect: 1
 --- !u!1 &5715055919488419525
 GameObject:
   m_ObjectHideFlags: 0
@@ -819,6 +838,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   sourceSprite: {fileID: 21300000, guid: 75dbe16caa152af47b1e05969f3f2e85, type: 3}
+  shapeSpriteOverride: {fileID: 0}
+  useEllipseShape: 0
+  ellipseSegments: 64
+  ellipseTextureCrop: 0
+  useSourceTexture: 1
   tint: {r: 1, g: 1, b: 1, a: 1}
   sortingOrder: 7220
   anchorBottomCenter: 0
@@ -935,6 +959,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   sourceSprite: {fileID: 21300000, guid: fe2dd987f1a87e84ab014b87827f8270, type: 3}
+  shapeSpriteOverride: {fileID: 0}
+  useEllipseShape: 0
+  ellipseSegments: 64
+  ellipseTextureCrop: 0
+  useSourceTexture: 1
   tint: {r: 1, g: 1, b: 1, a: 1}
   sortingOrder: 7220
   anchorBottomCenter: 0
@@ -1051,6 +1080,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   sourceSprite: {fileID: 21300000, guid: a2e00873cc0f47d4e860b990ad21e87f, type: 3}
+  shapeSpriteOverride: {fileID: 0}
+  useEllipseShape: 0
+  ellipseSegments: 64
+  ellipseTextureCrop: 0
+  useSourceTexture: 1
   tint: {r: 1, g: 1, b: 1, a: 1}
   sortingOrder: 7220
   anchorBottomCenter: 0
@@ -1167,6 +1201,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   sourceSprite: {fileID: 21300000, guid: 064fecea0f53cbc489130b76ece37573, type: 3}
+  shapeSpriteOverride: {fileID: 0}
+  useEllipseShape: 0
+  ellipseSegments: 64
+  ellipseTextureCrop: 0
+  useSourceTexture: 1
   tint: {r: 1, g: 1, b: 1, a: 1}
   sortingOrder: 7220
   anchorBottomCenter: 0

@@ -15,7 +15,7 @@ namespace AreaSurvivors
         public int selectedStage = 1;
         public CharacterType selectedCharacter;
         public List<UpgradeLevel> upgrades = new List<UpgradeLevel>();
-        public List<StageSpeedSetting> stageSpeedSettings = new List<StageSpeedSetting>();
+        public List<RelicRecord> relics = new List<RelicRecord>();
         public List<StageBuildingSet> stageBuildings = new List<StageBuildingSet>();
     }
 
@@ -27,10 +27,9 @@ namespace AreaSurvivors
     }
 
     [Serializable]
-    public sealed class StageSpeedSetting
+    public sealed class RelicRecord
     {
-        public int stage = 1;
-        public bool fastMode;
+        public RelicType type;
     }
 
     public enum SavedBuildingKind

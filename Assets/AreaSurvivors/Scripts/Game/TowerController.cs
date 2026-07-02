@@ -390,6 +390,7 @@ namespace AreaSurvivors
         void StartCollapse()
         {
             if (collapsing) return;
+            GameManager.Instance?.BeginTowerCollapseCutscene(this);
             StartCoroutine(CollapseRoutine());
         }
 
@@ -398,15 +399,20 @@ namespace AreaSurvivors
             collapsing = true;
             foreach (var col in colliders) col.enabled = false;
             if (hpBar != null) hpBar.gameObject.SetActive(false);
+            if (GameManager.Instance != null)
+            {
+                yield return GameManager.Instance.WaitForEndingCutsceneCamera(EnemyTarget);
+            }
+            AudioManager.PlaySfx(SfxTrack.TowerCollapse);
 
             var startPosition = transform.position;
             var startScale = transform.localScale;
             var billboard = visual != null ? visual.GetComponent<PaperBillboard>() : null;
             float elapsed = 0f;
-            const float duration = 1.15f;
+            const float duration = 2.3f;
             while (elapsed < duration)
             {
-                elapsed += Time.deltaTime;
+                elapsed += Time.timeScale > 0f ? Time.deltaTime : Time.unscaledDeltaTime;
                 float t = Mathf.Clamp01(elapsed / duration);
                 float shake = Mathf.Sin(elapsed * 42f) * Mathf.Lerp(0.08f, 0.01f, t);
                 transform.position = startPosition + new Vector3(shake, -0.35f * t, 0f);

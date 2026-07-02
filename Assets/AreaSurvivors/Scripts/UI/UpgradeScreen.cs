@@ -34,8 +34,6 @@ namespace AreaSurvivors
             tooltipDescription = FindDeep(uiObject.transform, "Tooltip Description")?.GetComponent<Text>();
             tokenLabel = FindDeep(uiObject.transform, "TokenLabel")?.GetComponent<Text>();
 
-            BindSceneButton(uiObject.transform, "スキル初期化", ResetUpgradesForTesting);
-            BindSceneButton(uiObject.transform, "トークン+99999", AddTestTokens);
             var nav = gameObject.GetComponent<SceneNavigator>();
             if (nav == null) nav = gameObject.AddComponent<SceneNavigator>();
             BindSceneButton(uiObject.transform, "ロビーへ", nav.LoadLobby);
@@ -175,18 +173,6 @@ namespace AreaSurvivors
             }
 
             return true;
-        }
-
-        void ResetUpgradesForTesting()
-        {
-            ProgressionStore.ResetUpgradesForTesting();
-            RefreshSceneTree();
-        }
-
-        void AddTestTokens()
-        {
-            ProgressionStore.AddTokensForTesting(99999);
-            RefreshSceneTree();
         }
 
     }

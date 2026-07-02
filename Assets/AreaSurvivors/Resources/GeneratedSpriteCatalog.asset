@@ -15,6 +15,8 @@ MonoBehaviour:
   entries:
   - name: AdvancedWeaponArea
     sprite: {fileID: 21300000, guid: 21ac0265ab4d5d24194b0d3092a725a5, type: 3}
+  - name: FlagAreaEllipse
+    sprite: {fileID: 21300000, guid: 84d6a6f9b8cc4f26bf0c911a4d91f0aa, type: 3}
   - name: Archer.
     sprite: {fileID: 21300000, guid: dbb0336b5d5063a4da627fb81e05adfc, type: 3}
   - name: Arrow.
@@ -73,14 +75,12 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 7a7ba1e057266b344821c92cb3a32b33, type: 3}
   - name: Frost
     sprite: {fileID: 21300000, guid: 359ecf2652bfeae478e12340860df121, type: 3}
-  - name: FrostFrame_0
-    sprite: {fileID: 21300000, guid: 6b8bdea7949142343b72f220e69757e6, type: 3}
-  - name: FrostFrame_1
-    sprite: {fileID: 21300000, guid: ec02fa707dfd5484babbca6870c0bcae, type: 3}
-  - name: FrostFrame_2
-    sprite: {fileID: 21300000, guid: db912dbbf14074e4d861fcb6b1a83509, type: 3}
-  - name: FrostFrame_3
-    sprite: {fileID: 21300000, guid: 0cbcbf2fc52e41b4d84cbd48428f355b, type: 3}
+  - name: FrostAreaEllipse
+    sprite: {fileID: 21300000, guid: a06ee0fae86b46b2897a6cb8ec83cf51, type: 3}
+  - name: FrostAreaTexture
+    sprite: {fileID: 21300000, guid: b3f5e6a19f4d4d7ca71263fb6ad7d2c1, type: 3}
+  - name: FrostAreaTextureAlt
+    sprite: {fileID: 21300000, guid: d7e2f5c11b334db8adf2893cfd58e142, type: 3}
   - name: GeneratedEnvironmentPropsSheet.
     sprite: {fileID: 21300000, guid: e4e5f407c4573e0458f1c3f423cbb5eb, type: 3}
   - name: GeneratedGrassSource.
@@ -215,6 +215,66 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: bc08f18174fd0974786e50728bb183d8, type: 3}
   - name: Pickaxe.
     sprite: {fileID: 21300000, guid: b1ceea275f25ac6468e75c7214748e56, type: 3}
+  - name: RelicBlackIronBullet
+    sprite: {fileID: 21300000, guid: 5f6c5fbb5c34df047a12bc7caf1f5134, type: 3}
+  - name: RelicChantingHourglass
+    sprite: {fileID: 21300000, guid: 72660cc9b02a856419a13265f2d9e1e9, type: 3}
+  - name: RelicCirclingShieldShard
+    sprite: {fileID: 21300000, guid: 8bee48d318f844c478c6f54d22af8056, type: 3}
+  - name: RelicDominionCrown
+    sprite: {fileID: 21300000, guid: 37c7d400bad8b1c4bbc63983665e5dfe, type: 3}
+  - name: RelicEchoSwordSeal
+    sprite: {fileID: 21300000, guid: a949c294cb3f59c489bfde3d42056f5f, type: 3}
+  - name: RelicEmberRing
+    sprite: {fileID: 21300000, guid: c448b0fc9039dff4583197e3797818fc, type: 3}
+  - name: RelicFrostspreadCrystal
+    sprite: {fileID: 21300000, guid: 74f13a814704b37409aae2fa8dc6cd3f, type: 3}
+  - name: RelicGoldenSeal
+    sprite: {fileID: 21300000, guid: 8abbe96056f0be84b840b44cb44ae6e4, type: 3}
+  - name: RelicGuardianRivet
+    sprite: {fileID: 21300000, guid: d40dd2df0af962147b6abaca190377d5, type: 3}
+  - name: RelicHarmonyCrest
+    sprite: {fileID: 21300000, guid: 2a0fa607eaa1def488a8305ae4b1d482, type: 3}
+  - name: RelicHawkfeather
+    sprite: {fileID: 21300000, guid: 389c416c510ad0e4abbda25a3ef7dcce, type: 3}
+  - name: RelicMasonStrikeSigil
+    sprite: {fileID: 21300000, guid: 80753a2a81bd64a4e8fe63ff2e60c1dd, type: 3}
+  - name: RelicMerchantContract
+    sprite: {fileID: 21300000, guid: d6847ea0a98a0b641a6b7c71d001b1ed, type: 3}
+  - name: RelicRaincallerPlume
+    sprite: {fileID: 21300000, guid: 33d2cd790fdfbf24aaccfc87ec7cb89e, type: 3}
+  - name: RelicRallyBannerSigil
+    sprite: {fileID: 21300000, guid: b3691b23c592f8e40acbc4648e3d544a, type: 3}
+  - name: RelicRegeneratingWallstone
+    sprite: {fileID: 21300000, guid: 33465be95f381e545bdf358d56c26890, type: 3}
+  - name: RelicReturningBladeRing
+    sprite: {fileID: 21300000, guid: 09854716f422cce43b01018333e1874d, type: 3}
+  - name: RelicRulerSight
+    sprite: {fileID: 21300000, guid: bc75651526590fd4f98145950f817143, type: 3}
+  - name: RelicScholarLens
+    sprite: {fileID: 21300000, guid: d1cfff6275699c940bf06da981350414, type: 3}
+  - name: RelicSlayerMedal
+    sprite: {fileID: 21300000, guid: fa8470e28ed9bdb4285e363951a082ff, type: 3}
+  - name: RelicSolitaryBlade
+    sprite: {fileID: 21300000, guid: 79be83b8ed16cde4f97bfa5b5bf63502, type: 3}
+  - name: RelicSwordsmanGlove
+    sprite: {fileID: 21300000, guid: 22eb4af2ddac726458637c253d34325c, type: 3}
+  - name: RelicThunderCore
+    sprite: {fileID: 21300000, guid: 993741050eba9c541b10630798418950, type: 3}
+  - name: RelicTwinArrowQuiver
+    sprite: {fileID: 21300000, guid: 6f94a59b62a72eb4dbba63f08e9cf8cf, type: 3}
+  - name: RelicUnchippedEdge
+    sprite: {fileID: 21300000, guid: e1707cc61d45c1e479e3bc7f767ef346, type: 3}
+  - name: RelicUnwoundedVowSeal
+    sprite: {fileID: 21300000, guid: c16cc46bb2095b34682c7a9f0523ca23, type: 3}
+  - name: RelicVitalCore
+    sprite: {fileID: 21300000, guid: f6caa6b9204127844aef8d4d6ae5acc4, type: 3}
+  - name: RelicWarriorCharm
+    sprite: {fileID: 21300000, guid: 3d5e4a18472ee7f49bb62c7ea2253dfb, type: 3}
+  - name: RelicWealthWarSeal
+    sprite: {fileID: 21300000, guid: 700b966b815e4f94aa9c6a9ec97e56dc, type: 3}
+  - name: RelicWindBoots
+    sprite: {fileID: 21300000, guid: 6a5a9a82e2ca2974e9ba0dbbd6edfb71, type: 3}
   - name: Shield
     sprite: {fileID: 21300000, guid: 6f6765f3a2f4d384699662b1a4ec85e1, type: 3}
   - name: SkillIcons/SkillBallista

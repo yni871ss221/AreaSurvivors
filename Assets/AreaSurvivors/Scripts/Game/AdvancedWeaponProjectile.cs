@@ -19,6 +19,7 @@ namespace AreaSurvivors
         float outboundSeconds;
         float spinDegrees;
         TileGrid grid;
+        float thunderBallVerticalRadiusMultiplier = 1f;
 
         public void Configure(WeaponType weaponType, Vector2 launchDirection, WeaponStatBlock weaponStats, GameConfig gameConfig)
         {
@@ -26,6 +27,7 @@ namespace AreaSurvivors
             stats = weaponStats;
             config = gameConfig;
             grid = FindObjectOfType<TileGrid>();
+            thunderBallVerticalRadiusMultiplier = 1f;
             direction = launchDirection.sqrMagnitude > 0.01f ? launchDirection.normalized : Vector2.down;
             spawnTime = Time.time;
             float speed = Mathf.Max(0.1f, stats.projectileSpeed);
@@ -39,8 +41,9 @@ namespace AreaSurvivors
             ApplyVisualScale();
             if (type == WeaponType.ThunderBall)
             {
+                thunderBallVerticalRadiusMultiplier = GridCellAspectY();
                 var rangeVisual = GetComponentInChildren<ThunderBallRangeVisual>();
-                if (rangeVisual != null) rangeVisual.Configure(stats.range);
+                if (rangeVisual != null) rangeVisual.Configure(stats.range, thunderBallVerticalRadiusMultiplier);
             }
             PaintAttackTrail();
         }
@@ -116,9 +119,12 @@ namespace AreaSurvivors
 
             transform.position += (Vector3)(direction * Mathf.Max(0.1f, stats.projectileSpeed) * Time.deltaTime);
             ApplyDirectionRoll(direction);
-            var colliders = Physics2D.OverlapCircleAll(transform.position, Mathf.Max(0.05f, stats.range));
+            float radiusX = Mathf.Max(0.05f, stats.range);
+            float radiusY = Mathf.Max(0.05f, stats.range * thunderBallVerticalRadiusMultiplier);
+            var colliders = Physics2D.OverlapCircleAll(transform.position, Mathf.Max(radiusX, radiusY));
             for (int i = 0; i < colliders.Length; i++)
             {
+                if (!ContainsThunderBallPoint(colliders[i].ClosestPoint(transform.position), radiusX, radiusY)) continue;
                 TryDamage(colliders[i]);
             }
         }
@@ -154,8 +160,11 @@ namespace AreaSurvivors
             if (type == WeaponType.Gun && piercedTargets.Contains(health)) return;
             if (!CanHit(health)) return;
 
-            int dealt = health.Damage(Mathf.Max(0, stats.attackPower), enemy.transform.position);
+            int damage = Mathf.Max(0, stats.attackPower);
+            int creditedDamage = health.DamageAmount(damage);
+            int dealt = health.Damage(damage, enemy.transform.position);
             if (dealt <= 0) return;
+            GameManager.Instance?.RegisterWeaponDamage(type, creditedDamage);
             if (type == WeaponType.Gun) piercedTargets.Add(health);
             ApplyKnockback(enemy);
         }
@@ -188,6 +197,21 @@ namespace AreaSurvivors
             float cellSize = Mathf.Max(0.01f, grid.cellSize);
             int radiusCells = Mathf.Max(1, Mathf.CeilToInt(stats.range / cellSize * 0.5f));
             grid.Paint(transform.position, TileOwner.Player, radiusCells);
+        }
+
+        float GridCellAspectY()
+        {
+            if (grid == null) grid = FindObjectOfType<TileGrid>();
+            if (grid == null) return 1f;
+            Vector2 cellSize = grid.WorldCellSize();
+            return Mathf.Clamp(cellSize.y / Mathf.Max(0.01f, cellSize.x), 0.2f, 1f);
+        }
+
+        bool ContainsThunderBallPoint(Vector2 point, float radiusX, float radiusY)
+        {
+            Vector2 local = point - (Vector2)transform.position;
+            float normalized = (local.x * local.x) / (radiusX * radiusX) + (local.y * local.y) / (radiusY * radiusY);
+            return normalized <= 1f;
         }
 
         void ApplyVisualScale()

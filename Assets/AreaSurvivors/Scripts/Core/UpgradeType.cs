@@ -39,7 +39,7 @@ namespace AreaSurvivors
         WallMaxHp3 = 44,
         BallistaDamage = 45,
         WatchTowerRange = 46,
-        WatchTowerMaxHp = 47,
+        RetiredWatchTowerMaxHp = 47,
         BuildingAutoRegen = 48,
         WallUpgrade = 49,
         BallistaUpgrade = 50,
@@ -57,6 +57,9 @@ namespace AreaSurvivors
         UnlockFlag = 62,
         UnlockBoomerangSword = 63,
         UnlockAuraSword = 64,
-        RemoveStartingSlash = 65
+        RemoveStartingSlash = 65,
+        ReviveBuildingsOnBossDefeat = 66,
+        UnlockOpeningRelicChest = 67,
+        WatchTowerDamage = 68
     }
 }

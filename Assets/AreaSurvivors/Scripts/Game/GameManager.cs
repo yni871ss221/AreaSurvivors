@@ -26,6 +26,8 @@ namespace AreaSurvivors
         public Slider xpBar;
         public GameObject levelUpPanel;
         public Button[] upgradeButtons;
+        public GameObject relicChestPrefab;
+        public RelicAcquisitionPanel relicAcquisitionPanelPrefab;
 
         public PlayerController Player { get; private set; }
         public TowerController Tower { get; private set; }
@@ -36,6 +38,7 @@ namespace AreaSurvivors
         public int Wood { get; private set; }
         public int Stone { get; private set; }
         public int RunTokens { get; private set; }
+        public int Kills => kills;
         public MapSessionMode SessionMode => sessionMode;
 
         int kills;
@@ -47,12 +50,15 @@ namespace AreaSurvivors
         float hudElapsed;
         float xpRemainder;
         int currentStage = 1;
-        float currentStageSpeedMultiplier = 1f;
         MapSessionMode sessionMode = MapSessionMode.Game;
         bool bossActive;
         bool gameEnding;
+        bool endingCutsceneActive;
         GameObject levelUpInputBlocker;
         readonly List<string> runUpgrades = new List<string>();
+        readonly List<string> runRelics = new List<string>();
+        readonly List<RunRelicReportEntry> runRelicEntries = new List<RunRelicReportEntry>();
+        readonly RunDamageTracker runDamageTracker = new RunDamageTracker();
         const int InitialTowerTerritoryRadius = 10;
         static readonly Color UpgradeNormalColor = new Color(0.12f, 0.20f, 0.16f, 0.94f);
         static readonly Color UpgradeHoverColor = new Color(0.106f, 0.353f, 0.216f, 0.98f);
@@ -67,6 +73,9 @@ namespace AreaSurvivors
             AudioManager.PlayBgm(BgmTrack.GameNormal);
 
             sessionMode = MapSessionMode.Game;
+            runDamageTracker.Reset();
+            runRelics.Clear();
+            runRelicEntries.Clear();
             config = Instantiate(config);
             config.EnsureEnemySpawnDefaults();
             config.EnsureWeaponLevelDefaults();
@@ -108,13 +117,13 @@ namespace AreaSurvivors
                 Player.Configure(config, grid, CharacterType.Knight);
             }
 
-            if (sessionMode == MapSessionMode.Game) ProgressionStore.ReviveStageBuildings(stage);
             if (buildPlacement != null)
             {
                 if (spawner != null) buildPlacement.damagePopupPrefab = spawner.damagePopupPrefab;
                 buildPlacement.Initialize(config, grid, sessionMode == MapSessionMode.Build ? null : Player);
             }
             if (buildPlacement != null) buildPlacement.RestoreStageBuildings(stage);
+            SpawnInitialRelicChest();
             PolishHud();
             ConfigureGameHud();
 
@@ -130,6 +139,21 @@ namespace AreaSurvivors
             if (perimeter == null || grid == null) return;
             perimeter.grid = grid;
             perimeter.Rebuild();
+        }
+
+        void SpawnInitialRelicChest()
+        {
+            if (!ProgressionStore.IsUnlocked(UpgradeType.UnlockOpeningRelicChest)) return;
+            if (sessionMode != MapSessionMode.Game || grid == null) return;
+
+            var position = grid.GridToWorld(grid.width / 2, grid.height / 2 - 3);
+            SpawnRelicChest(position);
+        }
+
+        void SpawnRelicChest(Vector3 position)
+        {
+            if (sessionMode != MapSessionMode.Game || relicChestPrefab == null) return;
+            Instantiate(relicChestPrefab, position, Quaternion.identity);
         }
 
         void ConfigureTowerRegeneration()
@@ -311,7 +335,8 @@ namespace AreaSurvivors
                 if (!TryFindFixedSlotOrigin(towerOrigin, definition.footprint, definition.desiredOffset, definition.requiresPlayerTerritory, out var originCell)) continue;
 
                 var saved = FindExistingFixedBuilding(existing, definition.kind, originCell);
-                if (saved == null) saved = new SavedBuildingData();
+                bool isNewBuilding = saved == null;
+                if (isNewBuilding) saved = new SavedBuildingData();
                 var previousKind = saved.kind;
                 saved.kind = definition.kind;
                 saved.x = originCell.x;
@@ -404,6 +429,41 @@ namespace AreaSurvivors
         public void RegisterDamageDealt(int amount)
         {
             damageDealt += Mathf.Max(0, amount);
+        }
+
+        public void RegisterDamageDealt(RunDamageSource source, int amount)
+        {
+            int safeAmount = Mathf.Max(0, amount);
+            if (safeAmount <= 0) return;
+            damageDealt += safeAmount;
+            runDamageTracker.RegisterDamage(source, safeAmount);
+        }
+
+        public void RegisterWeaponDamage(WeaponType type, int amount)
+        {
+            RegisterDamageDealt(RunDamageSource.ForWeapon(type), amount);
+        }
+
+        public void RegisterBuildingDamage(RunDamageBuildingSource source, int amount)
+        {
+            RegisterDamageDealt(RunDamageSource.ForBuilding(source), amount);
+        }
+
+        public void RegisterWeaponSlot(WeaponType type, int slotIndex)
+        {
+            runDamageTracker.RegisterWeaponSlot(type, slotIndex, WeaponCatalog.DisplayName(type));
+        }
+
+        public void MarkWeaponActive(WeaponType type)
+        {
+            if (sessionMode != MapSessionMode.Game || gameEnding) return;
+            runDamageTracker.MarkActive(RunDamageSource.ForWeapon(type));
+        }
+
+        public void MarkBuildingDamageSourceActive(RunDamageBuildingSource source)
+        {
+            if (sessionMode != MapSessionMode.Game || gameEnding) return;
+            runDamageTracker.MarkActive(RunDamageSource.ForBuilding(source));
         }
 
         public bool HasResources(int wood, int stone)
@@ -956,6 +1016,13 @@ namespace AreaSurvivors
             EndRun(false);
         }
 
+        public void BeginTowerCollapseCutscene(TowerController tower)
+        {
+            if (endingCutsceneActive || gameEnding) return;
+            endingCutsceneActive = true;
+            FreezeGameplayForEndingCutscene(tower != null ? tower.EnemyTarget : null, null);
+        }
+
         public void BossSpawned(EnemyController boss)
         {
             if (boss == null) return;
@@ -969,12 +1036,40 @@ namespace AreaSurvivors
         public void BossDefeated(EnemyController boss)
         {
             if (gameEnding) return;
+            bool firstClear = IsFirstBossDefeatForCurrentStage(boss);
+            if (!firstClear) DropBossRelicChest(boss);
             StartCoroutine(BossDefeatedRoutine(boss));
+        }
+
+        public bool IsFirstBossDefeatForCurrentStage(EnemyController boss)
+        {
+            return boss != null && boss.boss && !ProgressionStore.IsStageCleared(currentStage);
+        }
+
+        public void BeginBossDefeatCutscene(EnemyController boss)
+        {
+            if (boss == null || !IsFirstBossDefeatForCurrentStage(boss) || endingCutsceneActive || gameEnding) return;
+            endingCutsceneActive = true;
+            FreezeGameplayForEndingCutscene(boss.transform, boss);
+        }
+
+        void DropBossRelicChest(EnemyController boss)
+        {
+            if (boss == null) return;
+            SpawnRelicChest(boss.transform.position);
         }
 
         IEnumerator BossDefeatedRoutine(EnemyController boss)
         {
+            bool firstClear = IsFirstBossDefeatForCurrentStage(boss);
             bool unlockedNextStage = ProgressionStore.MarkStageCleared(currentStage);
+            ReviveBuildingsOnBossDefeat();
+            if (firstClear)
+            {
+                yield return FirstBossDefeatEndRoutine(currentStage, unlockedNextStage ? currentStage + 1 : 0);
+                yield break;
+            }
+
             if (currentStage < 4)
             {
                 int nextStage = unlockedNextStage ? currentStage + 1 : Mathf.Min(currentStage + 1, 4);
@@ -986,13 +1081,28 @@ namespace AreaSurvivors
             }
         }
 
+        void ReviveBuildingsOnBossDefeat()
+        {
+            if (!ProgressionStore.IsUnlocked(UpgradeType.ReviveBuildingsOnBossDefeat)) return;
+            BuildingPersistentState.ReviveDestroyedBuildings(grid, 0.5f);
+        }
+
         IEnumerator GameClearRoutine(EnemyController boss, int clearedStage, int unlockedStage, string clearMessage)
         {
             gameEnding = true;
+            StopGameplayActionAudio();
             spawner?.StopAndClearEnemies(boss);
             ShowAnnouncement("GAME CLEAR");
             yield return new WaitForSeconds(1.8f);
             EndRun(true, clearedStage, unlockedStage, clearMessage);
+        }
+
+        IEnumerator FirstBossDefeatEndRoutine(int clearedStage, int unlockedStage)
+        {
+            gameEnding = true;
+            ShowAnnouncement("STAGE CLEAR");
+            yield return new WaitForSecondsRealtime(0.45f);
+            EndRun(true, clearedStage, unlockedStage, string.Empty);
         }
 
         IEnumerator StageTransitionRoutine(EnemyController boss, int nextStage)
@@ -1002,8 +1112,6 @@ namespace AreaSurvivors
             ShowAnnouncement("ROUND " + nextStage);
             yield return new WaitForSeconds(1.2f);
             if (boss != null) Destroy(boss.gameObject);
-            ProgressionStore.ReviveStageBuildings(nextStage);
-            if (buildPlacement != null) buildPlacement.RestoreStageBuildings(nextStage);
             gameEnding = false;
             BeginStage(nextStage);
         }
@@ -1011,6 +1119,39 @@ namespace AreaSurvivors
         public void ShowAnnouncement(string message)
         {
             gameHud?.ShowAnnouncement(message);
+        }
+
+        public void ShowRelicAcquisition(RelicDefinition definition)
+        {
+            ShowRelicAcquisition(definition, 0);
+        }
+
+        public void ShowRelicAcquisition(RelicDefinition definition, int duplicateTokenReward)
+        {
+            if (definition == null)
+            {
+                ShowAnnouncement("レリック獲得");
+                return;
+            }
+
+            runRelics.Add(duplicateTokenReward > 0 ? definition.displayName + "（変換）" : definition.displayName);
+            runRelicEntries.Add(new RunRelicReportEntry
+            {
+                type = definition.type,
+                displayName = definition.displayName,
+                convertedToToken = duplicateTokenReward > 0
+            });
+            if (relicAcquisitionPanelPrefab == null)
+            {
+                ShowAnnouncement(duplicateTokenReward > 0 ? "レリック変換: トークン +" + duplicateTokenReward : "レリック獲得: " + definition.displayName);
+                return;
+            }
+
+            var panel = Instantiate(relicAcquisitionPanelPrefab);
+            panel.Show(definition, duplicateTokenReward, () =>
+            {
+                ShowAnnouncement(duplicateTokenReward > 0 ? "レリック変換: トークン +" + duplicateTokenReward : "レリック獲得: " + definition.displayName);
+            });
         }
 
         void EndRun(bool clear)
@@ -1023,6 +1164,7 @@ namespace AreaSurvivors
             if (!clear && gameEnding) return;
             gameEnding = true;
             Time.timeScale = 1f;
+            StopGameplayActionAudio();
             int rewardWood = EndWoodReward();
             int rewardStone = EndStoneReward();
             int woodEarned = Mathf.Max(0, Wood) + rewardWood;
@@ -1041,16 +1183,44 @@ namespace AreaSurvivors
                 clearedStage = clearedStage,
                 unlockedStage = unlockedStage,
                 clearMessage = clearMessage,
-                upgrades = new List<string>(runUpgrades)
+                upgrades = new List<string>(runUpgrades),
+                acquiredRelics = new List<string>(runRelics),
+                acquiredRelicEntries = new List<RunRelicReportEntry>(runRelicEntries),
+                damageReport = runDamageTracker.BuildReport()
             };
             ProgressionStore.AddRunTokens(kills, EndTokenReward());
             ProgressionStore.AddPersistentResources(woodEarned, stoneEarned);
             SceneManager.LoadScene(SceneNames.GameEnd);
         }
 
+        void StopGameplayActionAudio()
+        {
+            var weapon = Player != null ? Player.weapon : null;
+            if (weapon == null && Player != null) weapon = Player.GetComponentInChildren<WeaponController>();
+            if (weapon != null) weapon.StopRuntimeWeapons();
+            AudioManager.StopSfx();
+        }
+
+        void FreezeGameplayForEndingCutscene(Transform focusTarget, EnemyController visibleBoss)
+        {
+            Time.timeScale = 0f;
+            StopGameplayActionAudio();
+            spawner?.StopAndClearEnemies(visibleBoss);
+        }
+
+        public IEnumerator WaitForEndingCutsceneCamera(Transform focusTarget)
+        {
+            var cameraFollow = Camera.main != null ? Camera.main.GetComponent<CameraFollow>() : null;
+            if (cameraFollow != null && focusTarget != null)
+            {
+                const float moveSeconds = 3.8f;
+                yield return cameraFollow.MoveToCutsceneTarget(focusTarget, moveSeconds);
+            }
+        }
+
         int EndTokenReward()
         {
-            float multiplier = 1f + ProgressionStore.GetLevel(UpgradeType.EndTokenGain) * config.endTokenGainMultiplierPerUpgradeLevel;
+            float multiplier = (1f + ProgressionStore.GetLevel(UpgradeType.EndTokenGain) * config.endTokenGainMultiplierPerUpgradeLevel) * RelicEffects.EndTokenMultiplier;
             return Mathf.Max(0, Mathf.RoundToInt(RunTokens * multiplier));
         }
 
@@ -1081,7 +1251,6 @@ namespace AreaSurvivors
         void BeginStage(int stage)
         {
             currentStage = Mathf.Max(1, stage);
-            currentStageSpeedMultiplier = ProgressionStore.IsFastStage(currentStage) ? 2f : 1f;
             hudElapsed = elapsed;
             bossActive = false;
             AudioManager.PlayBgm(BgmTrack.GameNormal);
@@ -1089,7 +1258,7 @@ namespace AreaSurvivors
             if (spawner != null)
             {
                 spawner.useUpperChunkSpawn = false;
-                spawner.BeginStage(config, grid, Tower.EnemyTarget, currentStage, 0f, currentStageSpeedMultiplier);
+                spawner.BeginStage(config, grid, Tower.EnemyTarget, currentStage, 0f);
             }
             gameHud?.SetStage(currentStage);
         }

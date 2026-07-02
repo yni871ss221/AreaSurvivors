@@ -85,6 +85,32 @@ namespace AreaSurvivors
             return true;
         }
 
+        public bool ApplyCompleteVisual(bool upgraded)
+        {
+            BindMissingVisualsFromChildren();
+
+            var targetVisual = upgraded && upgradedCompleteVisual != null
+                ? upgradedCompleteVisual
+                : completeVisual;
+            if (targetVisual == null) return false;
+
+            SetVisible(completeVisual, targetVisual == completeVisual);
+            SetVisible(upgradedCompleteVisual, targetVisual == upgradedCompleteVisual);
+            SetVisible(destroyedCompleteVisual, false);
+            SetVisible(destroyedUpgradedCompleteVisual, false);
+            SetVisible(sparkleVisual, false);
+            targetVisual.SetVerticalFill(1f);
+            targetVisual.color = Color.white;
+
+            var ySort = GetComponent<YSort>();
+            if (ySort != null)
+            {
+                ySort.renderers = new[] { targetVisual.Renderer };
+                ySort.Apply();
+            }
+            return true;
+        }
+
         void ConfigureSparkleVisual()
         {
             if (sparkleVisual == null) return;

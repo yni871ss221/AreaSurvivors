@@ -375,6 +375,25 @@ namespace AreaSurvivors
             return groundTilemap.GetCellCenterWorld(GridToCell(x, y));
         }
 
+        public Vector2 WorldCellSize()
+        {
+            if (groundTilemap == null)
+            {
+                float fallback = Mathf.Max(0.01f, cellSize);
+                return new Vector2(fallback, fallback);
+            }
+
+            Vector3 center = groundTilemap.GetCellCenterWorld(GridToCell(width / 2, height / 2));
+            Vector3 right = groundTilemap.GetCellCenterWorld(GridToCell(width / 2 + 1, height / 2));
+            Vector3 up = groundTilemap.GetCellCenterWorld(GridToCell(width / 2, height / 2 + 1));
+            float sizeX = Mathf.Abs(right.x - center.x);
+            float sizeY = Mathf.Abs(up.y - center.y);
+            float fallbackSize = Mathf.Max(0.01f, cellSize);
+            return new Vector2(
+                sizeX > 0.001f ? sizeX : fallbackSize,
+                sizeY > 0.001f ? sizeY : fallbackSize);
+        }
+
         public Bounds GetWorldBounds()
         {
             if (groundTilemap == null || width <= 0 || height <= 0)
@@ -651,6 +670,11 @@ namespace AreaSurvivors
             PaintEllipse(world, owner, radiusX, radiusY, true);
         }
 
+        public void PaintEllipseOverlappingCells(Vector3 world, TileOwner owner, float radiusX, float radiusY)
+        {
+            PaintEllipseOverlappingCells(world, owner, radiusX, radiusY, false);
+        }
+
         void Paint(Vector3 world, TileOwner owner, int radius, bool immediate)
         {
             PaintEllipse(world, owner, radius, radius, immediate);
@@ -669,18 +693,43 @@ namespace AreaSurvivors
                 {
                     if (x < 0 || y < 0 || x >= width || y >= height) continue;
                     if (!IsInsideEllipse(x - cx, y - cy, radiusX, radiusY)) continue;
-                    targetControlValues[x, y] = target;
-                    if (immediate)
-                    {
-                        controlValues[x, y] = target;
-                        paintDirty[x, y] = false;
-                        ApplyPaintVisual(x, y, target);
-                    }
-                    else
-                    {
-                        paintDirty[x, y] = true;
-                    }
+                    SetPaintTarget(x, y, target, immediate);
                 }
+            }
+        }
+
+        void PaintEllipseOverlappingCells(Vector3 world, TileOwner owner, float radiusX, float radiusY, bool immediate)
+        {
+            int cx, cy;
+            if (!TryWorldToGrid(world, out cx, out cy)) return;
+            radiusX = Mathf.Max(0f, radiusX);
+            radiusY = Mathf.Max(0f, radiusY);
+            int boundsX = Mathf.Max(0, Mathf.CeilToInt(radiusX + 0.5f));
+            int boundsY = Mathf.Max(0, Mathf.CeilToInt(radiusY + 0.5f));
+            float target = ControlFromOwner(owner);
+            for (int y = cy - boundsY; y <= cy + boundsY; y++)
+            {
+                for (int x = cx - boundsX; x <= cx + boundsX; x++)
+                {
+                    if (x < 0 || y < 0 || x >= width || y >= height) continue;
+                    if (!CellOverlapsEllipse(x - cx, y - cy, radiusX, radiusY)) continue;
+                    SetPaintTarget(x, y, target, immediate);
+                }
+            }
+        }
+
+        void SetPaintTarget(int x, int y, float target, bool immediate)
+        {
+            targetControlValues[x, y] = target;
+            if (immediate)
+            {
+                controlValues[x, y] = target;
+                paintDirty[x, y] = false;
+                ApplyPaintVisual(x, y, target);
+            }
+            else
+            {
+                paintDirty[x, y] = true;
             }
         }
 
@@ -691,6 +740,19 @@ namespace AreaSurvivors
             if (radiusY <= 0) return dy == 0 && Mathf.Abs(dx) <= radiusX;
             float normalizedX = dx / (float)radiusX;
             float normalizedY = dy / (float)radiusY;
+            return normalizedX * normalizedX + normalizedY * normalizedY <= 1f;
+        }
+
+        static bool CellOverlapsEllipse(int dx, int dy, float radiusX, float radiusY)
+        {
+            if (radiusX <= 0f && radiusY <= 0f) return dx == 0 && dy == 0;
+            if (radiusX <= 0f) return dx == 0 && Mathf.Abs(dy) - 0.5f <= radiusY;
+            if (radiusY <= 0f) return dy == 0 && Mathf.Abs(dx) - 0.5f <= radiusX;
+
+            float closestX = Mathf.Max(0f, Mathf.Abs(dx) - 0.5f);
+            float closestY = Mathf.Max(0f, Mathf.Abs(dy) - 0.5f);
+            float normalizedX = closestX / radiusX;
+            float normalizedY = closestY / radiusY;
             return normalizedX * normalizedX + normalizedY * normalizedY <= 1f;
         }
 

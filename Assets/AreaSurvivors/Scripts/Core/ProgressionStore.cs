@@ -18,7 +18,7 @@ namespace AreaSurvivors
                     var json = PlayerPrefs.GetString(SaveKey, string.Empty);
                     cached = string.IsNullOrEmpty(json) ? new SaveData() : JsonUtility.FromJson<SaveData>(json);
                     if (cached.upgrades == null) cached.upgrades = new List<UpgradeLevel>();
-                    if (cached.stageSpeedSettings == null) cached.stageSpeedSettings = new List<StageSpeedSetting>();
+                    if (cached.relics == null) cached.relics = new List<RelicRecord>();
                     if (cached.stageBuildings == null) cached.stageBuildings = new List<StageBuildingSet>();
                     if (cached.highestUnlockedStage < 1) cached.highestUnlockedStage = 1;
                     if (cached.selectedStage < 1) cached.selectedStage = 1;
@@ -26,6 +26,52 @@ namespace AreaSurvivors
 
                 return cached;
             }
+        }
+
+        public static bool HasRelic(RelicType type)
+        {
+            if (type == RelicType.None) return false;
+            if (Data.relics == null) Data.relics = new List<RelicRecord>();
+            foreach (var relic in Data.relics)
+            {
+                if (relic != null && relic.type == type) return true;
+            }
+
+            return false;
+        }
+
+        public static bool UnlockRelic(RelicType type)
+        {
+            if (type == RelicType.None || HasRelic(type)) return false;
+            if (Data.relics == null) Data.relics = new List<RelicRecord>();
+            Data.relics.Add(new RelicRecord { type = type });
+            Save();
+            return true;
+        }
+
+        public static bool LockRelicForTesting(RelicType type)
+        {
+            if (type == RelicType.None) return false;
+            if (Data.relics == null) Data.relics = new List<RelicRecord>();
+            bool removed = false;
+            for (int i = Data.relics.Count - 1; i >= 0; i--)
+            {
+                var relic = Data.relics[i];
+                if (relic == null || relic.type != type) continue;
+                Data.relics.RemoveAt(i);
+                removed = true;
+            }
+
+            if (!removed) return false;
+            Save();
+            return true;
+        }
+
+        public static void ResetRelicsForTesting()
+        {
+            if (Data.relics == null) Data.relics = new List<RelicRecord>();
+            Data.relics.Clear();
+            Save();
         }
 
         public static int GetLevel(UpgradeType type)
@@ -86,9 +132,12 @@ namespace AreaSurvivors
                 case UpgradeType.UnlockBoomerangSword:
                 case UpgradeType.UnlockAuraSword:
                 case UpgradeType.RemoveStartingSlash:
+                case UpgradeType.ReviveBuildingsOnBossDefeat:
+                case UpgradeType.UnlockOpeningRelicChest:
                     return 1;
                 case UpgradeType.StartingWeaponLevel:
                 case UpgradeType.EliteSpawnCount:
+                case UpgradeType.WatchTowerDamage:
                     return 4;
                 default:
                     return 10;
@@ -113,6 +162,7 @@ namespace AreaSurvivors
                 case UpgradeType.UnlockDefenseCharacter:
                 case UpgradeType.UnlockClassChange:
                 case UpgradeType.RoundTimeLimit:
+                case UpgradeType.RetiredWatchTowerMaxHp:
                     return true;
                 default:
                     return false;
@@ -139,7 +189,6 @@ namespace AreaSurvivors
                 case UpgradeType.WallMaxHp1:
                 case UpgradeType.WallMaxHp2:
                 case UpgradeType.WallMaxHp3:
-                case UpgradeType.WatchTowerMaxHp:
                 case UpgradeType.TowerAutoRegen:
                 case UpgradeType.BuildingAutoRegen:
                 case UpgradeType.EndTokenGain:
@@ -156,6 +205,8 @@ namespace AreaSurvivors
                 case UpgradeType.UnlockBoomerangSword:
                 case UpgradeType.UnlockAuraSword:
                 case UpgradeType.RemoveStartingSlash:
+                case UpgradeType.ReviveBuildingsOnBossDefeat:
+                case UpgradeType.UnlockOpeningRelicChest:
                     return 6;
                 default:
                     return 4;
@@ -172,6 +223,12 @@ namespace AreaSurvivors
         {
             Data.tokens += Mathf.Max(0, tokens);
             Data.totalKills += kills;
+            Save();
+        }
+
+        public static void AddTokens(int tokens)
+        {
+            Data.tokens += Mathf.Max(0, tokens);
             Save();
         }
 
@@ -206,36 +263,9 @@ namespace AreaSurvivors
             return unlockedNewStage;
         }
 
-        public static bool IsFastStage(int stage)
-        {
-            foreach (var setting in Data.stageSpeedSettings)
-            {
-                if (setting != null && setting.stage == stage) return setting.fastMode && IsStageCleared(stage);
-            }
-            return false;
-        }
-
-        public static void SetFastStage(int stage, bool fastMode)
-        {
-            if (stage < 1 || !IsStageCleared(stage)) return;
-            foreach (var setting in Data.stageSpeedSettings)
-            {
-                if (setting != null && setting.stage == stage)
-                {
-                    setting.fastMode = fastMode;
-                    Save();
-                    return;
-                }
-            }
-
-            Data.stageSpeedSettings.Add(new StageSpeedSetting { stage = stage, fastMode = fastMode });
-            Save();
-        }
-
         public static void AddTokensForTesting(int tokens)
         {
-            Data.tokens += Mathf.Max(0, tokens);
-            Save();
+            AddTokens(tokens);
         }
 
         public static bool HasPersistentResources(int wood, int stone)
@@ -298,6 +328,14 @@ namespace AreaSurvivors
         {
             if (Data.upgrades == null) Data.upgrades = new List<UpgradeLevel>();
             Data.upgrades.Clear();
+            Save();
+        }
+
+        public static void ResetStageClearStateForTesting()
+        {
+            Data.highestClearedStage = 0;
+            Data.highestUnlockedStage = 1;
+            Data.selectedStage = 1;
             Save();
         }
 

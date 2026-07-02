@@ -12,6 +12,7 @@ namespace AreaSurvivors
         float explosionRadiusMultiplier = 1f;
         float cooldown;
         bool configured;
+        TileGrid grid;
 
         public void Configure(GameConfig gameConfig)
         {
@@ -19,6 +20,7 @@ namespace AreaSurvivors
             cannonballSprite = GeneratedSpriteLoader.Load("Cannonball");
             explosionSprite = GeneratedSpriteLoader.Load("CannonExplosion");
             cooldown = Mathf.Min(0.75f, CooldownSeconds());
+            grid = FindObjectOfType<TileGrid>();
             configured = true;
         }
 
@@ -33,6 +35,7 @@ namespace AreaSurvivors
             if (!configured || config == null) return;
             if (!ProgressionStore.IsUnlocked(UpgradeType.UnlockTowerCannon)) return;
 
+            GameManager.Instance?.MarkBuildingDamageSourceActive(RunDamageBuildingSource.CenterTower);
             cooldown -= Time.deltaTime;
             if (cooldown > 0f) return;
             cooldown = CooldownSeconds();
@@ -102,9 +105,11 @@ namespace AreaSurvivors
             projectile.knockback = config != null ? config.towerCannonKnockback : 2.2f;
             projectile.knockbackDuration = config != null ? config.knockbackDuration : 0.16f;
             projectile.paintsTerritory = false;
+            projectile.SetDamageSource(RunDamageSource.ForBuilding(RunDamageBuildingSource.CenterTower));
+            int baseDamage = (config != null ? config.towerCannonDamage : 8) + damageBonus;
             projectile.Launch(
                 direction,
-                (config != null ? config.towerCannonDamage : 8) + damageBonus,
+                RelicEffects.ApplyCenterTowerDamage(baseDamage, grid),
                 config != null ? config.towerCannonProjectileSpeed : 9.5f,
                 true,
                 (config != null ? config.towerCannonExplosionRadius : 1.25f) * explosionRadiusMultiplier,

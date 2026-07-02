@@ -9,6 +9,7 @@ namespace AreaSurvivors
         float timer;
         Vector2 velocity;
 
+        public float weight = 1f;
         public bool Active => timer > 0f;
 
         void Awake()
@@ -20,7 +21,7 @@ namespace AreaSurvivors
         {
             if (body == null || strength <= 0f || duration <= 0f) return;
             if (direction.sqrMagnitude < 0.001f) direction = Vector2.down;
-            velocity = direction.normalized * strength;
+            velocity = direction.normalized * (strength / Mathf.Max(1f, weight));
             timer = duration;
             body.velocity = velocity;
         }

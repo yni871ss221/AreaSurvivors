@@ -23,12 +23,14 @@ namespace AreaSurvivors
         WeaponController weapon;
         PlayerController player;
         GameConfig config;
+        bool runtimeStopped;
 
         public void Configure(WeaponController owner, PlayerController ownerPlayer, GameConfig gameConfig)
         {
             weapon = owner;
             player = ownerPlayer;
             config = gameConfig;
+            runtimeStopped = false;
             cooldownTimers.Clear();
             StopAllCoroutines();
             burstRoutines.Clear();
@@ -37,11 +39,25 @@ namespace AreaSurvivors
 
         public void Sync()
         {
+            if (runtimeStopped) return;
             UpdateFlagArea();
+        }
+
+        public void StopRuntimeWeapons()
+        {
+            runtimeStopped = true;
+            StopAllCoroutines();
+            burstRoutines.Clear();
+            if (flagArea != null) flagArea.gameObject.SetActive(false);
+            foreach (var area in FindObjectsOfType<AdvancedWeaponArea>())
+            {
+                if (area != null) Destroy(area.gameObject);
+            }
         }
 
         void Update()
         {
+            if (runtimeStopped) return;
             if (weapon == null || player == null || config == null) return;
             UpdateFlagArea();
             if (player.IsReviving) return;
@@ -101,7 +117,9 @@ namespace AreaSurvivors
                 SfxTrack.ShieldHit,
                 0f,
                 0.28f,
-                FlagAreaPerspectiveYScale());
+                FlagAreaPerspectiveYScale(),
+                false,
+                WeaponType.Flag);
         }
 
         void Launch(WeaponType type, WeaponStatBlock stats)
@@ -144,7 +162,8 @@ namespace AreaSurvivors
                 repeatSeconds,
                 0.42f,
                 AreaPerspectiveYScale(type),
-                type == WeaponType.ArrowRain);
+                type == WeaponType.ArrowRain,
+                type);
         }
 
         float AreaPerspectiveYScale(WeaponType type)

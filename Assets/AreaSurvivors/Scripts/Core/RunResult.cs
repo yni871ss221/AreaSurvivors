@@ -2,6 +2,14 @@ using System.Collections.Generic;
 
 namespace AreaSurvivors
 {
+    [System.Serializable]
+    public sealed class RunRelicReportEntry
+    {
+        public RelicType type;
+        public string displayName;
+        public bool convertedToToken;
+    }
+
     public sealed class RunResult
     {
         public int kills;
@@ -17,6 +25,9 @@ namespace AreaSurvivors
         public int unlockedStage;
         public string clearMessage;
         public List<string> upgrades = new List<string>();
+        public List<string> acquiredRelics = new List<string>();
+        public List<RunRelicReportEntry> acquiredRelicEntries = new List<RunRelicReportEntry>();
+        public List<RunDamageReportEntry> damageReport = new List<RunDamageReportEntry>();
 
         public static RunResult Last { get; set; }
     }

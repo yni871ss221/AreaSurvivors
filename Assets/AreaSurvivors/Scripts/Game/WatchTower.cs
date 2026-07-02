@@ -12,6 +12,11 @@ namespace AreaSurvivors
         public Collider2D blockingCollider;
         public PaperMeshVisual completeRenderer;
         public PaperMeshVisual sparkleRenderer;
+        public PaperMeshVisual rangeFillRenderer;
+        public EllipseOutlineMeshVisual rangeOutlineRenderer;
+        public Color rangeFillColor = new Color(0.22f, 0.78f, 0.58f, 100f / 255f);
+        public int rangeFillSortingOrder = 100;
+        public int rangeOutlineSortingOrder = 101;
         public Sprite towerSprite;
         public Vector2 spriteVisualSize = new Vector2(1.22f, 2.55f);
         public Vector3 spriteVisualOffset = Vector3.zero;
@@ -31,8 +36,11 @@ namespace AreaSurvivors
         bool usingPrefabLayout;
         bool breaking;
         bool hasRegisteredCell;
+        float autoPaintTimer;
         Vector3Int registeredCell;
+        readonly HashSet<Health> damagedTargets = new HashSet<Health>();
         const float SparkleDuration = 0.75f;
+        const float DefaultAutoPaintIntervalSeconds = 2f;
 
         public bool IsBuilt => completed;
         public TileGrid Grid => grid;
@@ -51,6 +59,12 @@ namespace AreaSurvivors
             EnsureUpgradeTarget();
         }
 
+        void OnValidate()
+        {
+            ApplyRangeSortOrders();
+            if (Application.isPlaying) ApplyRangeVisual();
+        }
+
         public void RegisterBuildPlacement(TileGrid tileGrid, Vector3Int originCell)
         {
             grid = tileGrid;
@@ -58,6 +72,7 @@ namespace AreaSurvivors
             hasRegisteredCell = true;
             EnsureGridObjectVisual();
             EnsureFootprintColliders();
+            ApplyRangeVisual();
         }
 
         public void ApplyBuildingUpgrade(Sprite upgradedSprite, int hpBonus, int paintRadiusBonus)
@@ -83,7 +98,7 @@ namespace AreaSurvivors
             var upgradeTarget = GetComponent<BuildingUpgradeTarget>();
             if (config != null && (upgradeTarget == null || !upgradeTarget.IsUpgraded))
             {
-                maxHp = config.watchTowerMaxHp + ProgressionStore.GetLevel(UpgradeType.WatchTowerMaxHp) * config.watchTowerMaxHpPerUpgradeLevel;
+                maxHp = config.watchTowerMaxHp;
                 autoPaintRadiusCells = config.watchTowerAutoPaintRadiusCells + ProgressionStore.GetLevel(UpgradeType.WatchTowerRange) * config.watchTowerRangePerUpgradeLevel;
             }
             BuildingSkillEffects.ConfigureAutoRegeneration(gameObject, config);
@@ -97,7 +112,9 @@ namespace AreaSurvivors
         void Update()
         {
             if (!completed) return;
+            GameManager.Instance?.MarkBuildingDamageSourceActive(RunDamageBuildingSource.WatchTower);
             AnimateCompletionSparkle();
+            TickAutoPaint();
         }
 
         public void CompleteImmediately()
@@ -114,9 +131,35 @@ namespace AreaSurvivors
             grid.Paint(grid.groundTilemap.GetCellCenterWorld(target), TileOwner.Player, 0);
         }
 
+        void TickAutoPaint()
+        {
+            if (grid == null || grid.groundTilemap == null) return;
+
+            float interval = AutoPaintIntervalSeconds();
+            if (interval <= 0f)
+            {
+                AutoPaintNearestCell();
+                DamageEnemiesInAutoPaintRange();
+                return;
+            }
+
+            autoPaintTimer -= Time.deltaTime;
+            if (autoPaintTimer > 0f) return;
+
+            AutoPaintNearestCell();
+            DamageEnemiesInAutoPaintRange();
+            autoPaintTimer = interval;
+        }
+
+        float AutoPaintIntervalSeconds()
+        {
+            return config != null ? config.watchTowerAutoPaintIntervalSeconds : DefaultAutoPaintIntervalSeconds;
+        }
+
         bool TryFindNearestNonPlayerCell(out Vector3Int target)
         {
-            target = OriginCell;
+            Vector3Int centerCell = RangeCenterCell();
+            target = centerCell;
             int radius = Mathf.Max(0, autoPaintRadiusCells);
             var candidates = new List<Vector3Int>();
             int bestDistance = int.MaxValue;
@@ -126,9 +169,9 @@ namespace AreaSurvivors
                 for (int x = -radius; x <= radius; x++)
                 {
                     int distance = Mathf.Abs(x) + Mathf.Abs(y);
-                    if (distance > radius) continue;
+                    if (!IsCellOffsetInAutoPaintEllipse(x, y)) continue;
 
-                    var cell = OriginCell + new Vector3Int(x, y, 0);
+                    var cell = centerCell + new Vector3Int(x, y, 0);
                     if (!grid.ContainsCell(cell) || grid.IsOwnedBy(cell, TileOwner.Player)) continue;
                     if (distance < bestDistance)
                     {
@@ -148,9 +191,92 @@ namespace AreaSurvivors
             return true;
         }
 
+        void DamageEnemiesInAutoPaintRange()
+        {
+            int damage = BuildingSkillEffects.WatchTowerDamage(config, IsUpgraded());
+            if (damage <= 0) return;
+
+            float searchRadius = AutoPaintSearchRadiusWorld();
+            var colliders = Physics2D.OverlapCircleAll(RangeCenterWorld(), searchRadius);
+            damagedTargets.Clear();
+            for (int i = 0; i < colliders.Length; i++)
+            {
+                var collider = colliders[i];
+                var enemy = collider != null ? collider.GetComponentInParent<EnemyController>() : null;
+                if (enemy == null) continue;
+
+                var health = enemy.GetComponent<Health>();
+                if (health == null || health.IsDead || damagedTargets.Contains(health)) continue;
+                if (!IsWorldPointInAutoPaintEllipse(enemy.transform.position)) continue;
+
+                damagedTargets.Add(health);
+                int creditedDamage = health.DamageAmount(damage);
+                health.Damage(damage, enemy.transform.position);
+                GameManager.Instance?.RegisterBuildingDamage(RunDamageBuildingSource.WatchTower, creditedDamage);
+            }
+        }
+
+        bool IsCellOffsetInAutoPaintEllipse(int x, int y)
+        {
+            int radius = Mathf.Max(0, autoPaintRadiusCells);
+            if (radius <= 0) return x == 0 && y == 0;
+
+            float radiusX = Mathf.Max(0.5f, radius);
+            float radiusY = Mathf.Max(0.5f, radius);
+            float normalized = (x * x) / (radiusX * radiusX) + (y * y) / (radiusY * radiusY);
+            return normalized <= 1f;
+        }
+
+        bool IsWorldPointInAutoPaintEllipse(Vector3 worldPoint)
+        {
+            if (grid == null) return false;
+            Vector3 offset = worldPoint - RangeCenterWorld();
+            Vector2 radius = AutoPaintRadiusWorld();
+            float radiusX = Mathf.Max(0.1f, radius.x);
+            float radiusY = Mathf.Max(0.1f, radius.y);
+            float normalized = (offset.x * offset.x) / (radiusX * radiusX) + (offset.y * offset.y) / (radiusY * radiusY);
+            return normalized <= 1f;
+        }
+
+        Vector3Int RangeCenterCell()
+        {
+            if (grid == null) return OriginCell;
+            return grid.WorldToCell(RangeCenterWorld());
+        }
+
+        Vector3 RangeCenterWorld()
+        {
+            if (grid == null || grid.groundTilemap == null) return transform.position;
+            return grid.FootprintCenterToWorld(OriginCell, Footprint);
+        }
+
+        Vector2 AutoPaintRadiusWorld()
+        {
+            if (grid == null) return Vector2.one * Mathf.Max(0.1f, autoPaintRadiusCells);
+            Vector2 cellSize = grid.WorldCellSize();
+            return new Vector2(
+                Mathf.Max(0.1f, autoPaintRadiusCells * Mathf.Max(0.01f, cellSize.x)),
+                Mathf.Max(0.1f, autoPaintRadiusCells * Mathf.Max(0.01f, cellSize.y)));
+        }
+
+        float AutoPaintSearchRadiusWorld()
+        {
+            if (grid == null) return Mathf.Max(0.1f, autoPaintRadiusCells);
+            Vector2 cellSize = grid.WorldCellSize();
+            float maxCellSize = Mathf.Max(0.01f, cellSize.x, cellSize.y);
+            return Mathf.Max(0.1f, autoPaintRadiusCells * maxCellSize + maxCellSize);
+        }
+
+        bool IsUpgraded()
+        {
+            var upgradeTarget = GetComponent<BuildingUpgradeTarget>();
+            return upgradeTarget != null && upgradeTarget.IsUpgraded;
+        }
+
         void CompleteBuild()
         {
             completed = true;
+            autoPaintTimer = AutoPaintIntervalSeconds();
             sparkleTimer = SparkleDuration;
             health.SetMax(maxHp);
             ApplyVisuals();
@@ -166,6 +292,7 @@ namespace AreaSurvivors
         {
             if (breaking) return;
             breaking = true;
+            SetRangeVisualVisible(false);
             var cell = hasRegisteredCell ? registeredCell : grid != null ? grid.WorldToCell(transform.position) : OriginCell;
             if (BuildingPersistentState.TryMarkDestroyed(gameObject, grid, cell)) return;
             if (grid != null) grid.ClearObject(cell);
@@ -307,6 +434,54 @@ namespace AreaSurvivors
             if (completeRenderer != null) completeRenderer.SetVerticalFill(1f);
             SetActive(completeObject, completed && !hideBaseVisual);
             if (sparkleRenderer != null && !completed) sparkleRenderer.visible = false;
+            ApplyRangeVisual();
+        }
+
+        void ApplyRangeVisual()
+        {
+            ApplyRangeSortOrders();
+            bool visible = completed && !breaking;
+            ApplyRangeFillVisual(rangeFillRenderer, rangeFillColor, visible);
+            ApplyRangeOutlineVisual(visible);
+        }
+
+        void ApplyRangeSortOrders()
+        {
+            if (rangeFillRenderer != null) rangeFillRenderer.order = rangeFillSortingOrder;
+            if (rangeOutlineRenderer != null) rangeOutlineRenderer.order = rangeOutlineSortingOrder;
+        }
+
+        void ApplyRangeFillVisual(PaperMeshVisual visual, Color color, bool visible)
+        {
+            if (visual == null) return;
+            visual.color = color;
+            visual.visible = visible;
+            if (!visible) return;
+
+            Vector3 center = RangeCenterWorld();
+            visual.transform.localPosition = transform.InverseTransformPoint(center);
+            Vector2 radius = AutoPaintRadiusWorld();
+            float aspectY = visual.UsesEllipseShape ? Mathf.Max(0.05f, visual.EllipseShapeAspectY) : 1f;
+            visual.transform.localScale = new Vector3(radius.x, radius.y / aspectY, 1f);
+        }
+
+        void ApplyRangeOutlineVisual(bool visible)
+        {
+            if (rangeOutlineRenderer == null) return;
+            if (!visible)
+            {
+                rangeOutlineRenderer.SetVisible(false);
+                return;
+            }
+
+            rangeOutlineRenderer.transform.localPosition = transform.InverseTransformPoint(RangeCenterWorld());
+            rangeOutlineRenderer.Configure(AutoPaintRadiusWorld(), true);
+        }
+
+        void SetRangeVisualVisible(bool visible)
+        {
+            if (rangeFillRenderer != null) rangeFillRenderer.visible = visible;
+            if (rangeOutlineRenderer != null) rangeOutlineRenderer.SetVisible(visible);
         }
 
         void AnimateCompletionSparkle()

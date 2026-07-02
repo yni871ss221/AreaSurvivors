@@ -114,6 +114,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   sourceSprite: {fileID: 21300000, guid: 5584e0128a7e4743a979509d03c0eb0b, type: 3}
+  shapeSpriteOverride: {fileID: 0}
+  useEllipseShape: 0
+  ellipseSegments: 64
+  ellipseTextureCrop: 0
+  useSourceTexture: 1
   tint: {r: 1, g: 1, b: 1, a: 1}
   sortingOrder: 22002
   anchorBottomCenter: 1
@@ -248,6 +253,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   sourceSprite: {fileID: 21300000, guid: a1dc7af657df47eaaa5a8d8f0812f049, type: 3}
+  shapeSpriteOverride: {fileID: 0}
+  useEllipseShape: 0
+  ellipseSegments: 64
+  ellipseTextureCrop: 0
+  useSourceTexture: 1
   tint: {r: 1, g: 1, b: 1, a: 1}
   sortingOrder: 1002
   anchorBottomCenter: 1
@@ -835,6 +845,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   sourceSprite: {fileID: 21300000, guid: 635c159896304c298f7e4e96abba7c27, type: 3}
+  shapeSpriteOverride: {fileID: 0}
+  useEllipseShape: 0
+  ellipseSegments: 64
+  ellipseTextureCrop: 0
+  useSourceTexture: 1
   tint: {r: 1, g: 1, b: 1, a: 1}
   sortingOrder: 22002
   anchorBottomCenter: 1
@@ -983,6 +998,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   sourceSprite: {fileID: 21300000, guid: c1c65f9d327a46ab882dc0e037fe24b9, type: 3}
+  shapeSpriteOverride: {fileID: 0}
+  useEllipseShape: 0
+  ellipseSegments: 64
+  ellipseTextureCrop: 0
+  useSourceTexture: 1
   tint: {r: 1, g: 1, b: 1, a: 1}
   sortingOrder: 1002
   anchorBottomCenter: 1
@@ -1206,6 +1226,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   sourceSprite: {fileID: 21300000, guid: 685ddbf05c42cbb41834e819bb91bd9a, type: 3}
+  shapeSpriteOverride: {fileID: 0}
+  useEllipseShape: 0
+  ellipseSegments: 64
+  ellipseTextureCrop: 0
+  useSourceTexture: 1
   tint: {r: 1, g: 1, b: 1, a: 1}
   sortingOrder: 22030
   anchorBottomCenter: 0

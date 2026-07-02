@@ -1,5 +1,4 @@
 using System;
-using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -16,10 +15,167 @@ namespace AreaSurvivors
         public Text tokensValueText;
         public Text reachedStageValueText;
         public Text upgradeText;
+        public GameObject upgradePanel;
+        public GameObject relicSummaryPanel;
+        public Text[] relicSummaryTexts;
+        public RelicSummaryItem[] relicSummaryItems;
+        public DamageReportColumn[] damageReportColumns;
         public Text clearMessageText;
         public Button lobbyButton;
         public SceneNavigator navigator;
         public GameOverIntroAnimator introAnimator;
+
+        [Serializable]
+        public sealed class RelicSummaryItem
+        {
+            public GameObject root;
+            public Text nameText;
+            public RelicIconSet icons;
+
+            public void Set(RunRelicReportEntry entry, bool active)
+            {
+                if (root != null) root.SetActive(active);
+                if (!active) return;
+
+                string name = entry != null ? entry.displayName : string.Empty;
+                if (entry != null && entry.convertedToToken) name += "（変換）";
+                SetText(nameText, name);
+                if (icons != null) icons.Set(entry != null ? entry.type : RelicType.None);
+            }
+        }
+
+        [Serializable]
+        public sealed class RelicIconSet
+        {
+            public RelicIconBinding[] bindings;
+
+            public void Set(RelicType type)
+            {
+                if (bindings == null) return;
+                for (int i = 0; i < bindings.Length; i++)
+                {
+                    var binding = bindings[i];
+                    if (binding == null || binding.icon == null) continue;
+                    binding.icon.SetActive(binding.type == type);
+                }
+            }
+        }
+
+        [Serializable]
+        public sealed class RelicIconBinding
+        {
+            public RelicType type;
+            public GameObject icon;
+        }
+
+        [Serializable]
+        public sealed class DamageReportColumn
+        {
+            public GameObject root;
+            public Text titleText;
+            public Text totalDamageText;
+            public Text dpsText;
+            public DamageReportIconSet icons;
+
+            public void Set(RunDamageReportEntry entry, bool active)
+            {
+                if (root != null) root.SetActive(active);
+                if (!active) return;
+
+                SetText(titleText, entry != null && !string.IsNullOrWhiteSpace(entry.label) ? entry.label : "-");
+                SetText(totalDamageText, entry != null ? entry.totalDamage.ToString() : "-");
+                SetText(dpsText, entry != null ? FormatDps(entry.Dps) : "-");
+                if (icons != null) icons.Set(entry);
+            }
+        }
+
+        [Serializable]
+        public sealed class DamageReportIconSet
+        {
+            public GameObject centerTower;
+            public GameObject ballista;
+            public GameObject watchTower;
+            public GameObject slash;
+            public GameObject arrow;
+            public GameObject fireball;
+            public GameObject shield;
+            public GameObject flag;
+            public GameObject boomerangSword;
+            public GameObject auraSword;
+            public GameObject arrowRain;
+            public GameObject gun;
+            public GameObject frost;
+            public GameObject thunderBall;
+
+            public void Set(RunDamageReportEntry entry)
+            {
+                HideAll();
+                if (entry == null) return;
+
+                if (entry.sourceKind == RunDamageSourceKind.Building)
+                {
+                    SetActive(BuildingIcon(entry.building), true);
+                    return;
+                }
+
+                if (entry.sourceKind == RunDamageSourceKind.Weapon)
+                {
+                    SetActive(WeaponIcon(entry.weapon), true);
+                }
+            }
+
+            void HideAll()
+            {
+                SetActive(centerTower, false);
+                SetActive(ballista, false);
+                SetActive(watchTower, false);
+                SetActive(slash, false);
+                SetActive(arrow, false);
+                SetActive(fireball, false);
+                SetActive(shield, false);
+                SetActive(flag, false);
+                SetActive(boomerangSword, false);
+                SetActive(auraSword, false);
+                SetActive(arrowRain, false);
+                SetActive(gun, false);
+                SetActive(frost, false);
+                SetActive(thunderBall, false);
+            }
+
+            GameObject BuildingIcon(RunDamageBuildingSource source)
+            {
+                switch (source)
+                {
+                    case RunDamageBuildingSource.CenterTower: return centerTower;
+                    case RunDamageBuildingSource.Ballista: return ballista;
+                    case RunDamageBuildingSource.WatchTower: return watchTower;
+                    default: return null;
+                }
+            }
+
+            GameObject WeaponIcon(WeaponType type)
+            {
+                switch (type)
+                {
+                    case WeaponType.Arrow: return arrow;
+                    case WeaponType.Fireball: return fireball;
+                    case WeaponType.Shield: return shield;
+                    case WeaponType.Flag: return flag;
+                    case WeaponType.BoomerangSword: return boomerangSword;
+                    case WeaponType.AuraSword: return auraSword;
+                    case WeaponType.ArrowRain: return arrowRain;
+                    case WeaponType.Gun: return gun;
+                    case WeaponType.Frost: return frost;
+                    case WeaponType.ThunderBall: return thunderBall;
+                    default: return slash;
+                }
+            }
+
+            static void SetActive(GameObject target, bool active)
+            {
+                if (target != null) target.SetActive(active);
+            }
+        }
 
         void Start()
         {
@@ -35,7 +191,9 @@ namespace AreaSurvivors
             SetText(levelValueText, $"Lv {result.level}");
             SetText(tokensValueText, result.tokensEarned.ToString());
             SetText(reachedStageValueText, $"STAGE {Mathf.Max(1, result.reachedStage)}");
-            SetText(upgradeText, UpgradeText(result));
+            HideUpgradePanel();
+            SetAcquiredRelics(result);
+            SetDamageReport(result);
 
             bool hasClearMessage = !string.IsNullOrWhiteSpace(result.clearMessage);
             if (clearMessageText != null)
@@ -54,21 +212,75 @@ namespace AreaSurvivors
             if (introAnimator != null) introAnimator.Play(result.gameClear);
         }
 
-        static string UpgradeText(RunResult result)
+        void HideUpgradePanel()
         {
-            if (result.upgrades == null || result.upgrades.Count == 0) return "\u306a\u3057";
-            var builder = new StringBuilder();
-            for (int i = 0; i < result.upgrades.Count; i++)
+            if (upgradePanel != null)
             {
-                if (i > 0) builder.Append(" / ");
-                builder.Append(result.upgrades[i]);
+                upgradePanel.SetActive(false);
+                return;
             }
-            return builder.ToString();
+
+            if (upgradeText != null && upgradeText.transform.parent != null)
+            {
+                upgradeText.transform.parent.gameObject.SetActive(false);
+            }
+        }
+
+        void SetDamageReport(RunResult result)
+        {
+            if (damageReportColumns == null) return;
+            var report = result.damageReport;
+            for (int i = 0; i < damageReportColumns.Length; i++)
+            {
+                var column = damageReportColumns[i];
+                if (column == null) continue;
+                var entry = report != null && i < report.Count ? report[i] : null;
+                bool active = entry != null && entry.visible;
+                column.Set(entry, active);
+            }
+        }
+
+        void SetAcquiredRelics(RunResult result)
+        {
+            var entries = result != null ? result.acquiredRelicEntries : null;
+            bool hasEntryRelics = entries != null && entries.Count > 0;
+            if (relicSummaryPanel != null) relicSummaryPanel.SetActive(true);
+
+            if (relicSummaryItems != null && relicSummaryItems.Length > 0)
+            {
+                for (int i = 0; i < relicSummaryItems.Length; i++)
+                {
+                    var item = relicSummaryItems[i];
+                    if (item == null) continue;
+                    var entry = hasEntryRelics && i < entries.Count ? entries[i] : null;
+                    bool active = entry != null || i == 0 && !hasEntryRelics;
+                    item.Set(entry, active);
+                    if (entry == null && active) SetText(item.nameText, "なし");
+                }
+
+                return;
+            }
+
+            var relics = result != null ? result.acquiredRelics : null;
+            bool hasRelics = relics != null && relics.Count > 0;
+            if (relicSummaryTexts == null) return;
+
+            for (int i = 0; i < relicSummaryTexts.Length; i++)
+            {
+                string value = hasRelics && i < relics.Count ? relics[i] : i == 0 && !hasRelics ? "なし" : string.Empty;
+                SetText(relicSummaryTexts[i], value);
+                if (relicSummaryTexts[i] != null) relicSummaryTexts[i].gameObject.SetActive(!string.IsNullOrEmpty(value));
+            }
         }
 
         static void SetText(Text text, string value)
         {
             if (text != null) text.text = value;
+        }
+
+        static string FormatDps(float value)
+        {
+            return value >= 10f ? value.ToString("0") : value.ToString("0.0");
         }
     }
 }

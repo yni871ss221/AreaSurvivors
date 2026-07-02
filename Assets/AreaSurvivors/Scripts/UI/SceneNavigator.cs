@@ -12,6 +12,7 @@ namespace AreaSurvivors
         public void LoadGame() => SceneManager.LoadScene(SceneNames.Game);
         public void LoadWeaponBook() => SceneManager.LoadScene(SceneNames.WeaponBook);
         public void LoadGameTestLauncher() => SceneManager.LoadScene(SceneNames.GameTestLauncher);
+        public void LoadRelics() => SceneManager.LoadScene(SceneNames.Relics);
         public void Quit()
         {
 #if UNITY_EDITOR

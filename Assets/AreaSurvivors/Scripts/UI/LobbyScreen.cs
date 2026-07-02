@@ -11,6 +11,7 @@ namespace AreaSurvivors
         static readonly Color UnlockedColor = Color.white;
 
         public Button weaponBookButton;
+        public Button relicButton;
 
         Canvas lobbyUi;
         SceneNavigator navigator;
@@ -66,6 +67,10 @@ namespace AreaSurvivors
             if (!BindButton(weaponBookButton, navigator.LoadWeaponBook))
             {
                 BindButton("Weapon Book Button", navigator.LoadWeaponBook);
+            }
+            if (!BindButton(relicButton, navigator.LoadRelics))
+            {
+                BindButton("Relic Button", navigator.LoadRelics);
             }
             BindButton("Title Button", navigator.LoadTitle);
         }
@@ -130,14 +135,6 @@ namespace AreaSurvivors
                 SetActive(panel, "Unknown Boss", boss == null || boss.sprite == null);
                 SetText(panel, "Boss Name", unlocked ? BossName(stage) : "???");
                 SetActive(panel, "Clear", cleared);
-
-                var toggle = FindChild(panel, "Fast Mode Toggle")?.GetComponent<Toggle>();
-                if (toggle == null) continue;
-                toggle.gameObject.SetActive(cleared);
-                toggle.onValueChanged.RemoveAllListeners();
-                toggle.SetIsOnWithoutNotify(ProgressionStore.IsFastStage(stage));
-                int capturedStage = stage;
-                toggle.onValueChanged.AddListener(value => ProgressionStore.SetFastStage(capturedStage, value));
             }
         }
 

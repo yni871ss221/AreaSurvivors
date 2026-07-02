@@ -112,6 +112,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   sourceSprite: {fileID: 21300000, guid: 6f6765f3a2f4d384699662b1a4ec85e1, type: 3}
+  shapeSpriteOverride: {fileID: 0}
+  useEllipseShape: 0
+  ellipseSegments: 64
+  ellipseTextureCrop: 0
+  useSourceTexture: 1
   tint: {r: 1, g: 1, b: 1, a: 1}
   sortingOrder: 7220
   anchorBottomCenter: 0

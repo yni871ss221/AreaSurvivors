@@ -5,19 +5,25 @@ namespace AreaSurvivors
     public sealed class ThunderBallRangeVisual : MonoBehaviour
     {
         const int EllipseSegments = 64;
-        const float DefaultPerspectiveYScale = 0.65f;
+        const float DefaultVerticalAspect = 1f;
 
         [SerializeField] MeshFilter fillMeshFilter;
         [SerializeField] MeshRenderer fillRenderer;
         [SerializeField] LineRenderer outlineRenderer;
-        [SerializeField, Range(0.2f, 1f)] float perspectiveYScale = DefaultPerspectiveYScale;
+        [SerializeField, Range(0.2f, 1f)] float perspectiveYScale = DefaultVerticalAspect;
         [SerializeField] Color fillColor = new Color(0.55f, 0.25f, 1f, 0.16f);
         [SerializeField] Color outlineColor = new Color(0.86f, 0.62f, 1f, 0.62f);
+        [SerializeField] int fillSortingOrder = WeaponSortingOrders.AreaEffect;
+        [SerializeField] int outlineSortingOrder = WeaponSortingOrders.AreaEffect + 1;
+        [SerializeField, Min(0.001f)] float outlineWidth = 0.04f;
 
         Mesh generatedMesh;
         Material fillMaterial;
         Material outlineMaterial;
         float range = 1f;
+#if UNITY_EDITOR
+        bool editorApplyQueued;
+#endif
 
         public void Initialize(MeshFilter areaFillMeshFilter, MeshRenderer areaFillRenderer, LineRenderer areaOutlineRenderer)
         {
@@ -29,7 +35,13 @@ namespace AreaSurvivors
 
         public void Configure(float attackRange)
         {
+            Configure(attackRange, perspectiveYScale);
+        }
+
+        public void Configure(float attackRange, float verticalAspect)
+        {
             range = Mathf.Max(0.05f, attackRange);
+            perspectiveYScale = Mathf.Clamp(verticalAspect, 0.2f, 1f);
             ApplyScale();
             ApplyEllipse();
         }
@@ -43,14 +55,18 @@ namespace AreaSurvivors
         void LateUpdate()
         {
             transform.localPosition = Vector3.zero;
-            transform.rotation = Camera.main != null ? Camera.main.transform.rotation : Quaternion.identity;
+            transform.rotation = Quaternion.identity;
             ApplyScale();
         }
 
         void OnValidate()
         {
+#if UNITY_EDITOR
+            QueueEditorApply();
+#else
             ApplyScale();
             ApplyEllipse();
+#endif
         }
 
         void OnDestroy()
@@ -137,7 +153,7 @@ namespace AreaSurvivors
             generatedMesh.triangles = triangles;
             generatedMesh.RecalculateBounds();
             fillMeshFilter.sharedMesh = generatedMesh;
-            fillRenderer.sortingOrder = WeaponSortingOrders.AreaEffect;
+            fillRenderer.sortingOrder = fillSortingOrder;
         }
 
         void ApplyOutline()
@@ -146,8 +162,8 @@ namespace AreaSurvivors
             outlineRenderer.useWorldSpace = false;
             outlineRenderer.loop = true;
             outlineRenderer.positionCount = EllipseSegments;
-            outlineRenderer.widthMultiplier = 0.04f;
-            outlineRenderer.sortingOrder = WeaponSortingOrders.AreaEffect + 1;
+            outlineRenderer.widthMultiplier = Mathf.Max(0.001f, outlineWidth);
+            outlineRenderer.sortingOrder = outlineSortingOrder;
             outlineRenderer.startColor = outlineColor;
             outlineRenderer.endColor = outlineColor;
 
@@ -164,5 +180,22 @@ namespace AreaSurvivors
             if (Application.isPlaying) Destroy(generated);
             else DestroyImmediate(generated);
         }
+
+#if UNITY_EDITOR
+        void QueueEditorApply()
+        {
+            if (editorApplyQueued) return;
+            editorApplyQueued = true;
+            UnityEditor.EditorApplication.delayCall += ApplyFromEditorDelay;
+        }
+
+        void ApplyFromEditorDelay()
+        {
+            editorApplyQueued = false;
+            if (this == null) return;
+            ApplyScale();
+            ApplyEllipse();
+        }
+#endif
     }
 }

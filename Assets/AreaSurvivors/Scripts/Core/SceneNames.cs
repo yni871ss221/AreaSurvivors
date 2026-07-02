@@ -10,6 +10,7 @@ namespace AreaSurvivors
         public const string GameEnd = "06_GameEnd";
         public const string WeaponBook = "07_WeaponBook";
         public const string GameTestLauncher = "08_GameTestLauncher";
+        public const string Relics = "09_Relics";
         public const string GameOver = GameEnd;
     }
 }

@@ -5,10 +5,12 @@ AreaSurvivors リポジトリ全体に適用する低トークン運用の入口
 ## Must
 
 - ユーザーへの説明、作業報告、Obsidian記録は日本語で行う。
+- 作業に積み残しがある場合（確認後に不要な機能を削除、確認後に水平展開、後続検証、未対応の派生修正など）は、最終回答に `TODO` として必ず明記する。積み残しを曖昧にしたまま次作業へ進まない。
 - 既存の未コミット変更はユーザーまたは前作業のものとして扱い、勝手に戻さない。
 - 手作業のコード編集は `apply_patch` を使う。破壊的なGit操作や削除は、明示依頼または承認なしに行わない。
 - 通常作業開始時のObsidian外部記憶読み込みは行わない。履歴確認・記録・締め作業を明示された時だけ使う。
 - Scene/Prefabとゲーム処理を疎結合にし、Editor調整したいものはSceneまたはPrefabを正とする。Runtimeで既存の位置、サイズ、Sprite、Collider、Scale、Rotationを固定値へ戻さない。
+- 攻撃範囲、塗り範囲、当たり判定を示すArea/Range Visualは、Transform Rotation X/Yやカメラ回転、`PaperBillboard.faceCamera=true` で疑似パース補正しない。見た目、当たり判定、セル塗りは同じ半径・縦横比を基準にする。
 - ゲーム実行中にGameObject/UI/静的Visualを新規配置・生成・差し替えしない。静的オブジェクトはSceneへ直接配置し、動的オブジェクトはPrefab化してScene/Prefab参照から生成することを絶対ルールとする。
 - スキルツリー、HUD、建造メニューなどのアイコンや `Source Image` はScene/Prefab上の参照を正とし、RuntimeコードでSpriteを差し替えない。
 - HUD全体、Scene全体、Gameplay Test Scene全体を安易に再生成しない。必要な対象だけ変更する。

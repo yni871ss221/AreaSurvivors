@@ -28,6 +28,7 @@ namespace AreaSurvivors.Editor
             "Frost",
             "ThunderBall",
             "AdvancedWeaponArea",
+            "FlagAreaEllipse",
             "ArrowRainFrame_0",
             "ArrowRainFrame_1",
             "ArrowRainFrame_2",
@@ -36,10 +37,9 @@ namespace AreaSurvivors.Editor
             "ArrowRainFrame_5",
             "ArrowRainFrame_6",
             "ArrowRainFrame_7",
-            "FrostFrame_0",
-            "FrostFrame_1",
-            "FrostFrame_2",
-            "FrostFrame_3",
+            "FrostAreaEllipse",
+            "FrostAreaTexture",
+            "FrostAreaTextureAlt",
             "BoomerangSwordBlade",
             "GunBullet",
             "AuraSwordSlash"
@@ -97,7 +97,9 @@ namespace AreaSurvivors.Editor
         [MenuItem("AreaSurvivors/Setup/ApplyFrostArea")]
         public static void ApplyFrostArea()
         {
-            for (int i = 0; i < 4; i++) ImportSprite($"FrostFrame_{i}");
+            ImportSprite("FrostAreaEllipse");
+            ImportSprite("FrostAreaTexture");
+            ImportSprite("FrostAreaTextureAlt");
             UpdateGeneratedSpriteCatalog();
             CreateFrostAreaPrefab();
             WirePlayerPrefab();
@@ -186,13 +188,23 @@ namespace AreaSurvivors.Editor
         {
             var sprite = AssetDatabase.LoadAssetAtPath<Sprite>($"{SpriteFolder}/AdvancedWeaponArea.png");
             if (sprite == null) return;
+            var ellipseSprite = AssetDatabase.LoadAssetAtPath<Sprite>($"{SpriteFolder}/FlagAreaEllipse.png");
             var root = new GameObject("Advanced Weapon Area");
             root.AddComponent<AdvancedWeaponArea>();
             var visualRoot = new GameObject("Paper Visual");
             visualRoot.transform.SetParent(root.transform, false);
-            visualRoot.AddComponent<PaperBillboard>();
+            visualRoot.AddComponent<PaperBillboard>().faceCamera = false;
             var visual = visualRoot.AddComponent<PaperMeshVisual>();
             visual.Configure(sprite, Color.white, WeaponSortingOrders.AreaEffect);
+            visual.ConfigureEllipseShape(ellipseSprite, 0.08f);
+            if (ellipseSprite != null)
+            {
+                var outlineRoot = new GameObject("Ellipse Range Outline");
+                outlineRoot.transform.SetParent(root.transform, false);
+                outlineRoot.AddComponent<PaperBillboard>().faceCamera = false;
+                var outline = outlineRoot.AddComponent<PaperMeshVisual>();
+                outline.Configure(ellipseSprite, new Color(0.5f, 0.78f, 0.68f, 0.45f), WeaponSortingOrders.AreaEffect + 1);
+            }
             PrefabUtility.SaveAsPrefabAsset(root, $"{PrefabFolder}/AdvancedWeaponArea.prefab");
             Object.DestroyImmediate(root);
         }
@@ -210,7 +222,7 @@ namespace AreaSurvivors.Editor
 
             var circleRoot = new GameObject("Circle Visual");
             circleRoot.transform.SetParent(root.transform, false);
-            circleRoot.AddComponent<PaperBillboard>();
+            circleRoot.AddComponent<PaperBillboard>().faceCamera = false;
             var fillFilter = circleRoot.AddComponent<MeshFilter>();
             var fillRenderer = circleRoot.AddComponent<MeshRenderer>();
             var outlineRenderer = circleRoot.AddComponent<LineRenderer>();
@@ -245,24 +257,33 @@ namespace AreaSurvivors.Editor
 
         static void CreateFrostAreaPrefab()
         {
-            var frameIndices = new[] { 0, 1, 2, 3 };
-            var frames = frameIndices
-                .Select(index => AssetDatabase.LoadAssetAtPath<Sprite>($"{SpriteFolder}/FrostFrame_{index}.png"))
-                .Where(sprite => sprite != null)
-                .ToArray();
-            if (frames.Length == 0) return;
+            var frostSprite = AssetDatabase.LoadAssetAtPath<Sprite>($"{SpriteFolder}/FrostAreaTexture.png");
+            if (frostSprite == null) return;
+            var frostAltSprite = AssetDatabase.LoadAssetAtPath<Sprite>($"{SpriteFolder}/FrostAreaTextureAlt.png");
+            var ellipseSprite = AssetDatabase.LoadAssetAtPath<Sprite>($"{SpriteFolder}/FrostAreaEllipse.png");
 
             var root = new GameObject("Frost Area");
             root.AddComponent<AdvancedWeaponArea>();
 
-            var visualRoot = new GameObject("Frost Animation");
+            var visualRoot = new GameObject("Frost Area Visual");
             visualRoot.transform.SetParent(root.transform, false);
-            visualRoot.AddComponent<PaperBillboard>();
+            visualRoot.AddComponent<PaperBillboard>().faceCamera = false;
             var visual = visualRoot.AddComponent<PaperMeshVisual>();
-            visual.Configure(frames[0], Color.white, WeaponSortingOrders.AreaEffect);
-
-            var frostVisual = root.AddComponent<FrostAreaVisual>();
-            frostVisual.Initialize(visual, frames);
+            visual.Configure(frostSprite, new Color(1f, 1f, 1f, 0.78f), WeaponSortingOrders.AreaEffect);
+            visual.ConfigureEllipseShape(ellipseSprite, 0f);
+            if (frostAltSprite != null)
+            {
+                var animator = visualRoot.AddComponent<AreaSurvivors.PaperMeshSpriteAnimator>();
+                animator.Initialize(visual, new[] { frostSprite, frostAltSprite }, 3f);
+            }
+            if (ellipseSprite != null)
+            {
+                var outlineRoot = new GameObject("Ellipse Range Outline");
+                outlineRoot.transform.SetParent(root.transform, false);
+                outlineRoot.AddComponent<PaperBillboard>().faceCamera = false;
+                var outline = outlineRoot.AddComponent<PaperMeshVisual>();
+                outline.Configure(ellipseSprite, new Color(0.58f, 0.88f, 0.95f, 0.4f), WeaponSortingOrders.AreaEffect + 1);
+            }
 
             PrefabUtility.SaveAsPrefabAsset(root, $"{PrefabFolder}/FrostArea.prefab");
             Object.DestroyImmediate(root);

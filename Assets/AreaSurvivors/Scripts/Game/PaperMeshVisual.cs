@@ -11,6 +11,11 @@ namespace AreaSurvivors
     public sealed class PaperMeshVisual : MonoBehaviour
     {
         [SerializeField] Sprite sourceSprite;
+        [SerializeField] Sprite shapeSpriteOverride;
+        [SerializeField] bool useEllipseShape;
+        [SerializeField, Range(16, 128)] int ellipseSegments = 64;
+        [SerializeField, Range(0f, 0.2f)] float ellipseTextureCrop;
+        [SerializeField] bool useSourceTexture = true;
         [SerializeField] Color tint = Color.white;
         [SerializeField] int sortingOrder;
         [SerializeField] bool anchorBottomCenter;
@@ -89,8 +94,27 @@ namespace AreaSurvivors
             }
         }
 
-        public float VerticalFill => verticalFill;
+        public bool useTexture
+        {
+            get => useSourceTexture;
+            set
+            {
+                useSourceTexture = value;
+                ApplySprite();
+            }
+        }
 
+        public float VerticalFill => verticalFill;
+        public bool UsesEllipseShape => useEllipseShape && shapeSpriteOverride != null;
+        public float EllipseShapeAspectY
+        {
+            get
+            {
+                if (!UsesEllipseShape) return 1f;
+                var size = shapeSpriteOverride.bounds.size;
+                return size.x > 0.001f ? Mathf.Max(0.05f, size.y / size.x) : 1f;
+            }
+        }
         public void SetVerticalFill(float fill)
         {
             fill = Mathf.Clamp01(fill);
@@ -104,6 +128,15 @@ namespace AreaSurvivors
             sourceSprite = newSprite;
             tint = newTint;
             sortingOrder = newSortingOrder;
+            ApplySprite();
+        }
+
+        public void ConfigureEllipseShape(Sprite shapeSprite, float textureCrop = 0f, int segments = 64)
+        {
+            shapeSpriteOverride = shapeSprite;
+            useEllipseShape = shapeSpriteOverride != null;
+            ellipseTextureCrop = Mathf.Clamp(textureCrop, 0f, 0.2f);
+            ellipseSegments = Mathf.Clamp(segments, 16, 128);
             ApplySprite();
         }
 
@@ -136,6 +169,11 @@ namespace AreaSurvivors
         {
             EnsureRenderer();
             if (sourceSprite == null) return;
+            if (UsesEllipseShape)
+            {
+                ApplyEllipseShape();
+                return;
+            }
 
             var bounds = sourceSprite.bounds;
             var min = bounds.min;
@@ -183,6 +221,62 @@ namespace AreaSurvivors
             ApplyMaterial();
         }
 
+        void ApplyEllipseShape()
+        {
+            int segments = Mathf.Clamp(ellipseSegments, 16, 128);
+            float radiusX = 1f;
+            float radiusY = EllipseShapeAspectY;
+            var vertices = new Vector3[segments + 1];
+            var uv = new Vector2[segments + 1];
+            var triangles = new int[segments * 3];
+            vertices[0] = Vector3.zero;
+            uv[0] = TextureUv(0.5f, 0.5f);
+
+            for (int i = 0; i < segments; i++)
+            {
+                float angle = i / (float)segments * Mathf.PI * 2f;
+                float cos = Mathf.Cos(angle);
+                float sin = Mathf.Sin(angle);
+                vertices[i + 1] = new Vector3(cos * radiusX, sin * radiusY, 0f);
+                uv[i + 1] = TextureUv(0.5f + cos * 0.5f, 0.5f + sin * 0.5f);
+
+                int triangleIndex = i * 3;
+                triangles[triangleIndex] = 0;
+                triangles[triangleIndex + 1] = i + 1;
+                triangles[triangleIndex + 2] = i == segments - 1 ? 1 : i + 2;
+            }
+
+            var mesh = new Mesh
+            {
+                name = shapeSpriteOverride.name + " Textured Ellipse",
+                hideFlags = HideFlags.HideAndDontSave
+            };
+            mesh.vertices = vertices;
+            mesh.uv = uv;
+            mesh.triangles = triangles;
+            mesh.RecalculateBounds();
+
+            DestroyGenerated(meshFilter.sharedMesh);
+            meshFilter.sharedMesh = mesh;
+            ApplyMaterial();
+        }
+
+        Vector2 TextureUv(float normalizedX, float normalizedY)
+        {
+            var texture = sourceSprite.texture;
+            var rect = sourceSprite.textureRect;
+            float x0 = rect.xMin / texture.width;
+            float x1 = rect.xMax / texture.width;
+            float y0 = rect.yMin / texture.height;
+            float y1 = rect.yMax / texture.height;
+            if (UsesEllipseShape && ellipseTextureCrop > 0f)
+            {
+                normalizedX = Mathf.Lerp(ellipseTextureCrop, 1f - ellipseTextureCrop, normalizedX);
+                normalizedY = Mathf.Lerp(ellipseTextureCrop, 1f - ellipseTextureCrop, normalizedY);
+            }
+            return new Vector2(Mathf.Lerp(x0, x1, normalizedX), Mathf.Lerp(y0, y1, normalizedY));
+        }
+
         void EnsureRenderer()
         {
             if (meshFilter == null) meshFilter = GetComponent<MeshFilter>();
@@ -203,7 +297,7 @@ namespace AreaSurvivors
                 meshRenderer.sharedMaterial = material;
             }
 
-            material.mainTexture = sourceSprite != null ? sourceSprite.texture : null;
+            material.mainTexture = useSourceTexture && sourceSprite != null ? sourceSprite.texture : Texture2D.whiteTexture;
             material.color = tint;
         }
 

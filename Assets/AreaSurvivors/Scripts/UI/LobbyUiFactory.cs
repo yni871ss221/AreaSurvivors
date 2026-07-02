@@ -81,30 +81,13 @@ namespace AreaSurvivors
             Label(panel.transform, "Unknown Boss", "?", 42, new Vector2(0, 2), new Vector2(74, 70), new Color(0f, 0f, 0f, 0.75f));
             Label(panel.transform, "Boss Name", "???", 15, new Vector2(0, -38), new Vector2(160, 22), BodyText);
             Label(panel.transform, "Clear", "CLEAR", 18, new Vector2(0, -60), new Vector2(90, 24), ClearText);
-            BuildFastToggle(panel.transform);
-        }
-
-        static void BuildFastToggle(Transform parent)
-        {
-            var root = new GameObject("Fast Mode Toggle").AddComponent<Toggle>();
-            root.transform.SetParent(parent, false);
-            var rect = root.GetComponent<RectTransform>();
-            rect.anchoredPosition = new Vector2(48, -58);
-            rect.sizeDelta = new Vector2(72, 24);
-
-            var box = Image(root.transform, "Box", new Color(0.09f, 0.16f, 0.12f, 0.92f), new Vector2(-22, 0), new Vector2(18, 18));
-            UiBoxOutline.Apply(box.transform, EdgeColor, 2f);
-            var check = Image(box.transform, "Check", ClearText, Vector2.zero, new Vector2(10, 10));
-            root.graphic = check;
-            root.targetGraphic = box;
-            Label(root.transform, "Fast Label", "\u500d\u901f", 13, new Vector2(12, 0), new Vector2(46, 20), BodyText);
         }
 
         static void BuildKnightLoadout(Transform parent)
         {
-            Panel(parent, "Character Panel", new Vector2(0, -66), new Vector2(760, 238), PanelColor);
-            Label(parent, "CharacterTitle", "\u51fa\u6483\u30ad\u30e3\u30e9\u30af\u30bf\u30fc", 23, new Vector2(0, 28), new Vector2(420, 34), AccentText);
-            CharacterCard(parent, "Character Knight", "\u30ca\u30a4\u30c8", "\u524d\u65b9\u3092\u5207\u308a\u6255\u3046", "Generated/Knight", CharacterType.Knight, new Vector2(-250, -10));
+            Panel(parent, "Character Panel", new Vector2(-250, -125), new Vector2(300, 250), PanelColor);
+            Label(parent, "CharacterTitle", "\u51fa\u6483\u30ad\u30e3\u30e9\u30af\u30bf\u30fc", 23, new Vector2(-250, 18), new Vector2(420, 34), AccentText);
+            CharacterCard(parent, "Character Knight", "\u30ca\u30a4\u30c8", "\u524d\u65b9\u3092\u5207\u308a\u6255\u3046", "Generated/Knight", CharacterType.Knight, new Vector2(-250, -140));
         }
 
         static void CharacterCard(Transform parent, string objectName, string title, string description, string spriteResource, CharacterType type, Vector2 pos)
@@ -120,9 +103,11 @@ namespace AreaSurvivors
         static void BuildFooterButtons(Transform parent)
         {
             Button(parent, "Test Launch Button", "\u30c6\u30b9\u30c8\u8d77\u52d5", new Vector2(-509, -105), new Vector2(180, 52), null);
-            Button(parent, "Start Game Button", "\u30b2\u30fc\u30e0\u30b9\u30bf\u30fc\u30c8", new Vector2(-330, -300), new Vector2(260, 58), "Generated/Arrow");
-            Button(parent, "Upgrade Button", "\u5f37\u5316", new Vector2(190, -300), new Vector2(220, 58), "Generated/Orb");
-            Button(parent, "Title Button", "\u30bf\u30a4\u30c8\u30eb\u3078", new Vector2(430, -300), new Vector2(210, 52), "Generated/Slash_0");
+            Button(parent, "Start Game Button", "\u30b2\u30fc\u30e0\u30b9\u30bf\u30fc\u30c8", new Vector2(150, 60), new Vector2(220, 58), "Generated/Arrow");
+            Button(parent, "Upgrade Button", "\u5f37\u5316", new Vector2(30, -30), new Vector2(220, 58), "Generated/Orb");
+            Button(parent, "Weapon Book Button", "\u6b66\u5668\u56f3\u9451", new Vector2(30, -100), new Vector2(220, 58), "Generated/Slash_0");
+            Button(parent, "Relic Button", "\u6240\u6301\u30ec\u30ea\u30c3\u30af", new Vector2(30, -170), new Vector2(220, 58), "Generated/TreasureChest");
+            Button(parent, "Title Button", "\u30bf\u30a4\u30c8\u30eb\u3078", new Vector2(-150, 60), new Vector2(220, 52), "Generated/Slash_0");
         }
 
         static Button Button(Transform parent, string objectName, string text, Vector2 pos, Vector2 size, string iconResource)

@@ -46,6 +46,12 @@ namespace AreaSurvivors
             instance.StopBgmInternal();
         }
 
+        public static void StopSfx()
+        {
+            if (!Application.isPlaying || instance == null) return;
+            instance.StopSfxInternal();
+        }
+
         public static void PlayButtonConfirm()
         {
             PlaySfx(SfxTrack.ButtonConfirm);
@@ -229,6 +235,13 @@ namespace AreaSurvivors
             sfxSource.PlayOneShot(clip, Mathf.Clamp01(volumeScale * SfxTrackVolumeScale(track)));
         }
 
+        void StopSfxInternal()
+        {
+            Initialize();
+            if (sfxSource == null) return;
+            sfxSource.Stop();
+        }
+
         bool IsSfxCoolingDown(SfxTrack track)
         {
             float lastTime;
@@ -337,8 +350,15 @@ namespace AreaSurvivors
                 case SfxTrack.ArrowRainTick:
                 case SfxTrack.GunShot:
                 case SfxTrack.FrostCast:
-                case SfxTrack.ThunderBallCast:
                     return 0.45f;
+                case SfxTrack.ThunderBallCast:
+                    return 0.32f;
+                case SfxTrack.TowerCollapse:
+                case SfxTrack.BossDefeatRumble:
+                    return 0.9f;
+                case SfxTrack.RelicChestPickup:
+                case SfxTrack.RelicChestOpen:
+                    return 0.8f;
                 case SfxTrack.EnemyHit:
                     return 1.8f;
                 default:

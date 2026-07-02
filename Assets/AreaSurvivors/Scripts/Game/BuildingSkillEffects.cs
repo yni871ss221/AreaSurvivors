@@ -4,6 +4,10 @@ namespace AreaSurvivors
 {
     public static class BuildingSkillEffects
     {
+        const int DefaultWatchTowerDamage = 1;
+        const int DefaultWatchTowerDamagePerUpgradeLevel = 1;
+        const int DefaultUpgradedWatchTowerDamageBonus = 3;
+
         public static int WallMaxHpBonus(GameConfig config)
         {
             if (config == null) return 0;
@@ -18,6 +22,7 @@ namespace AreaSurvivors
         {
             if (target == null || config == null) return;
             int amount = ProgressionStore.GetLevel(UpgradeType.BuildingAutoRegen) * Mathf.Max(0, config.buildingAutoRegenPerUpgradeLevel);
+            if (target.GetComponent<WoodenBarrier>() != null) amount += RelicEffects.WallAutoRegenBonus;
             if (amount <= 0) return;
 
             var regeneration = target.GetComponent<AutoRegeneration>();
@@ -26,6 +31,24 @@ namespace AreaSurvivors
             regeneration.intervalSeconds = config.autoRegenIntervalSeconds;
             if (popupPrefab != null) regeneration.popupPrefab = popupPrefab;
             regeneration.popupOffset = ResolvePopupOffset(target);
+        }
+
+        public static int WatchTowerDamage(GameConfig config, bool isUpgraded)
+        {
+            int baseDamage = config != null ? config.watchTowerDamage : DefaultWatchTowerDamage;
+            int perLevel = config != null ? config.watchTowerDamagePerUpgradeLevel : DefaultWatchTowerDamagePerUpgradeLevel;
+            int upgradedBonus = 0;
+            if (isUpgraded)
+            {
+                upgradedBonus = config != null
+                    ? config.upgradedWatchTowerDamageBonus
+                    : DefaultUpgradedWatchTowerDamageBonus;
+            }
+
+            return Mathf.Max(0,
+                baseDamage +
+                ProgressionStore.GetLevel(UpgradeType.WatchTowerDamage) * Mathf.Max(0, perLevel) +
+                Mathf.Max(0, upgradedBonus));
         }
 
         static Vector3 ResolvePopupOffset(GameObject target)

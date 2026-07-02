@@ -18,6 +18,7 @@ namespace AreaSurvivors
         float nextSfxAt;
         PaperMeshVisual visual;
         bool paintsTerritory;
+        WeaponType sourceWeaponType = WeaponType.Flag;
 
         public void Configure(
             Transform target,
@@ -31,12 +32,26 @@ namespace AreaSurvivors
             float repeatSfxSeconds,
             float visualAlpha = 0.45f,
             float areaVerticalScale = 1f,
-            bool paintTerritory = false)
+            bool paintTerritory = false,
+            WeaponType weaponType = WeaponType.Flag)
         {
+            if (visual == null) visual = GetComponentInChildren<PaperMeshVisual>();
             followTarget = target;
             transform.position = followTarget != null ? followTarget.position : position;
             radius = Mathf.Max(0.05f, areaRadius);
-            verticalRadiusMultiplier = Mathf.Max(0.05f, areaVerticalScale);
+            bool usesSpriteShape = visual != null && visual.UsesEllipseShape;
+            verticalRadiusMultiplier = usesSpriteShape
+                ? Mathf.Max(0.05f, visual.EllipseShapeAspectY)
+                : Mathf.Max(0.05f, areaVerticalScale);
+            if (paintTerritory)
+            {
+                var grid = FindObjectOfType<TileGrid>();
+                if (grid != null)
+                {
+                    Vector2 cellSize = grid.WorldCellSize();
+                    verticalRadiusMultiplier = Mathf.Max(0.05f, cellSize.y / Mathf.Max(0.01f, cellSize.x));
+                }
+            }
             damage = Mathf.Max(0, attackPower);
             damageInterval = Mathf.Max(0.05f, intervalSeconds);
             expireAt = durationSeconds > 0f ? Time.time + durationSeconds : float.PositiveInfinity;
@@ -44,15 +59,20 @@ namespace AreaSurvivors
             tickSfx = sfx;
             sfxInterval = Mathf.Max(0f, repeatSfxSeconds);
             paintsTerritory = paintTerritory;
-            transform.localScale = new Vector3(radius, radius * verticalRadiusMultiplier, radius);
+            sourceWeaponType = weaponType;
             var arrowRainVisual = GetComponentInChildren<ArrowRainAreaVisual>();
-            if (arrowRainVisual != null) arrowRainVisual.SetAreaAlpha(visualAlpha);
-            else
+            bool usesAreaMeshAspect = arrowRainVisual != null && paintTerritory;
+            transform.localScale = usesAreaMeshAspect
+                ? Vector3.one * radius
+                : usesSpriteShape
+                ? new Vector3(radius, radius, radius)
+                : new Vector3(radius, radius * verticalRadiusMultiplier, radius);
+            if (arrowRainVisual != null)
             {
-                var frostVisual = GetComponentInChildren<FrostAreaVisual>();
-                if (frostVisual != null) frostVisual.SetAreaAlpha(visualAlpha);
-                else ApplyVisualAlpha(visualAlpha);
+                if (usesAreaMeshAspect) arrowRainVisual.SetAreaShape(verticalRadiusMultiplier);
+                arrowRainVisual.SetAreaAlpha(visualAlpha);
             }
+            else ApplyVisualAlpha(visualAlpha);
             PaintTerritoryIfNeeded();
         }
 
@@ -85,7 +105,8 @@ namespace AreaSurvivors
 
         void DamageEnemiesInRadius()
         {
-            var colliders = Physics2D.OverlapCircleAll(transform.position, radius);
+            float searchRadius = Mathf.Max(radius, radius * verticalRadiusMultiplier);
+            var colliders = Physics2D.OverlapCircleAll(transform.position, searchRadius);
             for (int i = 0; i < colliders.Length; i++)
             {
                 var enemy = colliders[i] != null ? colliders[i].GetComponentInParent<EnemyController>() : null;
@@ -95,7 +116,10 @@ namespace AreaSurvivors
                 var health = enemy.GetComponent<Health>();
                 if (health == null || health.IsDead) continue;
                 if (!CanHit(health)) continue;
-                if (damage > 0) health.Damage(damage, enemy.transform.position);
+                if (damage <= 0) continue;
+                int creditedDamage = health.DamageAmount(damage);
+                health.Damage(damage, enemy.transform.position);
+                GameManager.Instance?.RegisterWeaponDamage(sourceWeaponType, creditedDamage);
             }
         }
 
@@ -104,10 +128,10 @@ namespace AreaSurvivors
             if (!paintsTerritory) return;
             var grid = FindObjectOfType<TileGrid>();
             if (grid == null) return;
-            float cellSize = Mathf.Max(0.01f, grid.cellSize);
-            int radiusX = Mathf.Max(0, Mathf.CeilToInt(radius / cellSize));
-            int radiusY = Mathf.Max(0, Mathf.CeilToInt(radius * verticalRadiusMultiplier / cellSize));
-            grid.PaintEllipse(transform.position, TileOwner.Player, radiusX, radiusY);
+            Vector2 cellSize = grid.WorldCellSize();
+            float radiusX = radius / Mathf.Max(0.01f, cellSize.x);
+            float radiusY = radius * verticalRadiusMultiplier / Mathf.Max(0.01f, cellSize.y);
+            grid.PaintEllipseOverlappingCells(transform.position, TileOwner.Player, radiusX, radiusY);
         }
 
         bool ContainsPoint(Vector2 point)

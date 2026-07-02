@@ -21,6 +21,10 @@ namespace AreaSurvivors
         [SerializeField, Range(0f, 1f)] float arrowHeightJitter = 0.45f;
         [SerializeField] Color fillColor = new Color(0.24f, 0.62f, 0.96f, 0.24f);
         [SerializeField] Color outlineColor = new Color(0.58f, 0.86f, 1f, 0.78f);
+        [SerializeField] int fillSortingOrder = WeaponSortingOrders.AreaEffect;
+        [SerializeField] int outlineSortingOrder = WeaponSortingOrders.AreaEffect + 1;
+        [SerializeField, Min(0.001f)] float outlineWidth = 0.05f;
+        [SerializeField, Range(0.1f, 1f)] float areaVerticalAspect = 1f;
 
         Mesh generatedMesh;
         Material fillMaterial;
@@ -30,6 +34,9 @@ namespace AreaSurvivors
         Vector3[] arrowBasePositions;
         float[] arrowPhaseOffsets;
         float[] arrowTravelMultipliers;
+#if UNITY_EDITOR
+        bool editorApplyQueued;
+#endif
 
         public void Initialize(
             MeshFilter areaFillMeshFilter,
@@ -56,6 +63,12 @@ namespace AreaSurvivors
             outlineColor.a = Mathf.Max(0.68f, alpha * 0.95f);
             ApplyCircle();
             ApplyArrowScale();
+        }
+
+        public void SetAreaShape(float verticalAspect)
+        {
+            areaVerticalAspect = Mathf.Clamp(verticalAspect, 0.1f, 1f);
+            ApplyCircle();
         }
 
         void Awake()
@@ -96,9 +109,13 @@ namespace AreaSurvivors
 
         void OnValidate()
         {
+#if UNITY_EDITOR
+            QueueEditorApply();
+#else
             ApplyCircle();
             ApplyFrame(frameIndex);
             ApplyArrowScale();
+#endif
         }
 
         void OnDestroy()
@@ -288,7 +305,7 @@ namespace AreaSurvivors
             for (int i = 0; i < CircleSegments; i++)
             {
                 float angle = (i / (float)CircleSegments) * Mathf.PI * 2f;
-                vertices[i + 1] = new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0f);
+                vertices[i + 1] = new Vector3(Mathf.Cos(angle), Mathf.Sin(angle) * areaVerticalAspect, 0f);
                 int triangleIndex = i * 3;
                 triangles[triangleIndex] = 0;
                 triangles[triangleIndex + 1] = i + 1;
@@ -299,7 +316,7 @@ namespace AreaSurvivors
             generatedMesh.triangles = triangles;
             generatedMesh.RecalculateBounds();
             fillMeshFilter.sharedMesh = generatedMesh;
-            fillRenderer.sortingOrder = WeaponSortingOrders.AreaEffect;
+            fillRenderer.sortingOrder = fillSortingOrder;
             if (fillMaterial != null) fillMaterial.color = fillColor;
         }
 
@@ -309,8 +326,8 @@ namespace AreaSurvivors
             outlineRenderer.useWorldSpace = false;
             outlineRenderer.loop = true;
             outlineRenderer.positionCount = CircleSegments;
-            outlineRenderer.widthMultiplier = 0.05f;
-            outlineRenderer.sortingOrder = WeaponSortingOrders.AreaEffect + 1;
+            outlineRenderer.widthMultiplier = Mathf.Max(0.001f, outlineWidth);
+            outlineRenderer.sortingOrder = outlineSortingOrder;
             outlineRenderer.startColor = outlineColor;
             outlineRenderer.endColor = outlineColor;
             if (outlineMaterial != null) outlineMaterial.color = outlineColor;
@@ -318,7 +335,7 @@ namespace AreaSurvivors
             for (int i = 0; i < CircleSegments; i++)
             {
                 float angle = (i / (float)CircleSegments) * Mathf.PI * 2f;
-                outlineRenderer.SetPosition(i, new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0f));
+                outlineRenderer.SetPosition(i, new Vector3(Mathf.Cos(angle), Mathf.Sin(angle) * areaVerticalAspect, 0f));
             }
         }
 
@@ -337,5 +354,23 @@ namespace AreaSurvivors
             x = (x >> 16) ^ x;
             return (x & 0x00FFFFFF) / 16777215f;
         }
+
+#if UNITY_EDITOR
+        void QueueEditorApply()
+        {
+            if (editorApplyQueued) return;
+            editorApplyQueued = true;
+            UnityEditor.EditorApplication.delayCall += ApplyFromEditorDelay;
+        }
+
+        void ApplyFromEditorDelay()
+        {
+            editorApplyQueued = false;
+            if (this == null) return;
+            ApplyCircle();
+            ApplyFrame(frameIndex);
+            ApplyArrowScale();
+        }
+#endif
     }
 }

@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 namespace AreaSurvivors
@@ -27,6 +28,7 @@ namespace AreaSurvivors
 
         Camera cachedCamera;
         float zoom = 0.5f;
+        bool cutsceneCameraMoveActive;
 
         void Awake()
         {
@@ -57,13 +59,53 @@ namespace AreaSurvivors
             ApplyZoomImmediate();
         }
 
+        public IEnumerator MoveToCutsceneTarget(Transform focusTarget, float duration)
+        {
+            if (focusTarget == null) yield break;
+            if (cachedCamera == null) cachedCamera = GetComponent<Camera>();
+
+            cutsceneCameraMoveActive = true;
+            target = focusTarget;
+            anchor = null;
+            targetWeight = 1f;
+
+            Vector3 startPosition = transform.position;
+            Quaternion startRotation = transform.rotation;
+            float startSize = cachedCamera != null ? cachedCamera.orthographicSize : Mathf.Lerp(zoomedInOrthographicSize, orthographicSize, zoom);
+            float currentPitch = Mathf.Lerp(zoomedInPitch, pitch, zoom);
+            Vector3 currentOffset = Vector3.Lerp(zoomedInOffset, offset, zoom);
+            Quaternion targetRotation = Quaternion.Euler(currentPitch, 0f, 0f);
+            float elapsed = 0f;
+            duration = Mathf.Max(0.1f, duration);
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / duration));
+                Vector3 targetPosition = ClampCameraPosition(focusTarget.position + currentOffset, currentPitch, startSize);
+                transform.position = Vector3.Lerp(startPosition, targetPosition, t);
+                transform.rotation = Quaternion.Slerp(startRotation, targetRotation, t);
+                if (cachedCamera != null) cachedCamera.orthographicSize = startSize;
+                yield return null;
+            }
+
+            transform.position = ClampCameraPosition(focusTarget.position + currentOffset, currentPitch, startSize);
+            transform.rotation = targetRotation;
+            if (cachedCamera != null) cachedCamera.orthographicSize = startSize;
+            cutsceneCameraMoveActive = false;
+        }
+
         void LateUpdate()
         {
+            if (cutsceneCameraMoveActive) return;
             if (target == null) return;
-            var wheel = Input.mouseScrollDelta.y;
-            if (Mathf.Abs(wheel) > 0.001f)
+            if (Time.timeScale > 0f)
             {
-                zoom = Mathf.Clamp01(zoom - wheel * Mathf.Max(0.01f, scrollSpeed));
+                var wheel = Input.mouseScrollDelta.y;
+                if (Mathf.Abs(wheel) > 0.001f)
+                {
+                    zoom = Mathf.Clamp01(zoom - wheel * Mathf.Max(0.01f, scrollSpeed));
+                }
             }
 
             var focus = target.position;
@@ -73,10 +115,13 @@ namespace AreaSurvivors
             var currentSize = Mathf.Lerp(zoomedInOrthographicSize, orthographicSize, zoom);
             var desired = focus + currentOffset;
             desired = ClampCameraPosition(desired, currentPitch, currentSize);
-            transform.position = Vector3.Lerp(transform.position, desired, 1f - Mathf.Exp(-smooth * Time.deltaTime));
+            float deltaTime = Time.timeScale > 0f ? Time.deltaTime : Time.unscaledDeltaTime;
+            float activeSmooth = Time.timeScale > 0f ? smooth : smooth * 0.18f;
+            float damp = 1f - Mathf.Exp(-activeSmooth * deltaTime);
+            transform.position = Vector3.Lerp(transform.position, desired, damp);
             transform.rotation = Quaternion.Euler(currentPitch, 0f, 0f);
             if (cachedCamera == null) cachedCamera = GetComponent<Camera>();
-            if (cachedCamera != null) cachedCamera.orthographicSize = Mathf.Lerp(cachedCamera.orthographicSize, currentSize, 1f - Mathf.Exp(-smooth * Time.deltaTime));
+            if (cachedCamera != null) cachedCamera.orthographicSize = Mathf.Lerp(cachedCamera.orthographicSize, currentSize, damp);
         }
 
         void ApplyZoomImmediate()

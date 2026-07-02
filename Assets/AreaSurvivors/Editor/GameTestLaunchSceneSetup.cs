@@ -12,6 +12,7 @@ namespace AreaSurvivors.Editor
     {
         const string ScenePath = "Assets/AreaSurvivors/Scenes/08_GameTestLauncher.unity";
         const string LobbyScenePath = "Assets/AreaSurvivors/Scenes/03_Lobby.unity";
+        const string UpgradeScenePath = "Assets/AreaSurvivors/Scenes/04_Upgrades.unity";
         static readonly Color BackgroundColor = new Color(0.045f, 0.06f, 0.05f, 1f);
         static readonly Color PanelColor = new Color(0.03f, 0.06f, 0.05f, 0.72f);
         static readonly Color ButtonColor = new Color(0.12f, 0.20f, 0.16f, 0.94f);
@@ -23,7 +24,7 @@ namespace AreaSurvivors.Editor
         {
             string previousScenePath = SceneManager.GetActiveScene().path;
             CreateTestLauncherScene();
-            UpdateLobbyScene();
+            RemoveUpgradeTestingButtons();
             UpdateBuildSettings();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -49,16 +50,18 @@ namespace AreaSurvivors.Editor
             CreateEventSystem(scene);
 
             CreateBackground(canvas.transform);
-            Panel(canvas.transform, "Main Panel", new Vector2(0f, 12f), new Vector2(1080f, 560f), PanelColor);
-            Label(canvas.transform, "Title", "ゲーム起動テスト", 38, new Vector2(0f, 244f), new Vector2(520f, 52f), Color.white);
-            Label(canvas.transform, "Description", "ステージや初期武器を指定して動作確認できます", 20, new Vector2(0f, 204f), new Vector2(640f, 34f), AccentText);
-            Panel(canvas.transform, "Stage Test Panel", new Vector2(-300f, 22f), new Vector2(420f, 346f), new Color(0.025f, 0.052f, 0.042f, 0.72f));
-            Label(canvas.transform, "Stage Test Title", "ステージ開始", 25, new Vector2(-300f, 156f), new Vector2(320f, 34f), AccentText);
-            Button(canvas.transform, "Start Stage 2 Test Button", "STAGE 2 テスト開始", new Vector2(-300f, 82f), new Vector2(300f, 58f));
-            Button(canvas.transform, "Start Stage 3 Test Button", "STAGE 3 テスト開始", new Vector2(-300f, 8f), new Vector2(300f, 58f));
-            Button(canvas.transform, "Start Stage 4 Test Button", "STAGE 4 テスト開始", new Vector2(-300f, -66f), new Vector2(300f, 58f));
-            BuildWeaponTestScroll(canvas.transform);
-            Button(canvas.transform, "Lobby Button", "ロビーへ", new Vector2(0f, -246f), new Vector2(260f, 52f));
+            var mainPanel = Panel(canvas.transform, "Main Panel", new Vector2(0f, 0f), new Vector2(1120f, 650f), PanelColor);
+            var scrollRect = CreateScrollView(mainPanel.transform, "Tool Scroll View", new Vector2(0f, 0f), new Vector2(1040f, 600f), 1720f);
+            var content = scrollRect.content.transform;
+
+            Label(content, "Title", "ゲーム起動テスト", 38, new Vector2(0f, -40f), new Vector2(520f, 52f), Color.white);
+            Label(content, "Description", "ステージ、武器、レリック、強化データを指定して動作確認できます", 20, new Vector2(0f, -78f), new Vector2(760f, 34f), AccentText);
+            BuildStageTestPanel(content, -210f);
+            BuildDataToolPanel(content, -440f);
+            BuildRelicTestPanel(content, -730f);
+            BuildWeaponTestPanel(content, -1210f);
+            Label(content, "Test Status Text", "テスト操作を選択できます", 17, new Vector2(0f, -1530f), new Vector2(760f, 48f), AccentText);
+            Button(content, "Lobby Button", "ロビーへ", new Vector2(0f, -1585f), new Vector2(260f, 44f), null, 20);
 
             var controller = new GameObject("Game Test Launcher Controller");
             controller.AddComponent<SceneNavigator>();
@@ -85,6 +88,22 @@ namespace AreaSurvivors.Editor
             DestroyNamed(lobbyUi.transform, "Test Launch Button");
 
             Button(lobbyUi.transform, "Test Launch Button", "テスト起動", new Vector2(-509f, -105f), new Vector2(180f, 52f));
+            EditorSceneManager.MarkSceneDirty(scene);
+            EditorSceneManager.SaveScene(scene);
+        }
+
+        static void RemoveUpgradeTestingButtons()
+        {
+            var scene = EditorSceneManager.OpenScene(UpgradeScenePath, OpenSceneMode.Single);
+            var upgradeUi = GameObject.Find("Upgrade UI");
+            if (upgradeUi == null)
+            {
+                Debug.LogWarning("Upgrade UI was not found. Skipped removing testing buttons.");
+                return;
+            }
+
+            DestroyNamed(upgradeUi.transform, "スキル初期化");
+            DestroyNamed(upgradeUi.transform, "トークン+99999");
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene);
         }
@@ -141,16 +160,69 @@ namespace AreaSurvivors.Editor
             Stretch(vignette.rectTransform);
         }
 
-        static void BuildWeaponTestScroll(Transform parent)
+        static void BuildStageTestPanel(Transform parent, float y)
         {
-            Panel(parent, "Weapon Test Panel", new Vector2(272f, 22f), new Vector2(520f, 346f), new Color(0.025f, 0.052f, 0.042f, 0.72f));
-            Label(parent, "Weapon Test Title", "武器別 STAGE 1 開始", 25, new Vector2(272f, 156f), new Vector2(360f, 34f), AccentText);
+            var panel = Panel(parent, "Stage Test Panel", new Vector2(0f, y), new Vector2(960f, 210f), new Color(0.025f, 0.052f, 0.042f, 0.72f));
+            Label(panel.transform, "Stage Test Title", "ステージ開始", 25, new Vector2(0f, 72f), new Vector2(360f, 34f), AccentText);
+            Button(panel.transform, "Start Stage 2 Test Button", "STAGE 2 テスト開始", new Vector2(-300f, -14f), new Vector2(280f, 54f));
+            Button(panel.transform, "Start Stage 3 Test Button", "STAGE 3 テスト開始", new Vector2(0f, -14f), new Vector2(280f, 54f));
+            Button(panel.transform, "Start Stage 4 Test Button", "STAGE 4 テスト開始", new Vector2(300f, -14f), new Vector2(280f, 54f));
+        }
 
-            var scrollRoot = new GameObject("Weapon Test Scroll View");
+        static void BuildDataToolPanel(Transform parent, float y)
+        {
+            var panel = Panel(parent, "Data Tool Panel", new Vector2(0f, y), new Vector2(960f, 190f), new Color(0.025f, 0.052f, 0.042f, 0.72f));
+            Label(panel.transform, "Data Tool Title", "テスト用データ操作", 25, new Vector2(0f, 62f), new Vector2(360f, 34f), AccentText);
+            Button(panel.transform, "Add Test Tokens Button", "トークン +99999", new Vector2(-310f, -18f), new Vector2(280f, 54f), GeneratedSpriteLoader.Load("Orb"), 19);
+            Button(panel.transform, "Reset Upgrades Button", "強化状態を初期化", new Vector2(0f, -18f), new Vector2(280f, 54f), GeneratedSpriteLoader.Load("Slash_0"), 19);
+            Button(panel.transform, "Reset Stage Clear State Button", "クリア状態を初期化", new Vector2(310f, -18f), new Vector2(280f, 54f), GeneratedSpriteLoader.Load("Tower"), 19);
+        }
+
+        static void BuildRelicTestPanel(Transform parent, float y)
+        {
+            var panel = Panel(parent, "Relic Test Panel", new Vector2(0f, y), new Vector2(960f, 370f), new Color(0.025f, 0.052f, 0.042f, 0.72f));
+            Label(panel.transform, "Relic Test Title", "レリック取得状態", 25, new Vector2(0f, 150f), new Vector2(360f, 34f), AccentText);
+
+            var scrollRect = CreateScrollView(panel.transform, "Relic Test Scroll View", new Vector2(0f, 24f), new Vector2(820f, 210f), RelicCatalog.All.Length * 50f + 8f);
+            var content = scrollRect.content.transform;
+            var relics = RelicCatalog.All;
+            for (int i = 0; i < relics.Length; i++)
+            {
+                var definition = relics[i];
+                float rowY = -10f - i * 50f;
+                var icon = LoadRelicIcon(definition);
+                Button(content, GameTestLaunchScreen.RelicUnlockButtonName(definition.type), "獲得: " + definition.displayName, new Vector2(-180f, rowY), new Vector2(340f, 42f), icon, 16);
+                Button(content, GameTestLaunchScreen.RelicLockButtonName(definition.type), "未取得: " + definition.displayName, new Vector2(180f, rowY), new Vector2(340f, 42f), icon, 16);
+            }
+
+            Button(panel.transform, "Reset All Relics Button", "全レリックを未取得へ", new Vector2(0f, -150f), new Vector2(340f, 44f), GeneratedSpriteLoader.Load("TreasureChest"), 18);
+        }
+
+        static void BuildWeaponTestPanel(Transform parent, float y)
+        {
+            var panel = Panel(parent, "Weapon Test Panel", new Vector2(0f, y), new Vector2(960f, 450f), new Color(0.025f, 0.052f, 0.042f, 0.72f));
+            Label(panel.transform, "Weapon Test Title", "武器別 STAGE 1 開始", 25, new Vector2(0f, 190f), new Vector2(360f, 34f), AccentText);
+
+            var scrollRect = CreateScrollView(panel.transform, "Weapon Test Scroll View", new Vector2(0f, -15f), new Vector2(820f, 330f), WeaponCatalog.TestableWeapons.Length * 54f + 8f);
+            var content = scrollRect.content.transform;
+
+            for (int i = 0; i < WeaponCatalog.TestableWeapons.Length; i++)
+            {
+                var weaponType = WeaponCatalog.TestableWeapons[i];
+                string label = "STAGE 1: " + WeaponCatalog.DisplayName(weaponType);
+                var rowY = -10f - i * 54f;
+                var icon = LoadWeaponIcon(weaponType);
+                Button(content, GameTestLaunchScreen.WeaponTestButtonName(weaponType), label, new Vector2(0f, rowY), new Vector2(720f, 46f), icon, 18);
+            }
+        }
+
+        static ScrollRect CreateScrollView(Transform parent, string objectName, Vector2 pos, Vector2 size, float contentHeight)
+        {
+            var scrollRoot = new GameObject(objectName);
             scrollRoot.transform.SetParent(parent, false);
             var scrollRectTransform = scrollRoot.AddComponent<RectTransform>();
-            scrollRectTransform.anchoredPosition = new Vector2(272f, -10f);
-            scrollRectTransform.sizeDelta = new Vector2(452f, 250f);
+            scrollRectTransform.anchoredPosition = pos;
+            scrollRectTransform.sizeDelta = size;
             var scrollRect = scrollRoot.AddComponent<ScrollRect>();
             scrollRect.horizontal = false;
             scrollRect.vertical = true;
@@ -172,21 +244,14 @@ namespace AreaSurvivors.Editor
             contentRect.anchorMax = new Vector2(1f, 1f);
             contentRect.pivot = new Vector2(0.5f, 1f);
             contentRect.anchoredPosition = Vector2.zero;
-            contentRect.sizeDelta = new Vector2(0f, WeaponCatalog.TestableWeapons.Length * 62f + 8f);
+            contentRect.sizeDelta = new Vector2(0f, contentHeight);
             scrollRect.viewport = viewportRect;
             scrollRect.content = contentRect;
-
-            for (int i = 0; i < WeaponCatalog.TestableWeapons.Length; i++)
-            {
-                var weaponType = WeaponCatalog.TestableWeapons[i];
-                string label = "STAGE 1: " + WeaponCatalog.DisplayName(weaponType);
-                var y = -35f - i * 62f;
-                var icon = LoadWeaponIcon(weaponType);
-                Button(content.transform, GameTestLaunchScreen.WeaponTestButtonName(weaponType), label, new Vector2(0f, y), new Vector2(410f, 52f), icon);
-            }
+            scrollRect.movementType = ScrollRect.MovementType.Clamped;
+            return scrollRect;
         }
 
-        static Button Button(Transform parent, string objectName, string text, Vector2 pos, Vector2 size, Sprite icon = null)
+        static Button Button(Transform parent, string objectName, string text, Vector2 pos, Vector2 size, Sprite icon = null, int fontSize = 22)
         {
             var go = new GameObject(objectName);
             go.transform.SetParent(parent, false);
@@ -196,14 +261,7 @@ namespace AreaSurvivors.Editor
             button.targetGraphic = image;
             button.transition = Selectable.Transition.None;
             var rect = button.GetComponent<RectTransform>();
-            if (parent != null && parent.name == "Content")
-            {
-                rect.anchorMin = new Vector2(0.5f, 1f);
-                rect.anchorMax = new Vector2(0.5f, 1f);
-                rect.pivot = new Vector2(0.5f, 1f);
-            }
-            rect.anchoredPosition = pos;
-            rect.sizeDelta = size;
+            PlaceRect(rect, parent, pos, size);
             UiBoxOutline.Apply(go.transform, EdgeColor, 2f);
             var highlight = go.AddComponent<UiSelectionHighlight>();
             highlight.padding = 6f;
@@ -216,7 +274,7 @@ namespace AreaSurvivors.Editor
                 iconImage.preserveAspect = true;
             }
 
-            Label(go.transform, "Label", text, 22, icon != null ? new Vector2(20f, 0f) : Vector2.zero, new Vector2(size.x - (icon != null ? 78f : 20f), size.y), Color.white);
+            Label(go.transform, "Label", text, fontSize, icon != null ? new Vector2(20f, 0f) : Vector2.zero, new Vector2(size.x - (icon != null ? 78f : 20f), size.y), Color.white);
             return button;
         }
 
@@ -226,6 +284,14 @@ namespace AreaSurvivors.Editor
             var sprite = GeneratedSpriteLoader.Load(key);
             if (sprite != null) return sprite;
             return Resources.Load<Sprite>(key);
+        }
+
+        static Sprite LoadRelicIcon(RelicDefinition definition)
+        {
+            if (definition == null) return null;
+            var sprite = GeneratedSpriteLoader.Load(definition.iconPath);
+            if (sprite != null) return sprite;
+            return Resources.Load<Sprite>(definition.iconPath);
         }
 
         static Image Panel(Transform parent, string name, Vector2 pos, Vector2 size, Color color)
@@ -249,8 +315,7 @@ namespace AreaSurvivors.Editor
             text.horizontalOverflow = HorizontalWrapMode.Wrap;
             text.verticalOverflow = VerticalWrapMode.Truncate;
             text.raycastTarget = false;
-            text.rectTransform.anchoredPosition = pos;
-            text.rectTransform.sizeDelta = size;
+            PlaceRect(text.rectTransform, parent, pos, size);
             var outline = text.gameObject.AddComponent<Outline>();
             outline.effectColor = new Color(0.02f, 0.025f, 0.018f, 0.82f);
             outline.effectDistance = new Vector2(1f, -1f);
@@ -262,10 +327,22 @@ namespace AreaSurvivors.Editor
             var image = new GameObject(name).AddComponent<Image>();
             image.transform.SetParent(parent, false);
             image.color = color;
-            image.rectTransform.anchoredPosition = pos;
-            image.rectTransform.sizeDelta = size;
+            PlaceRect(image.rectTransform, parent, pos, size);
             image.raycastTarget = false;
             return image;
+        }
+
+        static void PlaceRect(RectTransform rect, Transform parent, Vector2 pos, Vector2 size)
+        {
+            if (parent != null && parent.name == "Content")
+            {
+                rect.anchorMin = new Vector2(0.5f, 1f);
+                rect.anchorMax = new Vector2(0.5f, 1f);
+                rect.pivot = new Vector2(0.5f, 0.5f);
+            }
+
+            rect.anchoredPosition = pos;
+            rect.sizeDelta = size;
         }
 
         static void Stretch(RectTransform rect)

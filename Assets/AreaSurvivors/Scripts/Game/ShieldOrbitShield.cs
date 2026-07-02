@@ -45,12 +45,13 @@ namespace AreaSurvivors
 
             nextHitTimes[enemy] = now + hitCooldown;
             var hitPoint = other.ClosestPoint(transform.position);
+            int creditedDamage = health.DamageAmount(damage);
             int dealt = health.Damage(damage, hitPoint);
             ApplyKnockback(enemy);
             if (dealt > 0)
             {
                 AudioManager.PlaySfx(SfxTrack.ShieldHit);
-                GameManager.Instance?.RegisterDamageDealt(dealt);
+                GameManager.Instance?.RegisterWeaponDamage(WeaponType.Shield, creditedDamage);
             }
         }
 

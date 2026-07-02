@@ -31,11 +31,13 @@ namespace AreaSurvivors
         RuntimeSpriteOutline outline;
         CharacterOcclusionReveal reveal;
         EnemySlowEffect slowEffect;
+        EnemyHitFlash hitFlash;
         float contactTimer;
         float footProbeDistance = 0.24f;
         float speedMultiplier = 1f;
         bool dying;
         Color desiredOutlineColor = Color.black;
+        const int BossSortingOffsetPerCell = 35;
 
         void Awake()
         {
@@ -84,6 +86,7 @@ namespace AreaSurvivors
             {
                 xpValue = config != null ? config.xpPerEnemy : 1;
                 attackDamage = config != null ? config.enemyDamage : 3;
+                if (knockback != null) knockback.weight = 1f;
                 transform.localScale = Vector3.one * (config != null ? Mathf.Max(0.1f, config.enemyVisualScale) : 1f);
                 ConfigureFootCollider(1f);
                 return;
@@ -101,14 +104,50 @@ namespace AreaSurvivors
             elite = definition.elite;
             boss = definition.boss;
             attackDamage = Mathf.Max(0, Mathf.RoundToInt((config != null ? config.enemyDamage : 3) * Mathf.Max(0f, definition.damageMultiplier)));
+            if (knockback != null) knockback.weight = KnockbackWeight(definition);
             float visualScale = config != null ? Mathf.Max(0.1f, config.enemyVisualScale) : 1f;
             float cellScale = Mathf.Max(0.1f, definition.cellSize);
             transform.localScale = Vector3.one * visualScale * cellScale;
             speedMultiplier = Mathf.Max(0.05f, definition.speedMultiplier);
             ConfigureFootCollider(cellScale);
+            ConfigureCharacterSorting(definition, cellScale);
 
             desiredOutlineColor = definition.outlineColor;
             ApplyOutlineStyle();
+        }
+
+        float KnockbackWeight(EnemyDefinition definition)
+        {
+            if (definition == null) return 1f;
+            if (definition.boss) return ConfiguredWeight(config != null ? config.bossEnemyKnockbackWeight : 0f, 10f);
+
+            float weight = 1f;
+            if (IsAdvancedNormalEnemy(definition.kind))
+            {
+                weight *= ConfiguredWeight(config != null ? config.advancedNormalEnemyKnockbackWeight : 0f, 2f);
+            }
+            if (definition.elite)
+            {
+                weight *= ConfiguredWeight(config != null ? config.eliteEnemyKnockbackWeight : 0f, 2f);
+            }
+            return Mathf.Max(1f, weight);
+        }
+
+        static float ConfiguredWeight(float value, float fallback)
+        {
+            return value > 0f ? value : fallback;
+        }
+
+        static bool IsAdvancedNormalEnemy(EnemyKind kind)
+        {
+            return kind == EnemyKind.Orc ||
+                kind == EnemyKind.EliteOrc ||
+                kind == EnemyKind.Ogre ||
+                kind == EnemyKind.EliteOgre ||
+                kind == EnemyKind.SkeletonKnight ||
+                kind == EnemyKind.EliteSkeletonKnight ||
+                kind == EnemyKind.Lizardman ||
+                kind == EnemyKind.EliteLizardman;
         }
 
         void ConfigureFootCollider(float cellScale)
@@ -136,6 +175,29 @@ namespace AreaSurvivors
                 footProbeDistance = Mathf.Max(worldWidth, worldHeight) * 0.5f;
             }
             colliders = GetComponents<Collider2D>();
+            RefreshCharacterSorting();
+        }
+
+        void ConfigureCharacterSorting(EnemyDefinition definition, float cellScale)
+        {
+            var ySort = GetComponent<YSort>();
+            if (ySort == null) return;
+
+            // Large boss sprites visually overlap walls before their root fully crosses the wall row.
+            // Keep YSort active, but shift the threshold forward so front-side bosses render in front.
+            ySort.orderOffset = definition != null && definition.boss
+                ? Mathf.RoundToInt(Mathf.Max(1f, cellScale) * BossSortingOffsetPerCell)
+                : 0;
+            ySort.Apply();
+        }
+
+        void RefreshCharacterSorting()
+        {
+            gridVisual?.ApplyCharacterYSortPivot();
+            var ySort = GetComponent<YSort>();
+            if (ySort == null) return;
+            ySort.Refresh();
+            ySort.Apply();
         }
 
         void LateUpdate()
@@ -235,8 +297,8 @@ namespace AreaSurvivors
             if (contactTimer > 0f) return;
             var otherHealth = record.instance.GetComponentInParent<Health>();
             if (otherHealth == null) return;
-            int dealt = otherHealth.Damage(attackDamage, hitPoint);
-            DamagePopup.Show(damagePopupPrefab, hitPoint + Vector3.up * 0.18f, dealt, Color.red);
+            otherHealth.Damage(attackDamage, hitPoint);
+            DamagePopup.Show(damagePopupPrefab, hitPoint + Vector3.up * 0.18f, DamagePopupAmount(otherHealth, attackDamage), Color.red);
             contactTimer = 0.75f;
         }
 
@@ -258,14 +320,25 @@ namespace AreaSurvivors
             Vector3 hitPoint = collision.contactCount > 0
                 ? collision.GetContact(0).point
                 : collision.collider.ClosestPoint(transform.position);
-            int dealt = otherHealth.Damage(attackDamage, hitPoint);
-            DamagePopup.Show(damagePopupPrefab, hitPoint + Vector3.up * 0.18f, dealt, Color.red);
+            otherHealth.Damage(attackDamage, hitPoint);
+            DamagePopup.Show(damagePopupPrefab, hitPoint + Vector3.up * 0.18f, DamagePopupAmount(otherHealth, attackDamage), Color.red);
             contactTimer = 0.75f;
+        }
+
+        static int DamagePopupAmount(Health targetHealth, int rawDamage)
+        {
+            return Mathf.Max(0, rawDamage - Mathf.Max(0, targetHealth != null ? targetHealth.defense : 0));
         }
 
         void OnDamaged(Health damagedHealth, int amount)
         {
             if (amount > 0) AudioManager.PlaySfx(SfxTrack.EnemyHit);
+            if (amount > 0)
+            {
+                if (hitFlash == null) hitFlash = GetComponent<EnemyHitFlash>();
+                if (hitFlash == null) hitFlash = gameObject.AddComponent<EnemyHitFlash>();
+                hitFlash.Play(visual);
+            }
             DamagePopup.Show(damagePopupPrefab, damagedHealth.LastDamagePoint + Vector3.up * 0.18f, amount, Color.white);
         }
 
@@ -281,22 +354,40 @@ namespace AreaSurvivors
             body.velocity = Vector2.zero;
             foreach (var col in colliders) col.enabled = false;
             if (directionalAnimator != null) directionalAnimator.enabled = false;
+            bool firstBossDefeatCutscene = boss && GameManager.Instance != null && GameManager.Instance.IsFirstBossDefeatForCurrentStage(this);
+            if (firstBossDefeatCutscene) GameManager.Instance.BeginBossDefeatCutscene(this);
+            if (firstBossDefeatCutscene)
+            {
+                yield return GameManager.Instance.WaitForEndingCutsceneCamera(transform);
+            }
+            if (boss) AudioManager.PlaySfx(SfxTrack.BossDefeatRumble);
 
+            var startPosition = transform.position;
             var startScale = transform.localScale;
             float direction = transform.position.x < 0f ? -1f : 1f;
             var billboard = visual != null ? visual.GetComponent<PaperBillboard>() : null;
             float elapsed = 0f;
-            const float duration = 0.48f;
+            float duration = boss ? 2.3f : 0.48f;
             while (elapsed < duration)
             {
-                elapsed += Time.deltaTime;
+                elapsed += Time.timeScale > 0f ? Time.deltaTime : Time.unscaledDeltaTime;
                 float t = Mathf.Clamp01(elapsed / duration);
-                if (billboard != null) billboard.rollDegrees = Mathf.Lerp(0f, 82f * direction, t);
+                if (boss)
+                {
+                    float shake = Mathf.Sin(elapsed * 42f) * Mathf.Lerp(0.08f, 0.01f, t);
+                    transform.position = startPosition + new Vector3(shake, -0.35f * t, 0f);
+                    if (billboard != null) billboard.rollDegrees = Mathf.Sin(elapsed * 30f) * Mathf.Lerp(5f, 14f, t);
+                }
+                else if (billboard != null)
+                {
+                    billboard.rollDegrees = Mathf.Lerp(0f, 82f * direction, t);
+                }
+
                 transform.localScale = new Vector3(startScale.x * Mathf.Lerp(1f, 1.08f, t), startScale.y * Mathf.Lerp(1f, 0.36f, t), startScale.z);
                 if (visual != null)
                 {
                     var color = visual.color;
-                    color.a = Mathf.Lerp(1f, 0f, Mathf.SmoothStep(0f, 1f, t));
+                    color.a = boss ? Mathf.Lerp(1f, 0.18f, t) : Mathf.Lerp(1f, 0f, Mathf.SmoothStep(0f, 1f, t));
                     visual.color = color;
                 }
                 yield return null;
@@ -325,6 +416,10 @@ namespace AreaSurvivors
                     token.attractRange = 999f;
                     token.speed = 10f;
                 }
+            }
+            else if (!boss && !elite && RelicEffects.NormalEnemyTokenDropChance > 0f && Random.value < RelicEffects.NormalEnemyTokenDropChance)
+            {
+                TokenOrb.Spawn(transform.position + Vector3.right * 0.22f, 1);
             }
         }
     }

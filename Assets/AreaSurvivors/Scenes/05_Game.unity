@@ -4245,6 +4245,8 @@ GameObject:
   - component: {fileID: 322073220}
   - component: {fileID: 322073219}
   - component: {fileID: 322073218}
+  - component: {fileID: 322073222}
+  - component: {fileID: 322073223}
   m_Layer: 0
   m_Name: Slash Weapon Status
   m_TagString: Untagged
@@ -4345,6 +4347,34 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 322073216}
   m_CullTransparentMesh: 1
+--- !u!114 &322073222
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 322073216}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b4944596cc123b944ba7d7f759a4a574, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  backgroundAlpha: 0.5
+  overlapAlpha: 0.2
+  padding: 8
+  fadeSpeed: 10
+--- !u!225 &322073223
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 322073216}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &323542818
 GameObject:
   m_ObjectHideFlags: 0
@@ -5604,6 +5634,8 @@ GameObject:
   - component: {fileID: 373089862}
   - component: {fileID: 373089861}
   - component: {fileID: 373089860}
+  - component: {fileID: 373089864}
+  - component: {fileID: 373089865}
   m_Layer: 0
   m_Name: Fireball Weapon Status
   m_TagString: Untagged
@@ -5704,6 +5736,34 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 373089858}
   m_CullTransparentMesh: 1
+--- !u!114 &373089864
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 373089858}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b4944596cc123b944ba7d7f759a4a574, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  backgroundAlpha: 0.5
+  overlapAlpha: 0.2
+  padding: 8
+  fadeSpeed: 10
+--- !u!225 &373089865
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 373089858}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &373399876
 GameObject:
   m_ObjectHideFlags: 0
@@ -26023,6 +26083,8 @@ GameObject:
   - component: {fileID: 1357743639}
   - component: {fileID: 1357743638}
   - component: {fileID: 1357743637}
+  - component: {fileID: 1357743641}
+  - component: {fileID: 1357743642}
   m_Layer: 0
   m_Name: Arrow Weapon Status
   m_TagString: Untagged
@@ -26123,6 +26185,34 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1357743635}
   m_CullTransparentMesh: 1
+--- !u!114 &1357743641
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1357743635}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b4944596cc123b944ba7d7f759a4a574, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  backgroundAlpha: 0.5
+  overlapAlpha: 0.2
+  padding: 8
+  fadeSpeed: 10
+--- !u!225 &1357743642
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1357743635}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
 --- !u!1 &1364903796
 GameObject:
   m_ObjectHideFlags: 0
@@ -42223,6 +42313,8 @@ MonoBehaviour:
   - {fileID: 1909144256}
   - {fileID: 392339428}
   - {fileID: 1011097049}
+  relicChestPrefab: {fileID: 5148723277662169777, guid: f891e15cc2f34eb4e9ae23db86206ab5, type: 3}
+  relicAcquisitionPanelPrefab: {fileID: 147431736773597355, guid: de15576444f0fb24ab7f7973a8d61ad2, type: 3}
 --- !u!4 &2058463041
 Transform:
   m_ObjectHideFlags: 0

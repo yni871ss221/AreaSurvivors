@@ -27,7 +27,11 @@ namespace AreaSurvivors
         ArrowRainTick,
         GunShot,
         FrostCast,
-        ThunderBallCast
+        ThunderBallCast,
+        TowerCollapse,
+        BossDefeatRumble,
+        RelicChestPickup,
+        RelicChestOpen
     }
 
     public static class AudioCatalog
@@ -89,6 +93,14 @@ namespace AreaSurvivors
                     return "Audio/SFX/frost_cast";
                 case SfxTrack.ThunderBallCast:
                     return "Audio/SFX/thunder_ball";
+                case SfxTrack.TowerCollapse:
+                    return "Audio/SFX/tower_collapse";
+                case SfxTrack.BossDefeatRumble:
+                    return "Audio/SFX/boss_defeat_rumble";
+                case SfxTrack.RelicChestPickup:
+                    return "Audio/SFX/relic_chest_pickup";
+                case SfxTrack.RelicChestOpen:
+                    return "Audio/SFX/relic_chest_open";
                 default:
                     return string.Empty;
             }

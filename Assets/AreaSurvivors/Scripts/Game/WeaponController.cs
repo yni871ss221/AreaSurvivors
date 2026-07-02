@@ -26,6 +26,7 @@ namespace AreaSurvivors
         WeaponStatBlock fireballStats;
         WeaponStatBlock shieldStats;
         AdvancedWeaponRuntime advancedRuntime;
+        bool runtimeStopped;
         int slashLevel = 1;
         int arrowLevel;
         int fireballLevel;
@@ -74,7 +75,7 @@ namespace AreaSurvivors
         public WeaponStatBlock ShieldStats => shieldStats;
         public IReadOnlyList<WeaponType> AcquiredWeaponOrder => acquiredWeaponOrder;
         public bool HasOpenWeaponSlot => acquiredWeaponOrder.Count < MaxEquippedWeapons;
-        public int SlashAttackPower => slashStats.attackPower + (config != null ? config.slashDamageBonus : 0);
+        public int SlashAttackPower => EffectiveSlashStats.attackPower + (config != null ? config.slashDamageBonus : 0);
         public float FireballRange => FireballFlightRange(fireballStats);
         public bool AreaControlSpecialActive => IsPlayerAreaControlSpecialActive();
         public WeaponStatBlock EffectiveSlashStats => ApplySlashSpecialEffect(slashStats);
@@ -99,6 +100,7 @@ namespace AreaSurvivors
             if (shieldOrbit != null) shieldOrbit.Configure(this, transform, config);
             advancedRuntime = GetComponent<AdvancedWeaponRuntime>();
             if (advancedRuntime != null) advancedRuntime.Configure(this, owner, gameConfig);
+            runtimeStopped = false;
             acquiredWeaponOrder.Clear();
             if (RunState.TryConsumeNextTestStartingWeapon(out var testStartingWeapon))
             {
@@ -115,6 +117,14 @@ namespace AreaSurvivors
             StartCoroutine(ArrowLoop());
             StartCoroutine(FireballLoop());
             SyncShieldOrbit();
+        }
+
+        public void StopRuntimeWeapons()
+        {
+            runtimeStopped = true;
+            StopAllCoroutines();
+            if (shieldOrbit != null) shieldOrbit.SetActive(false);
+            if (advancedRuntime != null) advancedRuntime.StopRuntimeWeapons();
         }
 
         void ResetRunWeaponUpgrades()
@@ -171,10 +181,17 @@ namespace AreaSurvivors
             shieldStats.projectileCount = Mathf.Max(1, shieldStats.projectileCount + shieldCountBonus);
             shieldStats.knockback += shieldKnockbackBonus;
             shieldStats.rotationSpeed += shieldRotationSpeedBonus;
+
+            slashStats = RelicEffects.ApplyWeaponStatBonuses(WeaponType.Slash, slashStats);
+            arrowStats = RelicEffects.ApplyWeaponStatBonuses(WeaponType.Arrow, arrowStats);
+            fireballStats = RelicEffects.ApplyWeaponStatBonuses(WeaponType.Fireball, fireballStats);
+            shieldStats = RelicEffects.ApplyWeaponStatBonuses(WeaponType.Shield, shieldStats);
         }
 
         void Update()
         {
+            if (runtimeStopped) return;
+            MarkActiveWeaponSlots();
             SyncShieldOrbit();
         }
 
@@ -313,6 +330,17 @@ namespace AreaSurvivors
             if (!acquiredWeaponOrder.Contains(type))
             {
                 acquiredWeaponOrder.Add(type);
+                GameManager.Instance?.RegisterWeaponSlot(type, acquiredWeaponOrder.Count - 1);
+            }
+        }
+
+        void MarkActiveWeaponSlots()
+        {
+            if (player == null || player.IsReviving) return;
+            for (int i = 0; i < acquiredWeaponOrder.Count; i++)
+            {
+                var type = acquiredWeaponOrder[i];
+                if (IsWeaponUnlocked(type)) GameManager.Instance?.MarkWeaponActive(type);
             }
         }
 
@@ -623,25 +651,25 @@ namespace AreaSurvivors
         WeaponStatBlock ApplySlashSpecialEffect(WeaponStatBlock stats)
         {
             stats.knockback *= AreaControlSpecialMultiplier();
-            return stats;
+            return ApplyRelicConditionalWeaponBonuses(WeaponType.Slash, stats);
         }
 
         WeaponStatBlock ApplyArrowSpecialEffect(WeaponStatBlock stats)
         {
             stats.range *= AreaControlSpecialMultiplier();
-            return stats;
+            return ApplyRelicConditionalWeaponBonuses(WeaponType.Arrow, stats);
         }
 
         WeaponStatBlock ApplyFireballSpecialEffect(WeaponStatBlock stats)
         {
             stats.explosionRadius *= AreaControlSpecialMultiplier();
-            return stats;
+            return ApplyRelicConditionalWeaponBonuses(WeaponType.Fireball, stats);
         }
 
         WeaponStatBlock ApplyShieldSpecialEffect(WeaponStatBlock stats)
         {
             stats.rotationSpeed *= AreaControlSpecialMultiplier();
-            return stats;
+            return ApplyRelicConditionalWeaponBonuses(WeaponType.Shield, stats);
         }
 
         void SyncShieldOrbit()
@@ -660,16 +688,25 @@ namespace AreaSurvivors
 
         WeaponStatBlock ApplyAdvancedRunUpgrades(WeaponType type, WeaponStatBlock stats)
         {
-            if (!advancedWeaponUpgrades.TryGetValue(type, out var upgrade)) return stats;
-            stats.attackPower += upgrade.attackBonus;
-            stats.cooldownSeconds = Mathf.Max(0.05f, stats.cooldownSeconds * upgrade.cooldownMultiplier);
-            stats.projectileCount = Mathf.Max(1, stats.projectileCount + upgrade.projectileCountBonus);
-            stats.range += upgrade.rangeBonus;
-            stats.durationSeconds += upgrade.durationBonus;
-            stats.slowAmount = Mathf.Clamp01(stats.slowAmount + upgrade.slowBonus);
-            stats.damageIntervalSeconds = Mathf.Max(0.05f, stats.damageIntervalSeconds * upgrade.damageIntervalMultiplier);
-            stats.distance += upgrade.distanceBonus;
+            if (advancedWeaponUpgrades.TryGetValue(type, out var upgrade))
+            {
+                stats.attackPower += upgrade.attackBonus;
+                stats.cooldownSeconds = Mathf.Max(0.05f, stats.cooldownSeconds * upgrade.cooldownMultiplier);
+                stats.projectileCount = Mathf.Max(1, stats.projectileCount + upgrade.projectileCountBonus);
+                stats.range += upgrade.rangeBonus;
+                stats.durationSeconds += upgrade.durationBonus;
+                stats.slowAmount = Mathf.Clamp01(stats.slowAmount + upgrade.slowBonus);
+                stats.damageIntervalSeconds = Mathf.Max(0.05f, stats.damageIntervalSeconds * upgrade.damageIntervalMultiplier);
+                stats.distance += upgrade.distanceBonus;
+            }
+
+            stats = RelicEffects.ApplyWeaponStatBonuses(type, stats);
             return stats;
+        }
+
+        WeaponStatBlock ApplyRelicConditionalWeaponBonuses(WeaponType type, WeaponStatBlock stats)
+        {
+            return RelicEffects.ApplyConditionalWeaponBonuses(type, stats, this, player, grid, GameManager.Instance);
         }
 
         WeaponStatBlock ApplyAdvancedSpecialEffect(WeaponType type, WeaponStatBlock stats)
@@ -693,7 +730,7 @@ namespace AreaSurvivors
                     break;
             }
 
-            return stats;
+            return ApplyRelicConditionalWeaponBonuses(type, stats);
         }
 
         public bool IsSpecialEffectActiveFor(WeaponType type)
@@ -734,6 +771,7 @@ namespace AreaSurvivors
                 float projectileVisualScale = explosive
                     ? FireballProjectileVisualScale
                     : config.projectileVisualScale;
+                projectile.SetDamageSource(RunDamageSource.ForWeapon(explosive ? WeaponType.Fireball : WeaponType.Arrow));
                 projectile.Launch(direction, stats.attackPower, projectileSpeed, explosive, radius, lifetime, projectileVisualScale);
                 projectile.knockback = stats.knockback * config.knockbackForceUnit;
                 projectile.knockbackDuration = config.knockbackDuration;

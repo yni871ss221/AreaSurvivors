@@ -113,10 +113,11 @@ namespace AreaSurvivors
                 if (enemy == null || damaged.Contains(enemy)) continue;
                 damaged.Add(enemy);
                 var health = enemy.GetComponent<Health>();
-                var dealt = health != null ? health.Damage(damage, hits[i].ClosestPoint(origin)) : 0;
+                int creditedDamage = health != null && !health.IsDead ? health.DamageAmount(damage) : 0;
+                if (health != null) health.Damage(damage, hits[i].ClosestPoint(origin));
                 PaintPlayerTerritory(enemy.transform.position, SlashPaintRadius);
                 ApplyKnockback(enemy);
-                GameManager.Instance?.RegisterDamageDealt(dealt);
+                GameManager.Instance?.RegisterWeaponDamage(WeaponType.Slash, creditedDamage);
             }
         }
 

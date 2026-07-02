@@ -29,4 +29,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/AreaSurvivors/Scenes/08_GameTestLauncher.unity
     guid: 82d2e58845225094394c97e17d15c1d5
+  - enabled: 1
+    path: Assets/AreaSurvivors/Scenes/09_Relics.unity
+    guid: df74c6a627615b84da25a4de0f277d0c
   m_configObjects: {}

@@ -46,8 +46,6 @@ namespace AreaSurvivors
         float elapsed;
         float stageElapsed;
         float elapsedOffset;
-        float stageTimeMultiplier = 1f;
-        float enemyMoveMultiplier = 1f;
         int currentStage = 1;
         float directionTimer;
         float directionDegrees;
@@ -62,10 +60,10 @@ namespace AreaSurvivors
 
         public void Begin(GameConfig gameConfig, TileGrid tileGrid, Transform chaseTarget)
         {
-            BeginStage(gameConfig, tileGrid, chaseTarget, 1, 0f, 1f);
+            BeginStage(gameConfig, tileGrid, chaseTarget, 1, 0f);
         }
 
-        public void BeginStage(GameConfig gameConfig, TileGrid tileGrid, Transform chaseTarget, int stage, float displayElapsedOffset, float speedMultiplier)
+        public void BeginStage(GameConfig gameConfig, TileGrid tileGrid, Transform chaseTarget, int stage, float displayElapsedOffset)
         {
             config = gameConfig;
             grid = tileGrid;
@@ -76,8 +74,6 @@ namespace AreaSurvivors
             elapsedOffset = Mathf.Max(0f, displayElapsedOffset);
             elapsed = elapsedOffset;
             stageElapsed = 0f;
-            stageTimeMultiplier = Mathf.Max(0.1f, speedMultiplier);
-            enemyMoveMultiplier = Mathf.Max(0.1f, speedMultiplier);
             directionTimer = 0f;
             directionChangeIndex = 0;
             timedSpawned = new bool[TimedSpawnsForCurrentStage().Length];
@@ -90,7 +86,7 @@ namespace AreaSurvivors
         void Update()
         {
             if (!running || Time.timeScale <= 0f) return;
-            float delta = Time.deltaTime * stageTimeMultiplier;
+            float delta = Time.deltaTime;
             stageElapsed += delta;
             elapsed = elapsedOffset + stageElapsed;
             directionTimer += delta;
@@ -118,7 +114,7 @@ namespace AreaSurvivors
                     SpawnBatch(phase.enemyKind, batch);
                 }
                 float interval = phase != null ? phase.spawnInterval : config.spawnInterval;
-                yield return new WaitForSeconds(Mathf.Max(0.18f, interval / Mathf.Max(0.1f, stageTimeMultiplier)));
+                yield return new WaitForSeconds(Mathf.Max(0.18f, interval));
             }
         }
 
@@ -177,7 +173,7 @@ namespace AreaSurvivors
             enemy.xpOrbPrefab = xpOrbPrefab;
             enemy.damagePopupPrefab = damagePopupPrefab;
             int hp = Mathf.Max(1, Mathf.RoundToInt(config.enemyBaseHp * Mathf.Max(0.01f, definition.hpMultiplier)));
-            enemy.Configure(config, grid, target, definition, hp, definition.speedMultiplier * enemyMoveMultiplier);
+            enemy.Configure(config, grid, target, definition, hp, definition.speedMultiplier);
             activeEnemies.Add(enemy);
             if (definition.boss) GameManager.Instance?.BossSpawned(enemy);
         }

@@ -24,9 +24,10 @@ namespace AreaSurvivors.Editor
         const float BuildingHealthBarWidth = 0.7f;
         const float BuildingHealthBarPitch = -35f;
 
-        [MenuItem("Area Survivors/Build Initial Project")]
         public static void BuildAll()
         {
+            // Intentionally not exposed as a Unity menu item: this legacy bootstrap
+            // rebuilds scenes, including hand-tuned UI layouts such as GameEnd.
             EnsureFolders();
             CreateSprites();
             CreateTilePalette();
@@ -38,7 +39,7 @@ namespace AreaSurvivors.Editor
             CreateMenuScene(SceneNames.Lobby, typeof(LobbyScreen));
             CreateMenuScene(SceneNames.Upgrades, typeof(UpgradeScreen));
             CreateGameScene(config, prefabs);
-            CreateMenuScene(SceneNames.GameEnd, typeof(GameOverScreen));
+            // GameEnd is hand-tuned in the scene. Do not rebuild it from this legacy bootstrap.
             SetBuildScenes();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
