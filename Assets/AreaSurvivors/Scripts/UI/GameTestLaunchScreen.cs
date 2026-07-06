@@ -5,6 +5,9 @@ namespace AreaSurvivors
 {
     public sealed class GameTestLaunchScreen : MonoBehaviour
     {
+        static readonly Color RelicOwnedButtonColor = new Color(0.34f, 0.39f, 0.14f, 0.98f);
+        static readonly Color RelicUnownedButtonColor = new Color(0.055f, 0.075f, 0.07f, 0.94f);
+
         SceneNavigator navigator;
         Text statusText;
 
@@ -15,7 +18,24 @@ namespace AreaSurvivors
             navigator = GetComponent<SceneNavigator>();
             if (navigator == null) navigator = gameObject.AddComponent<SceneNavigator>();
             statusText = FindChild("Test Status Text")?.GetComponent<Text>();
+            if (!RuntimeFeatureFlags.ShowTestFeatures)
+            {
+                HideTestControlsForReleaseBuild();
+                BindButton("Lobby Button", navigator.LoadLobby);
+                RefreshStatus("製品版ビルドではテスト操作は利用できません");
+                return;
+            }
 
+            BindButton("Start Stage 1 Boss Test Button", StartStageOneBossTest);
+            for (int stage = 1; stage <= 4; stage++)
+            {
+                int capturedStage = stage;
+                foreach (BossTestSpawnSide side in System.Enum.GetValues(typeof(BossTestSpawnSide)))
+                {
+                    var capturedSide = side;
+                    BindButton(BossTestButtonName(capturedStage, capturedSide), () => StartBossTest(capturedStage, capturedSide));
+                }
+            }
             BindButton("Start Stage 2 Test Button", () => StartGameFromStageForTesting(2));
             BindButton("Start Stage 3 Test Button", () => StartGameFromStageForTesting(3));
             BindButton("Start Stage 4 Test Button", () => StartGameFromStageForTesting(4));
@@ -27,7 +47,8 @@ namespace AreaSurvivors
             foreach (var relic in RelicCatalog.All)
             {
                 var capturedType = relic.type;
-                BindButton(RelicUnlockButtonName(capturedType), () => UnlockRelicForTesting(capturedType));
+                BindButton(RelicToggleButtonName(capturedType), () => ToggleRelicForTesting(capturedType));
+                BindButton(RelicUnlockButtonName(capturedType), () => ToggleRelicForTesting(capturedType));
                 BindButton(RelicLockButtonName(capturedType), () => LockRelicForTesting(capturedType));
             }
             BindButton("Add Test Tokens Button", AddTestTokens);
@@ -35,12 +56,39 @@ namespace AreaSurvivors
             BindButton("Reset Stage Clear State Button", ResetStageClearStateForTesting);
             BindButton("Reset All Relics Button", ResetRelicsForTesting);
             BindButton("Lobby Button", navigator.LoadLobby);
+            RefreshRelicButtonLabels();
             RefreshStatus("テスト操作を選択できます");
+        }
+
+        void HideTestControlsForReleaseBuild()
+        {
+            var buttons = FindObjectsOfType<Button>(true);
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                if (buttons[i] == null) continue;
+                bool isLobbyButton = buttons[i].name == "Lobby Button";
+                buttons[i].gameObject.SetActive(isLobbyButton);
+            }
         }
 
         void StartGameFromStageForTesting(int stage)
         {
             RunState.SetNextStartStage(stage);
+            navigator.LoadGame();
+        }
+
+        void StartStageOneBossTest()
+        {
+            RunState.SetNextStartStage(1);
+            RunState.SetNextStartStageElapsed(119f);
+            navigator.LoadGame();
+        }
+
+        void StartBossTest(int stage, BossTestSpawnSide side)
+        {
+            RunState.SetNextStartStage(stage);
+            RunState.SetNextStartStageElapsed(119f);
+            RunState.SetNextBossTestSpawnSide(side);
             navigator.LoadGame();
         }
 
@@ -72,35 +120,82 @@ namespace AreaSurvivors
         {
             if (!RelicCatalog.TryGet(relicType, out var definition)) return;
             bool changed = ProgressionStore.UnlockRelic(relicType);
+            RefreshRelicButtonLabels();
             RefreshStatus(changed ? definition.displayName + " を取得済みにしました" : definition.displayName + " は既に取得済みです");
+        }
+
+        void ToggleRelicForTesting(RelicType relicType)
+        {
+            if (!RelicCatalog.TryGet(relicType, out var definition)) return;
+            bool changed = ProgressionStore.ToggleRelicForTesting(relicType, out bool isOwned);
+            RefreshRelicButtonLabels();
+            Debug.Log("[Relic Test] " + definition.displayName
+                + " -> " + (ProgressionStore.HasRelic(relicType) ? "取得済" : "未取得")
+                + " / 所持レリック " + CountOwnedRelics() + "/" + RelicCatalog.All.Length);
+            if (!changed)
+            {
+                RefreshStatus(definition.displayName + " の取得状態を変更できませんでした");
+                return;
+            }
+
+            RefreshStatus(isOwned
+                ? definition.displayName + " を取得済みにしました"
+                : definition.displayName + " を未取得に戻しました");
         }
 
         void LockRelicForTesting(RelicType relicType)
         {
             if (!RelicCatalog.TryGet(relicType, out var definition)) return;
             bool changed = ProgressionStore.LockRelicForTesting(relicType);
+            RefreshRelicButtonLabels();
             RefreshStatus(changed ? definition.displayName + " を未取得に戻しました" : definition.displayName + " は既に未取得です");
         }
 
         void ResetRelicsForTesting()
         {
             ProgressionStore.ResetRelicsForTesting();
+            RefreshRelicButtonLabels();
             RefreshStatus("全レリックを未取得に戻しました");
+        }
+
+        void RefreshRelicButtonLabels()
+        {
+            var buttons = FindObjectsOfType<Button>(true);
+            foreach (var relic in RelicCatalog.GetDisplayOrdered())
+            {
+                if (relic == null) continue;
+                bool owned = ProgressionStore.HasRelic(relic.type);
+                string state = owned ? "【取得済】" : "【未取得】";
+                Color buttonColor = owned ? RelicOwnedButtonColor : RelicUnownedButtonColor;
+                string coloredName = ColorText(relic.displayName, RelicRarityVisuals.GetColor(relic.rarity));
+                SetButtonLabel(buttons, RelicToggleButtonName(relic.type), state + "\n" + coloredName, buttonColor);
+                SetButtonLabel(buttons, RelicUnlockButtonName(relic.type), "切替: " + state + " / " + coloredName, buttonColor);
+                SetButtonLabel(buttons, RelicLockButtonName(relic.type), "未取得に戻す: " + coloredName, RelicUnownedButtonColor);
+            }
+
+            Canvas.ForceUpdateCanvases();
         }
 
         void RefreshStatus(string message)
         {
             if (statusText == null) return;
-            int ownedRelics = 0;
-            foreach (var relic in RelicCatalog.All)
-            {
-                if (ProgressionStore.HasRelic(relic.type)) ownedRelics++;
-            }
+            int ownedRelics = CountOwnedRelics();
 
             statusText.text = message
                 + "\n所持トークン: " + ProgressionStore.Data.tokens
                 + " / クリア: " + ProgressionStore.Data.highestClearedStage + "/4"
                 + " / 所持レリック: " + ownedRelics + "/" + RelicCatalog.All.Length;
+        }
+
+        static int CountOwnedRelics()
+        {
+            int ownedRelics = 0;
+            foreach (var relic in RelicCatalog.All)
+            {
+                if (relic != null && ProgressionStore.HasRelic(relic.type)) ownedRelics++;
+            }
+
+            return ownedRelics;
         }
 
         void BindButton(string name, UnityEngine.Events.UnityAction action)
@@ -113,6 +208,44 @@ namespace AreaSurvivors
                 AudioManager.PlayButtonConfirm();
                 action();
             });
+        }
+
+        void SetButtonLabel(Button[] buttons, string buttonName, string label, Color color)
+        {
+            if (buttons == null || string.IsNullOrEmpty(buttonName)) return;
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                var button = buttons[i];
+                if (button == null || button.name != buttonName) continue;
+                ApplyButtonBackground(button, color);
+                var text = button.GetComponentInChildren<Text>(true);
+                if (text != null)
+                {
+                    text.supportRichText = true;
+                    text.fontSize = 14;
+                    text.resizeTextForBestFit = true;
+                    text.resizeTextMinSize = 10;
+                    text.resizeTextMaxSize = 14;
+                    text.horizontalOverflow = HorizontalWrapMode.Wrap;
+                    text.verticalOverflow = VerticalWrapMode.Overflow;
+                    text.text = label;
+                }
+            }
+        }
+
+        static void ApplyButtonBackground(Button button, Color color)
+        {
+            if (button == null) return;
+            var image = button.GetComponent<Image>();
+            if (image != null) image.color = color;
+
+            var highlight = button.GetComponent<UiSelectionHighlight>();
+            if (highlight != null) highlight.SetNormalBackgroundColor(color);
+        }
+
+        static string ColorText(string value, Color color)
+        {
+            return "<color=#" + ColorUtility.ToHtmlStringRGB(color) + ">" + value + "</color>";
         }
 
         static Transform FindChild(string name)
@@ -145,6 +278,11 @@ namespace AreaSurvivors
             return "Start Weapon Test " + weaponType + " Button";
         }
 
+        public static string BossTestButtonName(int stage, BossTestSpawnSide side)
+        {
+            return "Start Stage " + Mathf.Clamp(stage, 1, 4) + " Boss " + side + " Test Button";
+        }
+
         public static string RelicUnlockButtonName(RelicType relicType)
         {
             return "Unlock Relic " + relicType + " Button";
@@ -153,6 +291,11 @@ namespace AreaSurvivors
         public static string RelicLockButtonName(RelicType relicType)
         {
             return "Lock Relic " + relicType + " Button";
+        }
+
+        public static string RelicToggleButtonName(RelicType relicType)
+        {
+            return "Toggle Relic " + relicType + " Button";
         }
     }
 }

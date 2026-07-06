@@ -10,6 +10,8 @@ AreaSurvivors リポジトリ全体に適用する低トークン運用の入口
 - 手作業のコード編集は `apply_patch` を使う。破壊的なGit操作や削除は、明示依頼または承認なしに行わない。
 - 通常作業開始時のObsidian外部記憶読み込みは行わない。履歴確認・記録・締め作業を明示された時だけ使う。
 - Scene/Prefabとゲーム処理を疎結合にし、Editor調整したいものはSceneまたはPrefabを正とする。Runtimeで既存の位置、サイズ、Sprite、Collider、Scale、Rotationを固定値へ戻さない。
+- HUD/静的UIの `RectTransform`、Transform位置、Scale、Rotation、Source Image、Collider、Sprite、サイズは、RuntimeだけでなくEditor Menu、Setup、Rebuild、Restore、Normalize、Validator、Importer、Migrationスクリプトからも既存Scene/Prefabへ上書きしない。既存HUDレイアウトはユーザーがEditorで調整したScene/Prefabを唯一の正とし、コードで戻す処理は絶対禁止。
+- HUD/静的UIに関わるEditorコードを追加・変更した場合は、`Area Survivors/Validate/HUD Layout Mutation Guard` を手動実行し、危険なHUDレイアウト書き換えが検出されないことを確認する。検出された場合は機能追加より先に必ず除去する。
 - 攻撃範囲、塗り範囲、当たり判定を示すArea/Range Visualは、Transform Rotation X/Yやカメラ回転、`PaperBillboard.faceCamera=true` で疑似パース補正しない。見た目、当たり判定、セル塗りは同じ半径・縦横比を基準にする。
 - ゲーム実行中にGameObject/UI/静的Visualを新規配置・生成・差し替えしない。静的オブジェクトはSceneへ直接配置し、動的オブジェクトはPrefab化してScene/Prefab参照から生成することを絶対ルールとする。
 - スキルツリー、HUD、建造メニューなどのアイコンや `Source Image` はScene/Prefab上の参照を正とし、RuntimeコードでSpriteを差し替えない。

@@ -40,31 +40,58 @@ namespace AreaSurvivors.Editor
 
             var parent = towerUpgrade.transform.parent;
             var linkRoot = FindSkillLinkRoot(parent);
-            var revive = GetOrCreateNode(parent, towerUpgrade, UpgradeType.ReviveBuildingsOnBossDefeat, 7);
-            var chest = GetOrCreateNode(parent, towerUpgrade, UpgradeType.UnlockOpeningRelicChest, 8);
+            var towerUpgradePosition = towerUpgrade.RectTransform.anchoredPosition;
+            var towerUpgradePrerequisites = towerUpgrade.prerequisites != null ? towerUpgrade.prerequisites.ToArray() : System.Array.Empty<UpgradeType>();
+            var towerUpgradeRoutes = towerUpgrade.linkRoutes != null ? towerUpgrade.linkRoutes.ToArray() : System.Array.Empty<SkillNodeView.SkillLinkRoute>();
+            var paintToken = GetOrCreateNode(parent, towerUpgrade, UpgradeType.PaintAreaTokenGain, 6);
+            var revive = GetOrCreateNode(parent, towerUpgrade, UpgradeType.ReviveBuildingsOnBossDefeat, 8);
+            var chest = GetOrCreateNode(parent, towerUpgrade, UpgradeType.UnlockOpeningRelicChest, 9);
+
+            ApplyNode(
+                paintToken,
+                UpgradeType.PaintAreaTokenGain,
+                6,
+                "塗りエリアトークン獲得",
+                "塗ったエリアが500に到達する度、スキルレベル分のトークンを獲得します。",
+                StatIconCatalog.ForUpgrade(UpgradeType.PaintAreaTokenGain),
+                towerUpgradePosition,
+                towerUpgradePrerequisites,
+                towerUpgradeRoutes);
+
+            ApplyNode(
+                towerUpgrade,
+                UpgradeType.UnlockTowerUpgrade,
+                7,
+                "中心塔アップグレード",
+                "中心塔をアップグレードし、耐久力と防衛性能を高めます。",
+                StatIconCatalog.ForUpgrade(UpgradeType.UnlockTowerUpgrade),
+                towerUpgradePosition + new Vector2(0f, -92f),
+                UpgradeType.PaintAreaTokenGain);
 
             ApplyNode(
                 revive,
                 UpgradeType.ReviveBuildingsOnBossDefeat,
-                7,
+                8,
                 "ボス撃破時建造物復活",
                 "ボス撃破時、破壊された建造物が最大HP50%で復活します。",
                 StatIconCatalog.ForUpgrade(UpgradeType.ReviveBuildingsOnBossDefeat),
-                towerUpgrade.RectTransform.anchoredPosition + new Vector2(0f, -92f),
+                towerUpgradePosition + new Vector2(0f, -184f),
                 UpgradeType.UnlockTowerUpgrade);
 
             ApplyNode(
                 chest,
                 UpgradeType.UnlockOpeningRelicChest,
-                8,
+                9,
                 "開幕宝箱出現",
                 "ゲーム開始時、中心塔の下にレリック宝箱が出現します。",
                 StatIconCatalog.ForUpgrade(UpgradeType.UnlockOpeningRelicChest),
-                towerUpgrade.RectTransform.anchoredPosition + new Vector2(0f, -184f),
+                towerUpgradePosition + new Vector2(0f, -276f),
                 UpgradeType.ReviveBuildingsOnBossDefeat);
 
+            DestroyNamedLinks(linkRoot, "PaintAreaTokenGain to UnlockTowerUpgrade");
             DestroyNamedLinks(linkRoot, "UnlockTowerUpgrade to ReviveBuildingsOnBossDefeat");
             DestroyNamedLinks(linkRoot, "ReviveBuildingsOnBossDefeat to UnlockOpeningRelicChest");
+            CreateLink(linkRoot, "PaintAreaTokenGain to UnlockTowerUpgrade", paintToken, towerUpgrade, UpgradeType.PaintAreaTokenGain);
             CreateLink(linkRoot, "UnlockTowerUpgrade to ReviveBuildingsOnBossDefeat", towerUpgrade, revive, UpgradeType.UnlockTowerUpgrade);
             CreateLink(linkRoot, "ReviveBuildingsOnBossDefeat to UnlockOpeningRelicChest", revive, chest, UpgradeType.ReviveBuildingsOnBossDefeat);
         }
@@ -88,11 +115,35 @@ namespace AreaSurvivors.Editor
             Vector2 position,
             UpgradeType prerequisite)
         {
+            ApplyNode(
+                node,
+                type,
+                number,
+                title,
+                description,
+                iconResource,
+                position,
+                new[] { prerequisite },
+                System.Array.Empty<SkillNodeView.SkillLinkRoute>());
+        }
+
+        static void ApplyNode(
+            SkillNodeView node,
+            UpgradeType type,
+            int number,
+            string title,
+            string description,
+            string iconResource,
+            Vector2 position,
+            UpgradeType[] prerequisites,
+            SkillNodeView.SkillLinkRoute[] linkRoutes)
+        {
             if (node == null) return;
+            node.gameObject.name = $"{number:00} {type}";
             node.type = type;
             node.useGridPosition = false;
-            node.prerequisites = new[] { prerequisite };
-            node.linkRoutes = System.Array.Empty<SkillNodeView.SkillLinkRoute>();
+            node.prerequisites = prerequisites ?? System.Array.Empty<UpgradeType>();
+            node.linkRoutes = linkRoutes ?? System.Array.Empty<SkillNodeView.SkillLinkRoute>();
             node.implemented = true;
             node.title = title;
             node.description = description;

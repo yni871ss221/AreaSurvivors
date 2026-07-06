@@ -60,6 +60,7 @@ namespace AreaSurvivors
         RemoveStartingSlash = 65,
         ReviveBuildingsOnBossDefeat = 66,
         UnlockOpeningRelicChest = 67,
-        WatchTowerDamage = 68
+        WatchTowerDamage = 68,
+        PaintAreaTokenGain = 69
     }
 }

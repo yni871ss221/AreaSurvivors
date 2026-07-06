@@ -35,7 +35,11 @@ namespace AreaSurvivors
         RulerSight = 27,
         RegeneratingWallstone = 28,
         SlayerMedal = 29,
-        WealthWarSeal = 30
+        WealthWarSeal = 30,
+        TriBladeCrest = 31,
+        StarbowSightCrown = 32,
+        TriSageCrystal = 33,
+        ThousandSlayerLaurel = 34
     }
 
     public enum RelicEffectKind
@@ -59,14 +63,19 @@ namespace AreaSurvivors
         BallistaPaintAttackMultiplier,
         WallAutoRegenBonus,
         KillAttackBonusPerHundred,
-        RunTokenAttackBonusPerTen
+        RunTokenAttackBonusPerTen,
+        TripleMeleeAttackBonus,
+        TripleRangedAttackBonus,
+        TripleMagicAttackBonus,
+        TotalKillAttackBonusPerThousand
     }
 
     public enum RelicRarity
     {
         Common,
         Uncommon,
-        Rare
+        Rare,
+        Legendary
     }
 
     [Serializable]
@@ -110,9 +119,10 @@ namespace AreaSurvivors
 
     public static class RelicCatalog
     {
-        const int CommonDropWeight = 60;
+        const int CommonDropWeight = 50;
         const int UncommonDropWeight = 30;
-        const int RareDropWeight = 10;
+        const int RareDropWeight = 15;
+        const int LegendaryDropWeight = 5;
 
         static readonly RelicDefinition[] Definitions =
         {
@@ -143,12 +153,97 @@ namespace AreaSurvivors
             new RelicDefinition(RelicType.SolitaryBlade, "孤高の刃", "ただ一振りに全てを託す者の刃です。", "武器が1つだけの時、攻撃力 2倍", "RelicSolitaryBlade", RelicRarity.Uncommon, RelicEffectKind.SingleWeaponAttackMultiplier, 2f),
             new RelicDefinition(RelicType.DominionCrown, "王域の王冠", "支配した土地の力を中心塔へ集める王冠です。", "塗ったエリアに応じて中心塔の攻撃力上昇（最大2倍）", "RelicDominionCrown", RelicRarity.Rare, RelicEffectKind.CenterTowerPaintAttackMultiplier, 1f),
             new RelicDefinition(RelicType.RulerSight, "支配者の照準器", "領域の広がりを弩の狙いへ変える照準器です。", "塗ったエリアに応じてバリスタの攻撃力上昇（最大2倍）", "RelicRulerSight", RelicRarity.Rare, RelicEffectKind.BallistaPaintAttackMultiplier, 1f),
-            new RelicDefinition(RelicType.RegeneratingWallstone, "再生する城壁石", "欠けてもゆっくり形を戻す不思議な石材です。", "壁の自動回復 +3", "RelicRegeneratingWallstone", RelicRarity.Rare, RelicEffectKind.WallAutoRegenBonus, 3f),
+            new RelicDefinition(RelicType.RegeneratingWallstone, "再生する城壁石", "欠けてもゆっくり形を戻す不思議な石材です。", "壁の自動回復 +3", "RelicRegeneratingWallstone", RelicRarity.Uncommon, RelicEffectKind.WallAutoRegenBonus, 3f),
             new RelicDefinition(RelicType.SlayerMedal, "討伐者の勲章", "倒した敵の数だけ重みを増す勲章です。", "敵撃破100ごとに攻撃力 +1（最大+10）", "RelicSlayerMedal", RelicRarity.Rare, RelicEffectKind.KillAttackBonusPerHundred, 1f),
-            new RelicDefinition(RelicType.WealthWarSeal, "富豪の戦印", "戦場で得た富を力へ変える戦印です。", "ラン中トークン10ごとに攻撃力 +1（最大+10）", "RelicWealthWarSeal", RelicRarity.Rare, RelicEffectKind.RunTokenAttackBonusPerTen, 1f)
+            new RelicDefinition(RelicType.WealthWarSeal, "富豪の戦印", "戦場で得た富を力へ変える戦印です。", "ラン中トークン10ごとに攻撃力 +1（最大+10）", "RelicWealthWarSeal", RelicRarity.Rare, RelicEffectKind.RunTokenAttackBonusPerTen, 1f),
+            new RelicDefinition(RelicType.TriBladeCrest, "三刃王の紋章", "三つの刃を束ねる王の紋章です。近接武器のみで攻める者に豪腕を授けます。", "近接武器3種装備時、攻撃力 +20", "RelicTriBladeCrest", RelicRarity.Legendary, RelicEffectKind.TripleMeleeAttackBonus, 20f),
+            new RelicDefinition(RelicType.StarbowSightCrown, "星弓の照準冠", "星の軌跡を矢筋へ変える黄金の冠です。遠距離武器の連携を極限まで研ぎ澄まします。", "遠距離武器3種装備時、攻撃力 +20", "RelicStarbowSightCrown", RelicRarity.Legendary, RelicEffectKind.TripleRangedAttackBonus, 20f),
+            new RelicDefinition(RelicType.TriSageCrystal, "三賢魔晶", "三人の賢者の魔力が封じられた結晶です。魔法武器のみを揃えた時に深い魔力を解き放ちます。", "魔法武器3種装備時、攻撃力 +10", "RelicTriSageCrystal", RelicRarity.Legendary, RelicEffectKind.TripleMagicAttackBonus, 10f),
+            new RelicDefinition(RelicType.ThousandSlayerLaurel, "千討の覇勲章", "幾千の勝利を刻む覇者の勲章です。積み重ねた討伐の記憶が力へ変わります。", "累計撃破1000ごとに攻撃力 +1（最大+20）", "RelicThousandSlayerLaurel", RelicRarity.Legendary, RelicEffectKind.TotalKillAttackBonusPerThousand, 1f)
         };
 
         public static RelicDefinition[] All => Definitions;
+
+        public static float IconScale(RelicType type)
+        {
+            switch (type)
+            {
+                case RelicType.VitalCore:
+                case RelicType.WindBoots:
+                case RelicType.ScholarLens:
+                case RelicType.WarriorCharm:
+                case RelicType.GoldenSeal:
+                    return 1.35f;
+                default:
+                    return 1f;
+            }
+        }
+
+        public static float IconScale(RelicDefinition definition)
+        {
+            return definition != null ? IconScale(definition.type) : 1f;
+        }
+
+        public static RelicDefinition[] GetDisplayOrdered()
+        {
+            var ordered = (RelicDefinition[])Definitions.Clone();
+            Array.Sort(ordered, CompareDisplayOrder);
+            return ordered;
+        }
+
+        public static int CompareDisplayOrder(RelicDefinition a, RelicDefinition b)
+        {
+            if (ReferenceEquals(a, b)) return 0;
+            if (a == null) return 1;
+            if (b == null) return -1;
+
+            int rarity = RarityDisplayOrder(a.rarity).CompareTo(RarityDisplayOrder(b.rarity));
+            if (rarity != 0) return rarity;
+
+            int genre = UpgradeGenreDisplayOrder(a).CompareTo(UpgradeGenreDisplayOrder(b));
+            if (genre != 0) return genre;
+
+            return a.type.CompareTo(b.type);
+        }
+
+        public static int UpgradeGenreDisplayOrder(RelicDefinition definition)
+        {
+            if (definition == null) return 999;
+            switch (definition.effectKind)
+            {
+                case RelicEffectKind.MaxHpBonus:
+                case RelicEffectKind.MoveSpeedMultiplier:
+                case RelicEffectKind.XpGainMultiplier:
+                    return 10;
+                case RelicEffectKind.AttackMultiplier:
+                case RelicEffectKind.DistinctWeaponCategoryAttackMultiplier:
+                case RelicEffectKind.FullHpAttackMultiplier:
+                case RelicEffectKind.SingleWeaponAttackMultiplier:
+                case RelicEffectKind.TripleMeleeAttackBonus:
+                case RelicEffectKind.TripleRangedAttackBonus:
+                case RelicEffectKind.TripleMagicAttackBonus:
+                    return 20;
+                case RelicEffectKind.WeaponAttackBonus:
+                case RelicEffectKind.WeaponCooldownMultiplier:
+                case RelicEffectKind.WeaponProjectileCountBonus:
+                case RelicEffectKind.WeaponRangeBonus:
+                case RelicEffectKind.WeaponDurationBonus:
+                    return 30 + WeaponGenreOrder(definition);
+                case RelicEffectKind.BuildingAttackBonus:
+                case RelicEffectKind.CenterTowerPaintAttackMultiplier:
+                case RelicEffectKind.BallistaPaintAttackMultiplier:
+                case RelicEffectKind.WallAutoRegenBonus:
+                    return 50;
+                case RelicEffectKind.NormalEnemyTokenDropChance:
+                case RelicEffectKind.EndTokenMultiplier:
+                case RelicEffectKind.KillAttackBonusPerHundred:
+                case RelicEffectKind.TotalKillAttackBonusPerThousand:
+                case RelicEffectKind.RunTokenAttackBonusPerTen:
+                    return 60;
+                default:
+                    return 100;
+            }
+        }
 
         public static bool TryGet(RelicType type, out RelicDefinition definition)
         {
@@ -161,6 +256,51 @@ namespace AreaSurvivors
 
             definition = null;
             return false;
+        }
+
+        static int RarityDisplayOrder(RelicRarity rarity)
+        {
+            switch (rarity)
+            {
+                case RelicRarity.Legendary:
+                    return 0;
+                case RelicRarity.Rare:
+                    return 1;
+                case RelicRarity.Uncommon:
+                    return 2;
+                case RelicRarity.Common:
+                    return 3;
+                default:
+                    return 9;
+            }
+        }
+
+        static int WeaponGenreOrder(RelicDefinition definition)
+        {
+            if (definition == null) return 9;
+            if (definition.targetAttribute != WeaponAttributeType.None)
+            {
+                return WeaponAttributeOrder(definition.targetAttribute);
+            }
+
+            return WeaponAttributeOrder(WeaponAttributeCatalog.ForWeapon(definition.targetWeapon));
+        }
+
+        static int WeaponAttributeOrder(WeaponAttributeType attribute)
+        {
+            switch (attribute)
+            {
+                case WeaponAttributeType.Melee:
+                    return 0;
+                case WeaponAttributeType.Ranged:
+                    return 1;
+                case WeaponAttributeType.Magic:
+                    return 2;
+                case WeaponAttributeType.Defense:
+                    return 3;
+                default:
+                    return 8;
+            }
         }
 
         public static RelicDefinition Get(RelicType type)
@@ -203,6 +343,8 @@ namespace AreaSurvivors
                     return 10;
                 case RelicRarity.Rare:
                     return 30;
+                case RelicRarity.Legendary:
+                    return 50;
                 default:
                     return 0;
             }
@@ -218,6 +360,8 @@ namespace AreaSurvivors
                     return "アンコモン";
                 case RelicRarity.Rare:
                     return "レア";
+                case RelicRarity.Legendary:
+                    return "レジェンダリー";
                 default:
                     return string.Empty;
             }
@@ -228,14 +372,17 @@ namespace AreaSurvivors
             int commonWeight = CountByRarity(RelicRarity.Common) > 0 ? CommonDropWeight : 0;
             int uncommonWeight = CountByRarity(RelicRarity.Uncommon) > 0 ? UncommonDropWeight : 0;
             int rareWeight = CountByRarity(RelicRarity.Rare) > 0 ? RareDropWeight : 0;
-            int totalWeight = commonWeight + uncommonWeight + rareWeight;
+            int legendaryWeight = CountByRarity(RelicRarity.Legendary) > 0 ? LegendaryDropWeight : 0;
+            int totalWeight = commonWeight + uncommonWeight + rareWeight + legendaryWeight;
             if (totalWeight <= 0) return RelicRarity.Common;
 
             int roll = UnityEngine.Random.Range(0, totalWeight);
             if (roll < commonWeight) return RelicRarity.Common;
             roll -= commonWeight;
             if (roll < uncommonWeight) return RelicRarity.Uncommon;
-            return RelicRarity.Rare;
+            roll -= uncommonWeight;
+            if (roll < rareWeight) return RelicRarity.Rare;
+            return RelicRarity.Legendary;
         }
 
         static bool TryPickRandomByRarity(RelicRarity rarity, out RelicDefinition definition)

@@ -13,6 +13,7 @@ namespace AreaSurvivors
         public WeaponController weapon;
         public Slider hpBar;
         public GameObject damagePopupPrefab;
+        public TokenGainPopup tokenGainPopup;
         public DirectionalSpriteAnimator directionalAnimator;
         public Sprite knightSprite;
         public Sprite archerSprite;
@@ -56,6 +57,7 @@ namespace AreaSurvivors
             if (gridVisual == null) gridVisual = gameObject.AddComponent<GridObjectVisual>();
             gridVisual.ConfigureCharacter(1f);
             if (GetComponent<CharacterOcclusionReveal>() == null) gameObject.AddComponent<CharacterOcclusionReveal>();
+            if (tokenGainPopup == null) tokenGainPopup = GetComponentInChildren<TokenGainPopup>(true);
             health.Died += OnDied;
         }
 
@@ -166,6 +168,12 @@ namespace AreaSurvivors
             !health.IsDead &&
             hitCollider != null &&
             hitCollider.enabled;
+
+        public void ShowTokenGain(int amount)
+        {
+            if (tokenGainPopup == null || amount <= 0) return;
+            tokenGainPopup.ShowAmount(amount);
+        }
 
         void OnDied(Health _)
         {

@@ -21,9 +21,22 @@ namespace AreaSurvivors
         public RelicSummaryItem[] relicSummaryItems;
         public DamageReportColumn[] damageReportColumns;
         public Text clearMessageText;
+        public GameObject stageUnlockPopupRoot;
+        public Text stageUnlockHeaderText;
+        public Text stageUnlockMessageText;
+        public Text missionCompleteText;
+        public StageUnlockBossIconBinding[] stageUnlockBossIcons;
+        public Button stageUnlockOkButton;
         public Button lobbyButton;
         public SceneNavigator navigator;
         public GameOverIntroAnimator introAnimator;
+
+        [Serializable]
+        public sealed class StageUnlockBossIconBinding
+        {
+            public int stage;
+            public GameObject icon;
+        }
 
         [Serializable]
         public sealed class RelicSummaryItem
@@ -56,7 +69,9 @@ namespace AreaSurvivors
                 {
                     var binding = bindings[i];
                     if (binding == null || binding.icon == null) continue;
-                    binding.icon.SetActive(binding.type == type);
+                    bool active = binding.type == type;
+                    binding.icon.SetActive(active);
+                    if (active) binding.icon.transform.localScale = Vector3.one * RelicCatalog.IconScale(type);
                 }
             }
         }
@@ -202,6 +217,9 @@ namespace AreaSurvivors
                 clearMessageText.text = hasClearMessage ? result.clearMessage : string.Empty;
             }
 
+            bool missionCompletePopup;
+            bool hasStageUnlockPopup = ConfigureStageUnlockPopup(result, out missionCompletePopup);
+
             if (lobbyButton != null && navigator != null)
             {
                 lobbyButton.onClick.RemoveListener(navigator.LoadLobby);
@@ -209,7 +227,44 @@ namespace AreaSurvivors
             }
 
             if (root != null) root.SetActive(true);
-            if (introAnimator != null) introAnimator.Play(result.gameClear);
+            if (introAnimator != null) introAnimator.Play(result.gameClear, hasStageUnlockPopup, missionCompletePopup);
+        }
+
+        bool ConfigureStageUnlockPopup(RunResult result, out bool missionComplete)
+        {
+            missionComplete = result != null && result.gameClear && result.clearedStage >= 4;
+            int unlockedStage = result != null ? result.unlockedStage : 0;
+            bool stageUnlocked = result != null && result.gameClear && unlockedStage >= 2 && unlockedStage <= 4;
+            bool active = missionComplete || stageUnlocked;
+            if (stageUnlockPopupRoot != null) stageUnlockPopupRoot.SetActive(active);
+            if (!active) return false;
+
+            if (stageUnlockHeaderText != null) stageUnlockHeaderText.gameObject.SetActive(!missionComplete);
+
+            if (stageUnlockMessageText != null)
+            {
+                stageUnlockMessageText.gameObject.SetActive(!missionComplete);
+                SetText(stageUnlockMessageText, missionComplete ? string.Empty : $"ステージ{unlockedStage}が解放されました");
+            }
+
+            if (missionCompleteText != null)
+            {
+                missionCompleteText.gameObject.SetActive(missionComplete);
+                SetText(missionCompleteText, missionComplete ? "MISSION COMPLETE" : string.Empty);
+            }
+
+            if (stageUnlockBossIcons != null)
+            {
+                for (int i = 0; i < stageUnlockBossIcons.Length; i++)
+                {
+                    var binding = stageUnlockBossIcons[i];
+                    if (binding == null || binding.icon == null) continue;
+                    binding.icon.SetActive(!missionComplete && binding.stage == unlockedStage);
+                }
+            }
+
+            if (stageUnlockOkButton != null) stageUnlockOkButton.interactable = false;
+            return true;
         }
 
         void HideUpgradePanel()

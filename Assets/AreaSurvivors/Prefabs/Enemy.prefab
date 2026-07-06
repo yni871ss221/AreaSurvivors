@@ -226,6 +226,10 @@ GameObject:
   - component: {fileID: 5393437566432772406}
   - component: {fileID: 648490177282575134}
   - component: {fileID: 5188561599317129383}
+  - component: {fileID: 2288856096818176920}
+  - component: {fileID: 8292957146685169005}
+  - component: {fileID: 6637330943492754196}
+  - component: {fileID: 1583829494440673182}
   m_Layer: 0
   m_Name: Enemy
   m_TagString: Untagged
@@ -436,3 +440,81 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   footCollider: {fileID: 648490177282575134}
   gizmoColor: {r: 0.25, g: 0.95, b: 1, a: 0.9}
+--- !u!114 &2288856096818176920
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8059944600309317919}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c955310936367f14f8d6b667255223c3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  bossKind: 4
+  shockwavePrefab: {fileID: 6235213146451318049, guid: b7c45986155e1194cbba4f726b5aaf14, type: 3}
+  downAttackFrames:
+  - {fileID: 21300000, guid: 411f9f630fc63554eaf2dd78e02130d5, type: 3}
+  - {fileID: 21300000, guid: 10ddc95be87914b4285b80a05ce23fd0, type: 3}
+  rightAttackFrames:
+  - {fileID: 21300000, guid: 88478709cc699864588cc3c95594a21e, type: 3}
+  - {fileID: 21300000, guid: fc5008153b940464ab63f0a510797d0b, type: 3}
+  upAttackFrames:
+  - {fileID: 21300000, guid: c19907bb1c6f5e348b2004ec7ccecacf, type: 3}
+  - {fileID: 21300000, guid: e735d70ede091e24d84f66af237b927b, type: 3}
+--- !u!114 &8292957146685169005
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8059944600309317919}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cc60a266037a9ef4baec839126d2896e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  darkOrbPrefab: {fileID: 8131406611743668687, guid: 2f27fd30935092543ae07086d1f0ecc7, type: 3}
+  downCastFrame: {fileID: 21300000, guid: 3939a248ad7da314a897f95a3c115efe, type: 3}
+  rightCastFrame: {fileID: 21300000, guid: 4e5d75fee2d275143b2b82dbfa7fee95, type: 3}
+  leftCastFrame: {fileID: 21300000, guid: 9df1418a2a536e048a758008b45ff12a, type: 3}
+  upCastFrame: {fileID: 21300000, guid: 17c8eca3d3ecee746b735531c0371c01, type: 3}
+--- !u!114 &6637330943492754196
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8059944600309317919}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e795f2d2446b9154698a96e9ac98fdd5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  summonCirclePrefab: {fileID: 8905323298108742142, guid: aa34ca60caed13a4fb8f3ae043ae75dd, type: 3}
+  downCastFrame: {fileID: 21300000, guid: 1594e629cf35f1745a02d98111d8919d, type: 3}
+  rightCastFrame: {fileID: 21300000, guid: 0c1d8088d17efac488b14366215357a9, type: 3}
+  leftCastFrame: {fileID: 21300000, guid: bb434155bedcee94aa1aa81265655687, type: 3}
+  upCastFrame: {fileID: 21300000, guid: 63bd48ee3dc3e1e449d9edb3b1459ef3, type: 3}
+--- !u!114 &1583829494440673182
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8059944600309317919}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ebce244721d18cf439c4378feba8a91e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  breathProjectilePrefab: {fileID: 5025280623449552038, guid: 7a56f5519f4d8454891352735f536626, type: 3}
+  downMouthClosedFrame: {fileID: 21300000, guid: ff08de2bbbd6113429a6b717c54cb0ee, type: 3}
+  downMouthOpenFrame: {fileID: 21300000, guid: 5f82379ee89d2cd438a50ec9e0fe321b, type: 3}
+  rightMouthClosedFrame: {fileID: 21300000, guid: 62dfbbefe4168334e8fa3f7ec7cf32df, type: 3}
+  rightMouthOpenFrame: {fileID: 21300000, guid: b8d61e1bb53a8ef49a4f56867093d44d, type: 3}
+  leftMouthClosedFrame: {fileID: 21300000, guid: 9232818c0ff35ce45b3698b0d657c7e1, type: 3}
+  leftMouthOpenFrame: {fileID: 21300000, guid: abaacdf5798300a49908939a13a32236, type: 3}
+  upMouthClosedFrame: {fileID: 21300000, guid: 6e4cf28f3bded744db8a677306a25c91, type: 3}
+  upMouthOpenFrame: {fileID: 21300000, guid: 5b273505c3aeffb4495c951adcfc8156, type: 3}

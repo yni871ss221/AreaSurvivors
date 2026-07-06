@@ -47,12 +47,15 @@ namespace AreaSurvivors
         float stageElapsed;
         float elapsedOffset;
         int currentStage = 1;
+        int currentStageDifficulty = 1;
         float directionTimer;
         float directionDegrees;
         int directionChangeIndex;
         int lastDirectionSector = -1;
         Vector3Int currentSpawnCell;
         bool hasCurrentSpawnCell;
+        bool hasNextBossTestSpawnDirection;
+        Vector2 nextBossTestSpawnDirection;
         bool running;
         bool[] timedSpawned;
         string currentBossAnnouncement = "オークキング出現！";
@@ -65,22 +68,35 @@ namespace AreaSurvivors
 
         public void BeginStage(GameConfig gameConfig, TileGrid tileGrid, Transform chaseTarget, int stage, float displayElapsedOffset)
         {
+            BeginStage(gameConfig, tileGrid, chaseTarget, stage, displayElapsedOffset, 0f);
+        }
+
+        public void BeginStage(GameConfig gameConfig, TileGrid tileGrid, Transform chaseTarget, int stage, float displayElapsedOffset, float startStageElapsedSeconds)
+        {
             config = gameConfig;
             grid = tileGrid;
             target = chaseTarget;
             config.EnsureEnemySpawnDefaults();
             radius = Mathf.Max(10f, config.enemySpawnRadius);
             currentStage = Mathf.Max(1, stage);
+            currentStageDifficulty = ProgressionStore.GetStageDifficulty(currentStage);
             elapsedOffset = Mathf.Max(0f, displayElapsedOffset);
-            elapsed = elapsedOffset;
-            stageElapsed = 0f;
+            stageElapsed = Mathf.Max(0f, startStageElapsedSeconds);
+            elapsed = elapsedOffset + stageElapsed;
             directionTimer = 0f;
             directionChangeIndex = 0;
             timedSpawned = new bool[TimedSpawnsForCurrentStage().Length];
+            MarkPastTimedSpawnsAsHandled();
             currentBossAnnouncement = BossAnnouncementForStage(currentStage);
             ChooseNextDirection();
             running = true;
             StartCoroutine(SpawnLoop());
+        }
+
+        public void SetNextBossTestSpawnSide(BossTestSpawnSide side)
+        {
+            nextBossTestSpawnDirection = DirectionForBossTestSpawnSide(side);
+            hasNextBossTestSpawnDirection = true;
         }
 
         void Update()
@@ -100,6 +116,17 @@ namespace AreaSurvivors
             activeEnemies.RemoveAll(enemy => enemy == null);
         }
 
+        void MarkPastTimedSpawnsAsHandled()
+        {
+            var timedSpawns = TimedSpawnsForCurrentStage();
+            if (timedSpawns == null || timedSpawned == null) return;
+            for (int i = 0; i < timedSpawns.Length && i < timedSpawned.Length; i++)
+            {
+                var timed = timedSpawns[i];
+                timedSpawned[i] = timed != null && timed.timeSeconds < stageElapsed;
+            }
+        }
+
         IEnumerator SpawnLoop()
         {
             while (running)
@@ -111,7 +138,7 @@ namespace AreaSurvivors
                         phase.baseBatchCount + directionChangeIndex * phase.batchIncreasePerDirectionChange,
                         1,
                         Mathf.Max(1, phase.maxBatchCount));
-                    SpawnBatch(phase.enemyKind, batch);
+                    SpawnBatch(phase.enemyKind, DifficultySpawnCount(batch));
                 }
                 float interval = phase != null ? phase.spawnInterval : config.spawnInterval;
                 yield return new WaitForSeconds(Mathf.Max(0.18f, interval));
@@ -151,7 +178,7 @@ namespace AreaSurvivors
         void SpawnBatch(EnemyKind kind, int count, bool force = false)
         {
             if (enemyPrefab == null || target == null) return;
-            int capacity = force ? count : Mathf.Max(0, config.maxAliveEnemies - activeEnemies.Count);
+            int capacity = force ? count : Mathf.Max(0, MaxAliveEnemiesForDifficulty() - activeEnemies.Count);
             int spawnCount = Mathf.Min(count, capacity);
             for (int i = 0; i < spawnCount; i++) SpawnOne(kind);
         }
@@ -178,9 +205,33 @@ namespace AreaSurvivors
             if (definition.boss) GameManager.Instance?.BossSpawned(enemy);
         }
 
+        public EnemyController SpawnSummonedEnemy(EnemyKind kind, Vector3 worldPosition)
+        {
+            if (enemyPrefab == null || config == null || grid == null || target == null) return null;
+            var definition = config.GetEnemyDefinition(kind);
+            if (definition == null) return null;
+            var spawnPosition = ClampSpawnInsideGrid(worldPosition, definition.cellSize);
+            var go = Instantiate(enemyPrefab, spawnPosition, Quaternion.identity);
+            go.name = definition.displayName;
+            var enemy = go.GetComponent<EnemyController>();
+            if (enemy == null)
+            {
+                Destroy(go);
+                return null;
+            }
+
+            enemy.xpOrbPrefab = xpOrbPrefab;
+            enemy.damagePopupPrefab = damagePopupPrefab;
+            int hp = EnemyHp(definition);
+            enemy.Configure(config, grid, target, definition, hp, definition.speedMultiplier);
+            activeEnemies.Add(enemy);
+            return enemy;
+        }
+
         int TimedSpawnCount(TimedEnemySpawn timed)
         {
             int count = Mathf.Max(1, timed != null ? timed.count : 1);
+            if (IsBossTimedSpawn(timed)) return count;
             if (!IsEliteTimedSpawn(timed)) return count;
 
             int skillLevel = Mathf.Clamp(
@@ -188,7 +239,38 @@ namespace AreaSurvivors
                 0,
                 ProgressionStore.GetMaxLevel(UpgradeType.EliteSpawnCount));
             int countPerLevel = config != null ? Mathf.Max(0, config.eliteTimedSpawnCountPerUpgradeLevel) : 1;
-            return count + skillLevel * countPerLevel;
+            return DifficultySpawnCount(count + skillLevel * countPerLevel);
+        }
+
+        int DifficultySpawnCount(int count)
+        {
+            return Mathf.Max(1, count) * Mathf.Clamp(currentStageDifficulty, ProgressionStore.MinStageDifficulty, ProgressionStore.MaxStageDifficulty);
+        }
+
+        int MaxAliveEnemiesForDifficulty()
+        {
+            int difficulty = Mathf.Clamp(currentStageDifficulty, ProgressionStore.MinStageDifficulty, ProgressionStore.MaxStageDifficulty);
+            return Mathf.Max(1, config.maxAliveEnemies) * difficulty;
+        }
+
+        int EnemyHp(EnemyDefinition definition)
+        {
+            int hp = Mathf.Max(1, Mathf.RoundToInt(config.enemyBaseHp * Mathf.Max(0.01f, definition.hpMultiplier)));
+            if (definition != null && definition.boss)
+            {
+                hp *= Mathf.Clamp(currentStageDifficulty, ProgressionStore.MinStageDifficulty, ProgressionStore.MaxStageDifficulty);
+            }
+
+            return hp;
+        }
+
+        static bool IsBossTimedSpawn(TimedEnemySpawn timed)
+        {
+            if (timed == null) return false;
+            return timed.enemyKind == EnemyKind.OrcKing ||
+                timed.enemyKind == EnemyKind.GoblinLord ||
+                timed.enemyKind == EnemyKind.Lich ||
+                timed.enemyKind == EnemyKind.Dragon;
         }
 
         static bool IsEliteTimedSpawn(TimedEnemySpawn timed)
@@ -239,6 +321,15 @@ namespace AreaSurvivors
 
         Vector3 ResolveSpawnPosition(EnemyDefinition definition)
         {
+            if (definition != null && definition.boss && hasNextBossTestSpawnDirection)
+            {
+                hasNextBossTestSpawnDirection = false;
+                var fixedDirection = nextBossTestSpawnDirection.sqrMagnitude > 0.001f
+                    ? nextBossTestSpawnDirection.normalized
+                    : Vector2.up;
+                return ClampSpawnInsideGrid(target.position + (Vector3)(fixedDirection * radius), definition.cellSize);
+            }
+
             if (useUpperChunkSpawn)
             {
                 if (!hasCurrentSpawnCell) TryChooseUpperChunkSpawnCell();
@@ -254,6 +345,21 @@ namespace AreaSurvivors
             float angle = directionDegrees + Random.Range(-halfArc, halfArc);
             var dir = new Vector2(Mathf.Cos(angle * Mathf.Deg2Rad), Mathf.Sin(angle * Mathf.Deg2Rad));
             return ClampSpawnInsideGrid(target.position + (Vector3)(dir * radius), definition.cellSize);
+        }
+
+        static Vector2 DirectionForBossTestSpawnSide(BossTestSpawnSide side)
+        {
+            switch (side)
+            {
+                case BossTestSpawnSide.Down:
+                    return Vector2.down;
+                case BossTestSpawnSide.Left:
+                    return Vector2.left;
+                case BossTestSpawnSide.Right:
+                    return Vector2.right;
+                default:
+                    return Vector2.up;
+            }
         }
 
         bool TryChooseUpperChunkSpawnCell()

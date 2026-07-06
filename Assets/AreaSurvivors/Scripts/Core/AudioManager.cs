@@ -350,14 +350,23 @@ namespace AreaSurvivors
                 case SfxTrack.ArrowRainTick:
                 case SfxTrack.GunShot:
                 case SfxTrack.FrostCast:
+                case SfxTrack.BossShockwaveHit:
                     return 0.45f;
                 case SfxTrack.ThunderBallCast:
+                case SfxTrack.GoblinLordDarkMagic:
+                case SfxTrack.LichSummonMagic:
                     return 0.32f;
                 case SfxTrack.TowerCollapse:
                 case SfxTrack.BossDefeatRumble:
                     return 0.9f;
                 case SfxTrack.RelicChestPickup:
                 case SfxTrack.RelicChestOpen:
+                case SfxTrack.TokenGain:
+                    return 0.8f;
+                case SfxTrack.StageUnlockPopup:
+                    return 0.75f;
+                case SfxTrack.MissionCompleteFanfare:
+                case SfxTrack.MissionCompleteCheer:
                     return 0.8f;
                 case SfxTrack.EnemyHit:
                     return 1.8f;

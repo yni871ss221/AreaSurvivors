@@ -31,7 +31,14 @@ namespace AreaSurvivors
         TowerCollapse,
         BossDefeatRumble,
         RelicChestPickup,
-        RelicChestOpen
+        RelicChestOpen,
+        BossShockwaveHit,
+        GoblinLordDarkMagic,
+        LichSummonMagic,
+        StageUnlockPopup,
+        MissionCompleteFanfare,
+        MissionCompleteCheer,
+        TokenGain
     }
 
     public static class AudioCatalog
@@ -101,6 +108,20 @@ namespace AreaSurvivors
                     return "Audio/SFX/relic_chest_pickup";
                 case SfxTrack.RelicChestOpen:
                     return "Audio/SFX/relic_chest_open";
+                case SfxTrack.BossShockwaveHit:
+                    return "Audio/SFX/boss_shockwave_hit";
+                case SfxTrack.GoblinLordDarkMagic:
+                    return "Audio/SFX/goblin_lord_dark_magic";
+                case SfxTrack.LichSummonMagic:
+                    return "Audio/SFX/lich_summon_magic";
+                case SfxTrack.StageUnlockPopup:
+                    return "Audio/SFX/stage_unlock_popup";
+                case SfxTrack.MissionCompleteFanfare:
+                    return "Audio/SFX/mission_complete_fanfare";
+                case SfxTrack.MissionCompleteCheer:
+                    return "Audio/SFX/mission_complete_cheer";
+                case SfxTrack.TokenGain:
+                    return "Audio/SFX/token_gain";
                 default:
                     return string.Empty;
             }

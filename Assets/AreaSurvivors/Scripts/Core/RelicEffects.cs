@@ -54,6 +54,10 @@ namespace AreaSurvivors
         {
             stats.attackPower += KillAttackBonus(gameManager);
             stats.attackPower += RunTokenAttackBonus(gameManager);
+            stats.attackPower += TripleCategoryAttackBonus(weapon, RelicType.TriBladeCrest, WeaponAttributeType.Melee, RelicEffectKind.TripleMeleeAttackBonus);
+            stats.attackPower += TripleCategoryAttackBonus(weapon, RelicType.StarbowSightCrown, WeaponAttributeType.Ranged, RelicEffectKind.TripleRangedAttackBonus);
+            stats.attackPower += TripleCategoryAttackBonus(weapon, RelicType.TriSageCrystal, WeaponAttributeType.Magic, RelicEffectKind.TripleMagicAttackBonus);
+            stats.attackPower += TotalKillAttackBonus();
 
             float multiplier = 1f;
             if (Has(RelicType.HarmonyCrest) && HasThreeDistinctWeaponCategories(weapon)) multiplier += 0.15f;
@@ -81,6 +85,49 @@ namespace AreaSurvivors
             return ProgressionStore.HasRelic(type);
         }
 
+        public static bool IsActive(
+            RelicDefinition definition,
+            WeaponController weapon,
+            PlayerController player,
+            TileGrid grid,
+            GameManager gameManager)
+        {
+            if (definition == null || !Has(definition.type)) return false;
+            switch (definition.effectKind)
+            {
+                case RelicEffectKind.AttackMultiplier:
+                case RelicEffectKind.WeaponAttackBonus:
+                case RelicEffectKind.WeaponCooldownMultiplier:
+                case RelicEffectKind.WeaponProjectileCountBonus:
+                case RelicEffectKind.WeaponRangeBonus:
+                case RelicEffectKind.WeaponDurationBonus:
+                    return HasMatchingAcquiredWeapon(definition, weapon);
+                case RelicEffectKind.DistinctWeaponCategoryAttackMultiplier:
+                    return HasThreeDistinctWeaponCategories(weapon);
+                case RelicEffectKind.FullHpAttackMultiplier:
+                    return IsPlayerAtFullHp(player);
+                case RelicEffectKind.SingleWeaponAttackMultiplier:
+                    return weapon != null && weapon.AcquiredWeaponOrder.Count == 1;
+                case RelicEffectKind.TripleMeleeAttackBonus:
+                    return HasThreeWeaponsOfAttribute(weapon, WeaponAttributeType.Melee);
+                case RelicEffectKind.TripleRangedAttackBonus:
+                    return HasThreeWeaponsOfAttribute(weapon, WeaponAttributeType.Ranged);
+                case RelicEffectKind.TripleMagicAttackBonus:
+                    return HasThreeWeaponsOfAttribute(weapon, WeaponAttributeType.Magic);
+                case RelicEffectKind.CenterTowerPaintAttackMultiplier:
+                case RelicEffectKind.BallistaPaintAttackMultiplier:
+                    return PlayerControlRatio(grid) > 0.001f;
+                case RelicEffectKind.KillAttackBonusPerHundred:
+                    return KillAttackBonus(gameManager) > 0;
+                case RelicEffectKind.RunTokenAttackBonusPerTen:
+                    return RunTokenAttackBonus(gameManager) > 0;
+                case RelicEffectKind.TotalKillAttackBonusPerThousand:
+                    return TotalKillAttackBonus() > 0;
+                default:
+                    return true;
+            }
+        }
+
         static float Sum(RelicEffectKind kind)
         {
             float total = 0f;
@@ -105,6 +152,18 @@ namespace AreaSurvivors
             }
 
             return definition.targetWeapon == type;
+        }
+
+        static bool HasMatchingAcquiredWeapon(RelicDefinition definition, WeaponController weapon)
+        {
+            if (definition == null || weapon == null || weapon.AcquiredWeaponOrder == null) return false;
+            if (definition.effectKind == RelicEffectKind.AttackMultiplier) return weapon.AcquiredWeaponOrder.Count > 0;
+            for (int i = 0; i < weapon.AcquiredWeaponOrder.Count; i++)
+            {
+                if (MatchesWeapon(definition, weapon.AcquiredWeaponOrder[i])) return true;
+            }
+
+            return false;
         }
 
         static bool HasThreeDistinctWeaponCategories(WeaponController weapon)
@@ -141,6 +200,17 @@ namespace AreaSurvivors
             return distinct == 3;
         }
 
+        static bool HasThreeWeaponsOfAttribute(WeaponController weapon, WeaponAttributeType attribute)
+        {
+            if (weapon == null || weapon.AcquiredWeaponOrder == null || weapon.AcquiredWeaponOrder.Count != 3) return false;
+            for (int i = 0; i < weapon.AcquiredWeaponOrder.Count; i++)
+            {
+                if (WeaponAttributeCatalog.ForWeapon(weapon.AcquiredWeaponOrder[i]) != attribute) return false;
+            }
+
+            return true;
+        }
+
         static bool IsPlayerAtFullHp(PlayerController player)
         {
             var health = player != null ? player.Health : null;
@@ -157,6 +227,22 @@ namespace AreaSurvivors
         {
             if (!Has(RelicType.WealthWarSeal) || gameManager == null) return 0;
             return Mathf.Clamp(gameManager.RunTokens / 10, 0, 10);
+        }
+
+        static int TripleCategoryAttackBonus(
+            WeaponController weapon,
+            RelicType relicType,
+            WeaponAttributeType attribute,
+            RelicEffectKind effectKind)
+        {
+            if (!Has(relicType) || !HasThreeWeaponsOfAttribute(weapon, attribute)) return 0;
+            return Mathf.RoundToInt(Sum(effectKind));
+        }
+
+        static int TotalKillAttackBonus()
+        {
+            if (!Has(RelicType.ThousandSlayerLaurel)) return 0;
+            return Mathf.Clamp(ProgressionStore.Data.totalKills / 1000, 0, 20);
         }
 
         static float PlayerControlRatio(TileGrid grid)

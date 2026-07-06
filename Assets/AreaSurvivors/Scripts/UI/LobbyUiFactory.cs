@@ -30,7 +30,6 @@ namespace AreaSurvivors
             CreateBackground(canvas.transform);
             Panel(canvas.transform, "Header Panel", new Vector2(0, 280), new Vector2(780, 78), new Color(0.03f, 0.06f, 0.05f, 0.68f));
             Label(canvas.transform, "Title", "\u30ed\u30d3\u30fc", 38, new Vector2(0, 298), new Vector2(520, 44), Color.white);
-            Label(canvas.transform, "TokenInfo", "\u30c8\u30fc\u30af\u30f3 0   \u7d2f\u8a08\u6483\u7834 0", 21, new Vector2(0, 260), new Vector2(620, 32), new Color(0.86f, 0.94f, 0.80f));
 
             BuildStageProgress(canvas.transform);
             BuildKnightLoadout(canvas.transform);
@@ -81,20 +80,36 @@ namespace AreaSurvivors
             Label(panel.transform, "Unknown Boss", "?", 42, new Vector2(0, 2), new Vector2(74, 70), new Color(0f, 0f, 0f, 0.75f));
             Label(panel.transform, "Boss Name", "???", 15, new Vector2(0, -38), new Vector2(160, 22), BodyText);
             Label(panel.transform, "Clear", "CLEAR", 18, new Vector2(0, -60), new Vector2(90, 24), ClearText);
+            BuildDifficultyControl(panel.transform);
+        }
+
+        static void BuildDifficultyControl(Transform parent)
+        {
+            var root = new GameObject("Difficulty Root").AddComponent<RectTransform>();
+            root.SetParent(parent, false);
+            root.anchoredPosition = new Vector2(0f, -84f);
+            root.sizeDelta = new Vector2(158f, 24f);
+            Button(root, "Difficulty Down Button", "\u25c0", new Vector2(-60f, 0f), new Vector2(28f, 24f), null);
+            Label(root, "Difficulty Label", "\u96e3\u6613\u5ea61", 16, Vector2.zero, new Vector2(94f, 24f), BodyText);
+            Button(root, "Difficulty Up Button", "\u25b6", new Vector2(60f, 0f), new Vector2(28f, 24f), null);
         }
 
         static void BuildKnightLoadout(Transform parent)
         {
-            Panel(parent, "Character Panel", new Vector2(-250, -125), new Vector2(300, 250), PanelColor);
-            Label(parent, "CharacterTitle", "\u51fa\u6483\u30ad\u30e3\u30e9\u30af\u30bf\u30fc", 23, new Vector2(-250, 18), new Vector2(420, 34), AccentText);
-            CharacterCard(parent, "Character Knight", "\u30ca\u30a4\u30c8", "\u524d\u65b9\u3092\u5207\u308a\u6255\u3046", "Generated/Knight", CharacterType.Knight, new Vector2(-250, -140));
+            var panel = Panel(parent, "Character Panel", new Vector2(0, -154), new Vector2(900, 218), PanelColor);
+            CharacterCard(panel.transform, "Character Knight", "\u30ca\u30a4\u30c8", "\u524d\u65b9\u3092\u5207\u308a\u6255\u3046", "Generated/Knight", CharacterType.Knight, new Vector2(-300, -2));
+            var tokenInfo = Label(panel.transform, "LobbyStatsText", "\u30c8\u30fc\u30af\u30f3 0\n\u7d2f\u8a08\u6483\u7834 0", 23, new Vector2(270, 15), new Vector2(340, 84), new Color(0.86f, 0.94f, 0.80f));
+            tokenInfo.alignment = TextAnchor.MiddleLeft;
         }
 
         static void CharacterCard(Transform parent, string objectName, string title, string description, string spriteResource, CharacterType type, Vector2 pos)
         {
             var button = Button(parent, objectName, "", pos, new Vector2(210, 190), null);
-            var selected = button.gameObject.AddComponent<CharacterSelectionHighlight>();
-            selected.type = type;
+            button.interactable = false;
+            var highlight = button.GetComponent<UiSelectionHighlight>();
+            if (highlight != null) highlight.enabled = false;
+            var pointerSelection = button.GetComponent<SelectOnPointerEnter>();
+            if (pointerSelection != null) pointerSelection.enabled = false;
             Icon(button.transform, "Icon", spriteResource, new Vector2(0, 38), new Vector2(94, 94));
             Label(button.transform, "Title", title, 24, new Vector2(0, -42), new Vector2(180, 32), Color.white);
             Label(button.transform, "Description", description, 15, new Vector2(0, -78), new Vector2(180, 36), new Color(0.82f, 0.92f, 0.84f));
@@ -102,12 +117,12 @@ namespace AreaSurvivors
 
         static void BuildFooterButtons(Transform parent)
         {
-            Button(parent, "Test Launch Button", "\u30c6\u30b9\u30c8\u8d77\u52d5", new Vector2(-509, -105), new Vector2(180, 52), null);
-            Button(parent, "Start Game Button", "\u30b2\u30fc\u30e0\u30b9\u30bf\u30fc\u30c8", new Vector2(150, 60), new Vector2(220, 58), "Generated/Arrow");
-            Button(parent, "Upgrade Button", "\u5f37\u5316", new Vector2(30, -30), new Vector2(220, 58), "Generated/Orb");
-            Button(parent, "Weapon Book Button", "\u6b66\u5668\u56f3\u9451", new Vector2(30, -100), new Vector2(220, 58), "Generated/Slash_0");
-            Button(parent, "Relic Button", "\u6240\u6301\u30ec\u30ea\u30c3\u30af", new Vector2(30, -170), new Vector2(220, 58), "Generated/TreasureChest");
-            Button(parent, "Title Button", "\u30bf\u30a4\u30c8\u30eb\u3078", new Vector2(-150, 60), new Vector2(220, 52), "Generated/Slash_0");
+            Button(parent, "Test Launch Button", "\u30c6\u30b9\u30c8\u8d77\u52d5", new Vector2(-542, -105), new Vector2(180, 52), null);
+            Button(parent, "Start Game Button", "\u30b2\u30fc\u30e0\u30b9\u30bf\u30fc\u30c8", new Vector2(150, -305), new Vector2(220, 58), "Generated/Arrow");
+            Button(parent, "Upgrade Button", "\u5f37\u5316", new Vector2(-30, -91), new Vector2(220, 58), "Generated/Orb");
+            Button(parent, "Weapon Book Button", "\u6b66\u5668\u56f3\u9451", new Vector2(-30, -157), new Vector2(220, 58), "Generated/Slash_0");
+            Button(parent, "Relic Button", "\u6240\u6301\u30ec\u30ea\u30c3\u30af", new Vector2(-30, -223), new Vector2(220, 58), "Generated/TreasureChest");
+            Button(parent, "Title Button", "\u30bf\u30a4\u30c8\u30eb\u3078", new Vector2(-150, -305), new Vector2(220, 52), "Generated/TitleReturnIcon");
         }
 
         static Button Button(Transform parent, string objectName, string text, Vector2 pos, Vector2 size, string iconResource)

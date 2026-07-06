@@ -11,7 +11,16 @@ namespace AreaSurvivors
         public void LoadUpgrades() => SceneManager.LoadScene(SceneNames.Upgrades);
         public void LoadGame() => SceneManager.LoadScene(SceneNames.Game);
         public void LoadWeaponBook() => SceneManager.LoadScene(SceneNames.WeaponBook);
-        public void LoadGameTestLauncher() => SceneManager.LoadScene(SceneNames.GameTestLauncher);
+        public void LoadGameTestLauncher()
+        {
+            if (!RuntimeFeatureFlags.ShowTestFeatures)
+            {
+                SceneManager.LoadScene(SceneNames.Lobby);
+                return;
+            }
+
+            SceneManager.LoadScene(SceneNames.GameTestLauncher);
+        }
         public void LoadRelics() => SceneManager.LoadScene(SceneNames.Relics);
         public void Quit()
         {

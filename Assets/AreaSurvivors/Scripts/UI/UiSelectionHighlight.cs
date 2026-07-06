@@ -66,6 +66,14 @@ namespace AreaSurvivors
             forceSelected = selected;
         }
 
+        public void SetNormalBackgroundColor(Color color)
+        {
+            if (background == null) background = GetComponent<Image>();
+            normalBackgroundColor = color;
+            hasBackgroundColor = true;
+            if (background != null) background.color = color;
+        }
+
         public void OnPointerEnter(PointerEventData eventData)
         {
             ActivatePointerHighlight();

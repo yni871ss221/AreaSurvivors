@@ -184,7 +184,7 @@ namespace AreaSurvivors.EditorTools
 
         static void ConfigureRelicIconImports()
         {
-            var definitions = RelicCatalog.All;
+            var definitions = RelicCatalog.GetDisplayOrdered();
             for (int i = 0; i < definitions.Length; i++)
             {
                 if (string.IsNullOrEmpty(definitions[i].iconPath)) continue;
@@ -437,6 +437,7 @@ namespace AreaSurvivors.EditorTools
             icon.preserveAspect = true;
             icon.rectTransform.anchoredPosition = new Vector2(0, 18);
             icon.rectTransform.sizeDelta = new Vector2(54, 54);
+            icon.rectTransform.localScale = Vector3.one * RelicCatalog.IconScale(definition);
 
             var silhouette = CreateImage(icon.transform, "Silhouette Overlay", new Color(0f, 0f, 0f, 0.45f));
             silhouette.raycastTarget = false;

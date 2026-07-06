@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Tilemaps;
@@ -113,6 +114,8 @@ namespace AreaSurvivors
         TileBase[] dirtDetailTiles;
         TileBase[] pathDetailTiles;
         readonly List<TileBase> generatedGroundTiles = new List<TileBase>();
+
+        public event Action<int> PlayerCellsPainted;
 
         public void ApplySquareChunkMapLayout(int columns = DefaultMapChunkColumns, int rows = DefaultMapChunkRows)
         {
@@ -789,6 +792,10 @@ namespace AreaSurvivors
             {
                 AdjustOwnerCounts(previousOwner, nextOwner);
                 owners[x, y] = nextOwner;
+                if (nextOwner == TileOwner.Player && previousOwner != TileOwner.Player)
+                {
+                    PlayerCellsPainted?.Invoke(1);
+                }
             }
             var cell = GridToCell(x, y);
             if (Mathf.Abs(control) < 0.01f && Mathf.Abs(targetControlValues[x, y]) < 0.01f)
@@ -958,7 +965,7 @@ namespace AreaSurvivors
             groundChunkMaterial = null;
         }
 
-        static void DestroyUnityObject(Object target)
+        static void DestroyUnityObject(UnityEngine.Object target)
         {
             if (target == null) return;
             if (Application.isPlaying) Destroy(target);

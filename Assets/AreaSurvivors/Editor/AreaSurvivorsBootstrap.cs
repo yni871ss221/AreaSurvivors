@@ -184,7 +184,7 @@ namespace AreaSurvivors.Editor
             config.towerMaxHpPerUpgradeLevel = 12;
             config.towerUpgradeWoodCost = 300;
             config.towerUpgradeStoneCost = 300;
-            config.upgradedTowerMaxHp = 450;
+            config.upgradedTowerMaxHp = 900;
             config.upgradedTowerRegenBonus = 3;
             config.upgradedTowerCannonDamageBonus = 10;
             config.upgradedTowerCannonExplosionRadiusMultiplier = 2f;

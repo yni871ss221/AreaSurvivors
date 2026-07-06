@@ -137,6 +137,7 @@ namespace AreaSurvivors
                 case UpgradeType.UnlockTowerUpgrade:
                     return SkillTowerUpgrade;
                 case UpgradeType.EndTokenGain:
+                case UpgradeType.PaintAreaTokenGain:
                     return SkillToken;
                 case UpgradeType.EliteSpawnCount:
                     return SkillEliteBoar;

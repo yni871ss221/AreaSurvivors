@@ -15,6 +15,7 @@ namespace AreaSurvivors
 
         Canvas lobbyUi;
         SceneNavigator navigator;
+        bool isStartingGame;
 
 #if UNITY_EDITOR
         void OnValidate()
@@ -54,15 +55,18 @@ namespace AreaSurvivors
 
         void Refresh()
         {
-            SetText("TokenInfo", string.Format("\u30c8\u30fc\u30af\u30f3 {0}   \u6728\u6750 {1}   \u77f3\u6750 {2}   \u7d2f\u8a08\u6483\u7834 {3}", ProgressionStore.Data.tokens, ProgressionStore.Data.wood, ProgressionStore.Data.stone, ProgressionStore.Data.totalKills));
-            RefreshKnightLoadout();
+            SetText("TokenInfo", string.Empty);
+            SetText("TokenCountValue", ProgressionStore.Data.tokens.ToString());
+            SetText("TotalKillsValue", ProgressionStore.Data.totalKills.ToString());
+            SetText("PlayCountValue", ProgressionStore.Data.playCount.ToString());
+            DisableCharacterSelection();
             RefreshStageCards();
         }
 
         void BindStaticActions()
         {
             BindButton("Start Game Button", StartSelectedStage);
-            BindButton("Test Launch Button", navigator.LoadGameTestLauncher);
+            ConfigureTestLaunchButton();
             BindButton("Upgrade Button", navigator.LoadUpgrades);
             if (!BindButton(weaponBookButton, navigator.LoadWeaponBook))
             {
@@ -75,19 +79,35 @@ namespace AreaSurvivors
             BindButton("Title Button", navigator.LoadTitle);
         }
 
-        void RefreshKnightLoadout()
+        void ConfigureTestLaunchButton()
         {
-            RefreshKnightLoadout("Character Knight");
+            var testLaunch = FindChild("Test Launch Button");
+            if (testLaunch == null) return;
+            testLaunch.gameObject.SetActive(RuntimeFeatureFlags.ShowTestFeatures);
+            if (RuntimeFeatureFlags.ShowTestFeatures) BindButton(testLaunch.GetComponent<Button>(), navigator.LoadGameTestLauncher);
         }
 
-        void RefreshKnightLoadout(string name)
+        void DisableCharacterSelection()
         {
-            var card = FindChild(name);
+            var card = FindChild("Character Knight");
             if (card == null) return;
             var highlight = card.GetComponent<CharacterSelectionHighlight>();
-            if (highlight != null) highlight.type = CharacterType.Knight;
+            if (highlight != null) highlight.enabled = false;
             var selection = card.GetComponent<UiSelectionHighlight>();
-            if (selection != null) selection.forceSelected = true;
+            if (selection != null)
+            {
+                selection.SetForceSelected(false);
+                selection.enabled = false;
+            }
+
+            var button = card.GetComponent<Button>();
+            if (button != null)
+            {
+                button.onClick.RemoveAllListeners();
+                button.interactable = false;
+            }
+
+            HideGeneratedSelectionVisuals(card);
         }
 
         void NormalizeCharacterSelection()
@@ -95,6 +115,16 @@ namespace AreaSurvivors
             RunState.SelectedCharacter = CharacterType.Knight;
             ProgressionStore.Data.selectedCharacter = CharacterType.Knight;
             ProgressionStore.Save();
+        }
+
+        static void HideGeneratedSelectionVisuals(Transform root)
+        {
+            SetActive(root, "State Fill", false);
+            for (int i = 0; i < 4; i++)
+            {
+                SetActive(root, "Selected Edge " + i, false);
+                SetActive(root, "Selected Shadow " + i, false);
+            }
         }
 
         void RefreshStageCards()
@@ -135,7 +165,38 @@ namespace AreaSurvivors
                 SetActive(panel, "Unknown Boss", boss == null || boss.sprite == null);
                 SetText(panel, "Boss Name", unlocked ? BossName(stage) : "???");
                 SetActive(panel, "Clear", cleared);
+                RefreshStageDifficulty(panel, stage, cleared);
             }
+        }
+
+        void RefreshStageDifficulty(Transform panel, int stage, bool cleared)
+        {
+            var root = FindChild(panel, "Difficulty Root");
+            if (root != null) root.gameObject.SetActive(cleared);
+            if (!cleared) return;
+
+            int difficulty = ProgressionStore.GetStageDifficulty(stage);
+            SetText(panel, "Difficulty Label", "\u96e3\u6613\u5ea6" + difficulty);
+            ConfigureDifficultyButton(panel, "Difficulty Down Button", stage, difficulty - 1, difficulty > ProgressionStore.MinStageDifficulty);
+            ConfigureDifficultyButton(panel, "Difficulty Up Button", stage, difficulty + 1, difficulty < ProgressionStore.MaxStageDifficulty);
+        }
+
+        void ConfigureDifficultyButton(Transform panel, string name, int stage, int nextDifficulty, bool visible)
+        {
+            var buttonTransform = FindChild(panel, name);
+            if (buttonTransform == null) return;
+            buttonTransform.gameObject.SetActive(visible);
+            var button = buttonTransform.GetComponent<Button>();
+            if (button == null) return;
+            button.onClick.RemoveAllListeners();
+            if (!visible) return;
+            button.interactable = true;
+            button.onClick.AddListener(() =>
+            {
+                AudioManager.PlayButtonConfirm();
+                ProgressionStore.SetStageDifficulty(stage, nextDifficulty);
+                RefreshStageCards();
+            });
         }
 
         void StartSelectedStage()
@@ -145,7 +206,10 @@ namespace AreaSurvivors
 
         void StartGameFromStage(int stage)
         {
+            if (isStartingGame) return;
             if (!ProgressionStore.IsStageUnlocked(stage)) return;
+            isStartingGame = true;
+            ProgressionStore.IncrementPlayCount();
             RunState.SetNextStartStage(stage);
             navigator.LoadGame();
         }

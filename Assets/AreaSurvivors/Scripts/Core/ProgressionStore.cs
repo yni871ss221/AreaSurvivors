@@ -7,6 +7,8 @@ namespace AreaSurvivors
     {
         const string SaveKey = "AreaSurvivors.Save.v1";
         const int ImplementedStageCount = 4;
+        public const int MinStageDifficulty = 1;
+        public const int MaxStageDifficulty = 5;
         static SaveData cached;
 
         public static SaveData Data
@@ -19,6 +21,7 @@ namespace AreaSurvivors
                     cached = string.IsNullOrEmpty(json) ? new SaveData() : JsonUtility.FromJson<SaveData>(json);
                     if (cached.upgrades == null) cached.upgrades = new List<UpgradeLevel>();
                     if (cached.relics == null) cached.relics = new List<RelicRecord>();
+                    if (cached.stageDifficulties == null) cached.stageDifficulties = new List<StageDifficultyRecord>();
                     if (cached.stageBuildings == null) cached.stageBuildings = new List<StageBuildingSet>();
                     if (cached.highestUnlockedStage < 1) cached.highestUnlockedStage = 1;
                     if (cached.selectedStage < 1) cached.selectedStage = 1;
@@ -47,6 +50,23 @@ namespace AreaSurvivors
             Data.relics.Add(new RelicRecord { type = type });
             Save();
             return true;
+        }
+
+        public static bool ToggleRelicForTesting(RelicType type, out bool isOwned)
+        {
+            isOwned = false;
+            if (type == RelicType.None) return false;
+
+            if (HasRelic(type))
+            {
+                bool locked = LockRelicForTesting(type);
+                isOwned = false;
+                return locked;
+            }
+
+            bool unlocked = UnlockRelic(type);
+            isOwned = unlocked;
+            return unlocked;
         }
 
         public static bool LockRelicForTesting(RelicType type)
@@ -139,6 +159,8 @@ namespace AreaSurvivors
                 case UpgradeType.EliteSpawnCount:
                 case UpgradeType.WatchTowerDamage:
                     return 4;
+                case UpgradeType.PaintAreaTokenGain:
+                    return 3;
                 default:
                     return 10;
             }
@@ -192,6 +214,7 @@ namespace AreaSurvivors
                 case UpgradeType.TowerAutoRegen:
                 case UpgradeType.BuildingAutoRegen:
                 case UpgradeType.EndTokenGain:
+                case UpgradeType.PaintAreaTokenGain:
                 case UpgradeType.EliteSpawnCount:
                 case UpgradeType.StartingWeaponLevel:
                 case UpgradeType.UnlockArrow:
@@ -232,6 +255,12 @@ namespace AreaSurvivors
             Save();
         }
 
+        public static void IncrementPlayCount()
+        {
+            Data.playCount = Mathf.Max(0, Data.playCount) + 1;
+            Save();
+        }
+
         public static bool IsStageUnlocked(int stage)
         {
             return stage >= 1 && Data.highestUnlockedStage >= stage;
@@ -261,6 +290,38 @@ namespace AreaSurvivors
             Data.highestUnlockedStage = Mathf.Max(Data.highestUnlockedStage, nextUnlockedStage);
             Save();
             return unlockedNewStage;
+        }
+
+        public static int GetStageDifficulty(int stage)
+        {
+            stage = Mathf.Clamp(stage, 1, ImplementedStageCount);
+            if (Data.stageDifficulties == null) Data.stageDifficulties = new List<StageDifficultyRecord>();
+            foreach (var record in Data.stageDifficulties)
+            {
+                if (record != null && record.stage == stage)
+                {
+                    return Mathf.Clamp(record.difficulty, MinStageDifficulty, MaxStageDifficulty);
+                }
+            }
+
+            return MinStageDifficulty;
+        }
+
+        public static void SetStageDifficulty(int stage, int difficulty)
+        {
+            stage = Mathf.Clamp(stage, 1, ImplementedStageCount);
+            difficulty = Mathf.Clamp(difficulty, MinStageDifficulty, MaxStageDifficulty);
+            if (Data.stageDifficulties == null) Data.stageDifficulties = new List<StageDifficultyRecord>();
+            foreach (var record in Data.stageDifficulties)
+            {
+                if (record == null || record.stage != stage) continue;
+                record.difficulty = difficulty;
+                Save();
+                return;
+            }
+
+            Data.stageDifficulties.Add(new StageDifficultyRecord { stage = stage, difficulty = difficulty });
+            Save();
         }
 
         public static void AddTokensForTesting(int tokens)
@@ -336,6 +397,7 @@ namespace AreaSurvivors
             Data.highestClearedStage = 0;
             Data.highestUnlockedStage = 1;
             Data.selectedStage = 1;
+            if (Data.stageDifficulties != null) Data.stageDifficulties.Clear();
             Save();
         }
 

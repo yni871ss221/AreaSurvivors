@@ -14,6 +14,8 @@ namespace AreaSurvivors
                     return new Color(0.32f, 0.82f, 1f);
                 case RelicRarity.Rare:
                     return new Color(0.92f, 0.48f, 1f);
+                case RelicRarity.Legendary:
+                    return new Color(1f, 0.78f, 0.16f);
                 default:
                     return Color.white;
             }
@@ -21,9 +23,9 @@ namespace AreaSurvivors
 
         public static Color GetBadgeTextColor(RelicRarity rarity)
         {
-            return rarity == RelicRarity.Common
-                ? new Color(0.02f, 0.12f, 0.04f)
-                : new Color(0.02f, 0.05f, 0.08f);
+            if (rarity == RelicRarity.Common) return new Color(0.02f, 0.12f, 0.04f);
+            if (rarity == RelicRarity.Legendary) return new Color(0.14f, 0.07f, 0.01f);
+            return new Color(0.02f, 0.05f, 0.08f);
         }
     }
 }

@@ -60,6 +60,8 @@ namespace AreaSurvivors
         readonly List<RunRelicReportEntry> runRelicEntries = new List<RunRelicReportEntry>();
         readonly RunDamageTracker runDamageTracker = new RunDamageTracker();
         const int InitialTowerTerritoryRadius = 10;
+        const int PaintAreaTokenThreshold = 500;
+        int paintAreaTokenProgress;
         static readonly Color UpgradeNormalColor = new Color(0.12f, 0.20f, 0.16f, 0.94f);
         static readonly Color UpgradeHoverColor = new Color(0.106f, 0.353f, 0.216f, 0.98f);
         void Awake()
@@ -106,8 +108,11 @@ namespace AreaSurvivors
             if (towerMarker != null) towerMarker.Register(grid);
             var towerRootWorld = GridObjectVisual.FootprintOriginToWorld(grid, towerOriginCell);
             grid.PaintImmediate(towerRootWorld, TileOwner.Player, InitialTowerTerritoryRadius);
+            grid.PlayerCellsPainted += OnPlayerCellsPainted;
             ApplyUnlockedCenterTowerUpgrade();
             int stage = RunState.ConsumeNextStartStage();
+            float startStageElapsedSeconds = RunState.ConsumeNextStartStageElapsed();
+            bool hasBossTestSpawnSide = RunState.TryConsumeNextBossTestSpawnSide(out var bossTestSpawnSide);
             SyncFixedBuildingSlots(stage);
 
             if (sessionMode == MapSessionMode.Game)
@@ -129,8 +134,15 @@ namespace AreaSurvivors
 
             var cameraFollow = Camera.main.GetComponent<CameraFollow>();
             if (cameraFollow != null && sessionMode == MapSessionMode.Game && Player != null) cameraFollow.Configure(Player.transform, Tower.transform, config);
-            BeginStage(stage);
+            if (hasBossTestSpawnSide && spawner != null) spawner.SetNextBossTestSpawnSide(bossTestSpawnSide);
+            BeginStage(stage, startStageElapsedSeconds);
             UpdateHud();
+        }
+
+        void OnDestroy()
+        {
+            if (Instance == this) Instance = null;
+            if (grid != null) grid.PlayerCellsPainted -= OnPlayerCellsPainted;
         }
 
         void RebuildMapPerimeter()
@@ -504,8 +516,29 @@ namespace AreaSurvivors
 
         public void AddRunTokens(int amount)
         {
-            RunTokens += Mathf.Max(0, amount);
+            int gained = Mathf.Max(0, amount);
+            if (gained <= 0) return;
+            RunTokens += gained;
+            ShowTokenGainFeedback(gained);
             UpdateHud();
+        }
+
+        void OnPlayerCellsPainted(int count)
+        {
+            int rewardLevel = ProgressionStore.GetLevel(UpgradeType.PaintAreaTokenGain);
+            if (rewardLevel <= 0 || count <= 0) return;
+            paintAreaTokenProgress += count;
+            int threshold = Mathf.Max(1, PaintAreaTokenThreshold);
+            int rewards = paintAreaTokenProgress / threshold;
+            if (rewards <= 0) return;
+            paintAreaTokenProgress -= rewards * threshold;
+            AddRunTokens(rewards * Mathf.Clamp(rewardLevel, 1, ProgressionStore.GetMaxLevel(UpgradeType.PaintAreaTokenGain)));
+        }
+
+        void ShowTokenGainFeedback(int amount)
+        {
+            AudioManager.PlaySfx(SfxTrack.TokenGain);
+            Player?.ShowTokenGain(amount);
         }
 
         public void AddExperience(int amount)
@@ -1141,6 +1174,7 @@ namespace AreaSurvivors
                 displayName = definition.displayName,
                 convertedToToken = duplicateTokenReward > 0
             });
+            gameHud?.RefreshRelics();
             if (relicAcquisitionPanelPrefab == null)
             {
                 ShowAnnouncement(duplicateTokenReward > 0 ? "レリック変換: トークン +" + duplicateTokenReward : "レリック獲得: " + definition.displayName);
@@ -1250,7 +1284,13 @@ namespace AreaSurvivors
 
         void BeginStage(int stage)
         {
+            BeginStage(stage, 0f);
+        }
+
+        void BeginStage(int stage, float startStageElapsedSeconds)
+        {
             currentStage = Mathf.Max(1, stage);
+            elapsed = StageStartDisplaySeconds() + Mathf.Max(0f, startStageElapsedSeconds);
             hudElapsed = elapsed;
             bossActive = false;
             AudioManager.PlayBgm(BgmTrack.GameNormal);
@@ -1258,7 +1298,7 @@ namespace AreaSurvivors
             if (spawner != null)
             {
                 spawner.useUpperChunkSpawn = false;
-                spawner.BeginStage(config, grid, Tower.EnemyTarget, currentStage, 0f);
+                spawner.BeginStage(config, grid, Tower.EnemyTarget, currentStage, StageStartDisplaySeconds(), startStageElapsedSeconds);
             }
             gameHud?.SetStage(currentStage);
         }
@@ -1398,6 +1438,10 @@ namespace AreaSurvivors
         static readonly Vector2 TowerHpBarPosition = new Vector2(0f, -126f);
         static readonly Vector2 TowerHpBarSize = new Vector2(38f, 136f);
         static readonly Vector2 TowerHpTextPosition = new Vector2(0f, -286f);
+        const string LeftStatusHudGroup = "LeftStatusHud";
+        const string TopCenterHudGroup = "TopCenterHud";
+        const string RightStatusHudGroup = "RightStatusHud";
+        const float HudOverlapPadding = 96f;
         static readonly Vector2 PlayerPanelSize = new Vector2(390f, 318f);
         static readonly Vector2 PlayerIconSize = new Vector2(58f, 58f);
 
@@ -1438,6 +1482,7 @@ namespace AreaSurvivors
         Image bossHpFill;
         Text bossHpText;
         Text announcementText;
+        RelicHudPanel relicHud;
         EnemyController activeBoss;
         Health bossHealth;
         Coroutine announcementRoutine;
@@ -1467,6 +1512,8 @@ namespace AreaSurvivors
                 BuildPlayerPanel(canvas.transform);
             }
             BuildTowerPanel(canvas.transform);
+            BindRelicHud(canvas.transform);
+            ConfigureHudOverlapGroups(canvas.transform);
             UpdatePlayerPanel();
             UpdateTokenHud();
             UpdateTowerPanel();
@@ -1488,6 +1535,7 @@ namespace AreaSurvivors
             SetDirectChildActive(parent, "Boss Status", true);
             SetDirectChildActive(parent, "Player Status", true);
             SetDirectChildActive(parent, "Token Resource", true);
+            SetDirectChildActive(parent, "Relic HUD", true);
             SetDirectChildActive(parent, "XP Bar", true);
             SetDirectChildActive(parent, "Level Panel", true);
         }
@@ -1506,6 +1554,11 @@ namespace AreaSurvivors
             UpdateTowerPanel();
             UpdateBossHud();
             TickDamagePopups();
+        }
+
+        public void RefreshRelics()
+        {
+            relicHud?.Refresh(true);
         }
 
         void BindSceneRunStats(Transform parent)
@@ -1527,6 +1580,12 @@ namespace AreaSurvivors
             ConfigureStaticHudIcon(parent, "Kill Panel/Icon");
             tokenText = FindText(parent, "Token Resource/Amount");
             ConfigureStaticHudIcon(parent, "Token Resource/Icon");
+        }
+
+        void BindRelicHud(Transform parent)
+        {
+            relicHud = parent != null ? parent.GetComponentInChildren<RelicHudPanel>(true) : null;
+            if (relicHud != null) relicHud.Initialize(gameManager);
         }
 
         public void SetStage(int stage)
@@ -2059,6 +2118,47 @@ namespace AreaSurvivors
             rect.anchoredPosition = anchoredPosition;
             rect.sizeDelta = size;
             return rect;
+        }
+
+        static void ConfigureHudOverlapGroups(Transform hud)
+        {
+            ConfigureGroupPanel(hud, "Player", LeftStatusHudGroup);
+            ConfigureGroupPanel(hud, "Player Status", LeftStatusHudGroup);
+            ConfigureGroupPanel(hud, "Slash Weapon Status", LeftStatusHudGroup);
+            ConfigureGroupPanel(hud, "Arrow Weapon Status", LeftStatusHudGroup);
+            ConfigureGroupPanel(hud, "Fireball Weapon Status", LeftStatusHudGroup);
+
+            ConfigureGroupPanel(hud, "Area Control Panel", TopCenterHudGroup);
+            ConfigureGroupPanel(hud, "Stage Panel", TopCenterHudGroup);
+            ConfigureGroupPanel(hud, "Timer Panel", TopCenterHudGroup);
+
+            ConfigureGroupPanel(hud, "Tower Status", RightStatusHudGroup);
+            ConfigureGroupPanel(hud, "Token Resource", RightStatusHudGroup);
+            ConfigureGroupPanel(hud, "Kill Panel", RightStatusHudGroup);
+        }
+
+        static void ConfigureGroupPanel(Transform hud, string name, string groupId)
+        {
+            var rect = hud != null ? hud.Find(name) as RectTransform : null;
+            if (rect == null) return;
+            ConfigureOverlapFader(rect, groupId);
+        }
+
+        static void ConfigureOverlapFader(RectTransform panel, string groupId)
+        {
+            var group = panel.GetComponent<CanvasGroup>();
+            if (group == null) group = panel.gameObject.AddComponent<CanvasGroup>();
+            group.alpha = 1f;
+            group.interactable = true;
+            group.blocksRaycasts = true;
+
+            var fader = panel.GetComponent<HudOverlapFader>();
+            if (fader == null) fader = panel.gameObject.AddComponent<HudOverlapFader>();
+            fader.backgroundAlpha = 0.5f;
+            fader.overlapAlpha = 0.2f;
+            fader.padding = HudOverlapPadding;
+            fader.fadeSpeed = 10f;
+            fader.SetGroup(groupId);
         }
 
         static Text FindText(Transform parent, string path)

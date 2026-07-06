@@ -122,7 +122,7 @@ namespace AreaSurvivors
         public float towerCannonKnockback = 2.2f;
         public int towerUpgradeWoodCost = 300;
         public int towerUpgradeStoneCost = 300;
-        public int upgradedTowerMaxHp = 450;
+        public int upgradedTowerMaxHp = 900;
         public int upgradedTowerRegenBonus = 3;
         public int upgradedTowerCannonDamageBonus = 10;
         public float upgradedTowerCannonExplosionRadiusMultiplier = 2f;
@@ -249,6 +249,37 @@ namespace AreaSurvivors
         public int maxAliveEnemies = 160;
         public float bossTimeSeconds = 300f;
         public string bossAnnouncement = "オークキング出現！";
+        public float bossSpecialAttackCooldownSeconds = 5f;
+        public float bossSpecialAttackRaiseSeconds = 0.5f;
+        public float bossSpecialAttackSlamSeconds = 0.35f;
+        public float bossSpecialAttackRecoverSeconds = 0.15f;
+        public float bossShockwaveRangeCells = 10f;
+        public int bossShockwaveSegmentCount = 5;
+        public float bossShockwaveStepIntervalSeconds = 0.12f;
+        public float bossShockwaveDisplaySeconds = 1f;
+        public Vector2 bossShockwaveSizeCells = new Vector2(2f, 2f);
+        public int bossShockwaveDamageMultiplier = 2;
+        public float goblinLordDarkOrbSpeed = 2.4f;
+        public float goblinLordDarkOrbLifetimeSeconds = 8f;
+        public float goblinLordDarkOrbDamageRadius = 1.25f;
+        public float goblinLordDarkOrbDamageIntervalSeconds = 0.45f;
+        [Range(0.1f, 2f)]
+        public float goblinLordDarkOrbDamageMultiplier = 0.5f;
+        public float goblinLordDarkOrbVisualScale = 1f;
+        public float lichSummonRadius = 4f;
+        public float lichSummonCircleDurationSeconds = 2.2f;
+        public int lichSummonSkeletonCount = 10;
+        public int lichSummonSkeletonKnightCount = 10;
+        public float dragonBreathMouthClosedSeconds = 0.55f;
+        public float dragonBreathMouthOpenSeconds = 0.32f;
+        public float dragonBreathProjectileSpeed = 4.2f;
+        public float dragonBreathRangeCells = 15f;
+        public Vector2 dragonBreathHitboxSizeCells = new Vector2(3f, 3f);
+        public float dragonBreathExplosionRadiusCells = 3f;
+        [Range(0.1f, 2f)]
+        public float dragonBreathDamageMultiplier = 0.5f;
+        public float dragonBreathProjectileVisualScale = 1f;
+        public float dragonBreathExplosionDurationSeconds = 0.28f;
         public EnemyDefinition[] enemyDefinitions;
 
         [Header("Progression")]
@@ -835,7 +866,7 @@ namespace AreaSurvivors
                     displayName = "ゴブリンロード",
                     spriteKey = "EnemyGoblinLord",
                     animationSpeedMultiplier = 0.35f,
-                    hpMultiplier = 80f,
+                    hpMultiplier = 160f,
                     damageMultiplier = 16f,
                     speedMultiplier = 0.62f,
                     cellSize = 4f,
@@ -913,7 +944,7 @@ namespace AreaSurvivors
                     displayName = "リッチ",
                     spriteKey = "EnemyLich",
                     animationSpeedMultiplier = 0.45f,
-                    hpMultiplier = 120f,
+                    hpMultiplier = 240f,
                     damageMultiplier = 24f,
                     speedMultiplier = 0.58f,
                     cellSize = 4f,
@@ -991,7 +1022,7 @@ namespace AreaSurvivors
                     displayName = "ドラゴン",
                     spriteKey = "EnemyDragon",
                     animationSpeedMultiplier = 0.45f,
-                    hpMultiplier = 240f,
+                    hpMultiplier = 720f,
                     damageMultiplier = 48f,
                     speedMultiplier = 0.56f,
                     cellSize = 4f,

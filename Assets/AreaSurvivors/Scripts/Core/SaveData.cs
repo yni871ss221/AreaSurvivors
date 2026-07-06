@@ -8,6 +8,7 @@ namespace AreaSurvivors
     {
         public int tokens;
         public int totalKills;
+        public int playCount;
         public int wood;
         public int stone;
         public int highestUnlockedStage = 1;
@@ -16,6 +17,7 @@ namespace AreaSurvivors
         public CharacterType selectedCharacter;
         public List<UpgradeLevel> upgrades = new List<UpgradeLevel>();
         public List<RelicRecord> relics = new List<RelicRecord>();
+        public List<StageDifficultyRecord> stageDifficulties = new List<StageDifficultyRecord>();
         public List<StageBuildingSet> stageBuildings = new List<StageBuildingSet>();
     }
 
@@ -30,6 +32,13 @@ namespace AreaSurvivors
     public sealed class RelicRecord
     {
         public RelicType type;
+    }
+
+    [Serializable]
+    public sealed class StageDifficultyRecord
+    {
+        public int stage = 1;
+        public int difficulty = 1;
     }
 
     public enum SavedBuildingKind

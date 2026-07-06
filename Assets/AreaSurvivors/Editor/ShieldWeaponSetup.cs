@@ -132,7 +132,6 @@ namespace AreaSurvivors.Editor
             if (!File.Exists(GameScenePath)) return;
             var previousScenePath = EditorSceneManager.GetActiveScene().path;
             var scene = EditorSceneManager.OpenScene(GameScenePath, OpenSceneMode.Single);
-            GameHudSceneBuilder.RestoreWeaponStatusHud();
             RemoveShieldHudPanel();
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene);

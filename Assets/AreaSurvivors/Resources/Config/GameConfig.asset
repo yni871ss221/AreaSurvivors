@@ -55,7 +55,7 @@ MonoBehaviour:
   towerCannonKnockback: 2.2
   towerUpgradeWoodCost: 300
   towerUpgradeStoneCost: 300
-  upgradedTowerMaxHp: 450
+  upgradedTowerMaxHp: 900
   upgradedTowerRegenBonus: 3
   upgradedTowerCannonDamageBonus: 10
   upgradedTowerCannonExplosionRadiusMultiplier: 2
@@ -1728,7 +1728,7 @@ MonoBehaviour:
     displayName: "\u30B4\u30D6\u30EA\u30F3\u30ED\u30FC\u30C9"
     spriteKey: EnemyGoblinLord
     animationSpeedMultiplier: 0.35
-    hpMultiplier: 80
+    hpMultiplier: 160
     damageMultiplier: 16
     speedMultiplier: 0.62
     cellSize: 4
@@ -1798,7 +1798,7 @@ MonoBehaviour:
     displayName: "\u30EA\u30C3\u30C1"
     spriteKey: EnemyLich
     animationSpeedMultiplier: 0.45
-    hpMultiplier: 120
+    hpMultiplier: 240
     damageMultiplier: 24
     speedMultiplier: 0.58
     cellSize: 4
@@ -1868,7 +1868,7 @@ MonoBehaviour:
     displayName: "\u30C9\u30E9\u30B4\u30F3"
     spriteKey: EnemyDragon
     animationSpeedMultiplier: 0.45
-    hpMultiplier: 240
+    hpMultiplier: 720
     damageMultiplier: 48
     speedMultiplier: 0.56
     cellSize: 4

@@ -28,6 +28,7 @@ namespace AreaSurvivors
         GridObjectVisual gridVisual;
         CharacterFootprint footprint;
         PaperMeshVisual visual;
+        EnemyBounceAnimation bounceAnimation;
         RuntimeSpriteOutline outline;
         CharacterOcclusionReveal reveal;
         EnemySlowEffect slowEffect;
@@ -36,6 +37,8 @@ namespace AreaSurvivors
         float footProbeDistance = 0.24f;
         float speedMultiplier = 1f;
         bool dying;
+        bool actionLocked;
+        Vector2 facingDirection = Vector2.down;
         Color desiredOutlineColor = Color.black;
         const int BossSortingOffsetPerCell = 35;
 
@@ -52,6 +55,11 @@ namespace AreaSurvivors
             if (gridVisual == null) gridVisual = gameObject.AddComponent<GridObjectVisual>();
             gridVisual.ConfigureCharacter(1f);
             visual = GetComponentInChildren<PaperMeshVisual>();
+            if (visual != null)
+            {
+                bounceAnimation = visual.GetComponent<EnemyBounceAnimation>();
+                if (bounceAnimation == null) bounceAnimation = visual.gameObject.AddComponent<EnemyBounceAnimation>();
+            }
             outline = visual != null ? visual.GetComponent<RuntimeSpriteOutline>() : GetComponentInChildren<RuntimeSpriteOutline>();
             reveal = GetComponent<CharacterOcclusionReveal>();
             slowEffect = GetComponent<EnemySlowEffect>();
@@ -78,6 +86,16 @@ namespace AreaSurvivors
             health.SetMax(hp);
             body.drag = 0f;
             speedMultiplier = Mathf.Max(0.05f, speedScale);
+        }
+
+        public bool IsActionLocked => actionLocked;
+        public Vector2 FacingDirection => facingDirection.sqrMagnitude > 0.001f ? facingDirection : Vector2.down;
+
+        public void SetActionLocked(bool locked, Vector2 direction)
+        {
+            actionLocked = locked;
+            if (direction.sqrMagnitude > 0.001f) facingDirection = direction.normalized;
+            if (locked && body != null) body.velocity = Vector2.zero;
         }
 
         void ApplyDefinition(EnemyDefinition definition)
@@ -216,12 +234,19 @@ namespace AreaSurvivors
         void Update()
         {
             if (dying || target == null) return;
+            if (actionLocked)
+            {
+                body.velocity = Vector2.zero;
+                if (grid != null) grid.Paint(MovementSamplePosition(), TileOwner.Enemy, 1);
+                return;
+            }
             if (knockback != null && knockback.Active)
             {
                 if (directionalAnimator != null) directionalAnimator.Tick(Vector2.down, true);
                 return;
             }
             var direction = ((Vector2)(target.position - transform.position)).normalized;
+            if (direction.sqrMagnitude > 0.001f) facingDirection = direction;
             if (TryHandleGridObjectContact(direction))
             {
                 body.velocity = Vector2.zero;

@@ -101,7 +101,7 @@ namespace AreaSurvivors
             {
                 itemImage.sprite = LoadIcon(definition);
                 itemImage.rectTransform.anchoredPosition = itemStartPosition;
-                itemImage.rectTransform.localScale = Vector3.one;
+                itemImage.rectTransform.localScale = Vector3.one * RelicCatalog.IconScale(definition);
                 SetAlpha(itemImage, 0f);
             }
 

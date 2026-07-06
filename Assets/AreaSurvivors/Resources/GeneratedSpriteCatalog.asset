@@ -15,12 +15,12 @@ MonoBehaviour:
   entries:
   - name: AdvancedWeaponArea
     sprite: {fileID: 21300000, guid: 21ac0265ab4d5d24194b0d3092a725a5, type: 3}
-  - name: FlagAreaEllipse
-    sprite: {fileID: 21300000, guid: 84d6a6f9b8cc4f26bf0c911a4d91f0aa, type: 3}
-  - name: Archer.
+  - name: Archer
     sprite: {fileID: 21300000, guid: dbb0336b5d5063a4da627fb81e05adfc, type: 3}
-  - name: Arrow.
+  - name: Arrow
     sprite: {fileID: 21300000, guid: 93f11e156b313964db5487e2a0803cde, type: 3}
+  - name: ArrowHudIcon
+    sprite: {fileID: 21300000, guid: 8d8773900d4798b4fad3419fa28e6384, type: 3}
   - name: ArrowRain
     sprite: {fileID: 21300000, guid: f68d2324ae28e1f4296f91fdca40c2b0, type: 3}
   - name: ArrowRainFrame_0
@@ -43,36 +43,90 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: eae5da43efda70741b01d3026eb402e9, type: 3}
   - name: AuraSwordSlash
     sprite: {fileID: 21300000, guid: ec07f98c7713abc4db831392922e909f, type: 3}
-  - name: Axe.
+  - name: Axe
     sprite: {fileID: 21300000, guid: bf9ccc17ca6d0d144810ed5ee8604c0d, type: 3}
-  - name: Ballista.
+  - name: Ballista
     sprite: {fileID: 21300000, guid: 01cfba73cb681724686a120912dbc395, type: 3}
-  - name: BallistaUpgrade.
+  - name: BallistaDestroyed
+    sprite: {fileID: 21300000, guid: ce9ec4633e644a21b32dcfdfd9a70efd, type: 3}
+  - name: BallistaUpgrade
     sprite: {fileID: 21300000, guid: 02cc1bf901e142c9a7a5a6db67cf4305, type: 3}
+  - name: BallistaUpgradeDestroyed
+    sprite: {fileID: 21300000, guid: 13488190996942a29e62683c650c2586, type: 3}
   - name: BoomerangSword
     sprite: {fileID: 21300000, guid: 565b272eb9124a54a911ae687be14fce, type: 3}
   - name: BoomerangSwordBlade
     sprite: {fileID: 21300000, guid: c5c4f8d7e3a14ff682fd13d8efbd50f7, type: 3}
-  - name: Cannonball.
-    sprite: {fileID: 21300000, guid: e368e2c6b2424ad8950fa2077e9458a0, type: 3}
-  - name: CannonExplosion.
+  - name: Boss/Dragon/BreathExplosion
+    sprite: {fileID: 21300000, guid: 6f66a5b07aebdd14b854b12534daf9c2, type: 3}
+  - name: Boss/Dragon/BreathFireball
+    sprite: {fileID: 21300000, guid: 2dd0b847d4809bc4e80742e34dcc010f, type: 3}
+  - name: Boss/Dragon/Down_MouthClosed
+    sprite: {fileID: 21300000, guid: ff08de2bbbd6113429a6b717c54cb0ee, type: 3}
+  - name: Boss/Dragon/Down_MouthOpen
+    sprite: {fileID: 21300000, guid: 5f82379ee89d2cd438a50ec9e0fe321b, type: 3}
+  - name: Boss/Dragon/Left_MouthClosed
+    sprite: {fileID: 21300000, guid: 9232818c0ff35ce45b3698b0d657c7e1, type: 3}
+  - name: Boss/Dragon/Left_MouthOpen
+    sprite: {fileID: 21300000, guid: abaacdf5798300a49908939a13a32236, type: 3}
+  - name: Boss/Dragon/Right_MouthClosed
+    sprite: {fileID: 21300000, guid: 62dfbbefe4168334e8fa3f7ec7cf32df, type: 3}
+  - name: Boss/Dragon/Right_MouthOpen
+    sprite: {fileID: 21300000, guid: b8d61e1bb53a8ef49a4f56867093d44d, type: 3}
+  - name: Boss/Dragon/Up_MouthClosed
+    sprite: {fileID: 21300000, guid: 6e4cf28f3bded744db8a677306a25c91, type: 3}
+  - name: Boss/Dragon/Up_MouthOpen
+    sprite: {fileID: 21300000, guid: 5b273505c3aeffb4495c951adcfc8156, type: 3}
+  - name: Boss/GoblinLord/DarkOrb
+    sprite: {fileID: 21300000, guid: e172d282d8addca48b6b78cf329d69b8, type: 3}
+  - name: Boss/GoblinLord/Down_Cast
+    sprite: {fileID: 21300000, guid: 3939a248ad7da314a897f95a3c115efe, type: 3}
+  - name: Boss/GoblinLord/Left_Cast
+    sprite: {fileID: 21300000, guid: 9df1418a2a536e048a758008b45ff12a, type: 3}
+  - name: Boss/GoblinLord/Right_Cast
+    sprite: {fileID: 21300000, guid: 4e5d75fee2d275143b2b82dbfa7fee95, type: 3}
+  - name: Boss/GoblinLord/Up_Cast
+    sprite: {fileID: 21300000, guid: 17c8eca3d3ecee746b735531c0371c01, type: 3}
+  - name: Boss/Lich/Down_Cast
+    sprite: {fileID: 21300000, guid: 1594e629cf35f1745a02d98111d8919d, type: 3}
+  - name: Boss/Lich/Left_Cast
+    sprite: {fileID: 21300000, guid: bb434155bedcee94aa1aa81265655687, type: 3}
+  - name: Boss/Lich/Right_Cast
+    sprite: {fileID: 21300000, guid: 0c1d8088d17efac488b14366215357a9, type: 3}
+  - name: Boss/Lich/SummonCircle
+    sprite: {fileID: 21300000, guid: 5d53948628778c6418e6b6b36360124b, type: 3}
+  - name: Boss/Lich/Up_Cast
+    sprite: {fileID: 21300000, guid: 63bd48ee3dc3e1e449d9edb3b1459ef3, type: 3}
+  - name: Boss/OrcKing/Down_Raise
+    sprite: {fileID: 21300000, guid: 411f9f630fc63554eaf2dd78e02130d5, type: 3}
+  - name: Boss/OrcKing/Down_Slam
+    sprite: {fileID: 21300000, guid: 10ddc95be87914b4285b80a05ce23fd0, type: 3}
+  - name: Boss/OrcKing/Right_Raise
+    sprite: {fileID: 21300000, guid: 88478709cc699864588cc3c95594a21e, type: 3}
+  - name: Boss/OrcKing/Right_Slam
+    sprite: {fileID: 21300000, guid: fc5008153b940464ab63f0a510797d0b, type: 3}
+  - name: Boss/OrcKing/Shockwave
+    sprite: {fileID: 21300000, guid: bf8425d4051ae3240891b7b5204c89cf, type: 3}
+  - name: Boss/OrcKing/Up_Raise
+    sprite: {fileID: 21300000, guid: c19907bb1c6f5e348b2004ec7ccecacf, type: 3}
+  - name: Boss/OrcKing/Up_Slam
+    sprite: {fileID: 21300000, guid: e735d70ede091e24d84f66af237b927b, type: 3}
+  - name: CannonExplosion
     sprite: {fileID: 21300000, guid: cdbe110e60164bdfaf916542e9e5bc3e, type: 3}
-  - name: CharacterSheets/Archer.
-    sprite: {fileID: 21300000, guid: dc3845514dfe65741a5862968992f85e, type: 3}
-  - name: CharacterSheets/EnemyBoar.
-    sprite: {fileID: 21300000, guid: 6f75c3c523ab55a4181c3b9ebf876c66, type: 3}
-  - name: CharacterSheets/Knight.
-    sprite: {fileID: 21300000, guid: 060072bd64fc59848a94ffe7828c4e55, type: 3}
-  - name: CharacterSheets/Mage.
-    sprite: {fileID: 21300000, guid: e57c6b9a563829643bce5dc343a12245, type: 3}
-  - name: EnemyBoar.
+  - name: Cannonball
+    sprite: {fileID: 21300000, guid: e368e2c6b2424ad8950fa2077e9458a0, type: 3}
+  - name: EnemyBoar
     sprite: {fileID: 21300000, guid: 086018f2d6e720e44aaa772154c6fc94, type: 3}
-  - name: ExperienceOrb.
+  - name: ExperienceOrb
     sprite: {fileID: 21300000, guid: 896c833801240b54695f330c5e7d90d2, type: 3}
-  - name: Fireball.
+  - name: Fireball
     sprite: {fileID: 21300000, guid: 132bacae8e22e2f418a6b868c4fe9ea0, type: 3}
+  - name: FireballHudIcon
+    sprite: {fileID: 21300000, guid: aa6fc7de36424134088e0e1a20939a2b, type: 3}
   - name: Flag
     sprite: {fileID: 21300000, guid: 7a7ba1e057266b344821c92cb3a32b33, type: 3}
+  - name: FlagAreaEllipse
+    sprite: {fileID: 21300000, guid: 84d6a6f9b8cc4f26bf0c911a4d91f0aa, type: 3}
   - name: Frost
     sprite: {fileID: 21300000, guid: 359ecf2652bfeae478e12340860df121, type: 3}
   - name: FrostAreaEllipse
@@ -81,140 +135,130 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: b3f5e6a19f4d4d7ca71263fb6ad7d2c1, type: 3}
   - name: FrostAreaTextureAlt
     sprite: {fileID: 21300000, guid: d7e2f5c11b334db8adf2893cfd58e142, type: 3}
-  - name: GeneratedEnvironmentPropsSheet.
+  - name: GeneratedEnvironmentPropsSheet
     sprite: {fileID: 21300000, guid: e4e5f407c4573e0458f1c3f423cbb5eb, type: 3}
-  - name: GeneratedGrassSource.
+  - name: GeneratedGrassSource
     sprite: {fileID: 21300000, guid: 010b093bca5e74748adfddd4f07ef494, type: 3}
-  - name: GeneratedSpriteSheet.
+  - name: GeneratedSpriteSheet
     sprite: {fileID: 21300000, guid: 4445aff36f16297419ace1fed218370f, type: 3}
-  - name: GeneratedWeaponEffectsSheet.
+  - name: GeneratedWeaponEffectsSheet
     sprite: {fileID: 21300000, guid: 6eed2f91f4719f0489194d4d6e2ff563, type: 3}
-  - name: GroundChunk_Grass_24x24.
+  - name: GroundChunk_Grass_24x24
     sprite: {fileID: 21300000, guid: 6192861c6d55ee140a1be94cbbf54b26, type: 3}
-  - name: GroundVariants/DenseWildGrass.
+  - name: GroundVariants/DenseWildGrass
     sprite: {fileID: 21300000, guid: 41032f9776e545844b6765061b108e22, type: 3}
-  - name: GroundVariants/DirtPatch.
+  - name: GroundVariants/DirtPatch
     sprite: {fileID: 21300000, guid: 9570509db7ead604abd0b67e065b3b6c, type: 3}
-  - name: GroundVariants/DirtPathBend.
+  - name: GroundVariants/DirtPathBend
     sprite: {fileID: 21300000, guid: 7e8fef1b9311cf74e995e83b8a278783, type: 3}
-  - name: GroundVariants/DirtPathHorizontal.
+  - name: GroundVariants/DirtPathHorizontal
     sprite: {fileID: 21300000, guid: 12474e32123fa6d438c9df0b00697c40, type: 3}
-  - name: GroundVariants/DirtPathVertical.
+  - name: GroundVariants/DirtPathVertical
     sprite: {fileID: 21300000, guid: 17c4b3f8b6b8c614584f381b8a1980a6, type: 3}
-  - name: GroundVariants/DirtScuffedPatches.
+  - name: GroundVariants/DirtScuffedPatches
     sprite: {fileID: 21300000, guid: 8d76d6e7e869ae444880ff1cec04d054, type: 3}
-  - name: GroundVariants/DirtTrailDiagonal.
+  - name: GroundVariants/DirtTrailDiagonal
     sprite: {fileID: 21300000, guid: e016952b173d62a4c9b1ec9ae8b99a4b, type: 3}
-  - name: GroundVariants/GrassFlowers.
+  - name: GroundVariants/GrassFlowers
     sprite: {fileID: 21300000, guid: d499d9d79d41a5b47b2c6d20bea16936, type: 3}
-  - name: GroundVariants/GrassMixedDetails.
+  - name: GroundVariants/GrassMixedDetails
     sprite: {fileID: 21300000, guid: c15573b9a2551dc449ac700b0a0e1312, type: 3}
-  - name: GroundVariants/GrassPebbles.
+  - name: GroundVariants/GrassPebbles
     sprite: {fileID: 21300000, guid: c1bf7532b1aaac047aa36e04b938fab0, type: 3}
-  - name: GroundVariants/GrassTufts.
+  - name: GroundVariants/GrassTufts
     sprite: {fileID: 21300000, guid: ca8cbd649d3cd0c49b97a1d8534cad15, type: 3}
-  - name: GroundVariants/GroundVariantsPreview.
+  - name: GroundVariants/GroundVariantsPreview
     sprite: {fileID: 21300000, guid: e6058dad30291074388cb41cde3d58a5, type: 3}
-  - name: GroundVariants/LushGrassFlowers.
+  - name: GroundVariants/LushGrassFlowers
     sprite: {fileID: 21300000, guid: 9db34ec4363347f499cea8a9df1dcc25, type: 3}
-  - name: GroundVariants/TallGrassClumps.
+  - name: GroundVariants/TallGrassClumps
     sprite: {fileID: 21300000, guid: d7357c30479210f4d92feba382918dd3, type: 3}
-  - name: GroundVariants/UserDenseTallGrass.
+  - name: GroundVariants/UserDenseTallGrass
     sprite: {fileID: 21300000, guid: aafcc52af36e1954b96eb9950b4b2495, type: 3}
-  - name: GroundVariants/UserDirtPatches.
+  - name: GroundVariants/UserDirtPatches
     sprite: {fileID: 21300000, guid: 39fff6d708307fd49ab3d058e49aa1ec, type: 3}
-  - name: GroundVariants/UserDirtTrailCurve.
+  - name: GroundVariants/UserDirtTrailCurve
     sprite: {fileID: 21300000, guid: 10ee02c482c486e4d93eab18dc595daf, type: 3}
-  - name: GroundVariants/UserDryPatch.
+  - name: GroundVariants/UserDryPatch
     sprite: {fileID: 21300000, guid: 1762673398aded9438bb88069b16d78e, type: 3}
-  - name: GroundVariants/UserFlowersGrass.
+  - name: GroundVariants/UserFlowersGrass
     sprite: {fileID: 21300000, guid: eba20f0fad9952f45a01cfdce7df90a8, type: 3}
-  - name: GroundVariants/UserGroundTile_01.
+  - name: GroundVariants/UserGroundTile_01
     sprite: {fileID: 21300000, guid: 19e9892110c1e604fbe0bdab93325f74, type: 3}
-  - name: GroundVariants/UserGroundTile_02.
+  - name: GroundVariants/UserGroundTile_02
     sprite: {fileID: 21300000, guid: cfef388862b80ee45b6476ea4abfd61c, type: 3}
-  - name: GroundVariants/UserGroundTile_03.
+  - name: GroundVariants/UserGroundTile_03
     sprite: {fileID: 21300000, guid: dd29778c77a0708468632ae4b466e324, type: 3}
-  - name: GroundVariants/UserGroundTile_04.
+  - name: GroundVariants/UserGroundTile_04
     sprite: {fileID: 21300000, guid: f6376baf1889657499cfbddff3f7aa3a, type: 3}
-  - name: GroundVariants/UserGroundTile_05.
+  - name: GroundVariants/UserGroundTile_05
     sprite: {fileID: 21300000, guid: 0a7208a67df8ff14092b6895013a4bb1, type: 3}
-  - name: GroundVariants/UserGroundTile_06.
+  - name: GroundVariants/UserGroundTile_06
     sprite: {fileID: 21300000, guid: 40b9e89c991a6ac4cb8a66a1ee52c5e4, type: 3}
-  - name: GroundVariants/UserGroundTile_07.
+  - name: GroundVariants/UserGroundTile_07
     sprite: {fileID: 21300000, guid: 2f09d0a9eed4b474fadb7f88ad3ac03d, type: 3}
-  - name: GroundVariants/UserGroundTile_08.
+  - name: GroundVariants/UserGroundTile_08
     sprite: {fileID: 21300000, guid: 91dad592276b09a41b7679bf15cb566f, type: 3}
-  - name: GroundVariants/UserGroundTile_09.
+  - name: GroundVariants/UserGroundTile_09
     sprite: {fileID: 21300000, guid: 60de02378909709469c72a704f2ef40c, type: 3}
-  - name: GroundVariants/UserGroundTile_10.
+  - name: GroundVariants/UserGroundTile_10
     sprite: {fileID: 21300000, guid: abb866db8eb19874aa1f579fcc419eb6, type: 3}
-  - name: GroundVariants/UserGroundTile_11.
+  - name: GroundVariants/UserGroundTile_11
     sprite: {fileID: 21300000, guid: b70159cd9ec245a4a90872c849c5ced2, type: 3}
-  - name: GroundVariants/UserGroundTile_12.
+  - name: GroundVariants/UserGroundTile_12
     sprite: {fileID: 21300000, guid: aa2f8e623ba71094e9dc150576684faa, type: 3}
-  - name: GroundVariants/UserGroundTile_13.
+  - name: GroundVariants/UserGroundTile_13
     sprite: {fileID: 21300000, guid: 3c7a3131799b9fc499277865dad4f854, type: 3}
-  - name: GroundVariants/UserGroundTile_14.
+  - name: GroundVariants/UserGroundTile_14
     sprite: {fileID: 21300000, guid: 70c8a4e5f576ccc4bbcfe00c07f2a1ff, type: 3}
-  - name: GroundVariants/UserGroundTile_15.
+  - name: GroundVariants/UserGroundTile_15
     sprite: {fileID: 21300000, guid: a03f8cb45d6771341b9a7a799b061a63, type: 3}
-  - name: GroundVariants/UserLargeClearing.
+  - name: GroundVariants/UserLargeClearing
     sprite: {fileID: 21300000, guid: faec1ca62bd315d46a39f4d451161ad2, type: 3}
-  - name: GroundVariants/UserLargeDirtPatch.
+  - name: GroundVariants/UserLargeDirtPatch
     sprite: {fileID: 21300000, guid: a532f16f0eb54cb44b3495faee69d192, type: 3}
-  - name: GroundVariants/UserPebblesFlowers.
+  - name: GroundVariants/UserPebblesFlowers
     sprite: {fileID: 21300000, guid: 3234ee37fab112348b358f45c6d5ec10, type: 3}
-  - name: GroundVariants/UserPebblesGrass.
+  - name: GroundVariants/UserPebblesGrass
     sprite: {fileID: 21300000, guid: 60813340bfeb17a48835cb29f98cb4de, type: 3}
-  - name: GroundVariants/UserScrubPatch.
+  - name: GroundVariants/UserScrubPatch
     sprite: {fileID: 21300000, guid: 73d1ecef948377247b41956bbb3a78aa, type: 3}
-  - name: GroundVariants/UserSmallDirtPatch.
+  - name: GroundVariants/UserSmallDirtPatch
     sprite: {fileID: 21300000, guid: f2556d21bc8384b4f821fa7ee05febef, type: 3}
-  - name: GroundVariants/UserSparseDirtGrass.
+  - name: GroundVariants/UserSparseDirtGrass
     sprite: {fileID: 21300000, guid: 5f7efa918efad4d49a9604d3cf565f16, type: 3}
-  - name: GroundVariants/UserSparseWeeds.
+  - name: GroundVariants/UserSparseWeeds
     sprite: {fileID: 21300000, guid: 8685de36471d71647a501d719aa87763, type: 3}
-  - name: GroundVariants/UserTallGrass.
+  - name: GroundVariants/UserTallGrass
     sprite: {fileID: 21300000, guid: 34e549a30fe96534e851405fd275090c, type: 3}
-  - name: GroundVariants/UserWindingDirtPatch.
+  - name: GroundVariants/UserWindingDirtPatch
     sprite: {fileID: 21300000, guid: 4030abc579e8f364ba6d6c2a469887a2, type: 3}
   - name: Gun
     sprite: {fileID: 21300000, guid: 841e2dc613f9a7c4d9eed5842da77b7f, type: 3}
   - name: GunBullet
     sprite: {fileID: 21300000, guid: 0dae26ed7a39ade42bdb5676031b768c, type: 3}
-  - name: Hammer.
+  - name: Hammer
     sprite: {fileID: 21300000, guid: f676b99de6e632e4bb5fc678669464c1, type: 3}
-  - name: Knight.
+  - name: Knight
     sprite: {fileID: 21300000, guid: 19e5ee4b86079144fa9f7508d8c14cc5, type: 3}
-  - name: Landmarks/Forest2.
-    sprite: {fileID: 21300000, guid: 3401e28cd172fc9439f878009f8f8d97, type: 3}
-  - name: Landmarks/Forest4.
-    sprite: {fileID: 21300000, guid: 6fd63a4a0c717db4db64a69ba172edfc, type: 3}
-  - name: Landmarks/Forest8.
-    sprite: {fileID: 21300000, guid: fe59832f29fbfa44c83bae6fdccba2c0, type: 3}
-  - name: Landmarks/Rock1.
-    sprite: {fileID: 21300000, guid: b1ec7fc013b5e0946be619e2f326b5e7, type: 3}
-  - name: Landmarks/Rock2.
-    sprite: {fileID: 21300000, guid: 7056169d7c925494fb31958d33f28dc2, type: 3}
-  - name: Landmarks/Rock4.
-    sprite: {fileID: 21300000, guid: 49252e13ff2f0e74881a5434ad1182b2, type: 3}
-  - name: Landmarks/Rock8.
-    sprite: {fileID: 21300000, guid: 875e36ccb28a9a0418f0292513a93dee, type: 3}
-  - name: Landmarks/Tree1.
-    sprite: {fileID: 21300000, guid: 61b4c798d1f42c448a7414760896048d, type: 3}
-  - name: Mage.
+  - name: Mage
     sprite: {fileID: 21300000, guid: 2b0cb0275ef349b45b46c5b29dc66cc8, type: 3}
-  - name: MapChunks/GrassChunk.
+  - name: MapChunks/GrassChunk
     sprite: {fileID: 21300000, guid: f362a2038aeb33c4ab70b6a1964051b1, type: 3}
-  - name: MapChunks/PerimeterChunk.
+  - name: MapChunks/PerimeterChunk
     sprite: {fileID: 21300000, guid: e97ff61b49894ee780086662d0d3a3fa, type: 3}
-  - name: Orb.
+  - name: Orb
     sprite: {fileID: 21300000, guid: 75deff6ab9beb69488fa042adb2101b9, type: 3}
-  - name: PaintTile.
+  - name: PaintTile
     sprite: {fileID: 21300000, guid: bc08f18174fd0974786e50728bb183d8, type: 3}
-  - name: Pickaxe.
+  - name: Pickaxe
     sprite: {fileID: 21300000, guid: b1ceea275f25ac6468e75c7214748e56, type: 3}
+  - name: PlayerArrow
+    sprite: {fileID: 21300000, guid: 87d2dd0222ef47a0a5e997ec9950510f, type: 3}
+  - name: RelicBackFx
+    sprite: {fileID: 21300000, guid: 3340e93c66e1c634385c4fb45f860a70, type: 3}
+  - name: RelicBackFxShiny
+    sprite: {fileID: 21300000, guid: 3f85f03e49fa5ed499d69749458912aa, type: 3}
   - name: RelicBlackIronBullet
     sprite: {fileID: 21300000, guid: 5f6c5fbb5c34df047a12bc7caf1f5134, type: 3}
   - name: RelicChantingHourglass
@@ -245,6 +289,8 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 33d2cd790fdfbf24aaccfc87ec7cb89e, type: 3}
   - name: RelicRallyBannerSigil
     sprite: {fileID: 21300000, guid: b3691b23c592f8e40acbc4648e3d544a, type: 3}
+  - name: RelicRarityBadge
+    sprite: {fileID: 21300000, guid: 5bb53c82a57df6c42ae40b38928cee7c, type: 3}
   - name: RelicRegeneratingWallstone
     sprite: {fileID: 21300000, guid: 33465be95f381e545bdf358d56c26890, type: 3}
   - name: RelicReturningBladeRing
@@ -253,16 +299,24 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: bc75651526590fd4f98145950f817143, type: 3}
   - name: RelicScholarLens
     sprite: {fileID: 21300000, guid: d1cfff6275699c940bf06da981350414, type: 3}
-  - name: RelicSlayerMedal
-    sprite: {fileID: 21300000, guid: fa8470e28ed9bdb4285e363951a082ff, type: 3}
-  - name: RelicSolitaryBlade
-    sprite: {fileID: 21300000, guid: 79be83b8ed16cde4f97bfa5b5bf63502, type: 3}
-  - name: RelicSwordsmanGlove
-    sprite: {fileID: 21300000, guid: 22eb4af2ddac726458637c253d34325c, type: 3}
-  - name: RelicThunderCore
-    sprite: {fileID: 21300000, guid: 993741050eba9c541b10630798418950, type: 3}
-  - name: RelicTwinArrowQuiver
-    sprite: {fileID: 21300000, guid: 6f94a59b62a72eb4dbba63f08e9cf8cf, type: 3}
+    - name: RelicSlayerMedal
+      sprite: {fileID: 21300000, guid: fa8470e28ed9bdb4285e363951a082ff, type: 3}
+    - name: RelicSolitaryBlade
+      sprite: {fileID: 21300000, guid: 79be83b8ed16cde4f97bfa5b5bf63502, type: 3}
+    - name: RelicStarbowSightCrown
+      sprite: {fileID: 21300000, guid: 9be013f162d74601a8f4aadf353d0463, type: 3}
+    - name: RelicSwordsmanGlove
+      sprite: {fileID: 21300000, guid: 22eb4af2ddac726458637c253d34325c, type: 3}
+    - name: RelicThousandSlayerLaurel
+      sprite: {fileID: 21300000, guid: 75ca2a320b1743f89ce5aeebb70e8318, type: 3}
+    - name: RelicThunderCore
+      sprite: {fileID: 21300000, guid: 993741050eba9c541b10630798418950, type: 3}
+    - name: RelicTriBladeCrest
+      sprite: {fileID: 21300000, guid: 87b29ddec59b43f6970c5d522d716999, type: 3}
+    - name: RelicTriSageCrystal
+      sprite: {fileID: 21300000, guid: 8e39b6d7c620403ea4a21e66dcc48edb, type: 3}
+    - name: RelicTwinArrowQuiver
+      sprite: {fileID: 21300000, guid: 6f94a59b62a72eb4dbba63f08e9cf8cf, type: 3}
   - name: RelicUnchippedEdge
     sprite: {fileID: 21300000, guid: e1707cc61d45c1e479e3bc7f767ef346, type: 3}
   - name: RelicUnwoundedVowSeal
@@ -315,63 +369,69 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: f290fe8d8f37463d841677caae4e4bdf, type: 3}
   - name: SkillIcons/SkillWoodenWallUpgrade
     sprite: {fileID: 21300000, guid: d5c465d584034ed78f7aee1348d17293, type: 3}
-  - name: SkullIcon.
+  - name: SkullIcon
     sprite: {fileID: 21300000, guid: 870356cd8343469aab6fd56ce2920ea5, type: 3}
-  - name: Slash_0.
+  - name: Slash_0
     sprite: {fileID: 21300000, guid: 563df66031c12d94c9ef9b8469fe7f32, type: 3}
-  - name: Slash_1.
+  - name: Slash_1
     sprite: {fileID: 21300000, guid: 140d9a3174fd9df409d37dcfc0608dcf, type: 3}
-  - name: Slash_2.
+  - name: Slash_2
     sprite: {fileID: 21300000, guid: e785731d8ef781549a1c95ded30892ef, type: 3}
-  - name: Sparkle.
+  - name: Sparkle
     sprite: {fileID: 21300000, guid: 685ddbf05c42cbb41834e819bb91bd9a, type: 3}
-  - name: StatIcons/StatAttack.
+  - name: StatIcons/StatAttack
     sprite: {fileID: 21300000, guid: 90bca7d947d8eaf4a9c7ae87b59d6ec0, type: 3}
-  - name: StatIcons/StatCooldown.
+  - name: StatIcons/StatCooldown
     sprite: {fileID: 21300000, guid: 267ef6bb8c1064a45b3b3882cb3d4a0d, type: 3}
-  - name: StatIcons/StatDefense.
+  - name: StatIcons/StatDefense
     sprite: {fileID: 21300000, guid: a8d96b589b0be2f419c435604c089355, type: 3}
-  - name: StatIcons/StatKnockback.
+  - name: StatIcons/StatKnockback
     sprite: {fileID: 21300000, guid: 8a3afb946c76b5a488e3748d6c958217, type: 3}
-  - name: StatIcons/StatMaxHp.
+  - name: StatIcons/StatMaxHp
     sprite: {fileID: 21300000, guid: db8b4e70d5c3d2542888cd28644617bc, type: 3}
-  - name: StatIcons/StatMoveSpeed.
+  - name: StatIcons/StatMoveSpeed
     sprite: {fileID: 21300000, guid: b238a2d325268f64ea5f832a5a264e1b, type: 3}
-  - name: StatIcons/StatPaint.
+  - name: StatIcons/StatPaint
     sprite: {fileID: 21300000, guid: ccc3ff5302ba53041bc8e17eb9c3c7b1, type: 3}
-  - name: StatIcons/StatProjectile.
+  - name: StatIcons/StatProjectile
     sprite: {fileID: 21300000, guid: 5229f688d4b3326479a1219193eae7e8, type: 3}
-  - name: StatIcons/StatRange.
+  - name: StatIcons/StatRange
     sprite: {fileID: 21300000, guid: dccbc00e801de2c4a8199a48349cbe09, type: 3}
-  - name: StatIcons/StatRegen.
+  - name: StatIcons/StatRegen
     sprite: {fileID: 21300000, guid: 0282ca2212fdafb43b3d7b3c3b40f36f, type: 3}
-  - name: StatIcons/StatResource.
+  - name: StatIcons/StatResource
     sprite: {fileID: 21300000, guid: 01feb7c9fb18ae342ab660ed86ee48a6, type: 3}
-  - name: StatIcons/StatRevive.
+  - name: StatIcons/StatRevive
     sprite: {fileID: 21300000, guid: a26240cfb3add204a8c2d950ad271e64, type: 3}
-  - name: StatIcons/StatWeaponLevel.
+  - name: StatIcons/StatWeaponLevel
     sprite: {fileID: 21300000, guid: 5d81ec63b0e5afa459ff9792d9f9a746, type: 3}
-  - name: StatIcons/StatWork.
+  - name: StatIcons/StatWork
     sprite: {fileID: 21300000, guid: 15ae96a8b3cae77458af3f73a75afe61, type: 3}
-  - name: StatIcons/StatXp.
+  - name: StatIcons/StatXp
     sprite: {fileID: 21300000, guid: 102eb5c9d96f64943ab8ed6bdb670f0c, type: 3}
-  - name: StoneIcon.
+  - name: StoneIcon
     sprite: {fileID: 21300000, guid: cdbc8c9ec3b25894a972176d3be268f8, type: 3}
   - name: ThunderBall
     sprite: {fileID: 21300000, guid: 21fb944cb3d009448af6147fdad00323, type: 3}
-  - name: Tile.
+  - name: Tile
     sprite: {fileID: 21300000, guid: 36dbdf04eaaf55045be984110a93d894, type: 3}
-  - name: Token.
+  - name: Token
     sprite: {fileID: 21300000, guid: f2f1da4f0adeba140ba44f99c855a04a, type: 3}
-  - name: Tower.
+  - name: TitleReturnIcon
+    sprite: {fileID: 21300000, guid: c0666bbce34b4754bef7804eb49fdc58, type: 3}
+  - name: Tower
     sprite: {fileID: 21300000, guid: decc27b120ff1094380b26e6ef66fa96, type: 3}
-  - name: TowerUpgrade.
+  - name: TowerUpgrade
     sprite: {fileID: 21300000, guid: a1735007848e5854f8054ea9455e8ee5, type: 3}
-  - name: UI/LobbyBackground.
+  - name: TreasureChest
+    sprite: {fileID: 21300000, guid: 738b2318fd179954ebbdbaf0c11f87f9, type: 3}
+  - name: TreasureChestOpen
+    sprite: {fileID: 21300000, guid: c0592ac743a69144c9e59c16d89d7677, type: 3}
+  - name: UI/LobbyBackground
     sprite: {fileID: 21300000, guid: b17806bf661d48d42870dc5cbcb21638, type: 3}
-  - name: UI/TitleBackground.
+  - name: UI/TitleBackground
     sprite: {fileID: 21300000, guid: 7f32c1fadbf72094dad97faa1a60c543, type: 3}
-  - name: UI/UpgradeBackground.
+  - name: UI/UpgradeBackground
     sprite: {fileID: 21300000, guid: f3bea78236e7af1409aa5c0fe19a87bd, type: 3}
   - name: UI/WeaponTypeDefense
     sprite: {fileID: 21300000, guid: abad00691e3169d429ac0e83094a4d8e, type: 3}
@@ -381,103 +441,127 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 18fd46d753513aa4e887d06c197c9884, type: 3}
   - name: UI/WeaponTypeRanged
     sprite: {fileID: 21300000, guid: d82662bad096ae445889a00e9d163574, type: 3}
-  - name: UpgradeBuildingIcon.
+  - name: UpgradeBuildingIcon
     sprite: {fileID: 21300000, guid: 6b4dbe6630ca4fa8ab3858e933635458, type: 3}
-  - name: Walk/Archer/Down_0.
+  - name: Walk/Archer/Down_0
     sprite: {fileID: 21300000, guid: 92d7952a5d12d314a940c006a3bcc703, type: 3}
-  - name: Walk/Archer/Down_1.
+  - name: Walk/Archer/Down_1
     sprite: {fileID: 21300000, guid: a8371564d3e7a5c4cb784805d7239468, type: 3}
-  - name: Walk/Archer/Down_2.
+  - name: Walk/Archer/Down_2
     sprite: {fileID: 21300000, guid: 5c58ff708996e2e40986bb2c344df3a6, type: 3}
-  - name: Walk/Archer/Left_0.
+  - name: Walk/Archer/Left_0
     sprite: {fileID: 21300000, guid: b746de23df3153841bd8267c61759534, type: 3}
-  - name: Walk/Archer/Left_1.
+  - name: Walk/Archer/Left_1
     sprite: {fileID: 21300000, guid: 5f1ff28a4d39509408116b758d22f65b, type: 3}
-  - name: Walk/Archer/Left_2.
+  - name: Walk/Archer/Left_2
     sprite: {fileID: 21300000, guid: d6bf46286d1431945a45c2d28d70f000, type: 3}
-  - name: Walk/Archer/Right_0.
+  - name: Walk/Archer/Right_0
     sprite: {fileID: 21300000, guid: 89312cb120174e44c8236e7ae97c53c3, type: 3}
-  - name: Walk/Archer/Right_1.
+  - name: Walk/Archer/Right_1
     sprite: {fileID: 21300000, guid: 0f1caba8868354d4e9ca3e8eab395c97, type: 3}
-  - name: Walk/Archer/Right_2.
+  - name: Walk/Archer/Right_2
     sprite: {fileID: 21300000, guid: 33962396bc88aee45af57c800d7ed6a8, type: 3}
-  - name: Walk/Archer/Up_0.
+  - name: Walk/Archer/Up_0
     sprite: {fileID: 21300000, guid: 69ee10a9248e1774ea8d166933981b8f, type: 3}
-  - name: Walk/Archer/Up_1.
+  - name: Walk/Archer/Up_1
     sprite: {fileID: 21300000, guid: dea0a55c308aaaa428d292c884a0c4fd, type: 3}
-  - name: Walk/Archer/Up_2.
+  - name: Walk/Archer/Up_2
     sprite: {fileID: 21300000, guid: 25f26476e79d21e4eb023b42af376952, type: 3}
-  - name: Walk/EnemyBoar/Down_0.
+  - name: Walk/EnemyBoar/Down_0
     sprite: {fileID: 21300000, guid: 061ace027320dec408c4b0539c66ead1, type: 3}
-  - name: Walk/EnemyBoar/Down_1.
+  - name: Walk/EnemyBoar/Down_1
     sprite: {fileID: 21300000, guid: aa8bf6dd46ed8de42a39a004acb9793a, type: 3}
-  - name: Walk/EnemyBoar/Down_2.
+  - name: Walk/EnemyBoar/Down_2
     sprite: {fileID: 21300000, guid: 245ef54ff8dd297428526495d56185f9, type: 3}
-  - name: Walk/EnemyBoar/Left_0.
+  - name: Walk/EnemyBoar/Left_0
     sprite: {fileID: 21300000, guid: b95579886f88c9842aec654964d50f91, type: 3}
-  - name: Walk/EnemyBoar/Left_1.
+  - name: Walk/EnemyBoar/Left_1
     sprite: {fileID: 21300000, guid: 7033b067d260e4645aed7a3ed2bd2054, type: 3}
-  - name: Walk/EnemyBoar/Left_2.
+  - name: Walk/EnemyBoar/Left_2
     sprite: {fileID: 21300000, guid: 28bde2c91d8c328429a0ffd6b22a5e77, type: 3}
-  - name: Walk/EnemyBoar/Right_0.
+  - name: Walk/EnemyBoar/Right_0
     sprite: {fileID: 21300000, guid: fb3b037fe3b6c504e9b04f2ff5c15bd9, type: 3}
-  - name: Walk/EnemyBoar/Right_1.
+  - name: Walk/EnemyBoar/Right_1
     sprite: {fileID: 21300000, guid: 0aa3600fba7734e40989251c60a68456, type: 3}
-  - name: Walk/EnemyBoar/Right_2.
+  - name: Walk/EnemyBoar/Right_2
     sprite: {fileID: 21300000, guid: 41930e22774c4e24ea2df3f972957f26, type: 3}
-  - name: Walk/EnemyBoar/Up_0.
+  - name: Walk/EnemyBoar/Up_0
     sprite: {fileID: 21300000, guid: 59702ff9a37d23440ab28283d5dadfd4, type: 3}
-  - name: Walk/EnemyBoar/Up_1.
+  - name: Walk/EnemyBoar/Up_1
     sprite: {fileID: 21300000, guid: 326a35b42248bcc45af1bf5076670930, type: 3}
-  - name: Walk/EnemyBoar/Up_2.
+  - name: Walk/EnemyBoar/Up_2
     sprite: {fileID: 21300000, guid: d24d2fcbc093b2947a487b114f15a7e9, type: 3}
-  - name: Walk/EnemyGoblin/Down_0.
+  - name: Walk/EnemyDragon/Down_0
+    sprite: {fileID: 21300000, guid: 78d2ffd4a4902f140acc072554a5c484, type: 3}
+  - name: Walk/EnemyDragon/Down_1
+    sprite: {fileID: 21300000, guid: ed8d267a43a282c43addaa4d4bf4cd24, type: 3}
+  - name: Walk/EnemyDragon/Down_2
+    sprite: {fileID: 21300000, guid: 5fc002650af5e3a4a9fec74d3d60a9fb, type: 3}
+  - name: Walk/EnemyDragon/Left_0
+    sprite: {fileID: 21300000, guid: 775b4a1c056e27b49abea25cc2e0a91b, type: 3}
+  - name: Walk/EnemyDragon/Left_1
+    sprite: {fileID: 21300000, guid: 2ab7bc874c2f2c34f8b0d0dae7a722b4, type: 3}
+  - name: Walk/EnemyDragon/Left_2
+    sprite: {fileID: 21300000, guid: 0fa4b76c43e23cb498aa7e10a6d31980, type: 3}
+  - name: Walk/EnemyDragon/Right_0
+    sprite: {fileID: 21300000, guid: c071ea87e4d67414e983d725a1b02671, type: 3}
+  - name: Walk/EnemyDragon/Right_1
+    sprite: {fileID: 21300000, guid: f3b6b70493fd41d48988509923ea745a, type: 3}
+  - name: Walk/EnemyDragon/Right_2
+    sprite: {fileID: 21300000, guid: b7e4abf8ed5cb614e821593b278f7ad7, type: 3}
+  - name: Walk/EnemyDragon/Up_0
+    sprite: {fileID: 21300000, guid: 6cd7aaf8ea75dfc4a9a0b2ce49a09aca, type: 3}
+  - name: Walk/EnemyDragon/Up_1
+    sprite: {fileID: 21300000, guid: 7c4b6c649807dcb4bac7fd92b8c25f44, type: 3}
+  - name: Walk/EnemyDragon/Up_2
+    sprite: {fileID: 21300000, guid: 019e276d3df92b749b3e53c6b038c8b4, type: 3}
+  - name: Walk/EnemyGoblin/Down_0
     sprite: {fileID: 21300000, guid: bc8e441e45b94d8da351d6477a710ebf, type: 3}
-  - name: Walk/EnemyGoblin/Down_1.
+  - name: Walk/EnemyGoblin/Down_1
     sprite: {fileID: 21300000, guid: 6026cc01d6b543b2b506611ec02bdaab, type: 3}
-  - name: Walk/EnemyGoblin/Down_2.
+  - name: Walk/EnemyGoblin/Down_2
     sprite: {fileID: 21300000, guid: 7c1d41fb99344a7aae80af3d531d7f25, type: 3}
-  - name: Walk/EnemyGoblin/Left_0.
+  - name: Walk/EnemyGoblin/Left_0
     sprite: {fileID: 21300000, guid: 04b85cccb9d8462b9f38c89473f2421e, type: 3}
-  - name: Walk/EnemyGoblin/Left_1.
+  - name: Walk/EnemyGoblin/Left_1
     sprite: {fileID: 21300000, guid: ef0fe422fb704a95bc96f3bf548a2baa, type: 3}
-  - name: Walk/EnemyGoblin/Left_2.
+  - name: Walk/EnemyGoblin/Left_2
     sprite: {fileID: 21300000, guid: 0bfc158b4f7e4040a2e117df7d9e0dc7, type: 3}
-  - name: Walk/EnemyGoblin/Right_0.
+  - name: Walk/EnemyGoblin/Right_0
     sprite: {fileID: 21300000, guid: 9d5bf12668de4a298f698f3344e249b3, type: 3}
-  - name: Walk/EnemyGoblin/Right_1.
+  - name: Walk/EnemyGoblin/Right_1
     sprite: {fileID: 21300000, guid: 52845475e1c64773a4644033e01cb534, type: 3}
-  - name: Walk/EnemyGoblin/Right_2.
+  - name: Walk/EnemyGoblin/Right_2
     sprite: {fileID: 21300000, guid: 357ffea2f1b24786b925128645e799df, type: 3}
-  - name: Walk/EnemyGoblin/Up_0.
+  - name: Walk/EnemyGoblin/Up_0
     sprite: {fileID: 21300000, guid: a8e81e89bce24601aeefdcabbc23a433, type: 3}
-  - name: Walk/EnemyGoblin/Up_1.
+  - name: Walk/EnemyGoblin/Up_1
     sprite: {fileID: 21300000, guid: 80dbc6825d944b2f931fbfa657c39098, type: 3}
-  - name: Walk/EnemyGoblin/Up_2.
+  - name: Walk/EnemyGoblin/Up_2
     sprite: {fileID: 21300000, guid: a6bb4b61db3543e7b6f6de62111c510a, type: 3}
-  - name: Walk/EnemyGoblinLord/Down_0.
+  - name: Walk/EnemyGoblinLord/Down_0
     sprite: {fileID: 21300000, guid: ad953862ed0646debf62d9f7d99c6bf4, type: 3}
-  - name: Walk/EnemyGoblinLord/Down_1.
+  - name: Walk/EnemyGoblinLord/Down_1
     sprite: {fileID: 21300000, guid: e0102841a867477892565385557bf54e, type: 3}
-  - name: Walk/EnemyGoblinLord/Down_2.
+  - name: Walk/EnemyGoblinLord/Down_2
     sprite: {fileID: 21300000, guid: 57180b19e1754a04bf9952c7a3e606db, type: 3}
-  - name: Walk/EnemyGoblinLord/Left_0.
+  - name: Walk/EnemyGoblinLord/Left_0
     sprite: {fileID: 21300000, guid: d1bf33e5e62044ea90e627f3dc592bab, type: 3}
-  - name: Walk/EnemyGoblinLord/Left_1.
+  - name: Walk/EnemyGoblinLord/Left_1
     sprite: {fileID: 21300000, guid: 1f0cd0fd90224c05961fbcb172351e72, type: 3}
-  - name: Walk/EnemyGoblinLord/Left_2.
+  - name: Walk/EnemyGoblinLord/Left_2
     sprite: {fileID: 21300000, guid: 1ef714e0bbcf4adea0c1c77c0de52b6d, type: 3}
-  - name: Walk/EnemyGoblinLord/Right_0.
+  - name: Walk/EnemyGoblinLord/Right_0
     sprite: {fileID: 21300000, guid: bd96e3e344d141a8ac88278800f3193f, type: 3}
-  - name: Walk/EnemyGoblinLord/Right_1.
+  - name: Walk/EnemyGoblinLord/Right_1
     sprite: {fileID: 21300000, guid: 777753454bb2466f89944d4e1bd06714, type: 3}
-  - name: Walk/EnemyGoblinLord/Right_2.
+  - name: Walk/EnemyGoblinLord/Right_2
     sprite: {fileID: 21300000, guid: 77e084b1230441c697fdfe4889a61b8c, type: 3}
-  - name: Walk/EnemyGoblinLord/Up_0.
+  - name: Walk/EnemyGoblinLord/Up_0
     sprite: {fileID: 21300000, guid: 6ea1ee60dc7a40db97d788fe76bd094b, type: 3}
-  - name: Walk/EnemyGoblinLord/Up_1.
+  - name: Walk/EnemyGoblinLord/Up_1
     sprite: {fileID: 21300000, guid: b9244f39c0c14cbea8adee1228f5be4c, type: 3}
-  - name: Walk/EnemyGoblinLord/Up_2.
+  - name: Walk/EnemyGoblinLord/Up_2
     sprite: {fileID: 21300000, guid: 59cd5d65712c4dccb4d43fbb43e0156e, type: 3}
   - name: Walk/EnemyLich/Down_0
     sprite: {fileID: 21300000, guid: 4f9c3803bb92d4b3f5c664816d85ef56, type: 3}
@@ -503,77 +587,125 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: d6b934c7d0dea9c14dffca8c996fcd77, type: 3}
   - name: Walk/EnemyLich/Up_2
     sprite: {fileID: 21300000, guid: e7e8c2a0d992dbaefa9e00af32a68764, type: 3}
-  - name: Walk/EnemyOgre/Down_0.
+  - name: Walk/EnemyLizard/Down_0
+    sprite: {fileID: 21300000, guid: 50d2d2e073e819b45bb2c5e4c1ece18a, type: 3}
+  - name: Walk/EnemyLizard/Down_1
+    sprite: {fileID: 21300000, guid: d142cbbb3c380844a9bcbdf78ad65ab7, type: 3}
+  - name: Walk/EnemyLizard/Down_2
+    sprite: {fileID: 21300000, guid: 510f0a2c0103e3d47810a1d73dfea870, type: 3}
+  - name: Walk/EnemyLizard/Left_0
+    sprite: {fileID: 21300000, guid: d757587ab6006cc4d832f52e395db0d6, type: 3}
+  - name: Walk/EnemyLizard/Left_1
+    sprite: {fileID: 21300000, guid: f32e6cc6f85447544807f538aa7a91d4, type: 3}
+  - name: Walk/EnemyLizard/Left_2
+    sprite: {fileID: 21300000, guid: 7786624df84b7934199c8c9e2cf17600, type: 3}
+  - name: Walk/EnemyLizard/Right_0
+    sprite: {fileID: 21300000, guid: 1b8d666e9421cd64689bc2cf3bcdefdb, type: 3}
+  - name: Walk/EnemyLizard/Right_1
+    sprite: {fileID: 21300000, guid: 3127096b679a9f24db0061f29df3f41d, type: 3}
+  - name: Walk/EnemyLizard/Right_2
+    sprite: {fileID: 21300000, guid: d7827211315847b46908e2d4b9efa413, type: 3}
+  - name: Walk/EnemyLizard/Up_0
+    sprite: {fileID: 21300000, guid: 996e67f8093df09489214c4ceaf5bcb5, type: 3}
+  - name: Walk/EnemyLizard/Up_1
+    sprite: {fileID: 21300000, guid: 0df0e8bad13bf834687314ab4f7a57c3, type: 3}
+  - name: Walk/EnemyLizard/Up_2
+    sprite: {fileID: 21300000, guid: 5e622013214211b4e8bb140fd398ea6a, type: 3}
+  - name: Walk/EnemyLizardman/Down_0
+    sprite: {fileID: 21300000, guid: 1244c72122b2bbc4f90ac9d79e961d29, type: 3}
+  - name: Walk/EnemyLizardman/Down_1
+    sprite: {fileID: 21300000, guid: 6a57bf18b6e995e4585af0dd889424b0, type: 3}
+  - name: Walk/EnemyLizardman/Down_2
+    sprite: {fileID: 21300000, guid: a277a4736c5ef8340b46263e55424934, type: 3}
+  - name: Walk/EnemyLizardman/Left_0
+    sprite: {fileID: 21300000, guid: 0fa48738bc60cd44d9867902b2986595, type: 3}
+  - name: Walk/EnemyLizardman/Left_1
+    sprite: {fileID: 21300000, guid: 40fddbf2205913e448c4dd3cce08769e, type: 3}
+  - name: Walk/EnemyLizardman/Left_2
+    sprite: {fileID: 21300000, guid: 9b2a52390a13b7d40880c70b1e2e02f4, type: 3}
+  - name: Walk/EnemyLizardman/Right_0
+    sprite: {fileID: 21300000, guid: 9b3c4e24ffc2dce46aea3a2a709b8ab0, type: 3}
+  - name: Walk/EnemyLizardman/Right_1
+    sprite: {fileID: 21300000, guid: 23ee51249676b144f85555cf8c667364, type: 3}
+  - name: Walk/EnemyLizardman/Right_2
+    sprite: {fileID: 21300000, guid: 80cf641b91c2cbe4691c908eb9aa9c9d, type: 3}
+  - name: Walk/EnemyLizardman/Up_0
+    sprite: {fileID: 21300000, guid: f1aa79bb2dc30d24aa4b82bc6198d6ae, type: 3}
+  - name: Walk/EnemyLizardman/Up_1
+    sprite: {fileID: 21300000, guid: 9b5716d001671204abe3ce34745fd5d9, type: 3}
+  - name: Walk/EnemyLizardman/Up_2
+    sprite: {fileID: 21300000, guid: f4c94d531848dad4486438102e987756, type: 3}
+  - name: Walk/EnemyOgre/Down_0
     sprite: {fileID: 21300000, guid: 5383ef686eec454892a0b6812a394014, type: 3}
-  - name: Walk/EnemyOgre/Down_1.
+  - name: Walk/EnemyOgre/Down_1
     sprite: {fileID: 21300000, guid: 4b1496eec2b848739cabed10ac51b5f5, type: 3}
-  - name: Walk/EnemyOgre/Down_2.
+  - name: Walk/EnemyOgre/Down_2
     sprite: {fileID: 21300000, guid: d85e64a567374562b599e562ea334234, type: 3}
-  - name: Walk/EnemyOgre/Left_0.
+  - name: Walk/EnemyOgre/Left_0
     sprite: {fileID: 21300000, guid: 35c6e59b956240c7bbed53920b9a158f, type: 3}
-  - name: Walk/EnemyOgre/Left_1.
+  - name: Walk/EnemyOgre/Left_1
     sprite: {fileID: 21300000, guid: 159a4a21bdc64a77bd7ac971ce953cfa, type: 3}
-  - name: Walk/EnemyOgre/Left_2.
+  - name: Walk/EnemyOgre/Left_2
     sprite: {fileID: 21300000, guid: b892c42e93334af3bdbbcb6e3a4bab09, type: 3}
-  - name: Walk/EnemyOgre/Right_0.
+  - name: Walk/EnemyOgre/Right_0
     sprite: {fileID: 21300000, guid: 03c082dcdd074594b4ffbde0604876bd, type: 3}
-  - name: Walk/EnemyOgre/Right_1.
+  - name: Walk/EnemyOgre/Right_1
     sprite: {fileID: 21300000, guid: 1f7b13e71c3a4954b56ac1f3470405d7, type: 3}
-  - name: Walk/EnemyOgre/Right_2.
+  - name: Walk/EnemyOgre/Right_2
     sprite: {fileID: 21300000, guid: ce37fa307581476b9514d0fbfec006d2, type: 3}
-  - name: Walk/EnemyOgre/Up_0.
+  - name: Walk/EnemyOgre/Up_0
     sprite: {fileID: 21300000, guid: 156c8d60dac242dca487f644d9eff95b, type: 3}
-  - name: Walk/EnemyOgre/Up_1.
+  - name: Walk/EnemyOgre/Up_1
     sprite: {fileID: 21300000, guid: dffcf2caa4d64f04887dc3e4fe807df3, type: 3}
-  - name: Walk/EnemyOgre/Up_2.
+  - name: Walk/EnemyOgre/Up_2
     sprite: {fileID: 21300000, guid: 24ec2697b73c42cfaadd3071ba733fbf, type: 3}
-  - name: Walk/EnemyOrc/Down_0.
+  - name: Walk/EnemyOrc/Down_0
     sprite: {fileID: 21300000, guid: fdf42b85ed336604e9197ebde9fb100c, type: 3}
-  - name: Walk/EnemyOrc/Down_1.
+  - name: Walk/EnemyOrc/Down_1
     sprite: {fileID: 21300000, guid: 3d823fce04c9dd244b5b13f901f10049, type: 3}
-  - name: Walk/EnemyOrc/Down_2.
+  - name: Walk/EnemyOrc/Down_2
     sprite: {fileID: 21300000, guid: f42a802e799d70c4a93f15ed384cbfc2, type: 3}
-  - name: Walk/EnemyOrc/Left_0.
+  - name: Walk/EnemyOrc/Left_0
     sprite: {fileID: 21300000, guid: a8ad640e09b4dd345b110942a15a943b, type: 3}
-  - name: Walk/EnemyOrc/Left_1.
+  - name: Walk/EnemyOrc/Left_1
     sprite: {fileID: 21300000, guid: 4f35cb271f9f195428613bd09ff32627, type: 3}
-  - name: Walk/EnemyOrc/Left_2.
+  - name: Walk/EnemyOrc/Left_2
     sprite: {fileID: 21300000, guid: 539a17038314991449f7e320c9844e74, type: 3}
-  - name: Walk/EnemyOrc/Right_0.
+  - name: Walk/EnemyOrc/Right_0
     sprite: {fileID: 21300000, guid: c0af8a89f4f1bdd47850b8f49449a726, type: 3}
-  - name: Walk/EnemyOrc/Right_1.
+  - name: Walk/EnemyOrc/Right_1
     sprite: {fileID: 21300000, guid: 1077162d17184fd49952c22d0276edfa, type: 3}
-  - name: Walk/EnemyOrc/Right_2.
+  - name: Walk/EnemyOrc/Right_2
     sprite: {fileID: 21300000, guid: 789a2fafb7a1c504fae73ced2e845ec0, type: 3}
-  - name: Walk/EnemyOrc/Up_0.
+  - name: Walk/EnemyOrc/Up_0
     sprite: {fileID: 21300000, guid: d1938367adc12ea44913a21606b6887a, type: 3}
-  - name: Walk/EnemyOrc/Up_1.
+  - name: Walk/EnemyOrc/Up_1
     sprite: {fileID: 21300000, guid: 96ad82c1530af754a84cd63853ebaf28, type: 3}
-  - name: Walk/EnemyOrc/Up_2.
+  - name: Walk/EnemyOrc/Up_2
     sprite: {fileID: 21300000, guid: 0b8b69f38d59d45459ebc97818a62f5a, type: 3}
-  - name: Walk/EnemyOrcKing/Down_0.
+  - name: Walk/EnemyOrcKing/Down_0
     sprite: {fileID: 21300000, guid: 771421cc9fb5d2a46ae41e7494696315, type: 3}
-  - name: Walk/EnemyOrcKing/Down_1.
+  - name: Walk/EnemyOrcKing/Down_1
     sprite: {fileID: 21300000, guid: 925d41c857476744788020ef771d8c60, type: 3}
-  - name: Walk/EnemyOrcKing/Down_2.
+  - name: Walk/EnemyOrcKing/Down_2
     sprite: {fileID: 21300000, guid: 10d0bd7c6211e314a843c2281c799e9c, type: 3}
-  - name: Walk/EnemyOrcKing/Left_0.
+  - name: Walk/EnemyOrcKing/Left_0
     sprite: {fileID: 21300000, guid: 084093d84f49a0d45a51b332832904bb, type: 3}
-  - name: Walk/EnemyOrcKing/Left_1.
+  - name: Walk/EnemyOrcKing/Left_1
     sprite: {fileID: 21300000, guid: 8623f2855bb665d4a930047774ed8274, type: 3}
-  - name: Walk/EnemyOrcKing/Left_2.
+  - name: Walk/EnemyOrcKing/Left_2
     sprite: {fileID: 21300000, guid: 07c8cd6249ffb584aa55f5b927ab098c, type: 3}
-  - name: Walk/EnemyOrcKing/Right_0.
+  - name: Walk/EnemyOrcKing/Right_0
     sprite: {fileID: 21300000, guid: 3389891079524ad40ad418991b0b8f85, type: 3}
-  - name: Walk/EnemyOrcKing/Right_1.
+  - name: Walk/EnemyOrcKing/Right_1
     sprite: {fileID: 21300000, guid: f5e5279b371f71341936627c64cc53b9, type: 3}
-  - name: Walk/EnemyOrcKing/Right_2.
+  - name: Walk/EnemyOrcKing/Right_2
     sprite: {fileID: 21300000, guid: f6940d45bd1ee35439ed162e82f8ec6d, type: 3}
-  - name: Walk/EnemyOrcKing/Up_0.
+  - name: Walk/EnemyOrcKing/Up_0
     sprite: {fileID: 21300000, guid: be1b76ebd24e4824b8d63c26a06ad3d4, type: 3}
-  - name: Walk/EnemyOrcKing/Up_1.
+  - name: Walk/EnemyOrcKing/Up_1
     sprite: {fileID: 21300000, guid: 9bec4bead0656b04c95969d7bf83442e, type: 3}
-  - name: Walk/EnemyOrcKing/Up_2.
+  - name: Walk/EnemyOrcKing/Up_2
     sprite: {fileID: 21300000, guid: e08d0fab7ddfa2946a683e718e1579da, type: 3}
   - name: Walk/EnemySkeleton/Down_0
     sprite: {fileID: 21300000, guid: ca9d1f8f6c6ffd43e7f3c5aacdd7192b, type: 3}
@@ -623,69 +755,77 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: fe827fc39a4f9d88b4d6199654da6028, type: 3}
   - name: Walk/EnemySkeletonKnight/Up_2
     sprite: {fileID: 21300000, guid: 557168542f05e96594952f570f331229, type: 3}
-  - name: Walk/Knight/Down_0.
+  - name: Walk/Knight/Down_0
     sprite: {fileID: 21300000, guid: a2c684a9d1621a14db4466711422337a, type: 3}
-  - name: Walk/Knight/Down_1.
+  - name: Walk/Knight/Down_1
     sprite: {fileID: 21300000, guid: d21065662d338ce4c9baae72c8186739, type: 3}
-  - name: Walk/Knight/Down_2.
+  - name: Walk/Knight/Down_2
     sprite: {fileID: 21300000, guid: b277cc2437b33144ba340caf2721ccea, type: 3}
-  - name: Walk/Knight/Left_0.
+  - name: Walk/Knight/Left_0
     sprite: {fileID: 21300000, guid: 6eaffe9c55b0c7f44b3091a8f92b3bd8, type: 3}
-  - name: Walk/Knight/Left_1.
+  - name: Walk/Knight/Left_1
     sprite: {fileID: 21300000, guid: ea68293a8b937b749b74ed48d49eb28f, type: 3}
-  - name: Walk/Knight/Left_2.
+  - name: Walk/Knight/Left_2
     sprite: {fileID: 21300000, guid: bb67c71e73b7b3942ae3b29ef4c4e08e, type: 3}
-  - name: Walk/Knight/Right_0.
+  - name: Walk/Knight/Right_0
     sprite: {fileID: 21300000, guid: 95dad25259213a04ebb4f9908f04bbde, type: 3}
-  - name: Walk/Knight/Right_1.
+  - name: Walk/Knight/Right_1
     sprite: {fileID: 21300000, guid: f2548f9c00d6fde4ca6b8a4f77e9dfa4, type: 3}
-  - name: Walk/Knight/Right_2.
+  - name: Walk/Knight/Right_2
     sprite: {fileID: 21300000, guid: b16795b3fe240574dade6b25325a6cca, type: 3}
-  - name: Walk/Knight/Up_0.
+  - name: Walk/Knight/Up_0
     sprite: {fileID: 21300000, guid: 1f493a1743cd1474bbb79ebf4d8953ce, type: 3}
-  - name: Walk/Knight/Up_1.
+  - name: Walk/Knight/Up_1
     sprite: {fileID: 21300000, guid: 60c1fbbaed44f4446948c1202a197ad8, type: 3}
-  - name: Walk/Knight/Up_2.
+  - name: Walk/Knight/Up_2
     sprite: {fileID: 21300000, guid: d68338a5ed75a0f44af4667468eb115a, type: 3}
-  - name: Walk/Mage/Down_0.
+  - name: Walk/Mage/Down_0
     sprite: {fileID: 21300000, guid: af28fb21b67d3b24db35141c5a7053ad, type: 3}
-  - name: Walk/Mage/Down_1.
+  - name: Walk/Mage/Down_1
     sprite: {fileID: 21300000, guid: 3a236bbfe960a164aa2152fc1de51ec5, type: 3}
-  - name: Walk/Mage/Down_2.
+  - name: Walk/Mage/Down_2
     sprite: {fileID: 21300000, guid: 58d4927f54cade34686abc064ae4bb21, type: 3}
-  - name: Walk/Mage/Left_0.
+  - name: Walk/Mage/Left_0
     sprite: {fileID: 21300000, guid: 345e5ef0f62e1bb4cb8d7ba7eeea0fb4, type: 3}
-  - name: Walk/Mage/Left_1.
+  - name: Walk/Mage/Left_1
     sprite: {fileID: 21300000, guid: e24819eaaa4a3e54ba556e4c591d8f70, type: 3}
-  - name: Walk/Mage/Left_2.
+  - name: Walk/Mage/Left_2
     sprite: {fileID: 21300000, guid: 802dd5410a1445949b40c470b162ce4c, type: 3}
-  - name: Walk/Mage/Right_0.
+  - name: Walk/Mage/Right_0
     sprite: {fileID: 21300000, guid: 5dc6ebabda66d8840a386bcd698105af, type: 3}
-  - name: Walk/Mage/Right_1.
+  - name: Walk/Mage/Right_1
     sprite: {fileID: 21300000, guid: 8cdcc7a693bc60942bc5c62d39738c65, type: 3}
-  - name: Walk/Mage/Right_2.
+  - name: Walk/Mage/Right_2
     sprite: {fileID: 21300000, guid: 845dc3c776ec886489b1fa273bdfb3dd, type: 3}
-  - name: Walk/Mage/Up_0.
+  - name: Walk/Mage/Up_0
     sprite: {fileID: 21300000, guid: 6502094460567b4458029bd2c3835076, type: 3}
-  - name: Walk/Mage/Up_1.
+  - name: Walk/Mage/Up_1
     sprite: {fileID: 21300000, guid: 1fe90d3cffa228d4ba20f7de5657691a, type: 3}
-  - name: Walk/Mage/Up_2.
+  - name: Walk/Mage/Up_2
     sprite: {fileID: 21300000, guid: ac94e96d9d3874f4d82ad439e3661a3a, type: 3}
-  - name: Walk_Archer_Sheet.
+  - name: Walk_Archer_Sheet
     sprite: {fileID: 21300000, guid: 1dcd4b3a2418c5542913a8f776fd3d13, type: 3}
-  - name: Walk_EnemyBoar_Sheet.
+  - name: Walk_EnemyBoar_Sheet
     sprite: {fileID: 21300000, guid: 0a3034a4698601e4b8243884667ccc23, type: 3}
-  - name: Walk_Knight_Sheet.
+  - name: Walk_Knight_Sheet
     sprite: {fileID: 21300000, guid: 5923b01345456d94d87775472afd5c90, type: 3}
-  - name: Walk_Mage_Sheet.
+  - name: Walk_Mage_Sheet
     sprite: {fileID: 21300000, guid: fee8f65d0699c1441918aa288e9aac49, type: 3}
-  - name: WatchTower.
+  - name: WatchTower
     sprite: {fileID: 21300000, guid: 21a8096036d361640b76d30c33cdc590, type: 3}
-  - name: WatchTowerUpgrade.
+  - name: WatchTowerDestroyed
+    sprite: {fileID: 21300000, guid: 2894f83d56b14898b9c8647610f6c039, type: 3}
+  - name: WatchTowerUpgrade
     sprite: {fileID: 21300000, guid: f2970200c4d045ea9ba12f32eb71af97, type: 3}
-  - name: WoodenWall.
-    sprite: {fileID: 21300000, guid: c1c65f9d327a46ab882dc0e037fe24b9, type: 3}
-  - name: WoodenWallUpgrade.
-    sprite: {fileID: 21300000, guid: 5584e0128a7e4743a979509d03c0eb0b, type: 3}
-  - name: WoodIcon.
+  - name: WatchTowerUpgradeDestroyed
+    sprite: {fileID: 21300000, guid: 4608767426384b2fbb1f7cb2b2d938ff, type: 3}
+  - name: WoodIcon
     sprite: {fileID: 21300000, guid: 19845df25c834f04bb999aecaafd7a89, type: 3}
+  - name: WoodenWall
+    sprite: {fileID: 21300000, guid: c1c65f9d327a46ab882dc0e037fe24b9, type: 3}
+  - name: WoodenWallDestroyed
+    sprite: {fileID: 21300000, guid: a1dc7af657df47eaaa5a8d8f0812f049, type: 3}
+  - name: WoodenWallUpgrade
+    sprite: {fileID: 21300000, guid: 5584e0128a7e4743a979509d03c0eb0b, type: 3}
+  - name: WoodenWallUpgradeDestroyed
+    sprite: {fileID: 21300000, guid: 635c159896304c298f7e4e96abba7c27, type: 3}

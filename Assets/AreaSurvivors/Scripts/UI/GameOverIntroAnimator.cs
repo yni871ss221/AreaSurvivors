@@ -19,6 +19,9 @@ namespace AreaSurvivors
         public AnimatedItem title;
         public CanvasGroup subtitleGroup;
         public AnimatedItem[] resultItems;
+        public AnimatedItem stageUnlockPopupItem;
+        public Button stageUnlockOkButton;
+        public RectTransform missionCompleteTextRect;
         public AnimatedItem lobbyButtonItem;
         public Button lobbyButton;
         public Vector2 titleStartOffset = new Vector2(0f, -48f);
@@ -30,6 +33,8 @@ namespace AreaSurvivors
         public float itemDuration = 0.42f;
         public float buttonDelay = 0.08f;
         public float buttonDuration = 0.72f;
+        public float stageUnlockPopupDuration = 0.45f;
+        public float missionCompleteCheerDelay = 3f;
         public int panelRevealSfxCount = 7;
 
         Vector2 titleTargetPosition;
@@ -37,6 +42,9 @@ namespace AreaSurvivors
         Vector2 buttonTargetPosition;
         Coroutine playingRoutine;
         bool currentGameClear;
+        bool currentStageUnlockPopup;
+        bool currentMissionCompletePopup;
+        bool stageUnlockOkPressed;
 
         void Awake()
         {
@@ -48,12 +56,15 @@ namespace AreaSurvivors
         void OnDisable()
         {
             SetLobbyButtonInteractable(true);
+            if (stageUnlockOkButton != null) stageUnlockOkButton.onClick.RemoveListener(OnStageUnlockOkClicked);
         }
 
-        public void Play(bool gameClear)
+        public void Play(bool gameClear, bool showStageUnlockPopup = false, bool missionCompletePopup = false)
         {
             if (playingRoutine != null) StopCoroutine(playingRoutine);
             currentGameClear = gameClear;
+            currentStageUnlockPopup = showStageUnlockPopup;
+            currentMissionCompletePopup = missionCompletePopup;
             playingRoutine = StartCoroutine(PlayRoutine());
         }
 
@@ -84,10 +95,75 @@ namespace AreaSurvivors
                 }
             }
 
+            if (currentStageUnlockPopup)
+            {
+                yield return ShowStageUnlockPopup();
+            }
+
             if (buttonDelay > 0f) yield return Wait(buttonDelay);
             yield return Animate(lobbyButtonItem, buttonTargetPosition + itemStartOffset, buttonTargetPosition, buttonDuration);
             SetLobbyButtonInteractable(true);
             playingRoutine = null;
+        }
+
+        IEnumerator ShowStageUnlockPopup()
+        {
+            if (!IsValid(stageUnlockPopupItem)) yield break;
+
+            stageUnlockOkPressed = false;
+            SetStageUnlockButtonInteractable(false);
+            if (stageUnlockOkButton != null)
+            {
+                stageUnlockOkButton.onClick.RemoveListener(OnStageUnlockOkClicked);
+                stageUnlockOkButton.onClick.AddListener(OnStageUnlockOkClicked);
+            }
+
+            Coroutine bounceRoutine = null;
+            if (currentMissionCompletePopup)
+            {
+                AudioManager.PlaySfx(SfxTrack.MissionCompleteFanfare);
+                StartCoroutine(PlayMissionCompleteCheerDelayed());
+            }
+            else
+            {
+                AudioManager.PlaySfx(SfxTrack.StageUnlockPopup);
+            }
+
+            yield return Animate(stageUnlockPopupItem, Vector2.zero, Vector2.zero, stageUnlockPopupDuration);
+            if (currentMissionCompletePopup) bounceRoutine = StartCoroutine(BounceMissionCompleteText());
+            SetStageUnlockButtonInteractable(true);
+
+            while (!stageUnlockOkPressed)
+            {
+                yield return null;
+            }
+
+            if (bounceRoutine != null) StopCoroutine(bounceRoutine);
+            if (missionCompleteTextRect != null) missionCompleteTextRect.localScale = Vector3.one;
+            SetStageUnlockButtonInteractable(false);
+            HideImmediately(stageUnlockPopupItem);
+        }
+
+        IEnumerator PlayMissionCompleteCheerDelayed()
+        {
+            yield return Wait(missionCompleteCheerDelay);
+            AudioManager.PlaySfx(SfxTrack.MissionCompleteCheer);
+        }
+
+        IEnumerator BounceMissionCompleteText()
+        {
+            if (missionCompleteTextRect == null) yield break;
+
+            const float cycleSeconds = 0.58f;
+            while (!stageUnlockOkPressed)
+            {
+                float phase = Mathf.PingPong(Time.unscaledTime / cycleSeconds, 1f);
+                float scale = Mathf.Lerp(1f, 1.16f, EaseOutCubic(phase));
+                missionCompleteTextRect.localScale = new Vector3(scale, scale, 1f);
+                yield return null;
+            }
+
+            missionCompleteTextRect.localScale = Vector3.one;
         }
 
         IEnumerator Animate(AnimatedItem item, Vector2 startPosition, Vector2 targetPosition, float duration)
@@ -154,6 +230,7 @@ namespace AreaSurvivors
                 buttonTargetPosition = lobbyButtonItem.rect.anchoredPosition;
             }
             CaptureExtraScenePositions(lobbyButtonItem);
+            CaptureExtraScenePositions(stageUnlockPopupItem);
         }
 
         void ApplyInitialState()
@@ -170,6 +247,7 @@ namespace AreaSurvivors
             }
 
             ApplyItemInitialState(lobbyButtonItem, buttonTargetPosition + itemStartOffset);
+            ApplyStageUnlockInitialState();
         }
 
         static void ApplyItemInitialState(AnimatedItem item, Vector2 startPosition)
@@ -192,6 +270,16 @@ namespace AreaSurvivors
             group.alpha = 1f;
             group.blocksRaycasts = true;
             group.interactable = true;
+        }
+
+        static void HideImmediately(AnimatedItem item)
+        {
+            if (!IsValid(item)) return;
+            item.group.alpha = 0f;
+            item.group.blocksRaycasts = false;
+            item.group.interactable = false;
+            SetExtraGroups(item, 0f);
+            item.rect.gameObject.SetActive(false);
         }
 
         static void SetGroupAlpha(CanvasGroup group, float alpha)
@@ -250,6 +338,30 @@ namespace AreaSurvivors
         void SetLobbyButtonInteractable(bool interactable)
         {
             if (lobbyButton != null) lobbyButton.interactable = interactable;
+        }
+
+        void SetStageUnlockButtonInteractable(bool interactable)
+        {
+            if (stageUnlockOkButton != null) stageUnlockOkButton.interactable = interactable;
+        }
+
+        void OnStageUnlockOkClicked()
+        {
+            stageUnlockOkPressed = true;
+        }
+
+        void ApplyStageUnlockInitialState()
+        {
+            if (!IsValid(stageUnlockPopupItem)) return;
+            if (currentStageUnlockPopup)
+            {
+                stageUnlockPopupItem.rect.gameObject.SetActive(true);
+                ApplyItemInitialState(stageUnlockPopupItem, Vector2.zero);
+                SetStageUnlockButtonInteractable(false);
+                return;
+            }
+
+            HideImmediately(stageUnlockPopupItem);
         }
 
         static bool IsValid(AnimatedItem item)

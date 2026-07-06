@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -25,6 +26,7 @@ namespace AreaSurvivors
 
             if (navigator == null) navigator = GetComponent<SceneNavigator>();
             if (entries == null || entries.Length == 0) entries = GetComponentsInChildren<RelicBookEntryView>(true);
+            SortEntries();
 
             BindBackButton();
             InitializeEntries();
@@ -84,6 +86,16 @@ namespace AreaSurvivors
             {
                 if (entries[i] == null) continue;
                 entries[i].Initialize(this);
+            }
+        }
+
+        void SortEntries()
+        {
+            if (entries == null) return;
+            Array.Sort(entries, (a, b) => RelicCatalog.CompareDisplayOrder(a != null ? a.Definition : null, b != null ? b.Definition : null));
+            for (int i = 0; i < entries.Length; i++)
+            {
+                if (entries[i] != null) entries[i].transform.SetSiblingIndex(i);
             }
         }
 

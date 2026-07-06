@@ -43,7 +43,11 @@ namespace AreaSurvivors
                 nameText.text = owned && definition != null ? definition.displayName : "LOCK";
                 nameText.color = owned && definition != null ? RelicRarityVisuals.GetColor(definition.rarity) : Color.white;
             }
-            if (icon != null && definition != null) icon.sprite = LoadIcon(definition);
+            if (icon != null && definition != null)
+            {
+                icon.sprite = LoadIcon(definition);
+                icon.rectTransform.localScale = Vector3.one * RelicCatalog.IconScale(definition);
+            }
             if (silhouetteOverlay != null) silhouetteOverlay.gameObject.SetActive(!owned);
             if (icon != null) icon.color = owned ? Color.white : LockedIconColor;
             SetSelected(false);

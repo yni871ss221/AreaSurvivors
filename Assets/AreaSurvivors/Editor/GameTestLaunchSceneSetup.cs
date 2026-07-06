@@ -34,6 +34,29 @@ namespace AreaSurvivors.Editor
             }
         }
 
+        [MenuItem("AreaSurvivors/Setup/Refresh Game Test Launcher Relic Panel")]
+        public static void RefreshRelicPanel()
+        {
+            string previousScenePath = SceneManager.GetActiveScene().path;
+            var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            var relicPanel = FindChildInScene(scene, "Relic Test Panel");
+            if (relicPanel == null)
+            {
+                Debug.LogWarning("Relic Test Panel was not found. Skipped refreshing relic test controls.");
+            }
+            else
+            {
+                BuildRelicControls(relicPanel);
+                EditorSceneManager.MarkSceneDirty(scene);
+                EditorSceneManager.SaveScene(scene);
+            }
+
+            if (!string.IsNullOrEmpty(previousScenePath))
+            {
+                EditorSceneManager.OpenScene(previousScenePath, OpenSceneMode.Single);
+            }
+        }
+
         static void CreateTestLauncherScene()
         {
             var scene = System.IO.File.Exists(ScenePath)
@@ -51,17 +74,18 @@ namespace AreaSurvivors.Editor
 
             CreateBackground(canvas.transform);
             var mainPanel = Panel(canvas.transform, "Main Panel", new Vector2(0f, 0f), new Vector2(1120f, 650f), PanelColor);
-            var scrollRect = CreateScrollView(mainPanel.transform, "Tool Scroll View", new Vector2(0f, 0f), new Vector2(1040f, 600f), 1720f);
+            var scrollRect = CreateScrollView(mainPanel.transform, "Tool Scroll View", new Vector2(0f, 0f), new Vector2(1040f, 600f), 2220f);
             var content = scrollRect.content.transform;
 
             Label(content, "Title", "ゲーム起動テスト", 38, new Vector2(0f, -40f), new Vector2(520f, 52f), Color.white);
             Label(content, "Description", "ステージ、武器、レリック、強化データを指定して動作確認できます", 20, new Vector2(0f, -78f), new Vector2(760f, 34f), AccentText);
             BuildStageTestPanel(content, -210f);
-            BuildDataToolPanel(content, -440f);
-            BuildRelicTestPanel(content, -730f);
-            BuildWeaponTestPanel(content, -1210f);
-            Label(content, "Test Status Text", "テスト操作を選択できます", 17, new Vector2(0f, -1530f), new Vector2(760f, 48f), AccentText);
-            Button(content, "Lobby Button", "ロビーへ", new Vector2(0f, -1585f), new Vector2(260f, 44f), null, 20);
+            BuildBossSpawnTestPanel(content, -545f);
+            BuildDataToolPanel(content, -880f);
+            BuildRelicTestPanel(content, -1170f);
+            BuildWeaponTestPanel(content, -1650f);
+            Label(content, "Test Status Text", "テスト操作を選択できます", 17, new Vector2(0f, -1970f), new Vector2(760f, 48f), AccentText);
+            Button(content, "Lobby Button", "ロビーへ", new Vector2(0f, -2025f), new Vector2(260f, 44f), null, 20);
 
             var controller = new GameObject("Game Test Launcher Controller");
             controller.AddComponent<SceneNavigator>();
@@ -167,6 +191,28 @@ namespace AreaSurvivors.Editor
             Button(panel.transform, "Start Stage 2 Test Button", "STAGE 2 テスト開始", new Vector2(-300f, -14f), new Vector2(280f, 54f));
             Button(panel.transform, "Start Stage 3 Test Button", "STAGE 3 テスト開始", new Vector2(0f, -14f), new Vector2(280f, 54f));
             Button(panel.transform, "Start Stage 4 Test Button", "STAGE 4 テスト開始", new Vector2(300f, -14f), new Vector2(280f, 54f));
+            Button(panel.transform, "Start Stage 1 Boss Test Button", "STAGE 1 ボス直前開始", new Vector2(0f, -78f), new Vector2(360f, 46f), GeneratedSpriteLoader.Load("Walk/EnemyOrcKing/Down_1"), 20);
+        }
+
+        static void BuildBossSpawnTestPanel(Transform parent, float y)
+        {
+            var panel = Panel(parent, "Boss Spawn Test Panel", new Vector2(0f, y), new Vector2(960f, 430f), new Color(0.025f, 0.052f, 0.042f, 0.72f));
+            Label(panel.transform, "Boss Spawn Test Title", "ボス出現位置指定", 25, new Vector2(0f, 176f), new Vector2(360f, 34f), AccentText);
+            Label(panel.transform, "Boss Spawn Test Hint", "各ステージのボス直前から開始し、上下左右の指定位置にボスを出現させます", 17, new Vector2(0f, 142f), new Vector2(760f, 28f), AccentText);
+
+            var sides = new[] { BossTestSpawnSide.Up, BossTestSpawnSide.Down, BossTestSpawnSide.Left, BossTestSpawnSide.Right };
+            for (int stage = 1; stage <= 4; stage++)
+            {
+                float rowY = 86f - (stage - 1) * 66f;
+                var icon = BossIcon(stage);
+                for (int i = 0; i < sides.Length; i++)
+                {
+                    var side = sides[i];
+                    float x = -330f + i * 220f;
+                    string label = "STAGE " + stage + " " + BossSideLabel(side);
+                    Button(panel.transform, GameTestLaunchScreen.BossTestButtonName(stage, side), label, new Vector2(x, rowY), new Vector2(200f, 48f), icon, 16);
+                }
+            }
         }
 
         static void BuildDataToolPanel(Transform parent, float y)
@@ -182,20 +228,33 @@ namespace AreaSurvivors.Editor
         {
             var panel = Panel(parent, "Relic Test Panel", new Vector2(0f, y), new Vector2(960f, 370f), new Color(0.025f, 0.052f, 0.042f, 0.72f));
             Label(panel.transform, "Relic Test Title", "レリック取得状態", 25, new Vector2(0f, 150f), new Vector2(360f, 34f), AccentText);
+            BuildRelicControls(panel.transform);
+        }
 
-            var scrollRect = CreateScrollView(panel.transform, "Relic Test Scroll View", new Vector2(0f, 24f), new Vector2(820f, 210f), RelicCatalog.All.Length * 50f + 8f);
+        static void BuildRelicControls(Transform panel)
+        {
+            DestroyNamed(panel, "Relic Test Scroll View");
+            DestroyNamed(panel, "Reset All Relics Button");
+
+            const int columns = 5;
+            const float cellWidth = 154f;
+            const float cellHeight = 64f;
+            var relics = RelicCatalog.GetDisplayOrdered();
+            int rows = Mathf.CeilToInt(relics.Length / (float)columns);
+            var scrollRect = CreateScrollView(panel, "Relic Test Scroll View", new Vector2(0f, 24f), new Vector2(820f, 210f), rows * cellHeight + 10f);
             var content = scrollRect.content.transform;
-            var relics = RelicCatalog.All;
             for (int i = 0; i < relics.Length; i++)
             {
                 var definition = relics[i];
-                float rowY = -10f - i * 50f;
+                int row = i / columns;
+                int column = i % columns;
+                float x = -308f + column * cellWidth;
+                float rowY = -32f - row * cellHeight;
                 var icon = LoadRelicIcon(definition);
-                Button(content, GameTestLaunchScreen.RelicUnlockButtonName(definition.type), "獲得: " + definition.displayName, new Vector2(-180f, rowY), new Vector2(340f, 42f), icon, 16);
-                Button(content, GameTestLaunchScreen.RelicLockButtonName(definition.type), "未取得: " + definition.displayName, new Vector2(180f, rowY), new Vector2(340f, 42f), icon, 16);
+                RelicToggleCell(content, GameTestLaunchScreen.RelicToggleButtonName(definition.type), definition.displayName, new Vector2(x, rowY), icon);
             }
 
-            Button(panel.transform, "Reset All Relics Button", "全レリックを未取得へ", new Vector2(0f, -150f), new Vector2(340f, 44f), GeneratedSpriteLoader.Load("TreasureChest"), 18);
+            Button(panel, "Reset All Relics Button", "全レリックを未取得へ", new Vector2(0f, -150f), new Vector2(340f, 44f), GeneratedSpriteLoader.Load("TreasureChest"), 18);
         }
 
         static void BuildWeaponTestPanel(Transform parent, float y)
@@ -278,6 +337,35 @@ namespace AreaSurvivors.Editor
             return button;
         }
 
+        static Button RelicToggleCell(Transform parent, string objectName, string text, Vector2 pos, Sprite icon)
+        {
+            var go = new GameObject(objectName);
+            go.transform.SetParent(parent, false);
+            var image = go.AddComponent<Image>();
+            image.color = ButtonColor;
+            var button = go.AddComponent<Button>();
+            button.targetGraphic = image;
+            button.transition = Selectable.Transition.None;
+            var rect = button.GetComponent<RectTransform>();
+            PlaceRect(rect, parent, pos, new Vector2(146f, 58f));
+            UiBoxOutline.Apply(go.transform, EdgeColor, 2f);
+            var highlight = go.AddComponent<UiSelectionHighlight>();
+            highlight.padding = 5f;
+            highlight.thickness = 3f;
+            go.AddComponent<SelectOnPointerEnter>();
+
+            if (icon != null)
+            {
+                var iconImage = Image(go.transform, "Icon", Color.white, new Vector2(-47f, 8f), new Vector2(30f, 30f));
+                iconImage.sprite = icon;
+                iconImage.preserveAspect = true;
+            }
+
+            var label = Label(go.transform, "Label", text, 12, new Vector2(18f, -1f), new Vector2(94f, 48f), Color.white);
+            label.verticalOverflow = VerticalWrapMode.Overflow;
+            return button;
+        }
+
         static Sprite LoadWeaponIcon(WeaponType weaponType)
         {
             string key = WeaponCatalog.IconResource(weaponType);
@@ -292,6 +380,29 @@ namespace AreaSurvivors.Editor
             var sprite = GeneratedSpriteLoader.Load(definition.iconPath);
             if (sprite != null) return sprite;
             return Resources.Load<Sprite>(definition.iconPath);
+        }
+
+        static Sprite BossIcon(int stage)
+        {
+            if (stage == 2) return GeneratedSpriteLoader.Load("Walk/EnemyGoblinLord/Down_1");
+            if (stage == 3) return GeneratedSpriteLoader.Load("Walk/EnemyLich/Down_1");
+            if (stage == 4) return GeneratedSpriteLoader.Load("Walk/EnemyDragon/Down_1");
+            return GeneratedSpriteLoader.Load("Walk/EnemyOrcKing/Down_1");
+        }
+
+        static string BossSideLabel(BossTestSpawnSide side)
+        {
+            switch (side)
+            {
+                case BossTestSpawnSide.Down:
+                    return "下";
+                case BossTestSpawnSide.Left:
+                    return "左";
+                case BossTestSpawnSide.Right:
+                    return "右";
+                default:
+                    return "上";
+            }
         }
 
         static Image Panel(Transform parent, string name, Vector2 pos, Vector2 size, Color color)
@@ -312,6 +423,7 @@ namespace AreaSurvivors.Editor
             text.fontSize = fontSize;
             text.alignment = TextAnchor.MiddleCenter;
             text.color = color;
+            text.supportRichText = true;
             text.horizontalOverflow = HorizontalWrapMode.Wrap;
             text.verticalOverflow = VerticalWrapMode.Truncate;
             text.raycastTarget = false;
@@ -366,6 +478,17 @@ namespace AreaSurvivors.Editor
             for (int i = 0; i < root.childCount; i++)
             {
                 var found = FindChild(root.GetChild(i), name);
+                if (found != null) return found;
+            }
+
+            return null;
+        }
+
+        static Transform FindChildInScene(Scene scene, string name)
+        {
+            foreach (var root in scene.GetRootGameObjects())
+            {
+                var found = FindChild(root.transform, name);
                 if (found != null) return found;
             }
 
