@@ -11,10 +11,15 @@ namespace AreaSurvivors
         public Color silhouetteColor = new Color(0.3f, 0.95f, 1f, 0.72f);
         public Color outlineColor = Color.white;
         [Min(0.02f)] public float checkInterval = 0.08f;
+        [Min(0.08f)] public float normalEnemyCheckInterval = 0.5f;
 
         static Renderer[] cachedOccluders;
         static float nextOccluderRefresh;
         static readonly Dictionary<Texture, Material> StencilMaterials = new Dictionary<Texture, Material>();
+        const int NormalEnemyChecksPerFrame = 24;
+        const float NormalEnemyRetrySeconds = 0.03f;
+        static int normalEnemyBudgetFrame = -1;
+        static int normalEnemyChecksThisFrame;
 
         PaperMeshVisual source;
         MeshRenderer sourceRenderer;
@@ -23,12 +28,14 @@ namespace AreaSurvivors
         CommandBuffer commandBuffer;
         Camera renderCamera;
         CharacterFootprint footprint;
+        EnemyController enemy;
         bool commandBufferAttached;
         float timer;
 
         void OnEnable()
         {
             EnsureResources();
+            timer = InitialTimerOffset();
         }
 
         void LateUpdate()
@@ -38,7 +45,13 @@ namespace AreaSurvivors
 
             timer -= Time.unscaledDeltaTime;
             if (timer > 0f) return;
-            timer = checkInterval;
+            if (!CanRunThisFrame())
+            {
+                timer = NormalEnemyRetrySeconds;
+                return;
+            }
+
+            timer = EffectiveCheckInterval();
             RebuildCommands();
         }
 
@@ -56,6 +69,7 @@ namespace AreaSurvivors
             if (source == null) return;
             if (sourceRenderer == null) sourceRenderer = source.GetComponent<MeshRenderer>();
             if (footprint == null) footprint = GetComponent<CharacterFootprint>();
+            if (enemy == null) enemy = GetComponent<EnemyController>();
 
             var camera = Camera.main;
             if (renderCamera != camera)
@@ -73,6 +87,42 @@ namespace AreaSurvivors
             {
                 commandBuffer = new CommandBuffer { name = $"Character Occlusion: {name}" };
             }
+        }
+
+        bool CanRunThisFrame()
+        {
+            if (!IsNormalEnemy()) return true;
+
+            int frame = Time.frameCount;
+            if (normalEnemyBudgetFrame != frame)
+            {
+                normalEnemyBudgetFrame = frame;
+                normalEnemyChecksThisFrame = 0;
+            }
+
+            if (normalEnemyChecksThisFrame >= NormalEnemyChecksPerFrame) return false;
+            normalEnemyChecksThisFrame++;
+            return true;
+        }
+
+        float EffectiveCheckInterval()
+        {
+            return IsNormalEnemy()
+                ? Mathf.Max(checkInterval, normalEnemyCheckInterval)
+                : checkInterval;
+        }
+
+        float InitialTimerOffset()
+        {
+            float interval = EffectiveCheckInterval();
+            int hash = Mathf.Abs(GetInstanceID());
+            return (hash % 997) / 997f * interval;
+        }
+
+        bool IsNormalEnemy()
+        {
+            if (enemy == null) enemy = GetComponent<EnemyController>();
+            return enemy != null && !enemy.boss && !enemy.elite;
         }
 
         void RebuildCommands()

@@ -4,7 +4,9 @@ namespace AreaSurvivors
 {
     public sealed class OptionsScreen : MonoBehaviour
     {
+        public GeneralOptionsPanel generalOptionsPanel;
         public AudioOptionsPanel audioOptionsPanel;
+        public DisplayOptionsPanel displayOptionsPanel;
         public SceneNavigator navigator;
 
         void Start()
@@ -12,14 +14,16 @@ namespace AreaSurvivors
             AudioManager.PlayBgm(BgmTrack.TitleOptions);
 
             if (navigator == null) navigator = GetComponent<SceneNavigator>();
-            if (audioOptionsPanel == null || navigator == null)
+            if (generalOptionsPanel == null || audioOptionsPanel == null || displayOptionsPanel == null || navigator == null)
             {
-                Debug.LogError("OptionsScreen requires Scene-authored AudioOptionsPanel and SceneNavigator references.");
+                Debug.LogError("OptionsScreen requires Scene-authored option panel and SceneNavigator references.");
                 enabled = false;
                 return;
             }
 
+            generalOptionsPanel.Bind();
             audioOptionsPanel.Bind(navigator.LoadTitle);
+            displayOptionsPanel.Bind();
         }
     }
 }

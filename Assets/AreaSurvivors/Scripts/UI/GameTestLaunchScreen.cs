@@ -7,6 +7,8 @@ namespace AreaSurvivors
     {
         static readonly Color RelicOwnedButtonColor = new Color(0.34f, 0.39f, 0.14f, 0.98f);
         static readonly Color RelicUnownedButtonColor = new Color(0.055f, 0.075f, 0.07f, 0.94f);
+        static readonly Color StageClearedButtonColor = new Color(0.25f, 0.38f, 0.16f, 0.98f);
+        static readonly Color StageUnclearedButtonColor = new Color(0.08f, 0.13f, 0.12f, 0.94f);
 
         SceneNavigator navigator;
         Text statusText;
@@ -30,6 +32,7 @@ namespace AreaSurvivors
             for (int stage = 1; stage <= 4; stage++)
             {
                 int capturedStage = stage;
+                BindButton(StageClearToggleButtonName(capturedStage), () => ToggleStageClearStateForTesting(capturedStage));
                 foreach (BossTestSpawnSide side in System.Enum.GetValues(typeof(BossTestSpawnSide)))
                 {
                     var capturedSide = side;
@@ -56,6 +59,7 @@ namespace AreaSurvivors
             BindButton("Reset Stage Clear State Button", ResetStageClearStateForTesting);
             BindButton("Reset All Relics Button", ResetRelicsForTesting);
             BindButton("Lobby Button", navigator.LoadLobby);
+            RefreshStageClearButtonLabels();
             RefreshRelicButtonLabels();
             RefreshStatus("テスト操作を選択できます");
         }
@@ -113,7 +117,15 @@ namespace AreaSurvivors
         void ResetStageClearStateForTesting()
         {
             ProgressionStore.ResetStageClearStateForTesting();
+            RefreshStageClearButtonLabels();
             RefreshStatus("ステージクリア状態を初期化しました");
+        }
+
+        void ToggleStageClearStateForTesting(int stage)
+        {
+            bool cleared = ProgressionStore.ToggleStageClearedForTesting(stage);
+            RefreshStageClearButtonLabels();
+            RefreshStatus("STAGE " + stage + " を" + (cleared ? "クリア済みにしました" : "未クリアに戻しました"));
         }
 
         void UnlockRelicForTesting(RelicType relicType)
@@ -171,6 +183,20 @@ namespace AreaSurvivors
                 SetButtonLabel(buttons, RelicToggleButtonName(relic.type), state + "\n" + coloredName, buttonColor);
                 SetButtonLabel(buttons, RelicUnlockButtonName(relic.type), "切替: " + state + " / " + coloredName, buttonColor);
                 SetButtonLabel(buttons, RelicLockButtonName(relic.type), "未取得に戻す: " + coloredName, RelicUnownedButtonColor);
+            }
+
+            Canvas.ForceUpdateCanvases();
+        }
+
+        void RefreshStageClearButtonLabels()
+        {
+            var buttons = FindObjectsOfType<Button>(true);
+            for (int stage = 1; stage <= 4; stage++)
+            {
+                bool cleared = ProgressionStore.IsStageCleared(stage);
+                string state = cleared ? "クリア済" : "未クリア";
+                Color buttonColor = cleared ? StageClearedButtonColor : StageUnclearedButtonColor;
+                SetButtonLabel(buttons, StageClearToggleButtonName(stage), "STAGE " + stage + "\n" + state, buttonColor);
             }
 
             Canvas.ForceUpdateCanvases();
@@ -281,6 +307,11 @@ namespace AreaSurvivors
         public static string BossTestButtonName(int stage, BossTestSpawnSide side)
         {
             return "Start Stage " + Mathf.Clamp(stage, 1, 4) + " Boss " + side + " Test Button";
+        }
+
+        public static string StageClearToggleButtonName(int stage)
+        {
+            return "Toggle Stage " + Mathf.Clamp(stage, 1, 4) + " Clear State Button";
         }
 
         public static string RelicUnlockButtonName(RelicType relicType)

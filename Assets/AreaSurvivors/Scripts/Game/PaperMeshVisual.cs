@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 #if UNITY_EDITOR
@@ -24,9 +26,75 @@ namespace AreaSurvivors
         MeshFilter meshFilter;
         MeshRenderer meshRenderer;
         Material material;
+        static readonly Dictionary<MeshCacheKey, Mesh> MeshCache = new Dictionary<MeshCacheKey, Mesh>();
 #if UNITY_EDITOR
         bool editorApplyQueued;
 #endif
+
+        readonly struct MeshCacheKey : IEquatable<MeshCacheKey>
+        {
+            readonly int spriteId;
+            readonly int shapeSpriteId;
+            readonly bool anchorBottomCenter;
+            readonly int verticalFill;
+            readonly bool ellipseShape;
+            readonly int ellipseSegments;
+            readonly int ellipseTextureCrop;
+
+            public MeshCacheKey(
+                Sprite sprite,
+                Sprite shapeSprite,
+                bool anchorBottomCenter,
+                float verticalFill,
+                bool ellipseShape,
+                int ellipseSegments,
+                float ellipseTextureCrop)
+            {
+                spriteId = sprite != null ? sprite.GetInstanceID() : 0;
+                shapeSpriteId = shapeSprite != null ? shapeSprite.GetInstanceID() : 0;
+                this.anchorBottomCenter = anchorBottomCenter;
+                this.verticalFill = Quantize(verticalFill);
+                this.ellipseShape = ellipseShape;
+                this.ellipseSegments = ellipseSegments;
+                this.ellipseTextureCrop = Quantize(ellipseTextureCrop);
+            }
+
+            public bool Equals(MeshCacheKey other)
+            {
+                return spriteId == other.spriteId &&
+                    shapeSpriteId == other.shapeSpriteId &&
+                    anchorBottomCenter == other.anchorBottomCenter &&
+                    verticalFill == other.verticalFill &&
+                    ellipseShape == other.ellipseShape &&
+                    ellipseSegments == other.ellipseSegments &&
+                    ellipseTextureCrop == other.ellipseTextureCrop;
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is MeshCacheKey other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    int hash = spriteId;
+                    hash = (hash * 397) ^ shapeSpriteId;
+                    hash = (hash * 397) ^ anchorBottomCenter.GetHashCode();
+                    hash = (hash * 397) ^ verticalFill;
+                    hash = (hash * 397) ^ ellipseShape.GetHashCode();
+                    hash = (hash * 397) ^ ellipseSegments;
+                    hash = (hash * 397) ^ ellipseTextureCrop;
+                    return hash;
+                }
+            }
+
+            static int Quantize(float value)
+            {
+                return Mathf.RoundToInt(value * 10000f);
+            }
+        }
 
         public Sprite sprite
         {
@@ -161,7 +229,6 @@ namespace AreaSurvivors
 
         void OnDestroy()
         {
-            if (meshFilter != null) DestroyGenerated(meshFilter.sharedMesh);
             DestroyGenerated(material);
         }
 
@@ -171,9 +238,19 @@ namespace AreaSurvivors
             if (sourceSprite == null) return;
             if (UsesEllipseShape)
             {
-                ApplyEllipseShape();
+                meshFilter.sharedMesh = GetOrCreateEllipseMesh();
+                ApplyMaterial();
                 return;
             }
+
+            meshFilter.sharedMesh = GetOrCreateSpriteMesh();
+            ApplyMaterial();
+        }
+
+        Mesh GetOrCreateSpriteMesh()
+        {
+            var key = new MeshCacheKey(sourceSprite, null, anchorBottomCenter, verticalFill, false, 0, 0f);
+            if (MeshCache.TryGetValue(key, out var cached) && cached != null) return cached;
 
             var bounds = sourceSprite.bounds;
             var min = bounds.min;
@@ -216,14 +293,16 @@ namespace AreaSurvivors
             mesh.triangles = new[] { 0, 2, 1, 2, 3, 1 };
             mesh.RecalculateBounds();
 
-            DestroyGenerated(meshFilter.sharedMesh);
-            meshFilter.sharedMesh = mesh;
-            ApplyMaterial();
+            MeshCache[key] = mesh;
+            return mesh;
         }
 
-        void ApplyEllipseShape()
+        Mesh GetOrCreateEllipseMesh()
         {
             int segments = Mathf.Clamp(ellipseSegments, 16, 128);
+            var key = new MeshCacheKey(sourceSprite, shapeSpriteOverride, false, 1f, true, segments, ellipseTextureCrop);
+            if (MeshCache.TryGetValue(key, out var cached) && cached != null) return cached;
+
             float radiusX = 1f;
             float radiusY = EllipseShapeAspectY;
             var vertices = new Vector3[segments + 1];
@@ -256,9 +335,8 @@ namespace AreaSurvivors
             mesh.triangles = triangles;
             mesh.RecalculateBounds();
 
-            DestroyGenerated(meshFilter.sharedMesh);
-            meshFilter.sharedMesh = mesh;
-            ApplyMaterial();
+            MeshCache[key] = mesh;
+            return mesh;
         }
 
         Vector2 TextureUv(float normalizedX, float normalizedY)
@@ -301,7 +379,7 @@ namespace AreaSurvivors
             material.color = tint;
         }
 
-        static void DestroyGenerated(Object generated)
+        static void DestroyGenerated(UnityEngine.Object generated)
         {
             if (generated == null) return;
             if (Application.isPlaying) Destroy(generated);

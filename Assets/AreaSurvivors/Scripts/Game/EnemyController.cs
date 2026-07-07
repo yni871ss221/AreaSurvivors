@@ -33,14 +33,52 @@ namespace AreaSurvivors
         CharacterOcclusionReveal reveal;
         EnemySlowEffect slowEffect;
         EnemyHitFlash hitFlash;
+        YSort ySort;
         float contactTimer;
         float footProbeDistance = 0.24f;
         float speedMultiplier = 1f;
+        float nextEnemyPaintTime;
+        int nextEnemyPaintFrame;
+        bool hasLastEnemyPaintCell;
+        int nextEnemyAnimationFrame;
+        float enemyAnimationDelta;
+        bool enemyAnimationScheduleInitialized;
+        bool hasLastEnemyAnimationMoving;
+        bool lastEnemyAnimationMoving;
+        int nextEnemyYSortFrame;
+        bool enemyYSortScheduleInitialized;
         bool dying;
         bool actionLocked;
         Vector2 facingDirection = Vector2.down;
         Color desiredOutlineColor = Color.black;
         const int BossSortingOffsetPerCell = 35;
+        const float NormalEnemyPaintInterval = 0.2f;
+        const float EliteEnemyPaintInterval = 0.12f;
+        const float BossEnemyPaintInterval = 0.08f;
+        const int NormalEnemyPaintFrameInterval = 6;
+        const int EliteEnemyPaintFrameInterval = 4;
+        const int BossEnemyPaintFrameInterval = 2;
+        const int NormalEnemyAnimationFrameInterval = 6;
+        const int EliteEnemyAnimationFrameInterval = 2;
+        const int BossEnemyAnimationFrameInterval = 1;
+        const int NormalEnemyYSortFrameInterval = 4;
+        const int EliteEnemyYSortFrameInterval = 2;
+        const int BossEnemyYSortFrameInterval = 1;
+
+        public static bool ProbeDisableContactCheck { get; set; }
+        public static bool ProbeDisableMoveMultiplier { get; set; }
+        public static bool ProbeDisablePaint { get; set; }
+        public static bool ProbeDisableAnimation { get; set; }
+        public static bool ProbeDisableYSort { get; set; }
+
+        public static void ResetPerformanceProbeOverrides()
+        {
+            ProbeDisableContactCheck = false;
+            ProbeDisableMoveMultiplier = false;
+            ProbeDisablePaint = false;
+            ProbeDisableAnimation = false;
+            ProbeDisableYSort = false;
+        }
 
         void Awake()
         {
@@ -63,6 +101,7 @@ namespace AreaSurvivors
             outline = visual != null ? visual.GetComponent<RuntimeSpriteOutline>() : GetComponentInChildren<RuntimeSpriteOutline>();
             reveal = GetComponent<CharacterOcclusionReveal>();
             slowEffect = GetComponent<EnemySlowEffect>();
+            ySort = GetComponent<YSort>();
             if (outline == null) Debug.LogError("Enemy prefab is missing RuntimeSpriteOutline on its visual.");
             if (reveal == null) Debug.LogError("Enemy prefab is missing CharacterOcclusionReveal on its root.");
             if (reveal != null) reveal.silhouetteColor = new Color(1f, 0.52f, 0.28f, 0.56f);
@@ -198,7 +237,6 @@ namespace AreaSurvivors
 
         void ConfigureCharacterSorting(EnemyDefinition definition, float cellScale)
         {
-            var ySort = GetComponent<YSort>();
             if (ySort == null) return;
 
             // Large boss sprites visually overlap walls before their root fully crosses the wall row.
@@ -206,13 +244,23 @@ namespace AreaSurvivors
             ySort.orderOffset = definition != null && definition.boss
                 ? Mathf.RoundToInt(Mathf.Max(1f, cellScale) * BossSortingOffsetPerCell)
                 : 0;
+            ySort.SetUpdateFrameInterval(YSortFrameInterval(definition));
+            ySort.enabled = false;
+            enemyYSortScheduleInitialized = false;
             ySort.Apply();
+        }
+
+        static int YSortFrameInterval(EnemyDefinition definition)
+        {
+            if (definition != null && definition.boss) return BossEnemyYSortFrameInterval;
+            if (definition != null && definition.elite) return EliteEnemyYSortFrameInterval;
+            return NormalEnemyYSortFrameInterval;
         }
 
         void RefreshCharacterSorting()
         {
             gridVisual?.ApplyCharacterYSortPivot();
-            var ySort = GetComponent<YSort>();
+            if (ySort == null) ySort = GetComponent<YSort>();
             if (ySort == null) return;
             ySort.Refresh();
             ySort.Apply();
@@ -220,7 +268,7 @@ namespace AreaSurvivors
 
         void LateUpdate()
         {
-            ApplyOutlineStyle();
+            TickEnemyYSort();
         }
 
         void ApplyOutlineStyle()
@@ -237,31 +285,111 @@ namespace AreaSurvivors
             if (actionLocked)
             {
                 body.velocity = Vector2.zero;
-                if (grid != null) grid.Paint(MovementSamplePosition(), TileOwner.Enemy, 1);
+                PaintEnemyTerritory(MovementSamplePosition());
                 return;
             }
             if (knockback != null && knockback.Active)
             {
-                if (directionalAnimator != null) directionalAnimator.Tick(Vector2.down, true);
+                if (!ProbeDisableAnimation) TickEnemyAnimation(Vector2.down, true);
                 return;
             }
             var direction = ((Vector2)(target.position - transform.position)).normalized;
             if (direction.sqrMagnitude > 0.001f) facingDirection = direction;
-            if (TryHandleGridObjectContact(direction))
+            if (!ProbeDisableContactCheck && TryHandleGridObjectContact(direction))
             {
                 body.velocity = Vector2.zero;
-                if (directionalAnimator != null) directionalAnimator.Tick(direction, false);
-                grid.Paint(MovementSamplePosition(), TileOwner.Enemy, 1);
+                if (!ProbeDisableAnimation) TickEnemyAnimation(direction, false);
+                PaintEnemyTerritory(MovementSamplePosition());
                 return;
             }
 
             var movementSample = MovementSamplePosition();
-            float slow = grid.GetMoveMultiplier(movementSample, TileOwner.Enemy, config.playerTerritorySlow);
+            float slow = ProbeDisableMoveMultiplier ? 1f : grid.GetMoveMultiplier(movementSample, TileOwner.Enemy, config.playerTerritorySlow);
             if (slowEffect == null) slowEffect = GetComponent<EnemySlowEffect>();
             float weaponSlow = slowEffect != null ? slowEffect.Multiplier : 1f;
             body.velocity = direction * config.enemyBaseSpeed * slow * speedMultiplier * weaponSlow;
-            if (directionalAnimator != null) directionalAnimator.Tick(direction, body.velocity.sqrMagnitude > 0.01f);
-            grid.Paint(movementSample, TileOwner.Enemy, 1);
+            if (!ProbeDisableAnimation) TickEnemyAnimation(direction, body.velocity.sqrMagnitude > 0.01f);
+            PaintEnemyTerritory(movementSample);
+        }
+
+        void TickEnemyAnimation(Vector2 direction, bool moving)
+        {
+            if (directionalAnimator == null) return;
+            enemyAnimationDelta += Time.deltaTime;
+
+            if (!enemyAnimationScheduleInitialized)
+            {
+                enemyAnimationScheduleInitialized = true;
+                int initialInterval = EnemyAnimationFrameInterval();
+                nextEnemyAnimationFrame = Time.frameCount + Mathf.Abs(GetInstanceID()) % initialInterval;
+            }
+
+            bool movementStateChanged = hasLastEnemyAnimationMoving && moving != lastEnemyAnimationMoving;
+            if (!movementStateChanged && Time.frameCount < nextEnemyAnimationFrame) return;
+
+            int interval = EnemyAnimationFrameInterval();
+            directionalAnimator.Tick(direction, moving, enemyAnimationDelta);
+            enemyAnimationDelta = 0f;
+            hasLastEnemyAnimationMoving = true;
+            lastEnemyAnimationMoving = moving;
+
+            int jitter = Mathf.Abs(GetInstanceID()) % interval;
+            nextEnemyAnimationFrame = Time.frameCount + interval + jitter;
+        }
+
+        int EnemyAnimationFrameInterval()
+        {
+            if (boss) return BossEnemyAnimationFrameInterval;
+            if (elite) return EliteEnemyAnimationFrameInterval;
+            return NormalEnemyAnimationFrameInterval;
+        }
+
+        void TickEnemyYSort()
+        {
+            if (ProbeDisableYSort) return;
+            if (ySort == null) return;
+
+            int interval = Mathf.Max(1, ySort.updateFrameInterval);
+            if (!enemyYSortScheduleInitialized)
+            {
+                enemyYSortScheduleInitialized = true;
+                nextEnemyYSortFrame = Time.frameCount + (interval > 1 ? Mathf.Abs(GetInstanceID()) % interval : 0);
+            }
+
+            if (Time.frameCount < nextEnemyYSortFrame) return;
+
+            ySort.Apply();
+            int jitter = interval > 1 ? Mathf.Abs(GetInstanceID()) % interval : 0;
+            nextEnemyYSortFrame = Time.frameCount + interval + jitter;
+        }
+
+        void PaintEnemyTerritory(Vector3 world)
+        {
+            if (ProbeDisablePaint) return;
+            if (grid == null) return;
+            if (hasLastEnemyPaintCell &&
+                (Time.time < nextEnemyPaintTime || Time.frameCount < nextEnemyPaintFrame)) return;
+
+            grid.Paint(world, TileOwner.Enemy, 1);
+            hasLastEnemyPaintCell = true;
+
+            float jitter = (Mathf.Abs(GetInstanceID()) % 100) / 100f;
+            nextEnemyPaintTime = Time.time + EnemyPaintInterval() * Mathf.Lerp(0.85f, 1.15f, jitter);
+            nextEnemyPaintFrame = Time.frameCount + EnemyPaintFrameInterval();
+        }
+
+        float EnemyPaintInterval()
+        {
+            if (boss) return BossEnemyPaintInterval;
+            if (elite) return EliteEnemyPaintInterval;
+            return NormalEnemyPaintInterval;
+        }
+
+        int EnemyPaintFrameInterval()
+        {
+            if (boss) return BossEnemyPaintFrameInterval;
+            if (elite) return EliteEnemyPaintFrameInterval;
+            return NormalEnemyPaintFrameInterval;
         }
 
         bool TryHandleGridObjectContact(Vector2 direction)

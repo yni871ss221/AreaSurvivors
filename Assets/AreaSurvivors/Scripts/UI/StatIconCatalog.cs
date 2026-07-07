@@ -87,8 +87,10 @@ namespace AreaSurvivors
                 case UpgradeType.UnlockAuraSword: return "AuraSword";
                 case UpgradeType.RemoveStartingSlash: return "Slash_0";
                 case UpgradeType.MoveSpeed: return MoveSpeed;
+                case UpgradeType.MoveSpeedAdvanced: return MoveSpeed;
                 case UpgradeType.MovePenaltyReduction: return MoveSpeed;
                 case UpgradeType.PaintRadius: return Paint;
+                case UpgradeType.PaintRadiusAdvanced: return Paint;
                 case UpgradeType.MaxHp:
                     return MaxHp;
                 case UpgradeType.TowerMaxHp:

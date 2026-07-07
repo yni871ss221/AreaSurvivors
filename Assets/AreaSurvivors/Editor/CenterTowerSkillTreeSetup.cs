@@ -166,9 +166,16 @@ namespace AreaSurvivors.Editor
         static Transform FindSkillLinkRoot(Transform nodeParent)
         {
             if (nodeParent == null) return null;
-            return nodeParent.Find("Skill Links")
+            var linkRoot = nodeParent.Find("Skill Links")
                 ?? nodeParent.GetComponentsInChildren<Transform>(true).FirstOrDefault(child => child.name == "Skill Links")
                 ?? nodeParent;
+
+            if (linkRoot is RectTransform rect)
+            {
+                StretchToParent(rect);
+            }
+
+            return linkRoot;
         }
 
         static void DestroyNamedLinks(Transform linkRoot, string prefix)
@@ -183,27 +190,31 @@ namespace AreaSurvivors.Editor
         static void CreateLink(Transform parent, string name, SkillNodeView fromNode, SkillNodeView toNode, UpgradeType prerequisite)
         {
             if (parent == null || fromNode?.RectTransform == null || toNode?.RectTransform == null) return;
-            CreateSegment(parent, name + " A", fromNode.RectTransform.anchoredPosition, toNode.RectTransform.anchoredPosition, prerequisite);
+            var link = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(SkillLinkView)).GetComponent<SkillLinkView>();
+            link.transform.SetParent(parent, false);
+            StretchToParent((RectTransform)link.transform);
+            link.prerequisite = prerequisite;
+            link.fromNode = fromNode;
+            link.toNode = toNode;
+            link.thickness = 5f;
+            link.cornerRadius = 12f;
+            link.cornerSegments = 6;
+            link.inactiveColor = LinkInactiveColor;
+            link.ApplyDirectionalAnchors();
+            link.ApplyState(false);
+            link.transform.SetAsFirstSibling();
         }
 
-        static void CreateSegment(Transform parent, string name, Vector2 from, Vector2 to, UpgradeType prerequisite)
+        static void StretchToParent(RectTransform rect)
         {
-            var delta = to - from;
-            if (delta.sqrMagnitude < 0.01f) return;
-            var image = new GameObject(name).AddComponent<Image>();
-            image.transform.SetParent(parent, false);
-            image.color = LinkInactiveColor;
-            image.raycastTarget = false;
-            var rect = image.rectTransform;
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.pivot = new Vector2(0f, 0.5f);
-            rect.anchoredPosition = from;
-            rect.sizeDelta = new Vector2(delta.magnitude, 4f);
-            rect.localRotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg);
-            var segment = image.gameObject.AddComponent<SkillLinkSegment>();
-            segment.prerequisite = prerequisite;
-            segment.image = image;
-            image.transform.SetAsFirstSibling();
+            if (rect == null) return;
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.localScale = Vector3.one;
+            rect.localRotation = Quaternion.identity;
         }
     }
 }

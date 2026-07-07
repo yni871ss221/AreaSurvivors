@@ -8,6 +8,7 @@ namespace AreaSurvivors
     {
         public GameObject arrowPrefab;
         public GameObject fireballPrefab;
+        public GameObject slashPrefab;
         public Transform slashOrigin;
         public const int MaxEquippedWeapons = 3;
         const float FireballProjectileVisualScale = 0.38f;
@@ -587,7 +588,7 @@ namespace AreaSurvivors
             float baseRange = config != null ? Mathf.Max(0.01f, config.slashRange) : range;
             int damage = effectiveStats.attackPower + config.slashDamageBonus;
             float knockback = effectiveStats.knockback * config.knockbackForceUnit;
-            SlashView.Flash(transform.position, direction, range, baseRange, damage, knockback, config.knockbackDuration);
+            SlashView.Flash(slashPrefab, transform.position, direction, range, baseRange, damage, knockback, config.knockbackDuration);
         }
 
         void ShootArrowsAtNearestTargets(GameObject prefab, WeaponStatBlock stats)
@@ -763,7 +764,6 @@ namespace AreaSurvivors
             {
                 if (explosive)
                 {
-                    projectile.impactSprite = GeneratedSpriteLoader.Load("CannonExplosion");
                     projectile.impactColor = new Color(1f, 0.76f, 0.24f, 0.96f);
                     projectile.impactVisualScale = Mathf.Clamp(radius * 0.55f, 0.55f, 1.2f);
                 }

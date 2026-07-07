@@ -61,7 +61,10 @@ namespace AreaSurvivors
         readonly RunDamageTracker runDamageTracker = new RunDamageTracker();
         const int InitialTowerTerritoryRadius = 10;
         const int PaintAreaTokenThreshold = 500;
+        const float ElapsedTokenRewardIntervalSeconds = 30f;
         int paintAreaTokenProgress;
+        int killTokenProgress;
+        float nextElapsedTokenRewardSeconds = ElapsedTokenRewardIntervalSeconds;
         static readonly Color UpgradeNormalColor = new Color(0.12f, 0.20f, 0.16f, 0.94f);
         static readonly Color UpgradeHoverColor = new Color(0.106f, 0.353f, 0.216f, 0.98f);
         void Awake()
@@ -420,7 +423,12 @@ namespace AreaSurvivors
         {
             if (sessionMode == MapSessionMode.Game)
             {
-                if (!bossActive) elapsed += Time.deltaTime;
+                if (!bossActive)
+                {
+                    elapsed += Time.deltaTime;
+                    AwardElapsedTimeTokens();
+                }
+
                 hudElapsed = elapsed;
             }
             else
@@ -436,6 +444,34 @@ namespace AreaSurvivors
         public void RegisterKill()
         {
             kills++;
+            AwardKillTokens();
+        }
+
+        void AwardKillTokens()
+        {
+            if (sessionMode != MapSessionMode.Game || gameEnding || config == null) return;
+
+            killTokenProgress++;
+            int threshold = Mathf.Max(1, config.tokenKillsDivisor);
+            int rewards = killTokenProgress / threshold;
+            if (rewards <= 0) return;
+
+            killTokenProgress -= rewards * threshold;
+            AddRunTokens(rewards);
+        }
+
+        void AwardElapsedTimeTokens()
+        {
+            if (gameEnding) return;
+
+            int rewards = 0;
+            while (elapsed + 0.0001f >= nextElapsedTokenRewardSeconds)
+            {
+                rewards++;
+                nextElapsedTokenRewardSeconds += ElapsedTokenRewardIntervalSeconds;
+            }
+
+            if (rewards > 0) AddRunTokens(rewards);
         }
 
         public void RegisterDamageDealt(int amount)
@@ -1201,6 +1237,7 @@ namespace AreaSurvivors
             StopGameplayActionAudio();
             int rewardWood = EndWoodReward();
             int rewardStone = EndStoneReward();
+            int tokenEarned = EndTokenReward();
             int woodEarned = Mathf.Max(0, Wood) + rewardWood;
             int stoneEarned = Mathf.Max(0, Stone) + rewardStone;
             RunResult.Last = new RunResult
@@ -1208,7 +1245,7 @@ namespace AreaSurvivors
                 kills = kills,
                 damageDealt = damageDealt,
                 level = level,
-                tokensEarned = EndTokenReward(),
+                tokensEarned = tokenEarned,
                 woodEarned = woodEarned,
                 stoneEarned = stoneEarned,
                 reachedStage = currentStage,
@@ -1222,7 +1259,7 @@ namespace AreaSurvivors
                 acquiredRelicEntries = new List<RunRelicReportEntry>(runRelicEntries),
                 damageReport = runDamageTracker.BuildReport()
             };
-            ProgressionStore.AddRunTokens(kills, EndTokenReward());
+            ProgressionStore.AddRunTokens(kills, tokenEarned);
             ProgressionStore.AddPersistentResources(woodEarned, stoneEarned);
             SceneManager.LoadScene(SceneNames.GameEnd);
         }
@@ -1254,8 +1291,10 @@ namespace AreaSurvivors
 
         int EndTokenReward()
         {
-            float multiplier = (1f + ProgressionStore.GetLevel(UpgradeType.EndTokenGain) * config.endTokenGainMultiplierPerUpgradeLevel) * RelicEffects.EndTokenMultiplier;
-            return Mathf.Max(0, Mathf.RoundToInt(RunTokens * multiplier));
+            int guaranteedTokens = config.roundEndTokenReward
+                + ProgressionStore.GetLevel(UpgradeType.EndTokenGain) * config.roundEndTokenRewardPerUpgradeLevel;
+            int baseTokens = Mathf.Max(0, RunTokens) + Mathf.Max(0, guaranteedTokens);
+            return Mathf.Max(0, Mathf.RoundToInt(baseTokens * RelicEffects.EndTokenMultiplier));
         }
 
         int EndWoodReward()
@@ -1292,6 +1331,7 @@ namespace AreaSurvivors
             currentStage = Mathf.Max(1, stage);
             elapsed = StageStartDisplaySeconds() + Mathf.Max(0f, startStageElapsedSeconds);
             hudElapsed = elapsed;
+            nextElapsedTokenRewardSeconds = (Mathf.Floor(elapsed / ElapsedTokenRewardIntervalSeconds) + 1f) * ElapsedTokenRewardIntervalSeconds;
             bossActive = false;
             AudioManager.PlayBgm(BgmTrack.GameNormal);
             if (timerText != null) timerText.color = Color.white;

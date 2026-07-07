@@ -27,11 +27,10 @@ namespace AreaSurvivors
         public void RebuildSceneLinkSegments()
         {
             var nodes = GetComponentsInChildren<SkillNodeView>(true);
-            var linkRoot = transform.Find("Skill Links");
+            var linkRoot = EnsureLinkRoot();
             if (linkRoot == null)
             {
-                linkRoot = new GameObject("Skill Links").transform;
-                linkRoot.SetParent(transform, false);
+                return;
             }
 
             while (linkRoot.childCount > 0)
@@ -62,6 +61,30 @@ namespace AreaSurvivors
             linkRoot.SetAsFirstSibling();
             UnityEditor.EditorUtility.SetDirty(gameObject);
             UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(gameObject.scene);
+        }
+
+        RectTransform EnsureLinkRoot()
+        {
+            var existing = transform.Find("Skill Links");
+            RectTransform linkRoot;
+            if (existing == null)
+            {
+                linkRoot = new GameObject("Skill Links", typeof(RectTransform)).GetComponent<RectTransform>();
+                linkRoot.SetParent(transform, false);
+            }
+            else
+            {
+                linkRoot = existing as RectTransform;
+                if (linkRoot == null)
+                {
+                    DestroyImmediate(existing.gameObject);
+                    linkRoot = new GameObject("Skill Links", typeof(RectTransform)).GetComponent<RectTransform>();
+                    linkRoot.SetParent(transform, false);
+                }
+            }
+
+            StretchToParent(linkRoot);
+            return linkRoot;
         }
 
         void ValidateDuplicateTypes(SkillNodeView[] nodes)
@@ -155,52 +178,43 @@ namespace AreaSurvivors
             var parent = FindNode(nodes, prerequisite);
             if (parent == null) return;
 
-            var previous = parent.GridToAnchored(parent.gridPosition);
-            int segmentIndex = 0;
+            var link = new GameObject($"{parent.type} to {node.type}", typeof(RectTransform), typeof(CanvasRenderer), typeof(SkillLinkView))
+                .GetComponent<SkillLinkView>();
+            link.transform.SetParent(linkRoot, false);
+            StretchToParent((RectTransform)link.transform);
+            link.prerequisite = prerequisite;
+            link.fromNode = parent;
+            link.toNode = node;
+            link.thickness = 5f;
+            link.cornerRadius = 12f;
+            link.cornerSegments = 6;
+
             if (waypoints != null)
             {
+                var converted = new Vector2[waypoints.Length];
+                int index = 0;
                 foreach (var waypoint in waypoints)
                 {
-                    var current = node.GridToAnchored(waypoint);
-                    BuildAllowedSceneSegment(linkRoot, prerequisite, previous, current, $"{parent.type} to {node.type} {segmentIndex++}");
-                    previous = current;
+                    converted[index++] = node.GridToAnchored(waypoint);
                 }
+
+                link.waypoints = converted;
             }
 
-            BuildAllowedSceneSegment(linkRoot, prerequisite, previous, node.GridToAnchored(node.gridPosition), $"{parent.type} to {node.type} {segmentIndex}");
+            link.ApplyDirectionalAnchors();
+            link.ApplyState(false);
         }
 
-        static void BuildAllowedSceneSegment(Transform linkRoot, UpgradeType prerequisite, Vector2 from, Vector2 to, string name)
+        static void StretchToParent(RectTransform rect)
         {
-            if (IsAllowedSegment(from, to))
-            {
-                BuildSceneSegment(linkRoot, prerequisite, from, to, name);
-                return;
-            }
-
-            var corner = new Vector2(to.x, from.y);
-            BuildSceneSegment(linkRoot, prerequisite, from, corner, name + " A");
-            BuildSceneSegment(linkRoot, prerequisite, corner, to, name + " B");
-        }
-
-        static void BuildSceneSegment(Transform linkRoot, UpgradeType prerequisite, Vector2 from, Vector2 to, string name)
-        {
-            var delta = to - from;
-            if (delta.sqrMagnitude < 0.01f) return;
-
-            var image = new GameObject(name).AddComponent<UnityEngine.UI.Image>();
-            image.transform.SetParent(linkRoot, false);
-            image.color = new Color(0.30f, 0.36f, 0.34f, 0.75f);
-            image.raycastTarget = false;
-
-            var rect = image.rectTransform;
-            rect.anchoredPosition = from + delta * 0.5f;
-            rect.sizeDelta = new Vector2(delta.magnitude, 5f);
-            rect.localRotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg);
-
-            var segment = image.gameObject.AddComponent<SkillLinkSegment>();
-            segment.prerequisite = prerequisite;
-            segment.image = image;
+            if (rect == null) return;
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.localScale = Vector3.one;
+            rect.localRotation = Quaternion.identity;
         }
 
         Rect NodeRect(SkillNodeView node)

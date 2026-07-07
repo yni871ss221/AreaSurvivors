@@ -183,8 +183,8 @@ Rigidbody2D:
   m_SleepingMode: 1
   m_CollisionDetection: 0
   m_Constraints: 0
---- !u!58 &5903217473756939023
-CircleCollider2D:
+--- !u!61 &5903217473756939023
+BoxCollider2D:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -215,9 +215,19 @@ CircleCollider2D:
   m_IsTrigger: 1
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: 0, y: 0}
+  m_Offset: {x: -0.00000008940697, y: 0.0008651018}
+  m_SpriteTilingProperty:
+    border: {x: 0, y: 0, z: 0, w: 0}
+    pivot: {x: 0, y: 0}
+    oldSize: {x: 0, y: 0}
+    newSize: {x: 0, y: 0}
+    adaptiveTilingThreshold: 0
+    drawMode: 0
+    adaptiveTiling: 0
+  m_AutoTiling: 0
   serializedVersion: 2
-  m_Radius: 0.04
+  m_Size: {x: 0.46398973, y: 0.13847524}
+  m_EdgeRadius: 0
 --- !u!114 &730803892583460787
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -240,4 +250,6 @@ MonoBehaviour:
   impactSprite: {fileID: 0}
   impactColor: {r: 1, g: 1, b: 1, a: 1}
   impactVisualScale: 1
+  impactFlashPrefab: {fileID: 9102100000000000011, guid: 6c17f73d579a4c98b99180133263756c, type: 3}
+  explosionHitboxPrefab: {fileID: 9102200000000000011, guid: 3bb23420c4d14f79b9dc2b3da31e2a5c, type: 3}
   paintsTerritory: 1

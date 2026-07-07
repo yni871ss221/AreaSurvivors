@@ -5,6 +5,7 @@ namespace AreaSurvivors
     public sealed class TowerCannonController : MonoBehaviour
     {
         public GameConfig config;
+        public GameObject projectilePrefab;
         public Sprite cannonballSprite;
         public Sprite explosionSprite;
         public Vector3 muzzleOffset = Vector3.zero;
@@ -17,8 +18,6 @@ namespace AreaSurvivors
         public void Configure(GameConfig gameConfig)
         {
             config = gameConfig;
-            cannonballSprite = GeneratedSpriteLoader.Load("Cannonball");
-            explosionSprite = GeneratedSpriteLoader.Load("CannonExplosion");
             cooldown = Mathf.Min(0.75f, CooldownSeconds());
             grid = FindObjectOfType<TileGrid>();
             configured = true;
@@ -76,30 +75,21 @@ namespace AreaSurvivors
             var direction = ((Vector2)(target.transform.position - origin)).normalized;
             if (direction.sqrMagnitude < 0.001f) direction = Vector2.down;
 
-            var projectileObject = new GameObject("Tower Cannonball");
-            projectileObject.transform.position = origin;
-            projectileObject.transform.localScale = Vector3.one;
+            if (projectilePrefab == null)
+            {
+                Debug.LogError("Tower cannon projectile prefab is missing. Assign TowerCannonController.projectilePrefab on the CenterTower prefab.");
+                return;
+            }
 
-            var body = projectileObject.AddComponent<Rigidbody2D>();
-            body.gravityScale = 0f;
-            body.drag = 0f;
+            var projectileObject = Instantiate(projectilePrefab, origin, Quaternion.identity);
+            var projectile = projectileObject.GetComponent<Projectile>();
+            if (projectile == null)
+            {
+                Debug.LogError("Tower cannon projectile prefab is missing Projectile.");
+                Destroy(projectileObject);
+                return;
+            }
 
-            var collider = projectileObject.AddComponent<CircleCollider2D>();
-            collider.isTrigger = true;
-            collider.radius = 0.16f;
-
-            var visualObject = new GameObject("Paper Visual");
-            visualObject.transform.SetParent(projectileObject.transform, false);
-            visualObject.AddComponent<PaperBillboard>();
-            var visual = visualObject.AddComponent<PaperMeshVisual>();
-            visual.Configure(cannonballSprite, Color.white, WeaponSortingOrders.Projectile);
-
-            var outline = visualObject.AddComponent<RuntimeSpriteOutline>();
-            outline.outlineColor = Color.black;
-            outline.thickness = 0.018f;
-
-            var projectile = projectileObject.AddComponent<Projectile>();
-            projectile.impactSprite = explosionSprite;
             projectile.impactColor = new Color(1f, 0.76f, 0.24f, 0.96f);
             projectile.impactVisualScale = 0.9f * explosionRadiusMultiplier;
             projectile.knockback = config != null ? config.towerCannonKnockback : 2.2f;

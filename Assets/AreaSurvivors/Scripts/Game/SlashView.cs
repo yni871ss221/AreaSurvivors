@@ -4,43 +4,104 @@ using UnityEngine;
 
 namespace AreaSurvivors
 {
+    [RequireComponent(typeof(BoxCollider2D), typeof(Rigidbody2D))]
     public sealed class SlashView : MonoBehaviour
     {
         static Sprite[] frames;
 
-        const float HitboxWidthMultiplier = 0.5f;
-        const float HitboxForwardCenterMultiplier = 0.56f;
+        [SerializeField] BoxCollider2D hitbox;
+        [SerializeField] Rigidbody2D body;
+        [SerializeField] Transform visualRoot;
+        [SerializeField] PaperMeshVisual visual;
+        [SerializeField] PaperBillboard billboard;
+        [SerializeField] float hitboxWidthMultiplier = 0.5f;
+        [SerializeField] float hitboxForwardCenterMultiplier = 0.56f;
+        [SerializeField] float visualScaleMultiplier = 0.78f;
+        [SerializeField] float frameSeconds = 0.055f;
+        [SerializeField] Color slashColor = new Color(1f, 0.92f, 0.42f, 0.82f);
+        [SerializeField] int slashSortingOrder = WeaponSortingOrders.Slash;
+
+        readonly List<Collider2D> hits = new List<Collider2D>(16);
+        readonly HashSet<EnemyController> damaged = new HashSet<EnemyController>();
+        Vector3 origin;
+        Vector2 attackDirection;
+        int damage;
+        float knockback;
+        float knockbackDuration;
+        const int SlashPaintRadius = 1;
+
+        public static void Flash(GameObject prefab, Vector3 position, Vector2 direction, float range, float baseRange, int damage, float knockback, float knockbackDuration)
+        {
+            if (prefab == null)
+            {
+                Debug.LogError("Slash prefab is missing. Assign WeaponController.slashPrefab on the Player prefab.");
+                return;
+            }
+
+            var go = Instantiate(prefab, position, Quaternion.identity);
+            var slash = go.GetComponent<SlashView>();
+            if (slash == null)
+            {
+                Debug.LogError("Slash prefab is missing SlashView.");
+                Destroy(go);
+                return;
+            }
+
+            slash.Play(position, direction, range, baseRange, damage, knockback, knockbackDuration);
+        }
 
         public static void Flash(Vector3 position, Vector2 direction, float range, float baseRange, int damage, float knockback, float knockbackDuration)
         {
-            var go = new GameObject("Knight Slash");
+            Debug.LogError("Slash prefab overload should be used for slash attacks.");
+        }
+
+        public void Play(Vector3 position, Vector2 direction, float range, float baseRange, int damage, float knockback, float knockbackDuration)
+        {
+            EnsureReferences();
             var dir = direction.sqrMagnitude > 0.01f ? direction.normalized : Vector2.down;
             float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
             float rangeScale = Mathf.Max(0.05f, range) / Mathf.Max(0.05f, baseRange);
-            go.transform.position = position;
-            go.transform.rotation = Quaternion.Euler(0f, 0f, angle);
+            transform.position = position;
+            transform.rotation = Quaternion.Euler(0f, 0f, angle);
 
-            var hitbox = go.AddComponent<BoxCollider2D>();
-            hitbox.isTrigger = true;
-            hitbox.size = new Vector2(Mathf.Max(0.05f, range), Mathf.Max(0.05f, range * HitboxWidthMultiplier));
-            hitbox.offset = new Vector2(range * HitboxForwardCenterMultiplier, 0f);
+            if (body != null)
+            {
+                body.bodyType = RigidbodyType2D.Kinematic;
+                body.simulated = true;
+                body.velocity = Vector2.zero;
+                body.angularVelocity = 0f;
+            }
 
-            var body = go.AddComponent<Rigidbody2D>();
-            body.bodyType = RigidbodyType2D.Kinematic;
-            body.simulated = true;
+            if (hitbox != null)
+            {
+                hitbox.isTrigger = true;
+                hitbox.size = new Vector2(Mathf.Max(0.05f, range), Mathf.Max(0.05f, range * hitboxWidthMultiplier));
+                hitbox.offset = new Vector2(range * hitboxForwardCenterMultiplier, 0f);
+            }
 
-            var visualObject = new GameObject("Visual");
-            visualObject.transform.SetParent(go.transform, false);
-            visualObject.transform.localPosition = new Vector3(hitbox.offset.x, hitbox.offset.y, 0f);
-            visualObject.transform.localScale = Vector3.one * (0.78f * rangeScale);
-            var billboard = visualObject.AddComponent<PaperBillboard>();
-            billboard.rollDegrees = angle;
+            if (visualRoot != null)
+            {
+                var offset = hitbox != null ? hitbox.offset : Vector2.zero;
+                visualRoot.localPosition = new Vector3(offset.x, offset.y, 0f);
+                visualRoot.localScale = Vector3.one * (visualScaleMultiplier * rangeScale);
+            }
+
+            if (billboard != null) billboard.rollDegrees = angle;
             EnsureFrames();
-            var visual = visualObject.AddComponent<PaperMeshVisual>();
-            visual.Configure(frames.Length > 0 ? frames[0] : Resources.Load<Sprite>("Slash"), new Color(1f, 0.92f, 0.42f, 0.82f), WeaponSortingOrders.Slash);
-            PixelBurstEffect.Spawn(visual.sprite, visualObject.transform.position, new Color(1f, 0.94f, 0.45f, 0.46f), 3, 0.22f * rangeScale, 0.16f * rangeScale, WeaponSortingOrders.SlashBurst);
-            go.AddComponent<KnightSlashHitbox>().Configure(hitbox, position, dir, damage, knockback, knockbackDuration);
-            go.AddComponent<SlashView>().StartCoroutine(go.GetComponent<SlashView>().Life(visual, dir));
+            if (visual != null)
+            {
+                var sprite = frames.Length > 0 && frames[0] != null ? frames[0] : visual.sprite;
+                visual.Configure(sprite, slashColor, slashSortingOrder);
+            }
+
+            origin = position;
+            attackDirection = dir;
+            this.damage = damage;
+            this.knockback = knockback;
+            this.knockbackDuration = knockbackDuration;
+
+            StartCoroutine(DamageAfterPhysicsSync());
+            StartCoroutine(Life(dir));
         }
 
         static void EnsureFrames()
@@ -54,42 +115,20 @@ namespace AreaSurvivors
             };
         }
 
-        IEnumerator Life(PaperMeshVisual visual, Vector2 direction)
+        IEnumerator Life(Vector2 direction)
         {
             EnsureFrames();
-            float frameSeconds = 0.055f;
             for (int i = 0; i < frames.Length; i++)
             {
-                if (frames[i] != null) visual.sprite = frames[i];
-                visual.color = new Color(1f, 0.92f, 0.42f, Mathf.Lerp(0.82f, 0.32f, i / Mathf.Max(1f, frames.Length - 1f)));
+                if (visual != null)
+                {
+                    if (frames[i] != null) visual.sprite = frames[i];
+                    visual.color = new Color(slashColor.r, slashColor.g, slashColor.b, Mathf.Lerp(slashColor.a, 0.32f, i / Mathf.Max(1f, frames.Length - 1f)));
+                }
                 transform.position += (Vector3)direction * 0.035f;
                 yield return new WaitForSeconds(frameSeconds);
             }
             Destroy(gameObject);
-        }
-    }
-
-    sealed class KnightSlashHitbox : MonoBehaviour
-    {
-        readonly List<Collider2D> hits = new List<Collider2D>(16);
-        readonly HashSet<EnemyController> damaged = new HashSet<EnemyController>();
-        BoxCollider2D hitbox;
-        Vector3 origin;
-        Vector2 direction;
-        int damage;
-        float knockback;
-        float knockbackDuration;
-        const int SlashPaintRadius = 1;
-
-        public void Configure(BoxCollider2D source, Vector3 attackOrigin, Vector2 attackDirection, int attackDamage, float knockbackStrength, float knockbackSeconds)
-        {
-            hitbox = source;
-            origin = attackOrigin;
-            direction = attackDirection.sqrMagnitude > 0.01f ? attackDirection.normalized : Vector2.down;
-            damage = attackDamage;
-            knockback = knockbackStrength;
-            knockbackDuration = knockbackSeconds;
-            StartCoroutine(DamageAfterPhysicsSync());
         }
 
         IEnumerator DamageAfterPhysicsSync()
@@ -132,7 +171,16 @@ namespace AreaSurvivors
             if (enemy == null || knockback <= 0f) return;
             var receiver = enemy.GetComponent<KnockbackReceiver>();
             if (receiver == null) return;
-            receiver.Apply(direction, knockback, knockbackDuration);
+            receiver.Apply(attackDirection, knockback, knockbackDuration);
+        }
+
+        void EnsureReferences()
+        {
+            if (hitbox == null) hitbox = GetComponent<BoxCollider2D>();
+            if (body == null) body = GetComponent<Rigidbody2D>();
+            if (visual == null) visual = GetComponentInChildren<PaperMeshVisual>(true);
+            if (visualRoot == null && visual != null) visualRoot = visual.transform;
+            if (billboard == null && visualRoot != null) billboard = visualRoot.GetComponent<PaperBillboard>();
         }
     }
 }

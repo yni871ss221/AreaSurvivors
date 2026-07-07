@@ -465,6 +465,7 @@ GameObject:
   - component: {fileID: 4044960443150660304}
   - component: {fileID: 6797244645586937832}
   - component: {fileID: 7287168737638359681}
+  - component: {fileID: 1803100000000000101}
   m_Layer: 0
   m_Name: CenterTower
   m_TagString: Untagged
@@ -713,6 +714,23 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hpBar: {fileID: 2526372351454586633}
   fullHideThreshold: 0.999
+--- !u!114 &1803100000000000101
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4438274097458221408}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a5d675e997bf4ffeb2bd6f03aa7725c7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  config: {fileID: 0}
+  projectilePrefab: {fileID: 1803100000000000011, guid: 1bcba7fd2b254e46a9a2809f570a2c55, type: 3}
+  cannonballSprite: {fileID: 21300000, guid: e368e2c6b2424ad8950fa2077e9458a0, type: 3}
+  explosionSprite: {fileID: 21300000, guid: cdbe110e60164bdfaf916542e9e5bc3e, type: 3}
+  muzzleOffset: {x: 0, y: 0, z: 0}
 --- !u!1 &5086337058636372451
 GameObject:
   m_ObjectHideFlags: 0

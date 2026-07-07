@@ -333,6 +333,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   arrowPrefab: {fileID: 6415672035725512546, guid: 4fff427d22da444295e8051c155c8933, type: 3}
   fireballPrefab: {fileID: 233849472752207496, guid: 67a5e3fcf592beb4d8617154d124e986, type: 3}
+  slashPrefab: {fileID: 1702100000000000011, guid: 8e8ab35f85704de4bd7b0f4f2a10cf79, type: 3}
   slashOrigin: {fileID: 0}
 --- !u!61 &4859309599482876718
 BoxCollider2D:

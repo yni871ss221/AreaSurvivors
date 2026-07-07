@@ -57,6 +57,11 @@ namespace AreaSurvivors
 
         public void Tick(Vector2 direction, bool moving)
         {
+            Tick(direction, moving, Time.deltaTime);
+        }
+
+        public void Tick(Vector2 direction, bool moving, float deltaTime)
+        {
             if (direction.sqrMagnitude > 0.01f)
             {
                 currentDirection = direction.normalized;
@@ -78,12 +83,13 @@ namespace AreaSurvivors
                 return;
             }
 
-            timer += Time.deltaTime;
+            timer += Mathf.Max(0f, deltaTime);
             var frameTime = 1f / Mathf.Max(1f, framesPerSecond);
-            while (timer >= frameTime)
+            if (timer >= frameTime)
             {
-                timer -= frameTime;
-                frameIndex++;
+                int steps = Mathf.FloorToInt(timer / frameTime);
+                timer -= steps * frameTime;
+                frameIndex += steps;
             }
 
             ApplyFrame(true);

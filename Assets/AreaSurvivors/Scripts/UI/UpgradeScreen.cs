@@ -7,6 +7,9 @@ namespace AreaSurvivors
     public sealed class UpgradeScreen : MonoBehaviour
     {
         Transform graphRoot;
+        RectTransform tooltipRoot;
+        RectTransform canvasRoot;
+        Canvas uiCanvas;
         Text tooltipTitle;
         Text tooltipDescription;
         Text tokenLabel;
@@ -29,10 +32,14 @@ namespace AreaSurvivors
             sceneNodes = uiObject.GetComponentsInChildren<SkillNodeView>(true);
             if (sceneNodes == null || sceneNodes.Length == 0) return false;
 
+            canvasRoot = uiObject.transform as RectTransform;
+            uiCanvas = uiObject.GetComponent<Canvas>();
             graphRoot = FindDeep(uiObject.transform, "Skill Tree");
+            tooltipRoot = FindDeep(uiObject.transform, "Tooltip") as RectTransform;
             tooltipTitle = FindDeep(uiObject.transform, "Tooltip Title")?.GetComponent<Text>();
             tooltipDescription = FindDeep(uiObject.transform, "Tooltip Description")?.GetComponent<Text>();
             tokenLabel = FindDeep(uiObject.transform, "TokenLabel")?.GetComponent<Text>();
+            ConfigureTooltipRoot();
 
             var nav = gameObject.GetComponent<SceneNavigator>();
             if (nav == null) nav = gameObject.AddComponent<SceneNavigator>();
@@ -40,6 +47,16 @@ namespace AreaSurvivors
 
             RefreshSceneTree();
             return true;
+        }
+
+        void ConfigureTooltipRoot()
+        {
+            if (tooltipRoot == null) return;
+            tooltipRoot.gameObject.SetActive(false);
+            foreach (var graphic in tooltipRoot.GetComponentsInChildren<Graphic>(true))
+            {
+                if (graphic != null) graphic.raycastTarget = false;
+            }
         }
 
         static Transform FindDeep(Transform root, string name)
@@ -82,37 +99,32 @@ namespace AreaSurvivors
                 node.ApplyGridPosition();
             }
 
-            var sceneLinks = graphRoot.GetComponentsInChildren<SkillLinkSegment>(true);
-            if (sceneLinks != null && sceneLinks.Length > 0)
-            {
-                foreach (var link in sceneLinks)
-                {
-                    if (link == null) continue;
-                    link.ApplyState(ProgressionStore.GetLevel(link.prerequisite) > 0);
-                }
-            }
-            else
-            {
-                Debug.LogWarning("UpgradeScreen requires Scene-authored SkillLinkSegment objects. Runtime link generation is disabled.");
-            }
-
             foreach (var node in sceneNodes)
             {
                 ConfigureSceneNode(node, sceneNodes);
             }
+
+            RefreshSceneLinks();
         }
 
         void ConfigureSceneNode(SkillNodeView node, SkillNodeView[] sceneNodes)
         {
             if (node == null) return;
+            node.ResolveReferences();
             if (ProgressionStore.IsRetiredUpgrade(node.type))
             {
                 node.gameObject.SetActive(false);
                 return;
             }
 
-            node.gameObject.SetActive(true);
-            node.ResolveReferences();
+            bool visible = IsSceneNodeVisible(node);
+            node.gameObject.SetActive(visible);
+            if (!visible) return;
+
+            if (node.nodeNumberText != null)
+            {
+                node.nodeNumberText.gameObject.SetActive(false);
+            }
 
             int level = ProgressionStore.GetLevel(node.type);
             int cost = ProgressionStore.GetCost(node.type, level);
@@ -126,6 +138,11 @@ namespace AreaSurvivors
                 node.background.color = purchased ? new Color(0.28f, 0.55f, 0.38f, 0.96f) : affordable ? new Color(0.17f, 0.28f, 0.24f, 0.96f) : new Color(0.12f, 0.13f, 0.14f, 0.92f);
             }
 
+            if (node.panelOutline != null)
+            {
+                node.panelOutline.effectColor = maxed ? new Color(1f, 0.88f, 0.18f, 1f) : Color.white;
+            }
+
             if (node.icon != null)
             {
                 node.icon.color = node.implemented && (purchased || affordable) ? Color.white : new Color(0.45f, 0.48f, 0.48f, 1f);
@@ -134,7 +151,7 @@ namespace AreaSurvivors
             if (node.statusText != null)
             {
                 node.statusText.text = !node.implemented ? "予定" : maxed ? $"Lv {level} MAX" : purchased ? $"Lv {level}" : prerequisiteMet ? $"Cost {cost}" : "LOCK";
-                node.statusText.color = purchased ? new Color(0.72f, 1f, 0.74f) : new Color(0.96f, 0.90f, 0.62f);
+                node.statusText.color = GetStatusTextColor(node.implemented, purchased, prerequisiteMet, maxed);
             }
 
             if (node.button != null)
@@ -157,8 +174,47 @@ namespace AreaSurvivors
             {
                 hover.title = tooltipTitle;
                 hover.description = tooltipDescription;
+                hover.tooltipRoot = tooltipRoot;
+                hover.canvasRoot = canvasRoot;
+                hover.canvas = uiCanvas;
+                hover.targetRect = node.RectTransform;
                 hover.titleText = node.implemented ? $"{node.title}  Lv {level}  Cost {cost}" : $"{node.title}  実装予定";
                 hover.descriptionText = node.implemented ? node.description : node.description + "（現在はツリー上の予約ノードです）";
+            }
+        }
+
+        void RefreshSceneLinks()
+        {
+            var sceneLinks = graphRoot.GetComponentsInChildren<SkillLinkSegment>(true);
+            var sceneLinkViews = graphRoot.GetComponentsInChildren<SkillLinkView>(true);
+            if ((sceneLinks == null || sceneLinks.Length == 0) && (sceneLinkViews == null || sceneLinkViews.Length == 0))
+            {
+                Debug.LogWarning("UpgradeScreen requires Scene-authored skill link objects. Runtime link generation is disabled.");
+                return;
+            }
+
+            if (sceneLinks != null)
+            {
+                foreach (var link in sceneLinks)
+                {
+                    if (link == null) continue;
+                    bool visible = ProgressionStore.GetLevel(link.prerequisite) > 0;
+                    link.gameObject.SetActive(visible);
+                    if (visible) link.ApplyState(true);
+                }
+            }
+
+            if (sceneLinkViews != null)
+            {
+                foreach (var link in sceneLinkViews)
+                {
+                    if (link == null) continue;
+                    bool visible = ProgressionStore.GetLevel(link.prerequisite) > 0
+                        && IsSceneNodeVisible(link.fromNode)
+                        && IsSceneNodeVisible(link.toNode);
+                    link.gameObject.SetActive(visible);
+                    if (visible) link.ApplyState(true);
+                }
             }
         }
 
@@ -173,6 +229,22 @@ namespace AreaSurvivors
             }
 
             return true;
+        }
+
+        static bool IsSceneNodeVisible(SkillNodeView node)
+        {
+            if (node == null || ProgressionStore.IsRetiredUpgrade(node.type)) return false;
+            if (ProgressionStore.GetLevel(node.type) > 0) return true;
+            return AreScenePrerequisitesMet(node);
+        }
+
+        static Color GetStatusTextColor(bool implemented, bool purchased, bool prerequisiteMet, bool maxed)
+        {
+            if (!implemented) return new Color(0.78f, 0.78f, 0.78f, 1f);
+            if (maxed) return new Color(1f, 0.88f, 0.28f, 1f);
+            if (purchased) return new Color(0.92f, 1f, 0.95f, 1f);
+            if (prerequisiteMet) return new Color(1f, 0.94f, 0.58f, 1f);
+            return new Color(0.66f, 0.70f, 0.72f, 1f);
         }
 
     }

@@ -81,7 +81,7 @@ namespace AreaSurvivors
         public float moveSpeedPerUpgradeLevel = 0.18f;
         public int paintRadiusLevelsPerBonus = 2;
         public int maxHpPerUpgradeLevel = 5;
-        public float reviveSecondsReductionPerUpgradeLevel = 0.35f;
+        public float reviveSecondsReductionPerUpgradeLevel = 0.7f;
         public float minReviveSeconds = 1f;
         public float runMoveSpeedMultiplier = 1.08f;
         public int runPaintRadiusBonus = 1;
@@ -224,9 +224,10 @@ namespace AreaSurvivors
         public int watchTowerRangePerUpgradeLevel = 2;
         public int watchTowerDamagePerUpgradeLevel = 1;
         public int buildingAutoRegenPerUpgradeLevel = 1;
-        public float enemyTerritorySlowReductionPerUpgradeLevel = 0.05f;
+        public float enemyTerritorySlowReductionPerUpgradeLevel = 0.1f;
         public int towerAutoRegenPerUpgradeLevel = 1;
-        public float endTokenGainMultiplierPerUpgradeLevel = 0.1f;
+        public int roundEndTokenReward = 3;
+        public int roundEndTokenRewardPerUpgradeLevel = 1;
         public int eliteTimedSpawnCountPerUpgradeLevel = 1;
         public float autoBuildSpeedPerUpgradeLevel = 0.1f;
         public float baseRoundTimeLimitSeconds = 60f;
@@ -284,7 +285,7 @@ namespace AreaSurvivors
 
         [Header("Progression")]
         public int xpPerEnemy = 1;
-        public int tokenKillsDivisor = 8;
+        public int tokenKillsDivisor = 10;
 
         public void EnsureWeaponLevelDefaults()
         {

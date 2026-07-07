@@ -119,7 +119,16 @@ namespace AreaSurvivors
 
         public static int GetCost(UpgradeType type, int level)
         {
-            return BaseCost(type) + level * 3;
+            int overrideCost = FixedCostOverride(type, level);
+            if (overrideCost > 0) return overrideCost;
+
+            int depth = UpgradeDepth(type);
+            int safeLevel = Mathf.Max(0, level);
+            float rawCost = 5f + 3.5f * (
+                Mathf.Pow(depth, 1.7f)
+                + Mathf.Pow(safeLevel, 1.35f)
+                + depth * safeLevel * 0.32f);
+            return Mathf.Max(5, Mathf.RoundToInt(rawCost / 5f) * 5);
         }
 
         public static int GetMaxLevel(UpgradeType type)
@@ -133,9 +142,6 @@ namespace AreaSurvivors
                 case UpgradeType.UnlockLargeWorkshop:
                 case UpgradeType.UnlockTowerCannon:
                 case UpgradeType.UnlockTowerUpgrade:
-                case UpgradeType.WallMaxHp1:
-                case UpgradeType.WallMaxHp2:
-                case UpgradeType.WallMaxHp3:
                 case UpgradeType.WallUpgrade:
                 case UpgradeType.UnlockWall2:
                 case UpgradeType.Wall2Upgrade:
@@ -161,6 +167,16 @@ namespace AreaSurvivors
                     return 4;
                 case UpgradeType.PaintAreaTokenGain:
                     return 3;
+                case UpgradeType.ReviveSpeed:
+                case UpgradeType.MoveSpeed:
+                case UpgradeType.PaintRadius:
+                case UpgradeType.MovePenaltyReduction:
+                case UpgradeType.WallMaxHp1:
+                case UpgradeType.WallMaxHp2:
+                case UpgradeType.WallMaxHp3:
+                case UpgradeType.MoveSpeedAdvanced:
+                case UpgradeType.PaintRadiusAdvanced:
+                    return 5;
                 default:
                     return 10;
             }
@@ -191,48 +207,106 @@ namespace AreaSurvivors
             }
         }
 
-        static int BaseCost(UpgradeType type)
+        static int FixedCostOverride(UpgradeType type, int level)
         {
             switch (type)
             {
-                case UpgradeType.UnlockWall: return 2;
-                case UpgradeType.UnlockBallista: return 3;
-                case UpgradeType.UnlockWatchTower:
-                case UpgradeType.UnlockLargeWorkshop:
-                case UpgradeType.UnlockTowerCannon:
-                case UpgradeType.UnlockTowerUpgrade:
-                case UpgradeType.WallUpgrade:
-                case UpgradeType.UnlockWall2:
-                case UpgradeType.Wall2Upgrade:
-                case UpgradeType.BallistaUpgrade:
-                case UpgradeType.WatchTowerUpgrade:
-                    return 8;
-                case UpgradeType.TowerMaxHp:
+                case UpgradeType.ReviveSpeed:
+                    return FixedLevelCost(level, 30, 35, 45, 55, 65);
+                case UpgradeType.MovePenaltyReduction:
+                    return FixedLevelCost(level, 40, 50, 60, 70, 85);
                 case UpgradeType.WallMaxHp1:
+                    return FixedLevelCost(level, 10, 15, 20, 25, 30);
                 case UpgradeType.WallMaxHp2:
+                    return FixedLevelCost(level, 20, 25, 30, 35, 40);
                 case UpgradeType.WallMaxHp3:
+                    return FixedLevelCost(level, 30, 35, 40, 45, 50);
+            }
+
+            if (level != 0) return 0;
+            switch (type)
+            {
+                case UpgradeType.UnlockShield:
+                    return 50;
+                case UpgradeType.UnlockTowerUpgrade:
+                    return 100;
+                case UpgradeType.ReviveBuildingsOnBossDefeat:
+                    return 60;
+                case UpgradeType.UnlockFlag:
+                    return 100;
+                case UpgradeType.UnlockOpeningRelicChest:
+                    return 250;
+                default:
+                    return 0;
+            }
+        }
+
+        static int FixedLevelCost(int level, params int[] costs)
+        {
+            if (level < 0 || costs == null || level >= costs.Length) return 0;
+            return Mathf.Max(1, costs[level]);
+        }
+
+        static int UpgradeDepth(UpgradeType type)
+        {
+            switch (type)
+            {
+                case UpgradeType.MaxHp:
+                case UpgradeType.TowerMaxHp:
+                case UpgradeType.UnlockWall:
+                    return 0;
+                case UpgradeType.Defense:
+                case UpgradeType.MoveSpeed:
+                case UpgradeType.UnlockBallista:
+                case UpgradeType.UnlockWatchTower:
+                case UpgradeType.WallMaxHp1:
                 case UpgradeType.TowerAutoRegen:
-                case UpgradeType.BuildingAutoRegen:
                 case UpgradeType.EndTokenGain:
-                case UpgradeType.PaintAreaTokenGain:
+                    return 1;
+                case UpgradeType.AutoRegen:
+                case UpgradeType.PaintRadius:
+                case UpgradeType.BallistaRange:
+                case UpgradeType.UnlockTowerCannon:
                 case UpgradeType.EliteSpawnCount:
-                case UpgradeType.StartingWeaponLevel:
+                case UpgradeType.WallMaxHp2:
+                case UpgradeType.WatchTowerRange:
                 case UpgradeType.UnlockArrow:
                 case UpgradeType.UnlockFireball:
+                    return 2;
+                case UpgradeType.ReviveSpeed:
+                case UpgradeType.XpGain:
+                case UpgradeType.WallMaxHp3:
+                case UpgradeType.BallistaDamage:
                 case UpgradeType.UnlockShield:
+                case UpgradeType.WatchTowerDamage:
+                    return 3;
+                case UpgradeType.BuildingAutoRegen:
+                case UpgradeType.MovePenaltyReduction:
+                case UpgradeType.ReviveBuildingsOnBossDefeat:
+                case UpgradeType.PaintAreaTokenGain:
+                    return 4;
+                case UpgradeType.UnlockTowerUpgrade:
+                case UpgradeType.WallUpgrade:
+                case UpgradeType.BallistaUpgrade:
+                case UpgradeType.WatchTowerUpgrade:
                 case UpgradeType.UnlockArrowRain:
-                case UpgradeType.UnlockGun:
                 case UpgradeType.UnlockFrost:
-                case UpgradeType.UnlockThunderBall:
                 case UpgradeType.UnlockFlag:
                 case UpgradeType.UnlockBoomerangSword:
-                case UpgradeType.UnlockAuraSword:
+                    return 5;
+                case UpgradeType.UnlockWall2:
                 case UpgradeType.RemoveStartingSlash:
-                case UpgradeType.ReviveBuildingsOnBossDefeat:
                 case UpgradeType.UnlockOpeningRelicChest:
+                case UpgradeType.MoveSpeedAdvanced:
+                case UpgradeType.PaintRadiusAdvanced:
                     return 6;
+                case UpgradeType.Wall2Upgrade:
+                case UpgradeType.UnlockGun:
+                case UpgradeType.UnlockThunderBall:
+                case UpgradeType.UnlockAuraSword:
+                    return 7;
                 default:
-                    return 4;
+                    return 0;
             }
         }
 
@@ -290,6 +364,30 @@ namespace AreaSurvivors
             Data.highestUnlockedStage = Mathf.Max(Data.highestUnlockedStage, nextUnlockedStage);
             Save();
             return unlockedNewStage;
+        }
+
+        public static bool SetStageClearedForTesting(int stage, bool cleared)
+        {
+            stage = Mathf.Clamp(stage, 1, ImplementedStageCount);
+            if (cleared)
+            {
+                Data.highestClearedStage = Mathf.Max(Data.highestClearedStage, stage);
+                Data.highestUnlockedStage = Mathf.Max(Data.highestUnlockedStage, Mathf.Min(stage + 1, ImplementedStageCount));
+            }
+            else
+            {
+                Data.highestClearedStage = Mathf.Min(Data.highestClearedStage, stage - 1);
+                Data.highestUnlockedStage = Mathf.Clamp(Data.highestUnlockedStage, 1, stage);
+                Data.selectedStage = Mathf.Clamp(Data.selectedStage, 1, Data.highestUnlockedStage);
+            }
+
+            Save();
+            return IsStageCleared(stage);
+        }
+
+        public static bool ToggleStageClearedForTesting(int stage)
+        {
+            return SetStageClearedForTesting(stage, !IsStageCleared(stage));
         }
 
         public static int GetStageDifficulty(int stage)

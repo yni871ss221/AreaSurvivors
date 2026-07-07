@@ -451,7 +451,13 @@ namespace AreaSurvivors.Editor
         static Transform FindSkillLinkRoot(Transform nodeRoot)
         {
             if (nodeRoot == null) return null;
-            return nodeRoot.Find("Skill Links") ?? nodeRoot.GetComponentsInChildren<Transform>(true).FirstOrDefault(child => child.name == "Skill Links") ?? nodeRoot;
+            var linkRoot = nodeRoot.Find("Skill Links") ?? nodeRoot.GetComponentsInChildren<Transform>(true).FirstOrDefault(child => child.name == "Skill Links") ?? nodeRoot;
+            if (linkRoot is RectTransform rect)
+            {
+                StretchToParent(rect);
+            }
+
+            return linkRoot;
         }
 
         static void DestroyAdvancedLinks(Transform linkRoot)
@@ -466,34 +472,31 @@ namespace AreaSurvivors.Editor
         static void CreateLink(Transform parent, string name, SkillNodeView fromNode, SkillNodeView toNode)
         {
             if (parent == null || fromNode == null || toNode == null || fromNode.RectTransform == null || toNode.RectTransform == null) return;
-            var from = fromNode.RectTransform.anchoredPosition;
-            var to = toNode.RectTransform.anchoredPosition;
-            if (Mathf.Abs(to.x - from.x) > 0.01f)
-            {
-                var elbow = new Vector2(to.x, from.y);
-                CreateSegment(parent, name + " A", from, elbow);
-                CreateSegment(parent, name + " B", elbow, to);
-                return;
-            }
-
-            CreateSegment(parent, name + " A", from, to);
+            var link = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(SkillLinkView)).GetComponent<SkillLinkView>();
+            link.transform.SetParent(parent, false);
+            StretchToParent((RectTransform)link.transform);
+            link.prerequisite = fromNode.type;
+            link.fromNode = fromNode;
+            link.toNode = toNode;
+            link.thickness = 5f;
+            link.cornerRadius = 12f;
+            link.cornerSegments = 6;
+            link.inactiveColor = new Color(0.30f, 0.36f, 0.34f, 0.75f);
+            link.ApplyDirectionalAnchors();
+            link.ApplyState(false);
+            link.transform.SetAsFirstSibling();
         }
 
-        static void CreateSegment(Transform parent, string name, Vector2 from, Vector2 to)
+        static void StretchToParent(RectTransform rect)
         {
-            var delta = to - from;
-            if (delta.sqrMagnitude < 0.01f) return;
-            var image = new GameObject(name).AddComponent<Image>();
-            image.transform.SetParent(parent, false);
-            image.color = new Color(0.30f, 0.36f, 0.34f, 0.75f);
-            image.raycastTarget = false;
-            var rect = image.rectTransform;
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-            rect.pivot = new Vector2(0f, 0.5f);
-            rect.anchoredPosition = from;
-            rect.sizeDelta = new Vector2(delta.magnitude, 4f);
-            rect.localRotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg);
-            image.transform.SetAsFirstSibling();
+            if (rect == null) return;
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.localScale = Vector3.one;
+            rect.localRotation = Quaternion.identity;
         }
 
         readonly struct SkillSpec

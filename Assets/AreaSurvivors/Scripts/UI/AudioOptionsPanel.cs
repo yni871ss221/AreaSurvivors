@@ -8,6 +8,8 @@ namespace AreaSurvivors
     {
         public Slider bgmSlider;
         public Slider sfxSlider;
+        public Text bgmValueText;
+        public Text sfxValueText;
         public Button backButton;
 
         UnityAction backAction;
@@ -56,16 +58,30 @@ namespace AreaSurvivors
         {
             if (bgmSlider != null) bgmSlider.SetValueWithoutNotify(AudioManager.BgmVolume);
             if (sfxSlider != null) sfxSlider.SetValueWithoutNotify(AudioManager.SfxVolume);
+            RefreshPercentTexts();
         }
 
-        static void OnBgmVolumeChanged(float value)
+        void OnBgmVolumeChanged(float value)
         {
             AudioManager.BgmVolume = value;
+            RefreshPercentTexts();
         }
 
-        static void OnSfxVolumeChanged(float value)
+        void OnSfxVolumeChanged(float value)
         {
             AudioManager.SfxVolume = value;
+            RefreshPercentTexts();
+        }
+
+        void RefreshPercentTexts()
+        {
+            if (bgmValueText != null) bgmValueText.text = Percent(AudioManager.BgmVolume);
+            if (sfxValueText != null) sfxValueText.text = Percent(AudioManager.SfxVolume);
+        }
+
+        static string Percent(float value)
+        {
+            return Mathf.RoundToInt(Mathf.Clamp01(value) * 100f) + "%";
         }
 
         void OnBackClicked()

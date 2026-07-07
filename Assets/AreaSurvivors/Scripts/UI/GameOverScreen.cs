@@ -65,14 +65,42 @@ namespace AreaSurvivors
             public void Set(RelicType type)
             {
                 if (bindings == null) return;
+                RelicIconBinding activeBinding = null;
+                RelicIconBinding fallbackBinding = null;
                 for (int i = 0; i < bindings.Length; i++)
                 {
                     var binding = bindings[i];
                     if (binding == null || binding.icon == null) continue;
-                    bool active = binding.type == type;
-                    binding.icon.SetActive(active);
-                    if (active) binding.icon.transform.localScale = Vector3.one * RelicCatalog.IconScale(type);
+                    binding.icon.SetActive(false);
+                    if (binding.type == type)
+                    {
+                        activeBinding = binding;
+                    }
+                    if (fallbackBinding == null && type != RelicType.None)
+                    {
+                        fallbackBinding = binding;
+                    }
                 }
+
+                if (activeBinding == null) activeBinding = fallbackBinding;
+                if (activeBinding == null || activeBinding.icon == null || type == RelicType.None) return;
+
+                activeBinding.icon.SetActive(true);
+                activeBinding.icon.transform.localScale = Vector3.one * RelicCatalog.IconScale(type);
+                var image = activeBinding.icon.GetComponent<Image>();
+                if (image == null) image = activeBinding.icon.GetComponentInChildren<Image>(true);
+                if (image != null)
+                {
+                    image.sprite = LoadIcon(RelicCatalog.Get(type));
+                    image.color = Color.white;
+                    image.preserveAspect = true;
+                }
+            }
+
+            static Sprite LoadIcon(RelicDefinition definition)
+            {
+                var sprite = definition != null ? GeneratedSpriteLoader.Load(definition.iconPath) : null;
+                return sprite != null ? sprite : GeneratedSpriteLoader.Load("TreasureChest");
             }
         }
 

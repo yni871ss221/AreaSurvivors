@@ -285,47 +285,51 @@ namespace AreaSurvivors.Editor
             if (nodeRoot == null) return null;
 
             var direct = nodeRoot.Find("Skill Links");
-            if (direct != null) return direct;
+            if (direct is RectTransform directRect)
+            {
+                StretchToParent(directRect);
+                return directRect;
+            }
 
-            return nodeRoot.GetComponentsInChildren<Transform>(true)
+            var linkRoot = nodeRoot.GetComponentsInChildren<Transform>(true)
                 .FirstOrDefault(child => child.name == "Skill Links") ?? nodeRoot;
+            if (linkRoot is RectTransform rect)
+            {
+                StretchToParent(rect);
+            }
+
+            return linkRoot;
         }
 
         static void CreateWeaponUnlockLink(Transform linkRoot, string baseName, SkillNodeView parent, SkillNodeView node)
         {
             if (linkRoot == null || parent == null || parent.RectTransform == null || node == null || node.RectTransform == null) return;
 
-            var from = parent.RectTransform.anchoredPosition;
-            var to = node.RectTransform.anchoredPosition;
-            if (Mathf.Abs(to.x - from.x) > 0.01f)
-            {
-                var elbow = new Vector2(to.x, from.y);
-                CreateLinkSegment(linkRoot, baseName + " A", from, elbow);
-                CreateLinkSegment(linkRoot, baseName + " B", elbow, to);
-                return;
-            }
-
-            CreateLinkSegment(linkRoot, baseName + " A", from, to);
+            var link = new GameObject(baseName, typeof(RectTransform), typeof(CanvasRenderer), typeof(SkillLinkView)).GetComponent<SkillLinkView>();
+            link.transform.SetParent(linkRoot, false);
+            StretchToParent((RectTransform)link.transform);
+            link.prerequisite = parent.type;
+            link.fromNode = parent;
+            link.toNode = node;
+            link.thickness = 5f;
+            link.cornerRadius = 12f;
+            link.cornerSegments = 6;
+            link.inactiveColor = new Color(0.30f, 0.36f, 0.34f, 0.75f);
+            link.ApplyDirectionalAnchors();
+            link.ApplyState(false);
+            link.transform.SetAsFirstSibling();
         }
 
-        static void CreateLinkSegment(Transform parent, string name, Vector2 from, Vector2 to)
+        static void StretchToParent(RectTransform rect)
         {
-            var delta = to - from;
-            if (delta.sqrMagnitude < 0.01f) return;
-            var image = new GameObject(name).AddComponent<Image>();
-            image.transform.SetParent(parent, false);
-            image.color = new Color(0.30f, 0.36f, 0.34f, 0.75f);
-            image.raycastTarget = false;
-            var rect = image.rectTransform;
-            rect.anchorMin = new Vector2(0.5f, 0.5f);
-            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            if (rect == null) return;
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
             rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = from + delta * 0.5f;
-            rect.sizeDelta = new Vector2(delta.magnitude, 5f);
-            rect.localRotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg);
-            var segment = image.gameObject.AddComponent<SkillLinkSegment>();
-            segment.prerequisite = UpgradeType.MovePenaltyReduction;
-            segment.image = image;
+            rect.localScale = Vector3.one;
+            rect.localRotation = Quaternion.identity;
         }
 
         static void DestroyChild(Transform parent, string name)

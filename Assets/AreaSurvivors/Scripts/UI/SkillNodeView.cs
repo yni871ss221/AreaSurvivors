@@ -29,6 +29,8 @@ namespace AreaSurvivors
         public Image background;
         public Image icon;
         public Text statusText;
+        public Text nodeNumberText;
+        public Outline panelOutline;
 
         public RectTransform RectTransform => transform as RectTransform;
 
@@ -73,6 +75,8 @@ namespace AreaSurvivors
             if (background == null) background = transform.Find("Node Button")?.GetComponent<Image>();
             if (icon == null) icon = transform.Find("Node Button/Icon")?.GetComponent<Image>();
             if (statusText == null) statusText = transform.Find("Node Cost")?.GetComponent<Text>();
+            if (nodeNumberText == null) nodeNumberText = transform.Find("Node Button/Node No")?.GetComponent<Text>();
+            if (panelOutline == null && background != null) panelOutline = background.GetComponent<Outline>();
         }
     }
 }

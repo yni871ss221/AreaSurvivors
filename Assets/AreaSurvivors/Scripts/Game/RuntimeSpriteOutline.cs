@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace AreaSurvivors
@@ -18,9 +20,44 @@ namespace AreaSurvivors
         MeshFilter outlineFilter;
         MeshRenderer outlineRenderer;
         Material outlineMaterial;
-        Mesh outlineMesh;
-        Mesh lastSourceMesh;
-        float lastThickness = -1f;
+        static readonly Dictionary<OutlineMeshCacheKey, OutlineMeshData> OutlineMeshCache = new Dictionary<OutlineMeshCacheKey, OutlineMeshData>();
+
+        sealed class OutlineMeshData
+        {
+            public Mesh mesh;
+            public Vector4 spriteRect;
+            public Vector4 outlineUv;
+        }
+
+        readonly struct OutlineMeshCacheKey : IEquatable<OutlineMeshCacheKey>
+        {
+            readonly int sourceMeshId;
+            readonly int effectiveThickness;
+
+            public OutlineMeshCacheKey(Mesh sourceMesh, float effectiveThickness)
+            {
+                sourceMeshId = sourceMesh != null ? sourceMesh.GetInstanceID() : 0;
+                this.effectiveThickness = Mathf.RoundToInt(effectiveThickness * 10000f);
+            }
+
+            public bool Equals(OutlineMeshCacheKey other)
+            {
+                return sourceMeshId == other.sourceMeshId && effectiveThickness == other.effectiveThickness;
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is OutlineMeshCacheKey other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    return (sourceMeshId * 397) ^ effectiveThickness;
+                }
+            }
+        }
 
         void Awake()
         {
@@ -43,9 +80,6 @@ namespace AreaSurvivors
             if (outlineMaterial == null) return;
             if (Application.isPlaying) Destroy(outlineMaterial);
             else DestroyImmediate(outlineMaterial);
-            if (outlineMesh == null) return;
-            if (Application.isPlaying) Destroy(outlineMesh);
-            else DestroyImmediate(outlineMesh);
         }
 
         void EnsureOutline()
@@ -126,10 +160,10 @@ namespace AreaSurvivors
                 color.a *= Mathf.Lerp(0.35f, 1f, Mathf.PingPong(Time.time * Mathf.Max(0.1f, blinkSpeed), 1f));
             }
 
-            EnsureOutlineMesh(sourceFilter.sharedMesh);
+            var outlineData = EnsureOutlineMesh(sourceFilter.sharedMesh);
             outlineMaterial.mainTexture = sourceMaterial.mainTexture;
             outlineMaterial.color = color;
-            ApplySpriteRectProperties();
+            ApplySpriteRectProperties(outlineData);
 
             bool visible = sourceRenderer.enabled && color.a > 0.001f && EffectiveThickness > 0.001f;
             var outlineTransform = outlineRenderer.transform;
@@ -147,18 +181,23 @@ namespace AreaSurvivors
             if (outlineRenderer != null) outlineRenderer.enabled = visible;
         }
 
-        void EnsureOutlineMesh(Mesh sourceMesh)
+        OutlineMeshData EnsureOutlineMesh(Mesh sourceMesh)
         {
-            if (sourceMesh == null) return;
+            if (sourceMesh == null) return null;
             float effectiveThickness = EffectiveThickness;
-            if (outlineMesh != null && lastSourceMesh == sourceMesh && Mathf.Approximately(lastThickness, effectiveThickness)) return;
+            var key = new OutlineMeshCacheKey(sourceMesh, effectiveThickness);
+            if (OutlineMeshCache.TryGetValue(key, out var cached) && cached != null)
+            {
+                outlineFilter.sharedMesh = cached.mesh;
+                return cached;
+            }
 
             var vertices = sourceMesh.vertices;
             var uvs = sourceMesh.uv;
             if (vertices == null || vertices.Length < 4 || uvs == null || uvs.Length < 4)
             {
                 outlineFilter.sharedMesh = sourceMesh;
-                return;
+                return null;
             }
 
             var min = vertices[0];
@@ -177,71 +216,43 @@ namespace AreaSurvivors
             float height = Mathf.Max(0.001f, max.y - min.y);
             float uvPadX = (uvMax.x - uvMin.x) * effectiveThickness / width;
             float uvPadY = (uvMax.y - uvMin.y) * effectiveThickness / height;
-
-            if (outlineMesh == null)
+            var data = new OutlineMeshData
             {
-                outlineMesh = new Mesh
-                {
-                    name = sourceMesh.name + " Outline",
-                    hideFlags = HideFlags.HideAndDontSave
-                };
-            }
-            else
-            {
-                outlineMesh.Clear();
-            }
+                spriteRect = new Vector4(uvMin.x, uvMin.y, uvMax.x, uvMax.y),
+                outlineUv = new Vector4(uvPadX, uvPadY, 0f, 0f)
+            };
 
-            outlineMesh.vertices = new[]
+            data.mesh = new Mesh
+            {
+                name = sourceMesh.name + " Outline",
+                hideFlags = HideFlags.HideAndDontSave
+            };
+            data.mesh.vertices = new[]
             {
                 new Vector3(min.x - effectiveThickness, min.y - effectiveThickness, 0f),
                 new Vector3(max.x + effectiveThickness, min.y - effectiveThickness, 0f),
                 new Vector3(min.x - effectiveThickness, max.y + effectiveThickness, 0f),
                 new Vector3(max.x + effectiveThickness, max.y + effectiveThickness, 0f)
             };
-            outlineMesh.uv = new[]
+            data.mesh.uv = new[]
             {
                 new Vector2(uvMin.x - uvPadX, uvMin.y - uvPadY),
                 new Vector2(uvMax.x + uvPadX, uvMin.y - uvPadY),
                 new Vector2(uvMin.x - uvPadX, uvMax.y + uvPadY),
                 new Vector2(uvMax.x + uvPadX, uvMax.y + uvPadY)
             };
-            outlineMesh.triangles = new[] { 0, 2, 1, 2, 3, 1 };
-            outlineMesh.RecalculateBounds();
-            outlineFilter.sharedMesh = outlineMesh;
-            lastSourceMesh = sourceMesh;
-            lastThickness = effectiveThickness;
+            data.mesh.triangles = new[] { 0, 2, 1, 2, 3, 1 };
+            data.mesh.RecalculateBounds();
+            OutlineMeshCache[key] = data;
+            outlineFilter.sharedMesh = data.mesh;
+            return data;
         }
 
-        void ApplySpriteRectProperties()
+        void ApplySpriteRectProperties(OutlineMeshData data)
         {
-            if (outlineMesh == null || outlineMesh.uv == null || outlineMesh.uv.Length < 4) return;
-            var sourceUvs = sourceFilter.sharedMesh.uv;
-            if (sourceUvs == null || sourceUvs.Length < 4) return;
-
-            var uvMin = sourceUvs[0];
-            var uvMax = sourceUvs[0];
-            for (int i = 1; i < sourceUvs.Length; i++)
-            {
-                uvMin = Vector2.Min(uvMin, sourceUvs[i]);
-                uvMax = Vector2.Max(uvMax, sourceUvs[i]);
-            }
-
-            var vertices = sourceFilter.sharedMesh.vertices;
-            var min = vertices[0];
-            var max = vertices[0];
-            for (int i = 1; i < vertices.Length; i++)
-            {
-                min = Vector3.Min(min, vertices[i]);
-                max = Vector3.Max(max, vertices[i]);
-            }
-
-            float width = Mathf.Max(0.001f, max.x - min.x);
-            float height = Mathf.Max(0.001f, max.y - min.y);
-            float effectiveThickness = EffectiveThickness;
-            float uvPadX = (uvMax.x - uvMin.x) * effectiveThickness / width;
-            float uvPadY = (uvMax.y - uvMin.y) * effectiveThickness / height;
-            outlineMaterial.SetVector("_SpriteRect", new Vector4(uvMin.x, uvMin.y, uvMax.x, uvMax.y));
-            outlineMaterial.SetVector("_OutlineUv", new Vector4(uvPadX, uvPadY, 0f, 0f));
+            if (data == null) return;
+            outlineMaterial.SetVector("_SpriteRect", data.spriteRect);
+            outlineMaterial.SetVector("_OutlineUv", data.outlineUv);
             outlineMaterial.SetFloat("_AlphaThreshold", 0.05f);
         }
 

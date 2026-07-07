@@ -57,6 +57,29 @@ namespace AreaSurvivors.Editor
             }
         }
 
+        [MenuItem("AreaSurvivors/Setup/Refresh Game Test Launcher Stage Clear Buttons")]
+        public static void RefreshStageClearButtons()
+        {
+            string previousScenePath = SceneManager.GetActiveScene().path;
+            var scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
+            var stagePanel = FindChildInScene(scene, "Stage Test Panel");
+            if (stagePanel == null)
+            {
+                Debug.LogWarning("Stage Test Panel was not found. Skipped refreshing stage clear controls.");
+            }
+            else
+            {
+                BuildStageClearButtons(stagePanel);
+                EditorSceneManager.MarkSceneDirty(scene);
+                EditorSceneManager.SaveScene(scene);
+            }
+
+            if (!string.IsNullOrEmpty(previousScenePath))
+            {
+                EditorSceneManager.OpenScene(previousScenePath, OpenSceneMode.Single);
+            }
+        }
+
         static void CreateTestLauncherScene()
         {
             var scene = System.IO.File.Exists(ScenePath)
@@ -188,10 +211,21 @@ namespace AreaSurvivors.Editor
         {
             var panel = Panel(parent, "Stage Test Panel", new Vector2(0f, y), new Vector2(960f, 210f), new Color(0.025f, 0.052f, 0.042f, 0.72f));
             Label(panel.transform, "Stage Test Title", "ステージ開始", 25, new Vector2(0f, 72f), new Vector2(360f, 34f), AccentText);
+            BuildStageClearButtons(panel.transform);
             Button(panel.transform, "Start Stage 2 Test Button", "STAGE 2 テスト開始", new Vector2(-300f, -14f), new Vector2(280f, 54f));
             Button(panel.transform, "Start Stage 3 Test Button", "STAGE 3 テスト開始", new Vector2(0f, -14f), new Vector2(280f, 54f));
             Button(panel.transform, "Start Stage 4 Test Button", "STAGE 4 テスト開始", new Vector2(300f, -14f), new Vector2(280f, 54f));
             Button(panel.transform, "Start Stage 1 Boss Test Button", "STAGE 1 ボス直前開始", new Vector2(0f, -78f), new Vector2(360f, 46f), GeneratedSpriteLoader.Load("Walk/EnemyOrcKing/Down_1"), 20);
+        }
+
+        static void BuildStageClearButtons(Transform panel)
+        {
+            for (int stage = 1; stage <= 4; stage++)
+            {
+                DestroyNamed(panel, GameTestLaunchScreen.StageClearToggleButtonName(stage));
+                float x = -330f + (stage - 1) * 220f;
+                Button(panel, GameTestLaunchScreen.StageClearToggleButtonName(stage), "STAGE " + stage + "\n未クリア", new Vector2(x, 34f), new Vector2(200f, 32f), null, 14);
+            }
         }
 
         static void BuildBossSpawnTestPanel(Transform parent, float y)

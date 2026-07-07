@@ -61,6 +61,8 @@ namespace AreaSurvivors
         ReviveBuildingsOnBossDefeat = 66,
         UnlockOpeningRelicChest = 67,
         WatchTowerDamage = 68,
-        PaintAreaTokenGain = 69
+        PaintAreaTokenGain = 69,
+        MoveSpeedAdvanced = 70,
+        PaintRadiusAdvanced = 71
     }
 }

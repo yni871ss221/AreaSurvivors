@@ -175,7 +175,7 @@ namespace AreaSurvivors.Editor
             config.moveSpeedPerUpgradeLevel = 0.18f;
             config.paintRadiusLevelsPerBonus = 2;
             config.maxHpPerUpgradeLevel = 5;
-            config.reviveSecondsReductionPerUpgradeLevel = 0.35f;
+            config.reviveSecondsReductionPerUpgradeLevel = 0.7f;
             config.minReviveSeconds = 1f;
             config.runMoveSpeedMultiplier = 1.08f;
             config.runPaintRadiusBonus = 1;

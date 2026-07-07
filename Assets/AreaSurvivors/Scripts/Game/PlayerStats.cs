@@ -49,12 +49,14 @@ namespace AreaSurvivors
             }
 
             int paintLevels = Mathf.Max(1, config.paintRadiusLevelsPerBonus);
+            int moveSpeedUpgradeLevel = ProgressionStore.GetLevel(UpgradeType.MoveSpeed) + ProgressionStore.GetLevel(UpgradeType.MoveSpeedAdvanced);
+            int paintRadiusUpgradeLevel = ProgressionStore.GetLevel(UpgradeType.PaintRadius) + ProgressionStore.GetLevel(UpgradeType.PaintRadiusAdvanced);
 
             Current = new StatBlock
             {
                 maxHp = config.playerMaxHp + ProgressionStore.GetLevel(UpgradeType.MaxHp) * config.maxHpPerUpgradeLevel + runMaxHpBonus + RelicEffects.MaxHpBonus,
-                moveSpeed = ((config.playerMoveSpeed * runMoveSpeedMultiplier) + ProgressionStore.GetLevel(UpgradeType.MoveSpeed) * config.moveSpeedPerUpgradeLevel) * RelicEffects.MoveSpeedMultiplier,
-                paintRadius = config.paintRadius + ProgressionStore.GetLevel(UpgradeType.PaintRadius) / paintLevels + runPaintRadiusBonus,
+                moveSpeed = ((config.playerMoveSpeed * runMoveSpeedMultiplier) + moveSpeedUpgradeLevel * config.moveSpeedPerUpgradeLevel) * RelicEffects.MoveSpeedMultiplier,
+                paintRadius = config.paintRadius + paintRadiusUpgradeLevel / paintLevels + runPaintRadiusBonus,
                 reviveSeconds = Mathf.Max(config.minReviveSeconds, config.playerReviveSeconds - ProgressionStore.GetLevel(UpgradeType.ReviveSpeed) * config.reviveSecondsReductionPerUpgradeLevel),
                 defense = config.baseDefense + ProgressionStore.GetLevel(UpgradeType.Defense) * config.defensePerUpgradeLevel + runDefenseBonus,
                 xpGainMultiplier = (config.baseXpGainMultiplier + ProgressionStore.GetLevel(UpgradeType.XpGain) * config.xpGainMultiplierPerUpgradeLevel + runXpGainMultiplierBonus) * RelicEffects.XpGainMultiplier,

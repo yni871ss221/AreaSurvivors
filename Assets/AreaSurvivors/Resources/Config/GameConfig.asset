@@ -21,7 +21,7 @@ MonoBehaviour:
   moveSpeedPerUpgradeLevel: 0.18
   paintRadiusLevelsPerBonus: 2
   maxHpPerUpgradeLevel: 5
-  reviveSecondsReductionPerUpgradeLevel: 0.35
+  reviveSecondsReductionPerUpgradeLevel: 0.7
   minReviveSeconds: 1
   runMoveSpeedMultiplier: 1.08
   runPaintRadiusBonus: 1
@@ -1575,9 +1575,10 @@ MonoBehaviour:
   watchTowerRangePerUpgradeLevel: 2
   watchTowerDamagePerUpgradeLevel: 1
   buildingAutoRegenPerUpgradeLevel: 1
-  enemyTerritorySlowReductionPerUpgradeLevel: 0.05
+  enemyTerritorySlowReductionPerUpgradeLevel: 0.1
   towerAutoRegenPerUpgradeLevel: 1
-  endTokenGainMultiplierPerUpgradeLevel: 0.1
+  roundEndTokenReward: 3
+  roundEndTokenRewardPerUpgradeLevel: 1
   eliteTimedSpawnCountPerUpgradeLevel: 1
   autoBuildSpeedPerUpgradeLevel: 0.1
   baseRoundTimeLimitSeconds: 60
@@ -1879,4 +1880,4 @@ MonoBehaviour:
     outlineColor: {r: 1, g: 0.08, b: 0.04, a: 1}
     outlineThickness: 0.075
   xpPerEnemy: 1
-  tokenKillsDivisor: 8
+  tokenKillsDivisor: 10

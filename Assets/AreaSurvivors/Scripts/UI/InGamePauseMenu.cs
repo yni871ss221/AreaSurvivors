@@ -9,7 +9,9 @@ namespace AreaSurvivors
         public GameObject menuPanel;
         public GameObject optionsPanel;
         public GameObject abandonDialog;
+        public GeneralOptionsPanel generalOptionsPanel;
         public AudioOptionsPanel audioOptionsPanel;
+        public DisplayOptionsPanel displayOptionsPanel;
         public Button optionsButton;
         public Button abandonButton;
         public Button resumeButton;
@@ -56,7 +58,9 @@ namespace AreaSurvivors
             Bind(resumeButton, ResumeGame);
             Bind(confirmBackButton, ShowMainMenu);
             Bind(confirmAbandonButton, AbandonRun);
+            if (generalOptionsPanel != null) generalOptionsPanel.Bind();
             if (audioOptionsPanel != null) audioOptionsPanel.Bind(ShowMainMenu);
+            if (displayOptionsPanel != null) displayOptionsPanel.Bind();
         }
 
         static void Bind(Button button, UnityEngine.Events.UnityAction action)

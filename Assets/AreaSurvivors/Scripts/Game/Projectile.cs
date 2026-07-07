@@ -17,6 +17,8 @@ namespace AreaSurvivors
         public Sprite impactSprite;
         public Color impactColor = Color.white;
         public float impactVisualScale = 1f;
+        public GameObject impactFlashPrefab;
+        public GameObject explosionHitboxPrefab;
         public bool paintsTerritory = true;
         int damage;
         bool explosive;
@@ -118,7 +120,7 @@ namespace AreaSurvivors
             AudioManager.PlaySfx(SfxTrack.ExplosionHit);
             ImpactFlash();
             if (paintsTerritory) PaintPlayerTerritory(transform.position, Mathf.CeilToInt(explosionRadius));
-            ProjectileExplosionHitbox.Spawn(transform.position, explosionRadius, damage, knockback, knockbackDuration, paintsTerritory, damageSource);
+            ProjectileExplosionHitbox.Spawn(explosionHitboxPrefab, transform.position, explosionRadius, damage, knockback, knockbackDuration, paintsTerritory, damageSource);
             Destroy(gameObject);
         }
 
@@ -147,15 +149,24 @@ namespace AreaSurvivors
             var source = GetComponentInChildren<PaperMeshVisual>();
             var flashSprite = impactSprite != null ? impactSprite : source != null ? source.sprite : null;
             if (flashSprite == null) return;
+            if (impactFlashPrefab == null)
+            {
+                Debug.LogError("Projectile impact prefab is missing. Assign Projectile.impactFlashPrefab on projectile prefabs.");
+                return;
+            }
 
-            var go = new GameObject(explosive ? "Fireball Impact" : "Arrow Impact");
-            go.transform.position = transform.position;
-            go.transform.localScale = Vector3.one * ImpactScale();
-            go.AddComponent<PaperBillboard>();
-            var visual = go.AddComponent<PaperMeshVisual>();
+            var go = Instantiate(impactFlashPrefab, transform.position, Quaternion.identity);
+            go.name = explosive ? "Fireball Impact" : "Arrow Impact";
+            var flash = go.GetComponent<ProjectileImpactFlash>();
+            if (flash == null)
+            {
+                Debug.LogError("Projectile impact prefab is missing ProjectileImpactFlash.");
+                Destroy(go);
+                return;
+            }
+
             var color = impactSprite != null ? impactColor : explosive ? new Color(1f, 0.62f, 0.22f, 0.9f) : new Color(1f, 0.92f, 0.45f, 0.78f);
-            visual.Configure(flashSprite, color, WeaponSortingOrders.Impact);
-            go.AddComponent<ProjectileImpactFlash>().Configure(visual, impactSprite != null ? 0.26f : explosive ? 0.18f : 0.12f);
+            flash.Play(flashSprite, color, ImpactScale(), impactSprite != null ? 0.26f : explosive ? 0.18f : 0.12f);
         }
 
         float ImpactScale()
@@ -188,17 +199,15 @@ namespace AreaSurvivors
             var visual = GetComponentInChildren<PaperMeshVisual>(true);
             if (visual == null)
             {
-                var child = new GameObject("Paper Visual");
-                child.transform.SetParent(transform, false);
-                child.AddComponent<PaperBillboard>();
-                visual = child.AddComponent<PaperMeshVisual>();
+                Debug.LogError("Projectile visual is missing. Add a PaperMeshVisual child to the projectile prefab.");
+                return;
             }
 
             if (visual.sprite == null)
             {
                 var sprite = fallbackSprite;
-                if (sprite == null) sprite = GeneratedSpriteLoader.Load(name.Contains("Fireball") ? "Fireball" : "Arrow");
                 if (sprite != null) visual.Configure(sprite, fallbackColor, WeaponSortingOrders.Projectile);
+                else Debug.LogError("Projectile sprite is missing. Assign PaperMeshVisual.sourceSprite on the projectile prefab.");
             }
             else
             {
@@ -207,127 +216,6 @@ namespace AreaSurvivors
 
             visual.visible = true;
             visual.order = WeaponSortingOrders.Projectile;
-        }
-    }
-
-    sealed class ProjectileImpactFlash : MonoBehaviour
-    {
-        PaperMeshVisual visual;
-        float lifetime = 0.12f;
-        float age;
-        Vector3 startScale;
-
-        public void Configure(PaperMeshVisual target, float seconds)
-        {
-            visual = target;
-            lifetime = Mathf.Max(0.04f, seconds);
-            startScale = transform.localScale;
-        }
-
-        void Update()
-        {
-            age += Time.deltaTime;
-            float t = Mathf.Clamp01(age / lifetime);
-            transform.localScale = startScale * Mathf.Lerp(0.75f, 1.85f, t);
-            if (visual != null)
-            {
-                var color = visual.color;
-                color.a = Mathf.Lerp(color.a, 0f, t);
-                visual.color = color;
-            }
-            if (age >= lifetime) Destroy(gameObject);
-        }
-    }
-
-    sealed class ProjectileExplosionHitbox : MonoBehaviour
-    {
-        readonly List<Collider2D> hits = new List<Collider2D>(24);
-        readonly HashSet<EnemyController> damaged = new HashSet<EnemyController>();
-        CircleCollider2D hitbox;
-        Vector3 origin;
-        int damage;
-        float knockback;
-        float knockbackDuration;
-        bool paintsTerritory;
-        RunDamageSource damageSource;
-
-        public static void Spawn(Vector3 position, float radius, int damage, float knockback, float knockbackDuration, bool paintsTerritory = true, RunDamageSource source = default)
-        {
-            var go = new GameObject("Projectile Explosion Hitbox");
-            go.transform.position = position;
-
-            var hitbox = go.AddComponent<CircleCollider2D>();
-            hitbox.isTrigger = true;
-            hitbox.radius = Mathf.Max(0.05f, radius);
-
-            var body = go.AddComponent<Rigidbody2D>();
-            body.bodyType = RigidbodyType2D.Kinematic;
-            body.simulated = true;
-
-            go.AddComponent<ProjectileExplosionHitbox>().Configure(hitbox, position, damage, knockback, knockbackDuration, paintsTerritory, source);
-        }
-
-        void Configure(CircleCollider2D source, Vector3 hitOrigin, int hitDamage, float knockbackStrength, float knockbackSeconds, bool shouldPaintTerritory, RunDamageSource runDamageSource)
-        {
-            hitbox = source;
-            origin = hitOrigin;
-            damage = hitDamage;
-            knockback = knockbackStrength;
-            knockbackDuration = knockbackSeconds;
-            paintsTerritory = shouldPaintTerritory;
-            damageSource = runDamageSource;
-            StartCoroutine(DamageAfterPhysicsSync());
-        }
-
-        IEnumerator DamageAfterPhysicsSync()
-        {
-            yield return new WaitForFixedUpdate();
-            DamageOverlaps();
-            Destroy(gameObject);
-        }
-
-        void DamageOverlaps()
-        {
-            if (hitbox == null) return;
-            if (paintsTerritory) PaintPlayerTerritory(origin, Mathf.CeilToInt(hitbox.radius));
-            Physics2D.SyncTransforms();
-            hits.Clear();
-            damaged.Clear();
-            var filter = new ContactFilter2D();
-            filter.NoFilter();
-            hitbox.OverlapCollider(filter, hits);
-            for (int i = 0; i < hits.Count; i++)
-            {
-                var enemy = hits[i] != null ? hits[i].GetComponent<EnemyController>() : null;
-                if (enemy == null || damaged.Contains(enemy)) continue;
-                damaged.Add(enemy);
-                var health = enemy.GetComponent<Health>();
-                int creditedDamage = health != null && !health.IsDead ? health.DamageAmount(damage) : 0;
-                if (health != null) health.Damage(damage, hits[i].ClosestPoint(origin));
-                ApplyKnockback(enemy);
-                RegisterDamage(creditedDamage);
-            }
-        }
-
-        void RegisterDamage(int amount)
-        {
-            if (damageSource.IsAssigned) GameManager.Instance?.RegisterDamageDealt(damageSource, amount);
-            else GameManager.Instance?.RegisterDamageDealt(amount);
-        }
-
-        void ApplyKnockback(EnemyController enemy)
-        {
-            if (enemy == null || knockback <= 0f) return;
-            var receiver = enemy.GetComponent<KnockbackReceiver>();
-            if (receiver == null) return;
-            var direction = ((Vector2)enemy.transform.position - (Vector2)origin).normalized;
-            receiver.Apply(direction, knockback, knockbackDuration);
-        }
-
-        static void PaintPlayerTerritory(Vector3 position, int radius)
-        {
-            var grid = GameManager.Instance != null ? GameManager.Instance.grid : null;
-            if (grid != null) grid.Paint(position, TileOwner.Player, Mathf.Max(1, radius));
         }
     }
 }
