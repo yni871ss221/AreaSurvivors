@@ -63,6 +63,7 @@ namespace AreaSurvivors
         WatchTowerDamage = 68,
         PaintAreaTokenGain = 69,
         MoveSpeedAdvanced = 70,
-        PaintRadiusAdvanced = 71
+        PaintRadiusAdvanced = 71,
+        OpeningPlayerLevel = 72
     }
 }

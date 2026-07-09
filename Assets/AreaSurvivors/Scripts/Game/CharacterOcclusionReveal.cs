@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -23,14 +24,55 @@ namespace AreaSurvivors
 
         PaperMeshVisual source;
         MeshRenderer sourceRenderer;
+        MeshFilter sourceFilter;
+        RuntimeSpriteOutline sourceOutline;
         Shader stencilShader;
         Material silhouetteMaterial;
         CommandBuffer commandBuffer;
         Camera renderCamera;
         CharacterFootprint footprint;
         EnemyController enemy;
+        readonly List<Renderer> activeOccluders = new List<Renderer>();
         bool commandBufferAttached;
         float timer;
+        static readonly Dictionary<SilhouetteMeshCacheKey, SilhouetteMeshData> SilhouetteMeshCache = new Dictionary<SilhouetteMeshCacheKey, SilhouetteMeshData>();
+
+        sealed class SilhouetteMeshData
+        {
+            public Mesh mesh;
+            public Vector4 spriteRect;
+            public Vector4 outlineUv;
+        }
+
+        readonly struct SilhouetteMeshCacheKey : IEquatable<SilhouetteMeshCacheKey>
+        {
+            readonly int sourceMeshId;
+            readonly int effectiveThickness;
+
+            public SilhouetteMeshCacheKey(Mesh sourceMesh, float effectiveThickness)
+            {
+                sourceMeshId = sourceMesh != null ? sourceMesh.GetInstanceID() : 0;
+                this.effectiveThickness = Mathf.RoundToInt(effectiveThickness * 10000f);
+            }
+
+            public bool Equals(SilhouetteMeshCacheKey other)
+            {
+                return sourceMeshId == other.sourceMeshId && effectiveThickness == other.effectiveThickness;
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is SilhouetteMeshCacheKey other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    return (sourceMeshId * 397) ^ effectiveThickness;
+                }
+            }
+        }
 
         void OnEnable()
         {
@@ -44,15 +86,25 @@ namespace AreaSurvivors
             if (sourceRenderer == null || commandBuffer == null) return;
 
             timer -= Time.unscaledDeltaTime;
-            if (timer > 0f) return;
-            if (!CanRunThisFrame())
+            bool refreshedOccluders = false;
+            if (timer <= 0f)
             {
-                timer = NormalEnemyRetrySeconds;
-                return;
+                if (CanRunThisFrame())
+                {
+                    timer = EffectiveCheckInterval();
+                    RefreshActiveOccluders();
+                    refreshedOccluders = true;
+                }
+                else
+                {
+                    timer = NormalEnemyRetrySeconds;
+                }
             }
 
-            timer = EffectiveCheckInterval();
-            RebuildCommands();
+            if (refreshedOccluders || commandBufferAttached)
+            {
+                RebuildCommands();
+            }
         }
 
         void EnsureResources()
@@ -68,6 +120,8 @@ namespace AreaSurvivors
             }
             if (source == null) return;
             if (sourceRenderer == null) sourceRenderer = source.GetComponent<MeshRenderer>();
+            if (sourceFilter == null) sourceFilter = source.GetComponent<MeshFilter>();
+            if (sourceOutline == null) sourceOutline = source.GetComponent<RuntimeSpriteOutline>();
             if (footprint == null) footprint = GetComponent<CharacterFootprint>();
             if (enemy == null) enemy = GetComponent<EnemyController>();
 
@@ -125,6 +179,20 @@ namespace AreaSurvivors
             return enemy != null && !enemy.boss && !enemy.elite;
         }
 
+        void RefreshActiveOccluders()
+        {
+            activeOccluders.Clear();
+            if (source == null || sourceRenderer == null || !sourceRenderer.enabled) return;
+
+            Rect sourceScreenRect = ScreenRect(sourceRenderer.bounds);
+            int sourceOrder = sourceRenderer.sortingOrder;
+            foreach (var renderer in GetOccluders())
+            {
+                if (!IsFrontOverlappingOccluder(renderer, sourceScreenRect, sourceOrder)) continue;
+                activeOccluders.Add(renderer);
+            }
+        }
+
         void RebuildCommands()
         {
             commandBuffer.Clear();
@@ -133,8 +201,9 @@ namespace AreaSurvivors
             Rect sourceScreenRect = ScreenRect(sourceRenderer.bounds);
             int sourceOrder = sourceRenderer.sortingOrder;
             bool hasOccluder = false;
-            foreach (var renderer in GetOccluders())
+            for (int i = activeOccluders.Count - 1; i >= 0; i--)
             {
+                var renderer = activeOccluders[i];
                 if (!IsFrontOverlappingOccluder(renderer, sourceScreenRect, sourceOrder)) continue;
                 Texture texture = renderer.sharedMaterial != null ? renderer.sharedMaterial.mainTexture : null;
                 if (texture == null) continue;
@@ -155,7 +224,92 @@ namespace AreaSurvivors
             silhouetteMaterial.mainTexture = source.sprite != null ? source.sprite.texture : null;
             silhouetteMaterial.SetColor("_Color", silhouetteColor);
             silhouetteMaterial.SetColor("_OutlineColor", outlineColor);
-            commandBuffer.DrawRenderer(sourceRenderer, silhouetteMaterial);
+            var silhouetteData = EnsureSilhouetteMesh(sourceFilter != null ? sourceFilter.sharedMesh : null);
+            ApplySilhouetteProperties(silhouetteData);
+            if (silhouetteData != null && silhouetteData.mesh != null)
+            {
+                commandBuffer.DrawMesh(silhouetteData.mesh, source.transform.localToWorldMatrix, silhouetteMaterial);
+            }
+            else
+            {
+                commandBuffer.DrawRenderer(sourceRenderer, silhouetteMaterial);
+            }
+        }
+
+        SilhouetteMeshData EnsureSilhouetteMesh(Mesh sourceMesh)
+        {
+            if (sourceMesh == null) return null;
+            float effectiveThickness = EffectiveSilhouetteThickness();
+            var key = new SilhouetteMeshCacheKey(sourceMesh, effectiveThickness);
+            if (SilhouetteMeshCache.TryGetValue(key, out var cached) && cached != null) return cached;
+
+            var vertices = sourceMesh.vertices;
+            var uvs = sourceMesh.uv;
+            if (vertices == null || vertices.Length < 4 || uvs == null || uvs.Length < 4) return null;
+
+            var min = vertices[0];
+            var max = vertices[0];
+            var uvMin = uvs[0];
+            var uvMax = uvs[0];
+            for (int i = 1; i < vertices.Length; i++)
+            {
+                min = Vector3.Min(min, vertices[i]);
+                max = Vector3.Max(max, vertices[i]);
+                uvMin = Vector2.Min(uvMin, uvs[i]);
+                uvMax = Vector2.Max(uvMax, uvs[i]);
+            }
+
+            float width = Mathf.Max(0.001f, max.x - min.x);
+            float height = Mathf.Max(0.001f, max.y - min.y);
+            float uvPadX = (uvMax.x - uvMin.x) * effectiveThickness / width;
+            float uvPadY = (uvMax.y - uvMin.y) * effectiveThickness / height;
+            var data = new SilhouetteMeshData
+            {
+                spriteRect = new Vector4(uvMin.x, uvMin.y, uvMax.x, uvMax.y),
+                outlineUv = new Vector4(uvPadX, uvPadY, 0f, 0f)
+            };
+
+            data.mesh = new Mesh
+            {
+                name = sourceMesh.name + " Occlusion Silhouette",
+                hideFlags = HideFlags.HideAndDontSave
+            };
+            data.mesh.vertices = new[]
+            {
+                new Vector3(min.x - effectiveThickness, min.y - effectiveThickness, 0f),
+                new Vector3(max.x + effectiveThickness, min.y - effectiveThickness, 0f),
+                new Vector3(min.x - effectiveThickness, max.y + effectiveThickness, 0f),
+                new Vector3(max.x + effectiveThickness, max.y + effectiveThickness, 0f)
+            };
+            data.mesh.uv = new[]
+            {
+                new Vector2(uvMin.x - uvPadX, uvMin.y - uvPadY),
+                new Vector2(uvMax.x + uvPadX, uvMin.y - uvPadY),
+                new Vector2(uvMin.x - uvPadX, uvMax.y + uvPadY),
+                new Vector2(uvMax.x + uvPadX, uvMax.y + uvPadY)
+            };
+            data.mesh.triangles = new[] { 0, 2, 1, 2, 3, 1 };
+            data.mesh.RecalculateBounds();
+            SilhouetteMeshCache[key] = data;
+            return data;
+        }
+
+        void ApplySilhouetteProperties(SilhouetteMeshData data)
+        {
+            if (data == null || silhouetteMaterial == null) return;
+            silhouetteMaterial.SetVector("_SpriteRect", data.spriteRect);
+            silhouetteMaterial.SetVector("_OutlineUv", data.outlineUv);
+            silhouetteMaterial.SetFloat("_AlphaThreshold", 0.05f);
+        }
+
+        float EffectiveSilhouetteThickness()
+        {
+            float thickness = sourceOutline != null ? sourceOutline.thickness : 0.035f;
+            if (sourceOutline == null || !sourceOutline.compensateTransformScale) return thickness;
+
+            var scale = sourceOutline.transform.lossyScale;
+            float maxScale = Mathf.Max(Mathf.Abs(scale.x), Mathf.Abs(scale.y), Mathf.Abs(scale.z), 0.001f);
+            return thickness / maxScale;
         }
 
         bool IsFrontOverlappingOccluder(Renderer renderer, Rect sourceScreenRect, int sourceOrder)
@@ -291,7 +445,7 @@ namespace AreaSurvivors
             commandBufferAttached = attached;
         }
 
-        static void DestroyGenerated(Object generated)
+        static void DestroyGenerated(UnityEngine.Object generated)
         {
             if (generated == null) return;
             if (Application.isPlaying) Destroy(generated);

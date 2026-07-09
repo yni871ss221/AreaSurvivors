@@ -12,6 +12,7 @@ namespace AreaSurvivors
 
         SceneNavigator navigator;
         Text statusText;
+        Button defaultButton;
 
         void Start()
         {
@@ -25,6 +26,7 @@ namespace AreaSurvivors
                 HideTestControlsForReleaseBuild();
                 BindButton("Lobby Button", navigator.LoadLobby);
                 RefreshStatus("製品版ビルドではテスト操作は利用できません");
+                SelectDefaultButton();
                 return;
             }
 
@@ -62,6 +64,22 @@ namespace AreaSurvivors
             RefreshStageClearButtonLabels();
             RefreshRelicButtonLabels();
             RefreshStatus("テスト操作を選択できます");
+            SelectDefaultButton();
+        }
+
+        void Update()
+        {
+            if (UiSelectionUtility.TickControllerSubmit()) return;
+            if (UiSelectionUtility.CancelPressed())
+            {
+                AudioManager.PlayButtonConfirm();
+                navigator.LoadLobby();
+                return;
+            }
+
+            var candidates = AvailableButtons();
+            UiSelectionUtility.ConfigureVerticalNavigation(candidates);
+            UiSelectionUtility.EnsureSelection(candidates);
         }
 
         void HideTestControlsForReleaseBuild()
@@ -228,12 +246,43 @@ namespace AreaSurvivors
         {
             var button = FindChild(name)?.GetComponent<Button>();
             if (button == null) return;
+            if (defaultButton == null && UiSelectionUtility.IsSelectable(button)) defaultButton = button;
             button.onClick.RemoveAllListeners();
             button.onClick.AddListener(() =>
             {
                 AudioManager.PlayButtonConfirm();
                 action();
             });
+        }
+
+        void SelectDefaultButton()
+        {
+            if (!UiSelectionUtility.IsSelectable(defaultButton)) defaultButton = FirstAvailableButton();
+            UiSelectionUtility.ConfigureVerticalNavigation(AvailableButtons());
+            UiSelectionUtility.SelectFirst(defaultButton);
+        }
+
+        static Button FirstAvailableButton()
+        {
+            var buttons = FindObjectsOfType<Button>(true);
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                if (UiSelectionUtility.IsSelectable(buttons[i])) return buttons[i];
+            }
+
+            return null;
+        }
+
+        static Selectable[] AvailableButtons()
+        {
+            var buttons = FindObjectsOfType<Button>(true);
+            var selectables = new System.Collections.Generic.List<Selectable>();
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                if (UiSelectionUtility.IsSelectable(buttons[i])) selectables.Add(buttons[i]);
+            }
+
+            return selectables.ToArray();
         }
 
         void SetButtonLabel(Button[] buttons, string buttonName, string label, Color color)

@@ -241,9 +241,11 @@ MonoBehaviour:
   impactSprite: {fileID: 21300000, guid: cdbe110e60164bdfaf916542e9e5bc3e, type: 3}
   impactColor: {r: 1, g: 0.76, b: 0.24, a: 0.96}
   impactVisualScale: 0.9
+  playImpactFlash: 1
   impactFlashPrefab: {fileID: 9102100000000000011, guid: 6c17f73d579a4c98b99180133263756c, type: 3}
   explosionHitboxPrefab: {fileID: 9102200000000000011, guid: 3bb23420c4d14f79b9dc2b3da31e2a5c, type: 3}
   paintsTerritory: 0
+  playTrailFlecks: 0
 --- !u!114 &1803100000000000016
 MonoBehaviour:
   m_ObjectHideFlags: 0

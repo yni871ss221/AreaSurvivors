@@ -168,7 +168,7 @@ namespace AreaSurvivors
         {
             var text = new GameObject(name).AddComponent<Text>();
             text.transform.SetParent(parent, false);
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.font = JapaneseFontProvider.Font;
             text.text = value;
             text.fontSize = fontSize;
             text.alignment = TextAnchor.MiddleCenter;

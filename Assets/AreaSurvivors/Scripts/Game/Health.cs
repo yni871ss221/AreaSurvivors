@@ -7,7 +7,8 @@ namespace AreaSurvivors
     {
         public int maxHp = 10;
         public int currentHp = 10;
-        public int defense;
+        public float defense;
+        public bool invincible;
         public event Action<Health, int> Damaged;
         public event Action<Health, int> Healed;
         public event Action<Health> Died;
@@ -34,12 +35,12 @@ namespace AreaSurvivors
 
         public int DamageAmount(int value)
         {
-            return Mathf.Max(0, value - Mathf.Max(0, defense));
+            return Mathf.Max(0, Mathf.CeilToInt(value - Mathf.Max(0f, defense)));
         }
 
         public int Damage(int value, Vector3 worldPoint)
         {
-            if (IsDead) return 0;
+            if (IsDead || invincible) return 0;
             LastDamagePoint = worldPoint;
             int amount = DamageAmount(value);
             int before = currentHp;

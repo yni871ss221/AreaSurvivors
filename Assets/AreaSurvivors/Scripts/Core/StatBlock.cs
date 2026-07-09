@@ -6,7 +6,7 @@ namespace AreaSurvivors
         public float moveSpeed;
         public int paintRadius;
         public float reviveSeconds;
-        public int defense;
+        public float defense;
         public float xpGainMultiplier;
         public int autoRegen;
         public float workSpeedMultiplier;

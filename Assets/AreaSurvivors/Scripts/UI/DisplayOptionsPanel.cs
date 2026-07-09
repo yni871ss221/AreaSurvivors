@@ -99,7 +99,7 @@ namespace AreaSurvivors
             }
         }
 
-        void Refresh()
+        public void Refresh()
         {
             bool windowed = DisplaySettingsStore.Mode == DisplayWindowMode.Windowed;
             if (resolutionRoot != null) resolutionRoot.SetActive(windowed);

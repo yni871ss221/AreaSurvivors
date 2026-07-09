@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -44,6 +45,14 @@ namespace AreaSurvivors
             BindButtons();
         }
 
+        void Update()
+        {
+            if (UiSelectionUtility.TickControllerSubmit()) return;
+            var candidates = ActiveButtons();
+            UiSelectionUtility.ConfigureDirectionalNavigation(candidates);
+            UiSelectionUtility.EnsureSelection(candidates);
+        }
+
         public void Show(RelicDefinition definition, Action onClosed)
         {
             Show(definition, 0, onClosed);
@@ -69,6 +78,7 @@ namespace AreaSurvivors
             if (openButton != null)
             {
                 openButton.gameObject.SetActive(true);
+                ConfigureButtonFocus(openButton);
                 openButton.Select();
             }
         }
@@ -77,12 +87,14 @@ namespace AreaSurvivors
         {
             if (openButton != null)
             {
+                ConfigureButtonFocus(openButton);
                 openButton.onClick.RemoveListener(OnClickOpen);
                 openButton.onClick.AddListener(OnClickOpen);
             }
 
             if (closeButton != null)
             {
+                ConfigureButtonFocus(closeButton);
                 closeButton.onClick.RemoveListener(OnClickClose);
                 closeButton.onClick.AddListener(OnClickClose);
             }
@@ -223,7 +235,12 @@ namespace AreaSurvivors
             });
 
             yield return FadeGraphics(TextFadeDuration, t => SetButtonVisible(closeButton, true, t));
-            if (closeButton != null) closeButton.Select();
+            if (closeButton != null)
+            {
+                ConfigureButtonFocus(closeButton);
+                UiSelectionUtility.ConfigureDirectionalNavigation(closeButton);
+                UiSelectionUtility.SelectFirst(closeButton);
+            }
         }
 
         IEnumerator RotateLoop(Image image, float direction)
@@ -281,6 +298,26 @@ namespace AreaSurvivors
             {
                 SetAlpha(graphics[i], alpha);
             }
+        }
+
+        Selectable[] ActiveButtons()
+        {
+            var candidates = new List<Selectable>();
+            if (UiSelectionUtility.IsSelectable(openButton)) candidates.Add(openButton);
+            if (UiSelectionUtility.IsSelectable(closeButton)) candidates.Add(closeButton);
+            return candidates.ToArray();
+        }
+
+        static void ConfigureButtonFocus(Button button)
+        {
+            if (button == null) return;
+            button.transition = Selectable.Transition.None;
+            var highlight = button.GetComponent<UiSelectionHighlight>();
+            if (highlight == null) highlight = button.gameObject.AddComponent<UiSelectionHighlight>();
+            highlight.padding = 6f;
+            highlight.thickness = 4f;
+            highlight.enabled = true;
+            if (button.GetComponent<SelectOnPointerEnter>() == null) button.gameObject.AddComponent<SelectOnPointerEnter>();
         }
 
         static void SetText(Text text, string value)

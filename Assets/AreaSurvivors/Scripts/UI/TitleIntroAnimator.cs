@@ -66,6 +66,7 @@ namespace AreaSurvivors
             }
 
             SetButtonsInteractable(true);
+            UiSelectionUtility.SelectFirst(interactiveButtons);
         }
 
         IEnumerator Animate(CanvasGroup group, RectTransform rect, Vector2 startPosition, Vector2 targetPosition, float duration)

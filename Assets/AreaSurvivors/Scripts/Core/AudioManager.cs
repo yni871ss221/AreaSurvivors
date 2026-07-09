@@ -103,6 +103,15 @@ namespace AreaSurvivors
             }
         }
 
+        public static void ResetDefaults()
+        {
+            PlayerPrefs.DeleteKey(MasterVolumePrefsKey);
+            PlayerPrefs.SetFloat(BgmVolumePrefsKey, DefaultVolume);
+            PlayerPrefs.SetFloat(SfxVolumePrefsKey, DefaultVolume);
+            PlayerPrefs.Save();
+            if (instance != null) instance.ApplySourceVolumes();
+        }
+
         static AudioManager EnsureInstance()
         {
             if (instance != null) return instance;

@@ -258,6 +258,21 @@ namespace AreaSurvivors
             if (introAnimator != null) introAnimator.Play(result.gameClear, hasStageUnlockPopup, missionCompletePopup);
         }
 
+        void Update()
+        {
+            if (UiSelectionUtility.TickControllerSubmit()) return;
+            if (stageUnlockPopupRoot != null && stageUnlockPopupRoot.activeInHierarchy)
+            {
+                var popupCandidates = new Selectable[] { stageUnlockOkButton, lobbyButton };
+                UiSelectionUtility.ConfigureVerticalNavigation(popupCandidates);
+                UiSelectionUtility.EnsureSelection(popupCandidates);
+                return;
+            }
+
+            UiSelectionUtility.ConfigureVerticalNavigation(lobbyButton);
+            UiSelectionUtility.EnsureSelection(lobbyButton);
+        }
+
         bool ConfigureStageUnlockPopup(RunResult result, out bool missionComplete)
         {
             missionComplete = result != null && result.gameClear && result.clearedStage >= 4;

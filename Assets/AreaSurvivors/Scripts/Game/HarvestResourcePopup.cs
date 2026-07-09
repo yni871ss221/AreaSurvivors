@@ -25,7 +25,7 @@ namespace AreaSurvivors
             var popup = root.AddComponent<HarvestResourcePopup>();
             popup.drift = Random.Range(-0.08f, 0.08f);
 
-            var font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            var font = JapaneseFontProvider.Font;
             popup.text = CreateText(root.transform, "Text", font, "+" + amount, color, TextOrder, Vector3.zero);
             popup.textOutline = popup.text.gameObject.AddComponent<RuntimeTextMeshOutline>();
             popup.textOutline.SetColors(color, Color.black);

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -31,6 +32,21 @@ namespace AreaSurvivors
             BindBackButton();
             InitializeEntries();
             SelectFirstOwnedEntry();
+        }
+
+        void Update()
+        {
+            if (UiSelectionUtility.TickControllerSubmit()) return;
+            if (UiSelectionUtility.CancelPressed())
+            {
+                AudioManager.PlayButtonConfirm();
+                if (navigator != null) navigator.LoadLobby();
+                return;
+            }
+
+            var candidates = SelectionCandidates();
+            UiSelectionUtility.ConfigureVerticalNavigation(candidates);
+            UiSelectionUtility.EnsureSelection(candidates);
         }
 
         public void Select(RelicBookEntryView entry)
@@ -108,6 +124,8 @@ namespace AreaSurvivors
                     if (entries[i] != null && entries[i].IsOwned)
                     {
                         Select(entries[i]);
+                        UiSelectionUtility.ConfigureVerticalNavigation(SelectionCandidates());
+                        UiSelectionUtility.SelectFirst(entries[i].button, backButton);
                         return;
                     }
                 }
@@ -118,6 +136,40 @@ namespace AreaSurvivors
             SetText(descriptionText, "取得済みレリックはまだありません。ゲーム中に宝箱を拾うと、ここに追加されます。");
             SetText(effectText, "-");
             SetText(messageText, string.Empty);
+            var fallbackCandidates = SelectionCandidates();
+            UiSelectionUtility.ConfigureVerticalNavigation(fallbackCandidates);
+            UiSelectionUtility.SelectFirst(FirstEntryButton(), backButton);
+        }
+
+        Selectable[] SelectionCandidates()
+        {
+            var candidates = new List<Selectable>();
+            if (entries != null)
+            {
+                for (int i = 0; i < entries.Length; i++)
+                {
+                    if (entries[i] != null && entries[i].button != null) candidates.Add(entries[i].button);
+                }
+            }
+
+            candidates.Add(backButton);
+            return candidates.ToArray();
+        }
+
+        Button SelectedEntryButton()
+        {
+            return selectedEntry != null ? selectedEntry.button : null;
+        }
+
+        Button FirstEntryButton()
+        {
+            if (entries == null) return null;
+            for (int i = 0; i < entries.Length; i++)
+            {
+                if (entries[i] != null && UiSelectionUtility.IsSelectable(entries[i].button)) return entries[i].button;
+            }
+
+            return null;
         }
 
         void ApplyRarityVisuals(RelicDefinition definition)

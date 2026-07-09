@@ -10,6 +10,7 @@ namespace AreaSurvivors
         int runDefenseBonus;
         int runAutoRegenBonus;
         int runResourceGainBonus;
+        int levelStatBonusCount;
         float runMoveSpeedMultiplier = 1f;
         float runXpGainMultiplierBonus;
         float runWorkSpeedMultiplierBonus;
@@ -24,6 +25,7 @@ namespace AreaSurvivors
             runDefenseBonus = 0;
             runAutoRegenBonus = 0;
             runResourceGainBonus = 0;
+            levelStatBonusCount = 0;
             runMoveSpeedMultiplier = 1f;
             runXpGainMultiplierBonus = 0f;
             runWorkSpeedMultiplierBonus = 0f;
@@ -38,6 +40,7 @@ namespace AreaSurvivors
         public void AddAutoRegen(int value) { runAutoRegenBonus += value; Recalculate(); }
         public void AddWorkSpeedMultiplier(float value) { runWorkSpeedMultiplierBonus += value; Recalculate(); }
         public void AddResourceGain(int value) { runResourceGainBonus += value; Recalculate(); }
+        public void SetLevelStatBonusCount(int value) { levelStatBonusCount = Mathf.Max(0, value); Recalculate(); }
         public void Refresh() { Recalculate(); }
 
         void Recalculate()
@@ -54,11 +57,11 @@ namespace AreaSurvivors
 
             Current = new StatBlock
             {
-                maxHp = config.playerMaxHp + ProgressionStore.GetLevel(UpgradeType.MaxHp) * config.maxHpPerUpgradeLevel + runMaxHpBonus + RelicEffects.MaxHpBonus,
-                moveSpeed = ((config.playerMoveSpeed * runMoveSpeedMultiplier) + moveSpeedUpgradeLevel * config.moveSpeedPerUpgradeLevel) * RelicEffects.MoveSpeedMultiplier,
+                maxHp = config.playerMaxHp + ProgressionStore.GetLevel(UpgradeType.MaxHp) * config.maxHpPerUpgradeLevel + runMaxHpBonus + levelStatBonusCount * config.playerLevelMaxHpBonus + RelicEffects.MaxHpBonus,
+                moveSpeed = ((config.playerMoveSpeed * runMoveSpeedMultiplier) + moveSpeedUpgradeLevel * config.moveSpeedPerUpgradeLevel + levelStatBonusCount * config.playerLevelMoveSpeedBonus) * RelicEffects.MoveSpeedMultiplier,
                 paintRadius = config.paintRadius + paintRadiusUpgradeLevel / paintLevels + runPaintRadiusBonus,
                 reviveSeconds = Mathf.Max(config.minReviveSeconds, config.playerReviveSeconds - ProgressionStore.GetLevel(UpgradeType.ReviveSpeed) * config.reviveSecondsReductionPerUpgradeLevel),
-                defense = config.baseDefense + ProgressionStore.GetLevel(UpgradeType.Defense) * config.defensePerUpgradeLevel + runDefenseBonus,
+                defense = config.baseDefense + ProgressionStore.GetLevel(UpgradeType.Defense) * config.defensePerUpgradeLevel + runDefenseBonus + levelStatBonusCount * config.playerLevelDefenseBonus,
                 xpGainMultiplier = (config.baseXpGainMultiplier + ProgressionStore.GetLevel(UpgradeType.XpGain) * config.xpGainMultiplierPerUpgradeLevel + runXpGainMultiplierBonus) * RelicEffects.XpGainMultiplier,
                 autoRegen = config.baseAutoRegen + ProgressionStore.GetLevel(UpgradeType.AutoRegen) * config.autoRegenPerUpgradeLevel + runAutoRegenBonus,
                 workSpeedMultiplier = config.baseWorkSpeedMultiplier + ProgressionStore.GetLevel(UpgradeType.WorkSpeed) * config.workSpeedMultiplierPerUpgradeLevel + runWorkSpeedMultiplierBonus,

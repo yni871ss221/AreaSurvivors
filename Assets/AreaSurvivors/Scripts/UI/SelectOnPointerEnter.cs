@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 namespace AreaSurvivors
 {
@@ -7,7 +8,12 @@ namespace AreaSurvivors
     {
         public void OnPointerEnter(PointerEventData eventData)
         {
-            if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(gameObject);
+            if (!UiSelectionUtility.PointerCanDriveFocus()) return;
+            var selectable = GetComponent<Selectable>();
+            if (EventSystem.current != null && selectable != null && selectable.IsInteractable())
+            {
+                EventSystem.current.SetSelectedGameObject(gameObject);
+            }
         }
     }
 }

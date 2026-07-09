@@ -75,7 +75,7 @@ namespace AreaSurvivors
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
             var label = go.AddComponent<Text>();
-            label.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            label.font = JapaneseFontProvider.Font;
             label.text = text;
             label.fontSize = fontSize;
             label.alignment = alignment;

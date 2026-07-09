@@ -41,6 +41,8 @@ namespace AreaSurvivors
             {
                 if (renderer == null || renderer.GetComponent<PreserveSortingOrder>() != null) continue;
                 renderer.sortingOrder = order;
+                var visual = renderer.GetComponent<PaperMeshVisual>();
+                if (visual != null) visual.order = order;
             }
         }
 

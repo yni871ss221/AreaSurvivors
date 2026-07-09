@@ -271,6 +271,6 @@ namespace AreaSurvivors
         float ShockwaveStepIntervalSeconds => Config != null ? Mathf.Max(0f, Config.bossShockwaveStepIntervalSeconds) : 0.12f;
         float ShockwaveDisplaySeconds => Config != null ? Mathf.Max(0.05f, Config.bossShockwaveDisplaySeconds) : 1f;
         Vector2 ShockwaveSizeCells => Config != null ? Config.bossShockwaveSizeCells : new Vector2(2f, 2f);
-        int DamageMultiplier => Config != null ? Mathf.Max(1, Config.bossShockwaveDamageMultiplier) : 2;
+        int DamageMultiplier => Config != null ? Mathf.Max(1, Config.bossShockwaveDamageMultiplier) : 1;
     }
 }

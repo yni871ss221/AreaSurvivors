@@ -75,12 +75,16 @@ namespace AreaSurvivors
         public float playerMoveSpeed = 2.1f;
         public int playerMaxHp = 40;
         public float playerReviveSeconds = 6f;
+        public float playerReviveInvincibleSeconds = 2f;
         public float enemyTerritorySlow = 0.35f;
         public int paintRadius = 1;
         public float playerVisualScale = 1f;
         public float moveSpeedPerUpgradeLevel = 0.18f;
         public int paintRadiusLevelsPerBonus = 2;
         public int maxHpPerUpgradeLevel = 5;
+        public int playerLevelMaxHpBonus = 10;
+        public float playerLevelMoveSpeedBonus = 0.1f;
+        public float playerLevelDefenseBonus = 0.5f;
         public float reviveSecondsReductionPerUpgradeLevel = 0.7f;
         public float minReviveSeconds = 1f;
         public float runMoveSpeedMultiplier = 1.08f;
@@ -167,7 +171,7 @@ namespace AreaSurvivors
         public int runAttackPowerBonus = 2;
         public float runAttackCooldownMultiplier = 0.92f;
         public int slashDamageBonus = 2;
-        public float slashRange = 1.05f;
+        public float slashRange = 1.6f;
         public float slashOffset = 1.05f;
         public float arrowRangeCells = 10f;
         public float arrowRangeCellsPerLevel = 1f;
@@ -259,13 +263,13 @@ namespace AreaSurvivors
         public float bossShockwaveStepIntervalSeconds = 0.12f;
         public float bossShockwaveDisplaySeconds = 1f;
         public Vector2 bossShockwaveSizeCells = new Vector2(2f, 2f);
-        public int bossShockwaveDamageMultiplier = 2;
+        public int bossShockwaveDamageMultiplier = 1;
         public float goblinLordDarkOrbSpeed = 2.4f;
         public float goblinLordDarkOrbLifetimeSeconds = 8f;
         public float goblinLordDarkOrbDamageRadius = 1.25f;
         public float goblinLordDarkOrbDamageIntervalSeconds = 0.45f;
         [Range(0.1f, 2f)]
-        public float goblinLordDarkOrbDamageMultiplier = 0.5f;
+        public float goblinLordDarkOrbDamageMultiplier = 0.25f;
         public float goblinLordDarkOrbVisualScale = 1f;
         public float lichSummonRadius = 4f;
         public float lichSummonCircleDurationSeconds = 2.2f;

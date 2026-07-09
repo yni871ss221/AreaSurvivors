@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace AreaSurvivors
@@ -14,6 +15,9 @@ namespace AreaSurvivors
         Text tooltipDescription;
         Text tokenLabel;
         SkillNodeView[] sceneNodes;
+        SceneNavigator navigator;
+        Button lobbyButton;
+        UpgradeNodeHover focusedHover;
 
         void Start()
         {
@@ -41,12 +45,26 @@ namespace AreaSurvivors
             tokenLabel = FindDeep(uiObject.transform, "TokenLabel")?.GetComponent<Text>();
             ConfigureTooltipRoot();
 
-            var nav = gameObject.GetComponent<SceneNavigator>();
-            if (nav == null) nav = gameObject.AddComponent<SceneNavigator>();
-            BindSceneButton(uiObject.transform, "ロビーへ", nav.LoadLobby);
+            navigator = gameObject.GetComponent<SceneNavigator>();
+            if (navigator == null) navigator = gameObject.AddComponent<SceneNavigator>();
+            lobbyButton = BindSceneButton(uiObject.transform, "ロビーへ", navigator.LoadLobby);
 
             RefreshSceneTree();
             return true;
+        }
+
+        void Update()
+        {
+            if (UiSelectionUtility.CancelPressed())
+            {
+                AudioManager.PlayButtonConfirm();
+                if (navigator != null) navigator.LoadLobby();
+                return;
+            }
+
+            if (UiSelectionUtility.TickControllerSubmit()) return;
+            UiSelectionUtility.EnsureSelection(FirstSelectableNodeButton(), lobbyButton);
+            RefreshFocusedTooltip();
         }
 
         void ConfigureTooltipRoot()
@@ -57,6 +75,36 @@ namespace AreaSurvivors
             {
                 if (graphic != null) graphic.raycastTarget = false;
             }
+        }
+
+        void RefreshFocusedTooltip()
+        {
+            if (!UiSelectionUtility.IsControllerInputMode)
+            {
+                if (UpgradeNodeHover.PointerHover != null)
+                {
+                    focusedHover = UpgradeNodeHover.PointerHover;
+                    return;
+                }
+
+                if (focusedHover != null) focusedHover.Hide();
+                focusedHover = null;
+                if (tooltipRoot != null) tooltipRoot.gameObject.SetActive(false);
+                return;
+            }
+
+            var selected = EventSystem.current != null ? EventSystem.current.currentSelectedGameObject : null;
+            var nextHover = selected != null ? selected.GetComponent<UpgradeNodeHover>() : null;
+            if (nextHover == focusedHover)
+            {
+                if (focusedHover != null) focusedHover.ShowForFocus();
+                return;
+            }
+
+            if (focusedHover != null) focusedHover.Hide();
+            focusedHover = nextHover;
+            if (focusedHover != null) focusedHover.ShowForFocus();
+            else if (tooltipRoot != null) tooltipRoot.gameObject.SetActive(false);
         }
 
         static Transform FindDeep(Transform root, string name)
@@ -72,10 +120,10 @@ namespace AreaSurvivors
             return null;
         }
 
-        static void BindSceneButton(Transform root, string name, UnityEngine.Events.UnityAction action)
+        static Button BindSceneButton(Transform root, string name, UnityEngine.Events.UnityAction action)
         {
             var button = FindDeep(root, name)?.GetComponent<Button>();
-            if (button == null) return;
+            if (button == null) return null;
             button.onClick.RemoveAllListeners();
             if (action != null)
             {
@@ -85,9 +133,11 @@ namespace AreaSurvivors
                     action();
                 });
             }
+
+            return button;
         }
 
-        void RefreshSceneTree()
+        void RefreshSceneTree(SkillNodeView preferredFocusNode = null)
         {
             if (graphRoot == null) return;
             if (tokenLabel != null) tokenLabel.text = $"所持トークン {ProgressionStore.Data.tokens}";
@@ -104,7 +154,9 @@ namespace AreaSurvivors
                 ConfigureSceneNode(node, sceneNodes);
             }
 
+            ConfigureSceneNavigation();
             RefreshSceneLinks();
+            RestoreFocus(preferredFocusNode);
         }
 
         void ConfigureSceneNode(SkillNodeView node, SkillNodeView[] sceneNodes)
@@ -152,19 +204,28 @@ namespace AreaSurvivors
             {
                 node.statusText.text = !node.implemented ? "予定" : maxed ? $"Lv {level} MAX" : purchased ? $"Lv {level}" : prerequisiteMet ? $"Cost {cost}" : "LOCK";
                 node.statusText.color = GetStatusTextColor(node.implemented, purchased, prerequisiteMet, maxed);
+                node.statusText.transform.SetAsLastSibling();
             }
 
             if (node.button != null)
             {
+                ConfigureNodeFocusHighlight(node.button);
                 node.button.onClick.RemoveAllListeners();
-                node.button.interactable = node.implemented && prerequisiteMet && affordable && !maxed;
+                node.button.interactable = node.implemented;
                 var colors = node.button.colors;
                 colors.disabledColor = Color.white;
                 node.button.colors = colors;
                 node.button.onClick.AddListener(() =>
                 {
+                    int currentLevel = ProgressionStore.GetLevel(node.type);
+                    bool canPurchase = node.implemented
+                        && AreScenePrerequisitesMet(node)
+                        && currentLevel < ProgressionStore.GetMaxLevel(node.type)
+                        && ProgressionStore.Data.tokens >= ProgressionStore.GetCost(node.type, currentLevel);
+                    if (!canPurchase) return;
+
                     AudioManager.PlayButtonConfirm();
-                    if (ProgressionStore.TryBuy(node.type)) RefreshSceneTree();
+                    if (ProgressionStore.TryBuy(node.type)) RefreshSceneTree(node);
                 });
             }
 
@@ -245,6 +306,199 @@ namespace AreaSurvivors
             if (purchased) return new Color(0.92f, 1f, 0.95f, 1f);
             if (prerequisiteMet) return new Color(1f, 0.94f, 0.58f, 1f);
             return new Color(0.66f, 0.70f, 0.72f, 1f);
+        }
+
+        Button FirstSelectableNodeButton()
+        {
+            if (sceneNodes == null) return null;
+            for (int i = 0; i < sceneNodes.Length; i++)
+            {
+                var node = sceneNodes[i];
+                if (node != null && UiSelectionUtility.IsSelectable(node.button)) return node.button;
+            }
+
+            return null;
+        }
+
+        void ConfigureSceneNavigation()
+        {
+            if (sceneNodes == null) return;
+
+            var buttons = new List<Button>();
+            foreach (var node in sceneNodes)
+            {
+                if (node == null || !UiSelectionUtility.IsSelectable(node.button)) continue;
+                buttons.Add(node.button);
+            }
+
+            if (UiSelectionUtility.IsSelectable(lobbyButton)) buttons.Add(lobbyButton);
+
+            foreach (var button in buttons)
+            {
+                if (button == null) continue;
+                var navigation = button.navigation;
+                navigation.mode = Navigation.Mode.Explicit;
+                navigation.wrapAround = false;
+                navigation.selectOnUp = BestDirectionalSelectable(button, buttons, Vector2.up);
+                navigation.selectOnDown = BestDirectionalSelectable(button, buttons, Vector2.down);
+                navigation.selectOnLeft = BestDirectionalSelectable(button, buttons, Vector2.left);
+                navigation.selectOnRight = BestDirectionalSelectable(button, buttons, Vector2.right);
+                button.navigation = navigation;
+            }
+
+            ApplyUnlockShieldNavigationOverride();
+        }
+
+        void ApplyUnlockShieldNavigationOverride()
+        {
+            var shieldNode = FindSceneNode(UpgradeType.UnlockShield);
+            if (shieldNode == null || !UiSelectionUtility.IsSelectable(shieldNode.button)) return;
+
+            var shieldNavigation = shieldNode.button.navigation;
+            var shieldCenter = CenterInGraph(shieldNode.button.transform as RectTransform);
+            Button nearestUpperPrerequisite = null;
+            float nearestUpperDistance = float.PositiveInfinity;
+            Button nearestLowerChild = null;
+            float nearestLowerDistance = float.PositiveInfinity;
+
+            var prerequisites = shieldNode.EffectivePrerequisites();
+            foreach (var prerequisite in prerequisites)
+            {
+                var prerequisiteNode = FindSceneNode(prerequisite);
+                if (prerequisiteNode == null || !UiSelectionUtility.IsSelectable(prerequisiteNode.button)) continue;
+
+                var prerequisiteNavigation = prerequisiteNode.button.navigation;
+                if (IsBelow(prerequisiteNode.button, shieldNode.button))
+                {
+                    prerequisiteNavigation.selectOnDown = shieldNode.button;
+                    prerequisiteNode.button.navigation = prerequisiteNavigation;
+
+                    float distance = Vector2.Distance(CenterInGraph(prerequisiteNode.button.transform as RectTransform), shieldCenter);
+                    if (distance < nearestUpperDistance)
+                    {
+                        nearestUpperDistance = distance;
+                        nearestUpperPrerequisite = prerequisiteNode.button;
+                    }
+                }
+            }
+
+            foreach (var node in sceneNodes)
+            {
+                if (node == null || node == shieldNode || !UiSelectionUtility.IsSelectable(node.button)) continue;
+                if (!HasPrerequisite(node, UpgradeType.UnlockShield)) continue;
+
+                var childNavigation = node.button.navigation;
+                if (IsBelow(shieldNode.button, node.button))
+                {
+                    childNavigation.selectOnUp = shieldNode.button;
+                    node.button.navigation = childNavigation;
+
+                    float distance = Vector2.Distance(CenterInGraph(node.button.transform as RectTransform), shieldCenter);
+                    if (distance < nearestLowerDistance)
+                    {
+                        nearestLowerDistance = distance;
+                        nearestLowerChild = node.button;
+                    }
+                }
+            }
+
+            if (nearestUpperPrerequisite != null) shieldNavigation.selectOnUp = nearestUpperPrerequisite;
+            if (nearestLowerChild != null) shieldNavigation.selectOnDown = nearestLowerChild;
+            shieldNode.button.navigation = shieldNavigation;
+        }
+
+        SkillNodeView FindSceneNode(UpgradeType type)
+        {
+            if (sceneNodes == null) return null;
+            foreach (var node in sceneNodes)
+            {
+                if (node != null && node.type == type) return node;
+            }
+
+            return null;
+        }
+
+        static bool HasPrerequisite(SkillNodeView node, UpgradeType prerequisite)
+        {
+            if (node == null) return false;
+            var prerequisites = node.EffectivePrerequisites();
+            foreach (var candidate in prerequisites)
+            {
+                if (candidate == prerequisite) return true;
+            }
+
+            return false;
+        }
+
+        bool IsBelow(Button upper, Button lower)
+        {
+            return CenterInGraph(lower.transform as RectTransform).y < CenterInGraph(upper.transform as RectTransform).y;
+        }
+
+        Selectable BestDirectionalSelectable(Button origin, List<Button> candidates, Vector2 direction)
+        {
+            if (origin == null || candidates == null) return null;
+
+            Vector2 originCenter = CenterInGraph(origin.transform as RectTransform);
+            Selectable best = null;
+            float bestScore = float.PositiveInfinity;
+
+            foreach (var candidate in candidates)
+            {
+                if (candidate == null || candidate == origin) continue;
+
+                Vector2 offset = CenterInGraph(candidate.transform as RectTransform) - originCenter;
+                float forward = Vector2.Dot(offset, direction);
+                if (forward <= 1f) continue;
+
+                float perpendicular = Mathf.Abs(direction.x * offset.y - direction.y * offset.x);
+                float score = perpendicular * 4f + forward;
+                if (score >= bestScore) continue;
+
+                bestScore = score;
+                best = candidate;
+            }
+
+            return best;
+        }
+
+        Vector2 CenterInGraph(RectTransform rect)
+        {
+            if (rect == null) return Vector2.zero;
+            var graphRect = graphRoot as RectTransform;
+            if (graphRect == null) return rect.position;
+
+            var worldCenter = rect.TransformPoint(rect.rect.center);
+            return graphRect.InverseTransformPoint(worldCenter);
+        }
+
+        void RestoreFocus(SkillNodeView preferredFocusNode)
+        {
+            if (preferredFocusNode != null)
+            {
+                preferredFocusNode.ResolveReferences();
+                if (UiSelectionUtility.IsSelectable(preferredFocusNode.button))
+                {
+                    UiSelectionUtility.SelectFirst(preferredFocusNode.button, lobbyButton);
+                    return;
+                }
+            }
+
+            UiSelectionUtility.SelectFirst(FirstSelectableNodeButton(), lobbyButton);
+        }
+
+        static void ConfigureNodeFocusHighlight(Button button)
+        {
+            if (button == null) return;
+            var highlight = button.GetComponent<UiSelectionHighlight>();
+            if (highlight == null) highlight = button.gameObject.AddComponent<UiSelectionHighlight>();
+            highlight.forceSelected = false;
+            highlight.padding = 7f;
+            highlight.thickness = 3f;
+            highlight.focusColor = Color.white;
+            highlight.shadowColor = new Color(0f, 0f, 0f, 0.78f);
+            highlight.showBackgroundOnFocus = false;
+            highlight.bringToFrontOnHighlight = false;
         }
 
     }

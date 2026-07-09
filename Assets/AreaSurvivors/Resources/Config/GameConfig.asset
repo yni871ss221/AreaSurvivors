@@ -96,7 +96,7 @@ MonoBehaviour:
   runAttackPowerBonus: 2
   runAttackCooldownMultiplier: 0.92
   slashDamageBonus: 2
-  slashRange: 1.05
+  slashRange: 1.6
   slashOffset: 1.05
   arrowRangeCells: 10
   arrowRangeCellsPerLevel: 1
@@ -113,7 +113,7 @@ MonoBehaviour:
     attackPower: 6
     cooldownSeconds: 1.05
     projectileSpeed: 0
-    range: 1.05
+    range: 1.6
     knockback: 1
     projectileCount: 1
     explosionRadius: 0
@@ -126,7 +126,7 @@ MonoBehaviour:
     attackPower: 7
     cooldownSeconds: 0.9869999
     projectileSpeed: 0
-    range: 1.13
+    range: 1.68
     knockback: 2
     projectileCount: 1
     explosionRadius: 0
@@ -139,7 +139,7 @@ MonoBehaviour:
     attackPower: 8
     cooldownSeconds: 0.92399997
     projectileSpeed: 0
-    range: 1.2099999
+    range: 1.76
     knockback: 3
     projectileCount: 1
     explosionRadius: 0
@@ -152,7 +152,7 @@ MonoBehaviour:
     attackPower: 9
     cooldownSeconds: 0.86099994
     projectileSpeed: 0
-    range: 1.29
+    range: 1.84
     knockback: 4
     projectileCount: 1
     explosionRadius: 0
@@ -165,7 +165,7 @@ MonoBehaviour:
     attackPower: 10
     cooldownSeconds: 0.798
     projectileSpeed: 0
-    range: 1.3699999
+    range: 1.92
     knockback: 5
     projectileCount: 1
     explosionRadius: 0
@@ -178,7 +178,7 @@ MonoBehaviour:
     attackPower: 11
     cooldownSeconds: 0.73499995
     projectileSpeed: 0
-    range: 1.4499999
+    range: 2
     knockback: 6
     projectileCount: 1
     explosionRadius: 0
@@ -191,7 +191,7 @@ MonoBehaviour:
     attackPower: 12
     cooldownSeconds: 0.67199993
     projectileSpeed: 0
-    range: 1.53
+    range: 2.08
     knockback: 7
     projectileCount: 1
     explosionRadius: 0
@@ -204,7 +204,7 @@ MonoBehaviour:
     attackPower: 13
     cooldownSeconds: 0.60899997
     projectileSpeed: 0
-    range: 1.6099999
+    range: 2.16
     knockback: 8
     projectileCount: 1
     explosionRadius: 0
@@ -217,7 +217,7 @@ MonoBehaviour:
     attackPower: 14
     cooldownSeconds: 0.54599994
     projectileSpeed: 0
-    range: 1.6899999
+    range: 2.24
     knockback: 9
     projectileCount: 1
     explosionRadius: 0
@@ -230,7 +230,7 @@ MonoBehaviour:
     attackPower: 15
     cooldownSeconds: 0.48299998
     projectileSpeed: 0
-    range: 1.77
+    range: 2.32
     knockback: 10
     projectileCount: 1
     explosionRadius: 0
@@ -1598,6 +1598,7 @@ MonoBehaviour:
   maxAliveEnemies: 160
   bossTimeSeconds: 300
   bossAnnouncement: "\u30AA\u30FC\u30AF\u30AD\u30F3\u30B0\u51FA\u73FE\uFF01"
+  goblinLordDarkOrbDamageMultiplier: 0.25
   enemyDefinitions:
   - kind: 0
     displayName: "\u30A4\u30CE\u30B7\u30B7"

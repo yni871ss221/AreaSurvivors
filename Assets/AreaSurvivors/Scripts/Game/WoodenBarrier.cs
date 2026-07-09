@@ -24,6 +24,9 @@ namespace AreaSurvivors
         Vector3 completeVisualScale = Vector3.one;
         Renderer[] completeObjectRenderers;
         Color[][] completeObjectColors;
+        MaterialPropertyBlock[][] completeObjectColorBlocks;
+        Color appliedCompleteObjectTint;
+        bool hasAppliedCompleteObjectTint;
         bool completed;
         bool spriteVisualsPrepared;
         bool usingSpriteVisuals;
@@ -319,7 +322,7 @@ namespace AreaSurvivors
                     completeRenderer.color = Color.white;
                     completeRenderer.transform.localScale = completeVisualScale;
                 }
-                SetColor(completeObjectRenderers, completeObjectColors, Color.white);
+                SetCompleteObjectTint(Color.white);
                 if (completeObject != null) completeObject.transform.localScale = completeVisualScale;
                 return;
             }
@@ -332,7 +335,7 @@ namespace AreaSurvivors
                 completeRenderer.color = Color.Lerp(Color.white, new Color(1f, 0.96f, 0.52f, 1f), pulse);
                 completeRenderer.transform.localScale = completeVisualScale * (1f + pulse * 0.1f);
             }
-            SetColor(completeObjectRenderers, completeObjectColors, Color.Lerp(Color.white, new Color(1f, 0.96f, 0.52f, 1f), pulse));
+            SetCompleteObjectTint(Color.Lerp(Color.white, new Color(1f, 0.96f, 0.52f, 1f), pulse));
             if (completeObject != null) completeObject.transform.localScale = completeVisualScale * (1f + pulse * 0.08f);
             if (sparkleRenderer != null)
             {
@@ -375,7 +378,7 @@ namespace AreaSurvivors
                     continue;
                 }
 
-                var materials = renderers[i].materials;
+                var materials = renderers[i].sharedMaterials;
                 colors[i] = new Color[materials.Length];
                 for (int j = 0; j < materials.Length; j++)
                 {
@@ -386,21 +389,52 @@ namespace AreaSurvivors
             return colors;
         }
 
-        static void SetColor(Renderer[] renderers, Color[][] baseColors, Color tint)
+        void SetCompleteObjectTint(Color tint)
+        {
+            if (hasAppliedCompleteObjectTint && Approximately(appliedCompleteObjectTint, tint)) return;
+            SetColor(completeObjectRenderers, completeObjectColors, tint, ref completeObjectColorBlocks);
+            appliedCompleteObjectTint = tint;
+            hasAppliedCompleteObjectTint = true;
+        }
+
+        static bool Approximately(Color a, Color b)
+        {
+            const float tolerance = 0.001f;
+            return Mathf.Abs(a.r - b.r) <= tolerance
+                && Mathf.Abs(a.g - b.g) <= tolerance
+                && Mathf.Abs(a.b - b.b) <= tolerance
+                && Mathf.Abs(a.a - b.a) <= tolerance;
+        }
+
+        static void SetColor(Renderer[] renderers, Color[][] baseColors, Color tint, ref MaterialPropertyBlock[][] propertyBlocks)
         {
             if (renderers == null) return;
+            if (propertyBlocks == null || propertyBlocks.Length != renderers.Length)
+            {
+                propertyBlocks = new MaterialPropertyBlock[renderers.Length][];
+            }
+
             for (int i = 0; i < renderers.Length; i++)
             {
                 var target = renderers[i];
                 if (target == null) continue;
-                var materials = target.materials;
-                for (int j = 0; j < materials.Length; j++)
+                var materials = target.sharedMaterials;
+                if (propertyBlocks[i] == null || propertyBlocks[i].Length != materials.Length)
                 {
-                    var baseColor = baseColors != null && i < baseColors.Length && baseColors[i] != null && j < baseColors[i].Length ? baseColors[i][j] : Color.white;
-                    materials[j].color = new Color(baseColor.r * tint.r, baseColor.g * tint.g, baseColor.b * tint.b, baseColor.a * tint.a);
+                    propertyBlocks[i] = new MaterialPropertyBlock[materials.Length];
                 }
 
-                target.materials = materials;
+                for (int j = 0; j < materials.Length; j++)
+                {
+                    if (propertyBlocks[i][j] == null) propertyBlocks[i][j] = new MaterialPropertyBlock();
+                    var baseColor = baseColors != null && i < baseColors.Length && baseColors[i] != null && j < baseColors[i].Length ? baseColors[i][j] : Color.white;
+                    var color = new Color(baseColor.r * tint.r, baseColor.g * tint.g, baseColor.b * tint.b, baseColor.a * tint.a);
+                    var block = propertyBlocks[i][j];
+                    target.GetPropertyBlock(block, j);
+                    block.SetColor("_Color", color);
+                    block.SetColor("_BaseColor", color);
+                    target.SetPropertyBlock(block, j);
+                }
             }
         }
     }

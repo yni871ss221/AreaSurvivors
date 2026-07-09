@@ -1,4 +1,5 @@
 using System.Collections;
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -81,19 +82,7 @@ namespace AreaSurvivors
             if (subtitleDelay > 0f) yield return Wait(subtitleDelay);
             ShowImmediately(subtitleGroup);
 
-            if (resultItems != null)
-            {
-                for (int i = 0; i < resultItems.Length; i++)
-                {
-                    var item = resultItems[i];
-                    if (!IsValid(item)) continue;
-                    if (!item.rect.gameObject.activeInHierarchy) continue;
-
-                    if (i < panelRevealSfxCount) AudioManager.PlaySfx(SfxTrack.ResultPanelReveal);
-                    yield return Animate(item, itemTargetPositions[i] + itemStartOffset, itemTargetPositions[i], itemDuration);
-                    if (itemDelay > 0f) yield return Wait(itemDelay);
-                }
-            }
+            yield return AnimateResultPanelGroups();
 
             if (currentStageUnlockPopup)
             {
@@ -103,7 +92,64 @@ namespace AreaSurvivors
             if (buttonDelay > 0f) yield return Wait(buttonDelay);
             yield return Animate(lobbyButtonItem, buttonTargetPosition + itemStartOffset, buttonTargetPosition, buttonDuration);
             SetLobbyButtonInteractable(true);
+            UiSelectionUtility.SelectFirst(lobbyButton);
             playingRoutine = null;
+        }
+
+        IEnumerator AnimateResultPanelGroups()
+        {
+            if (resultItems == null || resultItems.Length == 0) yield break;
+
+            int playedPanelRevealSfx = 0;
+            bool[] revealed = new bool[resultItems.Length];
+            for (int group = 0; group <= 3; group++)
+            {
+                int running = 0;
+                for (int i = 0; i < resultItems.Length; i++)
+                {
+                    var item = resultItems[i];
+                    if (revealed[i] || !IsValid(item) || !item.rect.gameObject.activeInHierarchy) continue;
+                    if (ResultPanelGroup(item.rect) != group) continue;
+
+                    revealed[i] = true;
+                    running++;
+                    StartCoroutine(AnimateResultItem(i, () => running--));
+                }
+
+                if (running <= 0) continue;
+
+                if (playedPanelRevealSfx < panelRevealSfxCount)
+                {
+                    AudioManager.PlaySfx(SfxTrack.ResultPanelReveal);
+                    playedPanelRevealSfx++;
+                }
+
+                while (running > 0)
+                {
+                    yield return null;
+                }
+
+                if (itemDelay > 0f) yield return Wait(itemDelay);
+            }
+        }
+
+        IEnumerator AnimateResultItem(int index, Action onComplete)
+        {
+            yield return Animate(resultItems[index], itemTargetPositions[index] + itemStartOffset, itemTargetPositions[index], itemDuration);
+            onComplete?.Invoke();
+        }
+
+        static int ResultPanelGroup(RectTransform rect)
+        {
+            for (var current = rect != null ? rect.transform : null; current != null; current = current.parent)
+            {
+                string name = current.name;
+                if (name.Contains("ランリザルト") || name.Contains("Run Result")) return 0;
+                if (name.Contains("取得レリック") || name.Contains("取得リリック") || name.Contains("Relic")) return 1;
+                if (name.Contains("総ダメージ") || name.Contains("DPS") || name.Contains("Damage")) return 2;
+            }
+
+            return 3;
         }
 
         IEnumerator ShowStageUnlockPopup()
@@ -132,6 +178,7 @@ namespace AreaSurvivors
             yield return Animate(stageUnlockPopupItem, Vector2.zero, Vector2.zero, stageUnlockPopupDuration);
             if (currentMissionCompletePopup) bounceRoutine = StartCoroutine(BounceMissionCompleteText());
             SetStageUnlockButtonInteractable(true);
+            UiSelectionUtility.SelectFirst(stageUnlockOkButton);
 
             while (!stageUnlockOkPressed)
             {

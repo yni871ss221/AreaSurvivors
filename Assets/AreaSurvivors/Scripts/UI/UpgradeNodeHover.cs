@@ -9,6 +9,7 @@ namespace AreaSurvivors
         const float DefaultSpacing = 18f;
         const float CanvasPadding = 16f;
         const float CursorPadding = 30f;
+        const float FocusPointerOffset = 42f;
 
         static readonly Vector3[] WorldCorners = new Vector3[4];
 
@@ -21,7 +22,45 @@ namespace AreaSurvivors
         public string titleText;
         public string descriptionText;
 
+        public static UpgradeNodeHover PointerHover { get; private set; }
+
         public void OnPointerEnter(PointerEventData eventData)
+        {
+            if (!UiSelectionUtility.PointerCanDriveFocus()) return;
+            PointerHover = this;
+            Show(eventData);
+        }
+
+        public void OnPointerMove(PointerEventData eventData)
+        {
+            if (!UiSelectionUtility.PointerCanDriveFocus()) return;
+            PointerHover = this;
+            Show(eventData);
+            PositionTooltip(eventData);
+        }
+
+        public void OnPointerExit(PointerEventData eventData)
+        {
+            if (PointerHover == this) PointerHover = null;
+            Hide();
+        }
+
+        void OnDisable()
+        {
+            if (PointerHover == this) PointerHover = null;
+        }
+
+        public void ShowForFocus()
+        {
+            Show(null, FocusPointerInCanvas());
+        }
+
+        public void Hide()
+        {
+            if (tooltipRoot != null) tooltipRoot.gameObject.SetActive(false);
+        }
+
+        void Show(PointerEventData eventData, Vector2? fallbackPointer = null)
         {
             if (title != null) title.text = titleText;
             if (description != null) description.text = descriptionText;
@@ -29,28 +68,18 @@ namespace AreaSurvivors
             {
                 tooltipRoot.gameObject.SetActive(true);
                 tooltipRoot.SetAsLastSibling();
-                PositionTooltip(eventData);
+                PositionTooltip(eventData, fallbackPointer);
             }
         }
 
-        public void OnPointerMove(PointerEventData eventData)
-        {
-            PositionTooltip(eventData);
-        }
-
-        public void OnPointerExit(PointerEventData eventData)
-        {
-            if (tooltipRoot != null) tooltipRoot.gameObject.SetActive(false);
-        }
-
-        void PositionTooltip(PointerEventData eventData)
+        void PositionTooltip(PointerEventData eventData, Vector2? fallbackPointer = null)
         {
             if (tooltipRoot == null || canvasRoot == null || targetRect == null) return;
 
             var uiCamera = UiCamera(eventData);
             Rect canvasRect = canvasRoot.rect;
             Rect target = RectInCanvas(targetRect, uiCamera);
-            Vector2 pointer = PointerInCanvas(eventData, uiCamera);
+            Vector2 pointer = PointerInCanvas(eventData, uiCamera, fallbackPointer);
             Vector2 size = TooltipSize();
             Vector2 center = ChooseSidePosition(canvasRect, target, size, pointer);
             center = AvoidPointer(canvasRect, center, size, pointer);
@@ -62,7 +91,7 @@ namespace AreaSurvivors
         {
             if (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay)
             {
-                return canvas.worldCamera != null ? canvas.worldCamera : eventData.pressEventCamera;
+                return canvas.worldCamera != null ? canvas.worldCamera : eventData != null ? eventData.pressEventCamera : null;
             }
 
             return null;
@@ -84,11 +113,19 @@ namespace AreaSurvivors
             return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
         }
 
-        Vector2 PointerInCanvas(PointerEventData eventData, Camera uiCamera)
+        Vector2 PointerInCanvas(PointerEventData eventData, Camera uiCamera, Vector2? fallbackPointer)
         {
+            if (fallbackPointer.HasValue) return fallbackPointer.Value;
             if (eventData == null) return Vector2.zero;
             RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRoot, eventData.position, uiCamera, out var local);
             return local;
+        }
+
+        Vector2 FocusPointerInCanvas()
+        {
+            if (canvasRoot == null || targetRect == null) return Vector2.zero;
+            Rect target = RectInCanvas(targetRect, UiCamera(null));
+            return new Vector2(target.xMin - FocusPointerOffset, target.center.y);
         }
 
         Vector2 TooltipSize()

@@ -39,6 +39,7 @@ namespace AreaSurvivors
     {
         public int stage = 1;
         public int difficulty = 1;
+        public int maxUnlockedDifficulty = 1;
     }
 
     public enum SavedBuildingKind

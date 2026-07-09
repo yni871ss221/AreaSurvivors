@@ -165,6 +165,7 @@ namespace AreaSurvivors
                 case UpgradeType.EliteSpawnCount:
                 case UpgradeType.WatchTowerDamage:
                     return 4;
+                case UpgradeType.OpeningPlayerLevel:
                 case UpgradeType.PaintAreaTokenGain:
                     return 3;
                 case UpgradeType.ReviveSpeed:
@@ -221,6 +222,8 @@ namespace AreaSurvivors
                     return FixedLevelCost(level, 20, 25, 30, 35, 40);
                 case UpgradeType.WallMaxHp3:
                     return FixedLevelCost(level, 30, 35, 40, 45, 50);
+                case UpgradeType.OpeningPlayerLevel:
+                    return FixedLevelCost(level, 50, 60, 70);
             }
 
             if (level != 0) return 0;
@@ -283,6 +286,7 @@ namespace AreaSurvivors
                 case UpgradeType.BuildingAutoRegen:
                 case UpgradeType.MovePenaltyReduction:
                 case UpgradeType.ReviveBuildingsOnBossDefeat:
+                case UpgradeType.OpeningPlayerLevel:
                 case UpgradeType.PaintAreaTokenGain:
                     return 4;
                 case UpgradeType.UnlockTowerUpgrade:
@@ -362,6 +366,8 @@ namespace AreaSurvivors
             bool unlockedNewStage = Data.highestUnlockedStage < nextUnlockedStage;
             Data.highestClearedStage = Mathf.Max(Data.highestClearedStage, stage);
             Data.highestUnlockedStage = Mathf.Max(Data.highestUnlockedStage, nextUnlockedStage);
+            var difficultyRecord = EnsureStageDifficultyRecord(stage);
+            difficultyRecord.maxUnlockedDifficulty = Mathf.Max(difficultyRecord.maxUnlockedDifficulty, 2);
             Save();
             return unlockedNewStage;
         }
@@ -373,6 +379,8 @@ namespace AreaSurvivors
             {
                 Data.highestClearedStage = Mathf.Max(Data.highestClearedStage, stage);
                 Data.highestUnlockedStage = Mathf.Max(Data.highestUnlockedStage, Mathf.Min(stage + 1, ImplementedStageCount));
+                var difficultyRecord = EnsureStageDifficultyRecord(stage);
+                difficultyRecord.maxUnlockedDifficulty = Mathf.Max(difficultyRecord.maxUnlockedDifficulty, 2);
             }
             else
             {
@@ -393,33 +401,67 @@ namespace AreaSurvivors
         public static int GetStageDifficulty(int stage)
         {
             stage = Mathf.Clamp(stage, 1, ImplementedStageCount);
-            if (Data.stageDifficulties == null) Data.stageDifficulties = new List<StageDifficultyRecord>();
-            foreach (var record in Data.stageDifficulties)
-            {
-                if (record != null && record.stage == stage)
-                {
-                    return Mathf.Clamp(record.difficulty, MinStageDifficulty, MaxStageDifficulty);
-                }
-            }
+            var record = FindStageDifficultyRecord(stage);
+            int maxUnlocked = GetStageMaxUnlockedDifficulty(stage);
+            return Mathf.Clamp(record != null ? record.difficulty : MinStageDifficulty, MinStageDifficulty, maxUnlocked);
+        }
 
-            return MinStageDifficulty;
+        public static int GetStageMaxUnlockedDifficulty(int stage)
+        {
+            stage = Mathf.Clamp(stage, 1, ImplementedStageCount);
+            var record = FindStageDifficultyRecord(stage);
+            int baseline = IsStageCleared(stage) ? 2 : MinStageDifficulty;
+            int unlocked = record != null ? record.maxUnlockedDifficulty : baseline;
+            return Mathf.Clamp(Mathf.Max(baseline, unlocked), MinStageDifficulty, MaxStageDifficulty);
         }
 
         public static void SetStageDifficulty(int stage, int difficulty)
         {
             stage = Mathf.Clamp(stage, 1, ImplementedStageCount);
+            difficulty = Mathf.Clamp(difficulty, MinStageDifficulty, GetStageMaxUnlockedDifficulty(stage));
+            var record = EnsureStageDifficultyRecord(stage);
+            record.difficulty = difficulty;
+            Save();
+        }
+
+        public static bool UnlockStageDifficulty(int stage, int difficulty)
+        {
+            stage = Mathf.Clamp(stage, 1, ImplementedStageCount);
             difficulty = Mathf.Clamp(difficulty, MinStageDifficulty, MaxStageDifficulty);
+            var record = EnsureStageDifficultyRecord(stage);
+            int before = GetStageMaxUnlockedDifficulty(stage);
+            record.maxUnlockedDifficulty = Mathf.Max(record.maxUnlockedDifficulty, difficulty);
+            int after = GetStageMaxUnlockedDifficulty(stage);
+            if (after <= before) return false;
+
+            Save();
+            return true;
+        }
+
+        static StageDifficultyRecord FindStageDifficultyRecord(int stage)
+        {
             if (Data.stageDifficulties == null) Data.stageDifficulties = new List<StageDifficultyRecord>();
             foreach (var record in Data.stageDifficulties)
             {
-                if (record == null || record.stage != stage) continue;
-                record.difficulty = difficulty;
-                Save();
-                return;
+                if (record != null && record.stage == stage) return record;
             }
 
-            Data.stageDifficulties.Add(new StageDifficultyRecord { stage = stage, difficulty = difficulty });
-            Save();
+            return null;
+        }
+
+        static StageDifficultyRecord EnsureStageDifficultyRecord(int stage)
+        {
+            var record = FindStageDifficultyRecord(stage);
+            if (record != null) return record;
+
+            record = new StageDifficultyRecord
+            {
+                stage = stage,
+                difficulty = MinStageDifficulty,
+                maxUnlockedDifficulty = IsStageCleared(stage) ? 2 : MinStageDifficulty
+            };
+            Data.stageDifficulties.Add(record);
+            return record;
         }
 
         public static void AddTokensForTesting(int tokens)
@@ -497,6 +539,13 @@ namespace AreaSurvivors
             Data.selectedStage = 1;
             if (Data.stageDifficulties != null) Data.stageDifficulties.Clear();
             Save();
+        }
+
+        public static void ResetPlayData()
+        {
+            cached = new SaveData();
+            PlayerPrefs.DeleteKey(SaveKey);
+            PlayerPrefs.Save();
         }
 
         public static void Save()

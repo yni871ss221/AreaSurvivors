@@ -245,8 +245,9 @@ MonoBehaviour:
   visualRoot: {fileID: 1702100000000000002}
   visual: {fileID: 1702100000000000005}
   billboard: {fileID: 1702100000000000006}
-  hitboxWidthMultiplier: 0.5
+  hitboxWidthMultiplier: 0.9
   hitboxForwardCenterMultiplier: 0.56
+  visualReferenceRange: 1.05
   visualScaleMultiplier: 0.78
   frameSeconds: 0.055
   slashColor: {r: 1, g: 0.92, b: 0.42, a: 0.82}

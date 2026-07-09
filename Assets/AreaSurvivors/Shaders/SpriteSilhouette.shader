@@ -87,7 +87,7 @@ Shader "AreaSurvivors/SpriteAlphaOutline"
                 alpha = max(alpha, AlphaInSpriteRect(i.uv + float2(0, -halfO.y)));
                 alpha = max(alpha, AlphaInSpriteRect(i.uv + float2(0,  halfO.y)));
 
-                fixed outlineAlpha = center > _AlphaThreshold ? 0 : alpha;
+                fixed outlineAlpha = max(center, alpha);
                 clip(outlineAlpha - _AlphaThreshold);
                 return fixed4(_Color.rgb, outlineAlpha * _Color.a);
             }

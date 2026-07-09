@@ -41,6 +41,7 @@ namespace AreaSurvivors
         public const string SkillToken = SkillPrefix + "SkillToken";
         public const string SkillEliteBoar = SkillPrefix + "SkillEliteBoar";
         public const string SkillTowerUpgrade = SkillPrefix + "SkillTowerUpgrade";
+        public const string SkillOpeningLevelUp = SkillPrefix + "SkillOpeningLevelUp";
         public const string TreasureChest = "TreasureChest";
 
         public static Sprite Load(string resource)
@@ -143,6 +144,8 @@ namespace AreaSurvivors
                     return SkillToken;
                 case UpgradeType.EliteSpawnCount:
                     return SkillEliteBoar;
+                case UpgradeType.OpeningPlayerLevel:
+                    return SkillOpeningLevelUp;
                 case UpgradeType.ReviveBuildingsOnBossDefeat:
                     return SkillTowerRegen;
                 case UpgradeType.UnlockOpeningRelicChest:

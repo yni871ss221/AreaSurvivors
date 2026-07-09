@@ -12,7 +12,7 @@ namespace AreaSurvivors
         public Transform slashOrigin;
         public const int MaxEquippedWeapons = 3;
         const float FireballProjectileVisualScale = 0.38f;
-        public const float SlashRangeUpgradeAmount = 0.08f;
+        public const float SlashRangeUpgradeAmount = 0.2f;
         public const float SlashKnockbackUpgradeAmount = 1f;
         public const float ProjectileRangeUpgradeAmount = 0.75f;
         public const float FireballExplosionUpgradeAmount = 0.25f;

@@ -31,6 +31,7 @@ namespace AreaSurvivors
         public Sprite[] mageRightFrames;
         public Sprite[] mageUpFrames;
         public bool IsReviving { get; private set; }
+        public bool IsInvincible { get; private set; }
 
         Rigidbody2D body;
         Health health;
@@ -42,6 +43,7 @@ namespace AreaSurvivors
         Vector2 facing = Vector2.down;
         float moveSpeed;
         int paintRadius;
+        Coroutine invincibilityRoutine;
 
         void Awake()
         {
@@ -67,6 +69,7 @@ namespace AreaSurvivors
             grid = tileGrid;
             characterType = type;
             stats.Initialize(config);
+            SetInvincible(false);
             transform.localScale = Vector3.one * Mathf.Max(0.1f, config.playerVisualScale);
             if (gridVisual != null) gridVisual.ConfigureCharacter(1f);
             ApplyCharacterSprite(type);
@@ -132,14 +135,15 @@ namespace AreaSurvivors
                 hpBar.gameObject.SetActive(health.Normalized < 0.999f);
             }
             if (IsReviving) return;
-            var input = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
-            if (input.sqrMagnitude > 1f) input.Normalize();
+            var input = InputSettingsStore.MoveVector();
             if (input.sqrMagnitude > 0.01f) facing = input;
 
             float enemyTerritoryMultiplier = config.enemyTerritorySlow +
                 ProgressionStore.GetLevel(UpgradeType.MovePenaltyReduction) * config.enemyTerritorySlowReductionPerUpgradeLevel;
             var movementSample = MovementSamplePosition();
-            float territory = grid.GetMoveMultiplier(movementSample, TileOwner.Player, Mathf.Clamp01(enemyTerritoryMultiplier));
+            float territory = IsInvincible
+                ? 1f
+                : grid.GetMoveMultiplier(movementSample, TileOwner.Player, Mathf.Clamp01(enemyTerritoryMultiplier));
             body.velocity = input * moveSpeed * territory;
             if (directionalAnimator != null) directionalAnimator.Tick(facing, input.sqrMagnitude > 0.01f);
             grid.Paint(movementSample, TileOwner.Player, paintRadius);
@@ -177,6 +181,12 @@ namespace AreaSurvivors
 
         void OnDied(Health _)
         {
+            if (invincibilityRoutine != null)
+            {
+                StopCoroutine(invincibilityRoutine);
+                invincibilityRoutine = null;
+            }
+            SetInvincible(false);
             StartCoroutine(ReviveRoutine());
         }
 
@@ -221,6 +231,28 @@ namespace AreaSurvivors
             if (directionalAnimator != null) directionalAnimator.enabled = true;
             if (hitCollider != null) hitCollider.enabled = true;
             IsReviving = false;
+            invincibilityRoutine = StartCoroutine(ReviveInvincibilityRoutine());
+        }
+
+        IEnumerator ReviveInvincibilityRoutine()
+        {
+            SetInvincible(true);
+            float duration = config != null ? Mathf.Max(0f, config.playerReviveInvincibleSeconds) : 2f;
+            float elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+
+            SetInvincible(false);
+            invincibilityRoutine = null;
+        }
+
+        void SetInvincible(bool value)
+        {
+            IsInvincible = value;
+            if (health != null) health.invincible = value;
         }
     }
 }

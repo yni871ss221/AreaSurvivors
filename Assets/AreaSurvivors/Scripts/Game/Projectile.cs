@@ -17,17 +17,23 @@ namespace AreaSurvivors
         public Sprite impactSprite;
         public Color impactColor = Color.white;
         public float impactVisualScale = 1f;
+        public bool playImpactFlash = true;
         public GameObject impactFlashPrefab;
         public GameObject explosionHitboxPrefab;
         public bool paintsTerritory = true;
+        [Tooltip("短い間隔でPixelBurstを生成するため、負荷調査後はデフォルト無効。必要な弾PrefabだけONにしてください。")]
+        public bool playTrailFlecks;
         int damage;
         bool explosive;
         bool resolved;
         RunDamageSource damageSource;
         float explosionRadius = 1.1f;
         float trailTimer;
+        float trailPaintTimer;
         const float ArrowVisualScaleMultiplier = 0.5f;
         const int ArrowPaintRadius = 1;
+        const float FireballTrailPaintInterval = 0.06f;
+        const int FireballTrailPaintRadius = 1;
 
         void Awake()
         {
@@ -36,6 +42,8 @@ namespace AreaSurvivors
 
         void Update()
         {
+            PaintFireballTrailIfNeeded();
+            if (!playTrailFlecks) return;
             trailTimer -= Time.deltaTime;
             if (trailTimer > 0f) return;
             trailTimer = explosive ? 0.045f : 0.065f;
@@ -56,6 +64,8 @@ namespace AreaSurvivors
             explosionRadius = Mathf.Max(0.05f, radius);
             lifetime = Mathf.Max(0.05f, seconds);
             visualScale = Mathf.Max(0.05f, scale);
+            trailTimer = 0f;
+            trailPaintTimer = 0f;
             ApplyWeaponSortingOrder(WeaponSortingOrders.Projectile);
             if (applyLaunchScale && visualScale > 0f) transform.localScale = Vector3.one * (visualScale * (isExplosive ? 1f : ArrowVisualScaleMultiplier));
             var normalizedDirection = direction.normalized;
@@ -146,6 +156,7 @@ namespace AreaSurvivors
 
         void ImpactFlash()
         {
+            if (!playImpactFlash) return;
             var source = GetComponentInChildren<PaperMeshVisual>();
             var flashSprite = impactSprite != null ? impactSprite : source != null ? source.sprite : null;
             if (flashSprite == null) return;
@@ -178,11 +189,20 @@ namespace AreaSurvivors
 
         void TrailFleck()
         {
-            if (explosive && paintsTerritory) PaintPlayerTerritory(transform.position, 1);
             var source = GetComponentInChildren<PaperMeshVisual>();
             if (source == null || source.sprite == null) return;
             var color = explosive ? new Color(1f, 0.45f, 0.16f, 0.36f) : new Color(1f, 0.88f, 0.42f, 0.24f);
             PixelBurstEffect.Spawn(source.sprite, transform.position - transform.right * 0.18f, color, 1, explosive ? 0.28f : 0.16f, explosive ? 0.16f : 0.11f, WeaponSortingOrders.ProjectileTrail);
+        }
+
+        void PaintFireballTrailIfNeeded()
+        {
+            if (!explosive || !paintsTerritory) return;
+            trailPaintTimer -= Time.deltaTime;
+            if (trailPaintTimer > 0f) return;
+
+            trailPaintTimer = FireballTrailPaintInterval;
+            PaintPlayerTerritory(transform.position, FireballTrailPaintRadius);
         }
 
         void ApplyWeaponSortingOrder(int sortingOrder)

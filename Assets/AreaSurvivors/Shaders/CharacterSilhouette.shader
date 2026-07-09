@@ -5,6 +5,9 @@ Shader "AreaSurvivors/CharacterSilhouette"
         _MainTex ("Texture", 2D) = "white" {}
         _Color ("Color", Color) = (0.3,0.95,1,0.72)
         _OutlineColor ("Outline Color", Color) = (1,1,1,1)
+        _SpriteRect ("Sprite Rect", Vector) = (0,0,1,1)
+        _OutlineUv ("Outline UV", Vector) = (0.01,0.01,0,0)
+        _AlphaThreshold ("Alpha Threshold", Range(0,1)) = 0.05
     }
     SubShader
     {
@@ -32,6 +35,19 @@ Shader "AreaSurvivors/CharacterSilhouette"
             float4 _MainTex_TexelSize;
             fixed4 _Color;
             fixed4 _OutlineColor;
+            float4 _SpriteRect;
+            float4 _OutlineUv;
+            float _AlphaThreshold;
+
+            fixed AlphaInSpriteRect(float2 uv)
+            {
+                if (uv.x < _SpriteRect.x || uv.x > _SpriteRect.z || uv.y < _SpriteRect.y || uv.y > _SpriteRect.w)
+                {
+                    return 0;
+                }
+                return tex2D(_MainTex, uv).a;
+            }
+
             v2f vert(appdata v)
             {
                 v2f o;
@@ -41,16 +57,30 @@ Shader "AreaSurvivors/CharacterSilhouette"
             }
             fixed4 frag(v2f i) : SV_Target
             {
-                fixed alpha = tex2D(_MainTex, i.uv).a;
-                float2 p = _MainTex_TexelSize.xy * 2.0;
-                fixed nearAlpha = max(max(tex2D(_MainTex, i.uv + float2(p.x, 0)).a,
-                                          tex2D(_MainTex, i.uv - float2(p.x, 0)).a),
-                                      max(tex2D(_MainTex, i.uv + float2(0, p.y)).a,
-                                          tex2D(_MainTex, i.uv - float2(0, p.y)).a));
-                clip(max(alpha, nearAlpha) - 0.05);
-                return alpha > 0.05
-                    ? fixed4(_Color.rgb, alpha * _Color.a)
-                    : fixed4(_OutlineColor.rgb, nearAlpha * _OutlineColor.a);
+                fixed center = AlphaInSpriteRect(i.uv);
+                float2 o = _OutlineUv.xy;
+                fixed outlineAlpha = 0;
+
+                outlineAlpha = max(outlineAlpha, AlphaInSpriteRect(i.uv + float2(-o.x, 0)));
+                outlineAlpha = max(outlineAlpha, AlphaInSpriteRect(i.uv + float2( o.x, 0)));
+                outlineAlpha = max(outlineAlpha, AlphaInSpriteRect(i.uv + float2(0, -o.y)));
+                outlineAlpha = max(outlineAlpha, AlphaInSpriteRect(i.uv + float2(0,  o.y)));
+                outlineAlpha = max(outlineAlpha, AlphaInSpriteRect(i.uv + float2(-o.x, -o.y)));
+                outlineAlpha = max(outlineAlpha, AlphaInSpriteRect(i.uv + float2(-o.x,  o.y)));
+                outlineAlpha = max(outlineAlpha, AlphaInSpriteRect(i.uv + float2( o.x, -o.y)));
+                outlineAlpha = max(outlineAlpha, AlphaInSpriteRect(i.uv + float2( o.x,  o.y)));
+
+                float2 halfO = o * 0.5;
+                outlineAlpha = max(outlineAlpha, AlphaInSpriteRect(i.uv + float2(-halfO.x, 0)));
+                outlineAlpha = max(outlineAlpha, AlphaInSpriteRect(i.uv + float2( halfO.x, 0)));
+                outlineAlpha = max(outlineAlpha, AlphaInSpriteRect(i.uv + float2(0, -halfO.y)));
+                outlineAlpha = max(outlineAlpha, AlphaInSpriteRect(i.uv + float2(0,  halfO.y)));
+
+                fixed filledAlpha = max(center, outlineAlpha);
+                clip(filledAlpha - _AlphaThreshold);
+                return center > _AlphaThreshold
+                    ? fixed4(_Color.rgb, center * _Color.a)
+                    : fixed4(_OutlineColor.rgb, outlineAlpha * _OutlineColor.a);
             }
             ENDCG
         }

@@ -25,6 +25,22 @@ namespace AreaSurvivors
             BindButton(playButton, navigator.LoadLobby, "Play Button");
             BindButton(optionsButton, navigator.LoadOptions, "Options Button");
             BindButton(quitButton, navigator.Quit, "Quit Button");
+            var candidates = SelectionCandidates();
+            UiSelectionUtility.ConfigureVerticalNavigation(candidates);
+            UiSelectionUtility.SelectFirst(candidates);
+        }
+
+        void Update()
+        {
+            if (UiSelectionUtility.TickControllerSubmit()) return;
+            var candidates = SelectionCandidates();
+            UiSelectionUtility.ConfigureVerticalNavigation(candidates);
+            UiSelectionUtility.EnsureSelection(candidates);
+        }
+
+        Selectable[] SelectionCandidates()
+        {
+            return new Selectable[] { playButton, optionsButton, quitButton };
         }
 
         void BindButton(Button button, UnityAction action, string name)

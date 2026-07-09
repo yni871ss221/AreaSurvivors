@@ -14,8 +14,9 @@ namespace AreaSurvivors
         [SerializeField] Transform visualRoot;
         [SerializeField] PaperMeshVisual visual;
         [SerializeField] PaperBillboard billboard;
-        [SerializeField] float hitboxWidthMultiplier = 0.5f;
+        [SerializeField] float hitboxWidthMultiplier = 0.9f;
         [SerializeField] float hitboxForwardCenterMultiplier = 0.56f;
+        [SerializeField] float visualReferenceRange = DefaultVisualReferenceRange;
         [SerializeField] float visualScaleMultiplier = 0.78f;
         [SerializeField] float frameSeconds = 0.055f;
         [SerializeField] Color slashColor = new Color(1f, 0.92f, 0.42f, 0.82f);
@@ -29,6 +30,7 @@ namespace AreaSurvivors
         float knockback;
         float knockbackDuration;
         const int SlashPaintRadius = 1;
+        const float DefaultVisualReferenceRange = 1.05f;
 
         public static void Flash(GameObject prefab, Vector3 position, Vector2 direction, float range, float baseRange, int damage, float knockback, float knockbackDuration)
         {
@@ -60,7 +62,8 @@ namespace AreaSurvivors
             EnsureReferences();
             var dir = direction.sqrMagnitude > 0.01f ? direction.normalized : Vector2.down;
             float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
-            float rangeScale = Mathf.Max(0.05f, range) / Mathf.Max(0.05f, baseRange);
+            float referenceRange = visualReferenceRange > 0f ? visualReferenceRange : baseRange;
+            float rangeScale = Mathf.Max(0.05f, range) / Mathf.Max(0.05f, referenceRange);
             transform.position = position;
             transform.rotation = Quaternion.Euler(0f, 0f, angle);
 

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -11,7 +12,6 @@ namespace AreaSurvivors.EditorTools
     {
         const string OptionsScenePath = "Assets/AreaSurvivors/Scenes/02_Options.unity";
         const string GameScenePath = "Assets/AreaSurvivors/Scenes/05_Game.unity";
-        const float ContentHeight = 720f;
         static readonly Color PanelColor = new Color(0.035f, 0.04f, 0.05f, 0.90f);
         static readonly Color GroupColor = new Color(0.025f, 0.052f, 0.042f, 0.78f);
         static readonly Color ButtonColor = new Color(0.12f, 0.20f, 0.16f, 0.96f);
@@ -74,10 +74,11 @@ namespace AreaSurvivors.EditorTools
                 return;
             }
 
-            var components = RebuildGroupedOptionsPanel(panel, new Vector2(0f, 18f), new Vector2(860f, 560f), "戻る");
+            var components = RebuildGroupedOptionsPanel(panel, new Vector2(0f, -10f), new Vector2(860f, 950f), "戻る");
             screen.generalOptionsPanel = components.general;
             screen.audioOptionsPanel = components.audio;
             screen.displayOptionsPanel = components.display;
+            AssignControlComponents(screen, components.control);
             EditorUtility.SetDirty(screen);
         }
 
@@ -94,11 +95,12 @@ namespace AreaSurvivors.EditorTools
                 return;
             }
 
-            var components = RebuildGroupedOptionsPanel(panel, Vector2.zero, new Vector2(860f, 560f), "戻る");
+            var components = RebuildGroupedOptionsPanel(panel, Vector2.zero, new Vector2(860f, 950f), "戻る");
             pauseMenu.optionsPanel = panel.gameObject;
             pauseMenu.generalOptionsPanel = components.general;
             pauseMenu.audioOptionsPanel = components.audio;
             pauseMenu.displayOptionsPanel = components.display;
+            AssignControlComponents(pauseMenu, components.control);
             EditorUtility.SetDirty(pauseMenu);
         }
 
@@ -120,60 +122,60 @@ namespace AreaSurvivors.EditorTools
             var general = Ensure<GeneralOptionsPanel>(panel.gameObject);
             var audio = Ensure<AudioOptionsPanel>(panel.gameObject);
             var display = Ensure<DisplayOptionsPanel>(panel.gameObject);
-
+            EnsurePanelScrollController(panel.gameObject, panelRect, panelRect != null ? panelRect.parent as RectTransform : null);
             CreateText(panel, "Title", "オプション", 36, new Vector2(0f, 232f), new Vector2(420f, 46f), Color.white);
-            var scroll = CreateScrollView(panel, "Options Scroll View", new Vector2(0f, 6f), new Vector2(760f, 394f), ContentHeight);
-            var content = scroll.content.transform;
-            BuildGeneralGroup(content, general, -70f);
-            BuildSoundGroup(content, audio, -235f);
-            BuildGraphicGroup(content, display, -440f);
-            BuildControlGroup(content, -630f);
+            BuildGeneralGroup(panel, general, 130f);
+            BuildSoundGroup(panel, audio, -35f);
+            BuildGraphicGroup(panel, display, -240f);
+            var control = BuildControlGroup(panel, -430f);
 
-            audio.backButton = CreateButton(panel, "Back Button", backLabel, new Vector2(0f, -248f), new Vector2(230f, 50f), 22);
-            return new OptionPanelComponents(general, audio, display);
+            audio.backButton = CreateButton(panel, "Back Button", backLabel, new Vector2(0f, -800f), new Vector2(230f, 50f), 22);
+            return new OptionPanelComponents(general, audio, display, control);
         }
 
         static void BuildGeneralGroup(Transform parent, GeneralOptionsPanel panel, float y)
         {
-            var group = CreateGroup(parent, "General Group", "一般", y, 640f, 120f);
+            var group = CreateGroup(parent, "General Group", "一般", y, 640f, 90f);
             CreateText(group, "Language Label", "言語", 21, new Vector2(-205f, -20f), new Vector2(130f, 34f), TextGold);
             panel.languageDropdown = CreateDropdown(group, "Language Dropdown", new[] { "日本語" }, new Vector2(95f, -20f), new Vector2(300f, 38f), 18);
         }
 
         static void BuildSoundGroup(Transform parent, AudioOptionsPanel panel, float y)
         {
-            var group = CreateGroup(parent, "Sound Group", "サウンド", y, 640f, 170f);
-            CreateText(group, "BgmVolumeLabel", "BGM", 21, new Vector2(-220f, 16f), new Vector2(120f, 34f), TextGold);
-            panel.bgmSlider = CreateSlider(group, "BGM Slider", new Vector2(35f, 16f), new Vector2(250f, 20f));
-            panel.bgmValueText = CreateText(group, "BGM Value Text", "100%", 20, new Vector2(225f, 16f), new Vector2(90f, 30f), Color.white);
+            var group = CreateGroup(parent, "Sound Group", "サウンド", y, 640f, 120f);
+            CreateText(group, "BgmVolumeLabel", "BGM", 21, new Vector2(-220f, 8f), new Vector2(120f, 34f), TextGold);
+            panel.bgmSlider = CreateSlider(group, "BGM Slider", new Vector2(35f, 8f), new Vector2(250f, 20f));
+            panel.bgmValueText = CreateText(group, "BGM Value Text", "100%", 20, new Vector2(225f, 8f), new Vector2(90f, 30f), Color.white);
 
-            CreateText(group, "SfxVolumeLabel", "効果音", 21, new Vector2(-220f, -44f), new Vector2(120f, 34f), TextGold);
-            panel.sfxSlider = CreateSlider(group, "SFX Slider", new Vector2(35f, -44f), new Vector2(250f, 20f));
-            panel.sfxValueText = CreateText(group, "SFX Value Text", "100%", 20, new Vector2(225f, -44f), new Vector2(90f, 30f), Color.white);
+            CreateText(group, "SfxVolumeLabel", "効果音", 21, new Vector2(-220f, -36f), new Vector2(120f, 34f), TextGold);
+            panel.sfxSlider = CreateSlider(group, "SFX Slider", new Vector2(35f, -36f), new Vector2(250f, 20f));
+            panel.sfxValueText = CreateText(group, "SFX Value Text", "100%", 20, new Vector2(225f, -36f), new Vector2(90f, 30f), Color.white);
         }
 
         static void BuildGraphicGroup(Transform parent, DisplayOptionsPanel panel, float y)
         {
-            var group = CreateGroup(parent, "Graphic Group", "グラフィック", y, 640f, 190f);
-            CreateText(group, "Display Mode Label", "表示モード", 21, new Vector2(-205f, 34f), new Vector2(150f, 34f), TextGold);
-            panel.modeDropdown = CreateDropdown(group, "Display Mode Dropdown", new[] { "フルスクリーン", "ウィンドウ" }, new Vector2(95f, 34f), new Vector2(300f, 38f), 18);
+            var group = CreateGroup(parent, "Graphic Group", "グラフィック", y, 640f, 140f);
+            CreateText(group, "Display Mode Label", "表示モード", 21, new Vector2(-205f, 20f), new Vector2(150f, 34f), TextGold);
+            panel.modeDropdown = CreateDropdown(group, "Display Mode Dropdown", new[] { "フルスクリーン", "ウィンドウ" }, new Vector2(95f, 20f), new Vector2(300f, 38f), 18);
 
-            CreateText(group, "Window Size Label", "ウィンドウサイズ", 21, new Vector2(-205f, -26f), new Vector2(170f, 34f), TextGold);
-            panel.windowSizeDropdown = CreateDropdown(group, "Window Size Dropdown", PresetLabels(), new Vector2(95f, -26f), new Vector2(300f, 38f), 18);
-            panel.statusText = CreateText(group, "Display Status Text", "現在: フルスクリーン", 17, new Vector2(95f, -72f), new Vector2(360f, 28f), Color.white);
+            CreateText(group, "Window Size Label", "ウィンドウサイズ", 21, new Vector2(-205f, -34f), new Vector2(170f, 34f), TextGold);
+            panel.windowSizeDropdown = CreateDropdown(group, "Window Size Dropdown", PresetLabels(), new Vector2(95f, -34f), new Vector2(300f, 38f), 18);
+            panel.statusText = CreateText(group, "Display Status Text", "現在: フルスクリーン", 17, new Vector2(95f, -74f), new Vector2(360f, 28f), Color.white);
             panel.resolutionRoot = panel.windowSizeDropdown.gameObject;
             panel.fullscreenButton = null;
             panel.windowedButton = null;
             panel.resolutionButtons = null;
         }
 
-        static void BuildControlGroup(Transform parent, float y)
+        static ControlPanelComponents BuildControlGroup(Transform parent, float y)
         {
-            var group = CreateGroup(parent, "Control Group", "コントロール", y, 640f, 130f);
-            CreateText(group, "MoveTitle", "移動", 21, new Vector2(-205f, 8f), new Vector2(130f, 34f), TextGold);
-            CreateText(group, "MoveText", "WASD / 矢印キー", 21, new Vector2(95f, 8f), new Vector2(320f, 34f), Color.white);
-            CreateText(group, "AttackTitle", "攻撃", 21, new Vector2(-205f, -42f), new Vector2(130f, 34f), TextGold);
-            CreateText(group, "AttackText", "自動攻撃", 21, new Vector2(95f, -42f), new Vector2(320f, 34f), Color.white);
+            var group = CreateGroup(parent, "Control Group", "コントロール", y, 640f, 180f);
+            CreateText(group, "MoveTitle", "移動", 21, new Vector2(-205f, -8f), new Vector2(130f, 34f), TextGold);
+            var up = CreateKeyInputRow(group, "MoveUp", "上", "W", 35f);
+            var left = CreateKeyInputRow(group, "MoveLeft", "左", "A", 7f);
+            var down = CreateKeyInputRow(group, "MoveDown", "下", "S", -21f);
+            var right = CreateKeyInputRow(group, "MoveRight", "右", "D", -49f);
+            return new ControlPanelComponents(up, left, down, right);
         }
 
         static Transform CreateGroup(Transform parent, string name, string title, float y, float width, float height)
@@ -190,36 +192,29 @@ namespace AreaSurvivors.EditorTools
             return image.transform;
         }
 
-        static ScrollRect CreateScrollView(Transform parent, string name, Vector2 position, Vector2 size, float contentHeight)
+        static void EnsurePanelScrollController(GameObject panel, RectTransform content, RectTransform viewport)
         {
-            var root = new GameObject(name);
-            root.transform.SetParent(parent, false);
-            var rootRect = root.AddComponent<RectTransform>();
-            rootRect.anchoredPosition = position;
-            rootRect.sizeDelta = size;
-            var scroll = root.AddComponent<ScrollRect>();
-            scroll.horizontal = false;
-            scroll.vertical = true;
-            scroll.scrollSensitivity = 32f;
-            scroll.movementType = ScrollRect.MovementType.Clamped;
+            if (panel == null || content == null) return;
 
-            var viewport = CreateImage(root.transform, "Viewport", new Color(0f, 0f, 0f, 0.06f));
-            Stretch(viewport.rectTransform);
-            viewport.raycastTarget = true;
-            viewport.gameObject.AddComponent<Mask>().showMaskGraphic = false;
+            var controllerType = Type.GetType("AreaSurvivors.OptionsPanelScrollController, Assembly-CSharp");
+            if (controllerType == null)
+            {
+                Debug.LogWarning("OptionsPanelScrollController type was not found. Panel scroll setup was skipped.");
+                return;
+            }
 
-            var content = new GameObject("Content");
-            content.transform.SetParent(viewport.transform, false);
-            var contentRect = content.AddComponent<RectTransform>();
-            contentRect.anchorMin = new Vector2(0f, 1f);
-            contentRect.anchorMax = new Vector2(1f, 1f);
-            contentRect.pivot = new Vector2(0.5f, 1f);
-            contentRect.anchoredPosition = Vector2.zero;
-            contentRect.sizeDelta = new Vector2(0f, contentHeight);
+            var controller = panel.GetComponent(controllerType);
+            if (controller == null) controller = panel.AddComponent(controllerType);
 
-            scroll.viewport = viewport.rectTransform;
-            scroll.content = contentRect;
-            return scroll;
+            var serialized = new SerializedObject(controller);
+            serialized.FindProperty("content").objectReferenceValue = content;
+            serialized.FindProperty("viewport").objectReferenceValue = viewport;
+            serialized.FindProperty("scrollSensitivity").floatValue = 64f;
+            serialized.FindProperty("dragSensitivity").floatValue = 1f;
+            serialized.FindProperty("bottomPadding").floatValue = 32f;
+            serialized.FindProperty("resetOnEnable").boolValue = true;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(controller);
         }
 
         static Dropdown CreateDropdown(Transform parent, string name, string[] options, Vector2 position, Vector2 size, int fontSize)
@@ -345,6 +340,32 @@ namespace AreaSurvivors.EditorTools
             return button;
         }
 
+        static InputField CreateKeyInputRow(Transform parent, string prefix, string label, string value, float y)
+        {
+            CreateText(parent, prefix + "Label", label, 21, new Vector2(-20f, y), new Vector2(52f, 26f), TextGold);
+
+            var image = CreateImage(parent, prefix + "InputField", ButtonColor);
+            image.rectTransform.anchoredPosition = new Vector2(125f, y);
+            image.rectTransform.sizeDelta = new Vector2(170f, 28f);
+            UiBoxOutline.Apply(image.transform, ButtonEdge, 2f);
+
+            var input = image.gameObject.AddComponent<InputField>();
+            input.transition = Selectable.Transition.ColorTint;
+            input.targetGraphic = image;
+            input.characterLimit = 1;
+            input.contentType = InputField.ContentType.Standard;
+            input.lineType = InputField.LineType.SingleLine;
+            input.text = value;
+
+            var text = CreateText(image.transform, "Text", value, 21, Vector2.zero, new Vector2(150f, 28f), Color.white);
+            text.alignment = TextAnchor.MiddleCenter;
+            text.horizontalOverflow = HorizontalWrapMode.Overflow;
+            text.verticalOverflow = VerticalWrapMode.Overflow;
+            text.raycastTarget = false;
+            input.textComponent = text;
+            return input;
+        }
+
         static Text CreateText(Transform parent, string name, string text, int fontSize, Vector2 position, Vector2 size, Color color)
         {
             var go = new GameObject(name);
@@ -378,7 +399,7 @@ namespace AreaSurvivors.EditorTools
         {
             for (int i = root.childCount - 1; i >= 0; i--)
             {
-                Object.DestroyImmediate(root.GetChild(i).gameObject);
+                UnityEngine.Object.DestroyImmediate(root.GetChild(i).gameObject);
             }
         }
 
@@ -393,6 +414,52 @@ namespace AreaSurvivors.EditorTools
             return labels;
         }
 
+        static void AssignControlComponents(OptionsScreen screen, ControlPanelComponents control)
+        {
+            screen.controlMoveText = null;
+            screen.controlAttackText = null;
+            screen.controlMoveRebindButton = null;
+            screen.controlMoveUpText = control.up != null ? control.up.textComponent : null;
+            screen.controlMoveDownText = control.down != null ? control.down.textComponent : null;
+            screen.controlMoveLeftText = control.left != null ? control.left.textComponent : null;
+            screen.controlMoveRightText = control.right != null ? control.right.textComponent : null;
+            screen.controlMoveUpButton = null;
+            screen.controlMoveDownButton = null;
+            screen.controlMoveLeftButton = null;
+            screen.controlMoveRightButton = null;
+            screen.controlMoveUpInput = control.up;
+            screen.controlMoveDownInput = control.down;
+            screen.controlMoveLeftInput = control.left;
+            screen.controlMoveRightInput = control.right;
+            screen.controlMoveUpAlternateInput = null;
+            screen.controlMoveDownAlternateInput = null;
+            screen.controlMoveLeftAlternateInput = null;
+            screen.controlMoveRightAlternateInput = null;
+        }
+
+        static void AssignControlComponents(InGamePauseMenu pauseMenu, ControlPanelComponents control)
+        {
+            pauseMenu.controlMoveText = null;
+            pauseMenu.controlAttackText = null;
+            pauseMenu.controlMoveRebindButton = null;
+            pauseMenu.controlMoveUpText = control.up != null ? control.up.textComponent : null;
+            pauseMenu.controlMoveDownText = control.down != null ? control.down.textComponent : null;
+            pauseMenu.controlMoveLeftText = control.left != null ? control.left.textComponent : null;
+            pauseMenu.controlMoveRightText = control.right != null ? control.right.textComponent : null;
+            pauseMenu.controlMoveUpButton = null;
+            pauseMenu.controlMoveDownButton = null;
+            pauseMenu.controlMoveLeftButton = null;
+            pauseMenu.controlMoveRightButton = null;
+            pauseMenu.controlMoveUpInput = control.up;
+            pauseMenu.controlMoveDownInput = control.down;
+            pauseMenu.controlMoveLeftInput = control.left;
+            pauseMenu.controlMoveRightInput = control.right;
+            pauseMenu.controlMoveUpAlternateInput = null;
+            pauseMenu.controlMoveDownAlternateInput = null;
+            pauseMenu.controlMoveLeftAlternateInput = null;
+            pauseMenu.controlMoveRightAlternateInput = null;
+        }
+
         static bool ValidateOptionsScene(Scene scene)
         {
             var controller = FindRoot(scene, "02_Options Controller");
@@ -402,7 +469,8 @@ namespace AreaSurvivors.EditorTools
                 screen.audioOptionsPanel != null &&
                 screen.displayOptionsPanel != null &&
                 screen.navigator != null &&
-                ValidateOptionComponents(screen.generalOptionsPanel, screen.audioOptionsPanel, screen.displayOptionsPanel);
+                ValidateOptionComponents(screen.generalOptionsPanel, screen.audioOptionsPanel, screen.displayOptionsPanel) &&
+                ValidateControlComponents(screen.controlMoveUpInput, screen.controlMoveDownInput, screen.controlMoveLeftInput, screen.controlMoveRightInput);
             if (!valid) Debug.LogError("02_Options grouped options references are incomplete.");
             return valid;
         }
@@ -416,7 +484,8 @@ namespace AreaSurvivors.EditorTools
                 pauseMenu.generalOptionsPanel != null &&
                 pauseMenu.audioOptionsPanel != null &&
                 pauseMenu.displayOptionsPanel != null &&
-                ValidateOptionComponents(pauseMenu.generalOptionsPanel, pauseMenu.audioOptionsPanel, pauseMenu.displayOptionsPanel);
+                ValidateOptionComponents(pauseMenu.generalOptionsPanel, pauseMenu.audioOptionsPanel, pauseMenu.displayOptionsPanel) &&
+                ValidateControlComponents(pauseMenu.controlMoveUpInput, pauseMenu.controlMoveDownInput, pauseMenu.controlMoveLeftInput, pauseMenu.controlMoveRightInput);
             if (!valid) Debug.LogError("05_Game grouped pause options references are incomplete.");
             return valid;
         }
@@ -432,6 +501,18 @@ namespace AreaSurvivors.EditorTools
                 display.modeDropdown != null &&
                 display.windowSizeDropdown != null &&
                 display.statusText != null;
+        }
+
+        static bool ValidateControlComponents(InputField up, InputField down, InputField left, InputField right)
+        {
+            return up != null &&
+                down != null &&
+                left != null &&
+                right != null &&
+                up.textComponent != null &&
+                down.textComponent != null &&
+                left.textComponent != null &&
+                right.textComponent != null;
         }
 
         static void Stretch(RectTransform rect)
@@ -487,12 +568,30 @@ namespace AreaSurvivors.EditorTools
             public readonly GeneralOptionsPanel general;
             public readonly AudioOptionsPanel audio;
             public readonly DisplayOptionsPanel display;
+            public readonly ControlPanelComponents control;
 
-            public OptionPanelComponents(GeneralOptionsPanel general, AudioOptionsPanel audio, DisplayOptionsPanel display)
+            public OptionPanelComponents(GeneralOptionsPanel general, AudioOptionsPanel audio, DisplayOptionsPanel display, ControlPanelComponents control)
             {
                 this.general = general;
                 this.audio = audio;
                 this.display = display;
+                this.control = control;
+            }
+        }
+
+        readonly struct ControlPanelComponents
+        {
+            public readonly InputField up;
+            public readonly InputField left;
+            public readonly InputField down;
+            public readonly InputField right;
+
+            public ControlPanelComponents(InputField up, InputField left, InputField down, InputField right)
+            {
+                this.up = up;
+                this.left = left;
+                this.down = down;
+                this.right = right;
             }
         }
     }

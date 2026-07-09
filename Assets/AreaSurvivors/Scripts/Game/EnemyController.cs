@@ -299,7 +299,6 @@ namespace AreaSurvivors
             {
                 body.velocity = Vector2.zero;
                 if (!ProbeDisableAnimation) TickEnemyAnimation(direction, false);
-                PaintEnemyTerritory(MovementSamplePosition());
                 return;
             }
 
@@ -450,8 +449,8 @@ namespace AreaSurvivors
             if (contactTimer > 0f) return;
             var otherHealth = record.instance.GetComponentInParent<Health>();
             if (otherHealth == null) return;
-            otherHealth.Damage(attackDamage, hitPoint);
-            DamagePopup.Show(damagePopupPrefab, hitPoint + Vector3.up * 0.18f, DamagePopupAmount(otherHealth, attackDamage), Color.red);
+            int dealt = otherHealth.Damage(attackDamage, hitPoint);
+            if (dealt > 0) DamagePopup.Show(damagePopupPrefab, hitPoint + Vector3.up * 0.18f, dealt, Color.red);
             contactTimer = 0.75f;
         }
 
@@ -473,14 +472,9 @@ namespace AreaSurvivors
             Vector3 hitPoint = collision.contactCount > 0
                 ? collision.GetContact(0).point
                 : collision.collider.ClosestPoint(transform.position);
-            otherHealth.Damage(attackDamage, hitPoint);
-            DamagePopup.Show(damagePopupPrefab, hitPoint + Vector3.up * 0.18f, DamagePopupAmount(otherHealth, attackDamage), Color.red);
+            int dealt = otherHealth.Damage(attackDamage, hitPoint);
+            if (dealt > 0) DamagePopup.Show(damagePopupPrefab, hitPoint + Vector3.up * 0.18f, dealt, Color.red);
             contactTimer = 0.75f;
-        }
-
-        static int DamagePopupAmount(Health targetHealth, int rawDamage)
-        {
-            return Mathf.Max(0, rawDamage - Mathf.Max(0, targetHealth != null ? targetHealth.defense : 0));
         }
 
         void OnDamaged(Health damagedHealth, int amount)
@@ -546,13 +540,13 @@ namespace AreaSurvivors
                 yield return null;
             }
 
-            DropRewards();
+            DropRewards(firstBossDefeatCutscene);
             GameManager.Instance?.RegisterKill();
             if (boss) GameManager.Instance?.BossDefeated(this);
             Destroy(gameObject);
         }
 
-        void DropRewards()
+        void DropRewards(bool deferBossTokenReward)
         {
             if (xpOrbPrefab != null && xpValue > 0)
             {
@@ -561,7 +555,7 @@ namespace AreaSurvivors
                 if (experience != null) experience.value = xpValue;
             }
 
-            if (tokenValue > 0)
+            if (tokenValue > 0 && !(deferBossTokenReward && boss))
             {
                 var token = TokenOrb.Spawn(transform.position + Vector3.right * 0.22f, tokenValue);
                 if (boss && token != null)

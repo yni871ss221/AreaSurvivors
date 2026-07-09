@@ -10,9 +10,12 @@ namespace AreaSurvivors
         public float padding = 5f;
         public float thickness = 4f;
         public Color color = new Color(1f, 0.86f, 0.18f, 1f);
+        public Color focusColor = Color.white;
         public Color shadowColor = new Color(0f, 0f, 0f, 0.78f);
         public Color selectedBackgroundColor = new Color(0.114f, 0.529f, 0.298f, 0.98f);
         public Color hoverBackgroundColor = new Color(0.106f, 0.353f, 0.216f, 0.98f);
+        public bool showBackgroundOnFocus = true;
+        public bool bringToFrontOnHighlight = true;
 
         RectTransform rect;
         Image background;
@@ -40,7 +43,9 @@ namespace AreaSurvivors
             EnsureEdges();
             EnsureStateFill();
             bool focused = EventSystem.current != null && EventSystem.current.currentSelectedGameObject == gameObject;
-            bool mouseOver = IsMouseOverRect();
+            bool pointerCanDriveFocus = UiSelectionUtility.PointerCanDriveFocus();
+            bool mouseOver = pointerCanDriveFocus && IsMouseOverRect();
+            if (!pointerCanDriveFocus && pointerOver) ClearPointerHighlight();
             if (mouseOver && !pointerOver && activeHighlight == null) ActivatePointerHighlight();
             if (!mouseOver && pointerOver) ClearPointerHighlight();
             if (!mouseOver && activeHighlight == this && activeHighlightIsPointer) ClearPointerHighlight();
@@ -50,14 +55,24 @@ namespace AreaSurvivors
             bool highlighted = !forceSelected &&
                 activeHighlight == this &&
                 (activeHighlightIsPointer ? mouseOver : focused);
-            SetEdgesActive(forceSelected);
+            SetEdgesActive(forceSelected || highlighted);
             ApplyBackground(forceSelected, highlighted);
-            if (!forceSelected) return;
+            if (!forceSelected && !highlighted) return;
 
-            var bright = new Color(color.r, color.g, color.b, 0.88f);
+            BringToFront();
+            var edgeColor = forceSelected ? color : focusColor;
+            var bright = new Color(edgeColor.r, edgeColor.g, edgeColor.b, forceSelected ? 0.88f : 1f);
             for (int i = 0; i < brightEdges.Length; i++)
             {
                 if (brightEdges[i] != null) brightEdges[i].color = bright;
+            }
+
+            var dark = forceSelected
+                ? new Color(shadowColor.r, shadowColor.g, shadowColor.b, shadowColor.a)
+                : new Color(shadowColor.r, shadowColor.g, shadowColor.b, 0f);
+            for (int i = 0; i < darkEdges.Length; i++)
+            {
+                if (darkEdges[i] != null) darkEdges[i].color = dark;
             }
         }
 
@@ -76,6 +91,7 @@ namespace AreaSurvivors
 
         public void OnPointerEnter(PointerEventData eventData)
         {
+            if (!UiSelectionUtility.PointerCanDriveFocus()) return;
             ActivatePointerHighlight();
         }
 
@@ -117,8 +133,16 @@ namespace AreaSurvivors
             if (background == null || !hasBackgroundColor) return;
             background.color = normalBackgroundColor;
             if (stateFill == null) return;
-            stateFill.gameObject.SetActive(selected || highlighted);
+            bool showFill = selected || highlighted && showBackgroundOnFocus;
+            stateFill.gameObject.SetActive(showFill);
             stateFill.color = selected ? selectedBackgroundColor : hoverBackgroundColor;
+        }
+
+        void BringToFront()
+        {
+            if (!bringToFrontOnHighlight || transform.parent == null) return;
+            transform.SetAsLastSibling();
+            SetEdgesAsLastSiblings();
         }
 
         void EnsureStateFill()
@@ -140,6 +164,7 @@ namespace AreaSurvivors
             fillRect.offsetMin = new Vector2(3f, 3f);
             fillRect.offsetMax = new Vector2(-3f, -3f);
             fillRect.SetAsFirstSibling();
+            SetEdgesAsLastSiblings();
         }
 
         bool IsMouseOverRect()
@@ -157,6 +182,21 @@ namespace AreaSurvivors
             brightEdges = CreateEdges("Selected Edge", color, 0f, thickness);
             darkEdges = CreateEdges("Selected Shadow", shadowColor, 2f, thickness + 3f);
             SetEdgesActive(false);
+        }
+
+        void SetEdgesAsLastSiblings()
+        {
+            SetEdgesAsLastSiblings(darkEdges);
+            SetEdgesAsLastSiblings(brightEdges);
+        }
+
+        static void SetEdgesAsLastSiblings(Image[] edges)
+        {
+            if (edges == null) return;
+            foreach (var edge in edges)
+            {
+                if (edge != null) edge.transform.SetAsLastSibling();
+            }
         }
 
         Image[] CreateEdges(string prefix, Color edgeColor, float offset, float edgeThickness)

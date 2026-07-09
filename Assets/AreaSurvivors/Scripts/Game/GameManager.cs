@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using Unity.Profiling;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -33,6 +34,11 @@ namespace AreaSurvivors
         public TowerController Tower { get; private set; }
         public int CurrentStage => currentStage;
         public int CurrentLevel => level;
+        ProfilerRecorder materialCountRecorder;
+        ProfilerRecorder meshCountRecorder;
+        ProfilerRecorder textureCountRecorder;
+        ProfilerRecorder gameObjectCountRecorder;
+        ProfilerRecorder totalUsedMemoryRecorder;
         public int CurrentXp => xp;
         public int XpToNext => xpToNext;
         public int Wood { get; private set; }
@@ -58,18 +64,31 @@ namespace AreaSurvivors
         readonly List<string> runUpgrades = new List<string>();
         readonly List<string> runRelics = new List<string>();
         readonly List<RunRelicReportEntry> runRelicEntries = new List<RunRelicReportEntry>();
+        readonly List<RunStageLogEntry> runReachedStages = new List<RunStageLogEntry>();
+        readonly List<RunBossClearLogEntry> runBossClears = new List<RunBossClearLogEntry>();
         readonly RunDamageTracker runDamageTracker = new RunDamageTracker();
         const int InitialTowerTerritoryRadius = 10;
         const int PaintAreaTokenThreshold = 500;
         const float ElapsedTokenRewardIntervalSeconds = 30f;
         int paintAreaTokenProgress;
         int killTokenProgress;
+        int killMilestoneTokens;
+        int elapsedTimeTokens;
+        int tokenOrbTokens;
+        int paintAreaTokens;
+        int relicDuplicateTokens;
+        int tokenBalanceAtRunStart;
+        int runStartStage = 1;
+        int runStartStageDifficulty = 1;
+        int pendingOpeningLevelUps;
+        string runSessionId;
         float nextElapsedTokenRewardSeconds = ElapsedTokenRewardIntervalSeconds;
         static readonly Color UpgradeNormalColor = new Color(0.12f, 0.20f, 0.16f, 0.94f);
         static readonly Color UpgradeHoverColor = new Color(0.106f, 0.353f, 0.216f, 0.98f);
         void Awake()
         {
             Instance = this;
+            StartRuntimeResourceRecorders();
         }
 
         void Start()
@@ -81,6 +100,10 @@ namespace AreaSurvivors
             runDamageTracker.Reset();
             runRelics.Clear();
             runRelicEntries.Clear();
+            runReachedStages.Clear();
+            runBossClears.Clear();
+            runSessionId = Guid.NewGuid().ToString("N");
+            tokenBalanceAtRunStart = ProgressionStore.Data.tokens;
             config = Instantiate(config);
             config.EnsureEnemySpawnDefaults();
             config.EnsureWeaponLevelDefaults();
@@ -114,6 +137,8 @@ namespace AreaSurvivors
             grid.PlayerCellsPainted += OnPlayerCellsPainted;
             ApplyUnlockedCenterTowerUpgrade();
             int stage = RunState.ConsumeNextStartStage();
+            runStartStage = Mathf.Max(1, stage);
+            runStartStageDifficulty = ProgressionStore.GetStageDifficulty(runStartStage);
             float startStageElapsedSeconds = RunState.ConsumeNextStartStageElapsed();
             bool hasBossTestSpawnSide = RunState.TryConsumeNextBossTestSpawnSide(out var bossTestSpawnSide);
             SyncFixedBuildingSlots(stage);
@@ -140,12 +165,14 @@ namespace AreaSurvivors
             if (hasBossTestSpawnSide && spawner != null) spawner.SetNextBossTestSpawnSide(bossTestSpawnSide);
             BeginStage(stage, startStageElapsedSeconds);
             UpdateHud();
+            BeginOpeningPlayerLevelBonus();
         }
 
         void OnDestroy()
         {
             if (Instance == this) Instance = null;
             if (grid != null) grid.PlayerCellsPainted -= OnPlayerCellsPainted;
+            DisposeRuntimeResourceRecorders();
         }
 
         void RebuildMapPerimeter()
@@ -457,7 +484,7 @@ namespace AreaSurvivors
             if (rewards <= 0) return;
 
             killTokenProgress -= rewards * threshold;
-            AddRunTokens(rewards);
+            AddRunTokens(rewards, RunTokenSource.KillMilestone);
         }
 
         void AwardElapsedTimeTokens()
@@ -471,7 +498,7 @@ namespace AreaSurvivors
                 nextElapsedTokenRewardSeconds += ElapsedTokenRewardIntervalSeconds;
             }
 
-            if (rewards > 0) AddRunTokens(rewards);
+            if (rewards > 0) AddRunTokens(rewards, RunTokenSource.ElapsedTime);
         }
 
         public void RegisterDamageDealt(int amount)
@@ -550,13 +577,33 @@ namespace AreaSurvivors
             SyncPersistentResources();
         }
 
-        public void AddRunTokens(int amount)
+        public void AddRunTokens(int amount, RunTokenSource source = RunTokenSource.TokenOrb)
         {
             int gained = Mathf.Max(0, amount);
             if (gained <= 0) return;
             RunTokens += gained;
+            TrackRunTokenSource(source, gained);
             ShowTokenGainFeedback(gained);
             UpdateHud();
+        }
+
+        void TrackRunTokenSource(RunTokenSource source, int gained)
+        {
+            switch (source)
+            {
+                case RunTokenSource.KillMilestone:
+                    killMilestoneTokens += gained;
+                    break;
+                case RunTokenSource.ElapsedTime:
+                    elapsedTimeTokens += gained;
+                    break;
+                case RunTokenSource.PaintArea:
+                    paintAreaTokens += gained;
+                    break;
+                default:
+                    tokenOrbTokens += gained;
+                    break;
+            }
         }
 
         void OnPlayerCellsPainted(int count)
@@ -568,7 +615,7 @@ namespace AreaSurvivors
             int rewards = paintAreaTokenProgress / threshold;
             if (rewards <= 0) return;
             paintAreaTokenProgress -= rewards * threshold;
-            AddRunTokens(rewards * Mathf.Clamp(rewardLevel, 1, ProgressionStore.GetMaxLevel(UpgradeType.PaintAreaTokenGain)));
+            AddRunTokens(rewards * Mathf.Clamp(rewardLevel, 1, ProgressionStore.GetMaxLevel(UpgradeType.PaintAreaTokenGain)), RunTokenSource.PaintArea);
         }
 
         void ShowTokenGainFeedback(int amount)
@@ -589,10 +636,46 @@ namespace AreaSurvivors
             {
                 xp -= xpToNext;
                 level++;
+                ApplyPlayerLevelStatBonus();
                 xpToNext = Mathf.RoundToInt(xpToNext * 1.35f + 3);
                 ShowLevelUp();
             }
             UpdateHud();
+        }
+
+        void ApplyPlayerLevelStatBonus()
+        {
+            if (Player == null) return;
+
+            Player.StatsSource?.SetLevelStatBonusCount(Mathf.Max(0, level - 1));
+            Player.ApplyCurrentStats(false);
+        }
+
+        void BeginOpeningPlayerLevelBonus()
+        {
+            pendingOpeningLevelUps = Mathf.Clamp(
+                ProgressionStore.GetLevel(UpgradeType.OpeningPlayerLevel),
+                0,
+                ProgressionStore.GetMaxLevel(UpgradeType.OpeningPlayerLevel));
+            if (pendingOpeningLevelUps <= 0 || Player == null) return;
+
+            xp = 0;
+            xpRemainder = 0f;
+            ShowNextOpeningLevelUp();
+        }
+
+        void ShowNextOpeningLevelUp()
+        {
+            if (pendingOpeningLevelUps <= 0 || Player == null) return;
+
+            pendingOpeningLevelUps--;
+            level++;
+            xp = 0;
+            xpRemainder = 0f;
+            ApplyPlayerLevelStatBonus();
+            xpToNext = Mathf.RoundToInt(xpToNext * 1.35f + 3);
+            UpdateHud();
+            ShowLevelUp();
         }
 
         void ShowLevelUp()
@@ -614,20 +697,35 @@ namespace AreaSurvivors
                 upgradeButtons[i].onClick.AddListener(() => ApplyRunUpgrade(choices[index]));
             }
 
+            ConfigureLevelUpNavigation();
             SelectFirstUpgrade();
             StartCoroutine(SelectFirstUpgradeNextFrame());
         }
 
+        void ConfigureLevelUpNavigation()
+        {
+            if (upgradeButtons == null) return;
+
+            var activeButtons = new List<Selectable>();
+            for (int i = 0; i < upgradeButtons.Length; i++)
+            {
+                if (UiSelectionUtility.IsSelectable(upgradeButtons[i])) activeButtons.Add(upgradeButtons[i]);
+            }
+
+            UiSelectionUtility.ConfigureDirectionalNavigation(activeButtons.ToArray());
+        }
+
         void SelectFirstUpgrade()
         {
-            if (upgradeButtons.Length == 0 || upgradeButtons[0] == null) return;
+            var first = UiSelectionUtility.FirstSelectable(ActiveUpgradeButtons());
+            if (first == null) return;
 
             if (EventSystem.current != null)
             {
                 EventSystem.current.SetSelectedGameObject(null);
-                EventSystem.current.SetSelectedGameObject(upgradeButtons[0].gameObject);
+                EventSystem.current.SetSelectedGameObject(first.gameObject);
             }
-            upgradeButtons[0].Select();
+            first.Select();
             SetUpgradeHover(0);
         }
 
@@ -857,6 +955,12 @@ namespace AreaSurvivors
             levelUpPanel.SetActive(false);
             ShowLevelUpInputBlocker(false);
             if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(null);
+            if (pendingOpeningLevelUps > 0)
+            {
+                ShowNextOpeningLevelUp();
+                return;
+            }
+
             Time.timeScale = 1f;
         }
 
@@ -1002,6 +1106,9 @@ namespace AreaSurvivors
         void UpdateLevelUpButtonHover()
         {
             if (levelUpPanel == null || !levelUpPanel.activeSelf || upgradeButtons == null) return;
+            var candidates = ActiveUpgradeButtons();
+            UiSelectionUtility.EnsureSelection(candidates);
+
             int hoverIndex = -1;
             for (int i = 0; i < upgradeButtons.Length; i++)
             {
@@ -1041,6 +1148,18 @@ namespace AreaSurvivors
                 var highlight = button.GetComponent<UiSelectionHighlight>();
                 if (highlight != null) highlight.forceSelected = false;
             }
+        }
+
+        Selectable[] ActiveUpgradeButtons()
+        {
+            var candidates = new List<Selectable>();
+            if (upgradeButtons == null) return candidates.ToArray();
+            for (int i = 0; i < upgradeButtons.Length; i++)
+            {
+                if (UiSelectionUtility.IsSelectable(upgradeButtons[i])) candidates.Add(upgradeButtons[i]);
+            }
+
+            return candidates.ToArray();
         }
 
         static bool IsPointerOverButton(Button button)
@@ -1131,10 +1250,15 @@ namespace AreaSurvivors
         IEnumerator BossDefeatedRoutine(EnemyController boss)
         {
             bool firstClear = IsFirstBossDefeatForCurrentStage(boss);
+            int defeatedDifficulty = ProgressionStore.GetStageDifficulty(currentStage);
+            int bossTokenReward = boss != null ? Mathf.Max(0, boss.tokenValue) : 0;
             bool unlockedNextStage = ProgressionStore.MarkStageCleared(currentStage);
+            UnlockNextDifficultyForBossClear(currentStage, defeatedDifficulty);
+            RecordBossClear(boss, firstClear, unlockedNextStage, unlockedNextStage ? currentStage + 1 : 0);
             ReviveBuildingsOnBossDefeat();
             if (firstClear)
             {
+                yield return FirstBossClearRewardRoutine(bossTokenReward);
                 yield return FirstBossDefeatEndRoutine(currentStage, unlockedNextStage ? currentStage + 1 : 0);
                 yield break;
             }
@@ -1148,6 +1272,13 @@ namespace AreaSurvivors
             {
                 yield return GameClearRoutine(boss, currentStage, unlockedNextStage ? currentStage + 1 : 0, string.Empty);
             }
+        }
+
+        static bool UnlockNextDifficultyForBossClear(int stage, int defeatedDifficulty)
+        {
+            int nextDifficulty = Mathf.Clamp(defeatedDifficulty + 1, ProgressionStore.MinStageDifficulty, ProgressionStore.MaxStageDifficulty);
+            if (nextDifficulty <= defeatedDifficulty) return false;
+            return ProgressionStore.UnlockStageDifficulty(stage, nextDifficulty);
         }
 
         void ReviveBuildingsOnBossDefeat()
@@ -1174,6 +1305,49 @@ namespace AreaSurvivors
             EndRun(true, clearedStage, unlockedStage, string.Empty);
         }
 
+        IEnumerator FirstBossClearRewardRoutine(int bossTokenReward)
+        {
+            if (bossTokenReward > 0)
+            {
+                AddRunTokens(bossTokenReward);
+                yield return new WaitForSecondsRealtime(0.35f);
+            }
+
+            yield return AcquireRelicRewardRoutine();
+            if (endingCutsceneActive && !gameEnding) Time.timeScale = 0f;
+        }
+
+        IEnumerator AcquireRelicRewardRoutine()
+        {
+            AudioManager.PlaySfx(SfxTrack.RelicChestPickup);
+            if (!RelicCatalog.TryPickRandom(out var definition))
+            {
+                ShowAnnouncement("レリックが見つかりません");
+                yield break;
+            }
+
+            int duplicateTokenReward = 0;
+            if (ProgressionStore.HasRelic(definition.type))
+            {
+                duplicateTokenReward = RelicCatalog.GetDuplicateTokenReward(definition.rarity);
+                ProgressionStore.AddTokens(duplicateTokenReward);
+            }
+            else if (ProgressionStore.UnlockRelic(definition.type))
+            {
+                Player?.StatsSource?.Refresh();
+                Player?.ApplyCurrentStats(false);
+            }
+            else
+            {
+                duplicateTokenReward = RelicCatalog.GetDuplicateTokenReward(definition.rarity);
+                ProgressionStore.AddTokens(duplicateTokenReward);
+            }
+
+            bool closed = false;
+            ShowRelicAcquisition(definition, duplicateTokenReward, () => closed = true);
+            while (!closed) yield return null;
+        }
+
         IEnumerator StageTransitionRoutine(EnemyController boss, int nextStage)
         {
             gameEnding = true;
@@ -1182,7 +1356,7 @@ namespace AreaSurvivors
             yield return new WaitForSeconds(1.2f);
             if (boss != null) Destroy(boss.gameObject);
             gameEnding = false;
-            BeginStage(nextStage);
+            BeginStage(nextStage, 0f, true);
         }
 
         public void ShowAnnouncement(string message)
@@ -1197,13 +1371,20 @@ namespace AreaSurvivors
 
         public void ShowRelicAcquisition(RelicDefinition definition, int duplicateTokenReward)
         {
+            ShowRelicAcquisition(definition, duplicateTokenReward, null);
+        }
+
+        public void ShowRelicAcquisition(RelicDefinition definition, int duplicateTokenReward, Action onClosed)
+        {
             if (definition == null)
             {
                 ShowAnnouncement("レリック獲得");
+                onClosed?.Invoke();
                 return;
             }
 
             runRelics.Add(duplicateTokenReward > 0 ? definition.displayName + "（変換）" : definition.displayName);
+            if (duplicateTokenReward > 0) relicDuplicateTokens += duplicateTokenReward;
             runRelicEntries.Add(new RunRelicReportEntry
             {
                 type = definition.type,
@@ -1214,6 +1395,7 @@ namespace AreaSurvivors
             if (relicAcquisitionPanelPrefab == null)
             {
                 ShowAnnouncement(duplicateTokenReward > 0 ? "レリック変換: トークン +" + duplicateTokenReward : "レリック獲得: " + definition.displayName);
+                onClosed?.Invoke();
                 return;
             }
 
@@ -1221,6 +1403,7 @@ namespace AreaSurvivors
             panel.Show(definition, duplicateTokenReward, () =>
             {
                 ShowAnnouncement(duplicateTokenReward > 0 ? "レリック変換: トークン +" + duplicateTokenReward : "レリック獲得: " + definition.displayName);
+                onClosed?.Invoke();
             });
         }
 
@@ -1237,9 +1420,13 @@ namespace AreaSurvivors
             StopGameplayActionAudio();
             int rewardWood = EndWoodReward();
             int rewardStone = EndStoneReward();
-            int tokenEarned = EndTokenReward();
+            int guaranteedTokens;
+            int tokenBaseBeforeMultiplier;
+            float endTokenMultiplier;
+            int tokenEarned = EndTokenReward(out guaranteedTokens, out tokenBaseBeforeMultiplier, out endTokenMultiplier);
             int woodEarned = Mathf.Max(0, Wood) + rewardWood;
             int stoneEarned = Mathf.Max(0, Stone) + rewardStone;
+            int tokenBalanceBeforeEndReward = ProgressionStore.Data.tokens;
             RunResult.Last = new RunResult
             {
                 kills = kills,
@@ -1260,8 +1447,132 @@ namespace AreaSurvivors
                 damageReport = runDamageTracker.BuildReport()
             };
             ProgressionStore.AddRunTokens(kills, tokenEarned);
+            int tokenBalanceAfterEndReward = ProgressionStore.Data.tokens;
             ProgressionStore.AddPersistentResources(woodEarned, stoneEarned);
+            WriteTokenRunLog(
+                clear,
+                clearedStage,
+                unlockedStage,
+                tokenEarned,
+                guaranteedTokens,
+                tokenBaseBeforeMultiplier,
+                endTokenMultiplier,
+                tokenBalanceBeforeEndReward,
+                tokenBalanceAfterEndReward,
+                woodEarned,
+                stoneEarned);
+            LogRuntimeObjectSnapshot(SceneNames.GameEnd);
             SceneManager.LoadScene(SceneNames.GameEnd);
+        }
+
+        void LogRuntimeObjectSnapshot(string label)
+        {
+            var rendererMaterialStats = CollectRendererMaterialStats();
+            Debug.Log(
+                "Runtime object snapshot before scene transition"
+                + $" ({label}): "
+                + $"GameObject={FormatRecorderValue(gameObjectCountRecorder)}, "
+                + $"Mesh={FormatRecorderValue(meshCountRecorder)}, "
+                + $"Material={FormatRecorderValue(materialCountRecorder)}, "
+                + $"Texture={FormatRecorderValue(textureCountRecorder)}, "
+                + $"TotalUsedMemory={FormatBytesRecorderValue(totalUsedMemoryRecorder)}, "
+                + $"Renderer={rendererMaterialStats.rendererCount}, "
+                + $"RendererMaterialSlots={rendererMaterialStats.materialSlotCount}, "
+                + $"UniqueSharedMaterials={rendererMaterialStats.uniqueSharedMaterialCount}, "
+                + $"NullMaterialSlots={rendererMaterialStats.nullMaterialSlotCount}, "
+                + $"PaperMeshVisual={CountSceneObjects<PaperMeshVisual>()}, "
+                + $"RuntimeSpriteOutline={CountSceneObjects<RuntimeSpriteOutline>()}, "
+                + $"PixelBurstEffect={CountSceneObjects<PixelBurstEffect>()}, "
+                + $"Projectile={CountSceneObjects<Projectile>()}, "
+                + $"TokenOrb={CountSceneObjects<TokenOrb>()}");
+        }
+
+        void StartRuntimeResourceRecorders()
+        {
+            StartProfilerRecorder(ref materialCountRecorder, "Material Count");
+            StartProfilerRecorder(ref meshCountRecorder, "Mesh Count");
+            StartProfilerRecorder(ref textureCountRecorder, "Texture Count");
+            StartProfilerRecorder(ref gameObjectCountRecorder, "Game Object Count");
+            StartProfilerRecorder(ref totalUsedMemoryRecorder, "Total Used Memory");
+        }
+
+        void DisposeRuntimeResourceRecorders()
+        {
+            DisposeProfilerRecorder(ref materialCountRecorder);
+            DisposeProfilerRecorder(ref meshCountRecorder);
+            DisposeProfilerRecorder(ref textureCountRecorder);
+            DisposeProfilerRecorder(ref gameObjectCountRecorder);
+            DisposeProfilerRecorder(ref totalUsedMemoryRecorder);
+        }
+
+        static void StartProfilerRecorder(ref ProfilerRecorder recorder, string statName)
+        {
+            try
+            {
+                recorder = ProfilerRecorder.StartNew(ProfilerCategory.Memory, statName);
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning($"Failed to start profiler recorder '{statName}': {exception.Message}");
+            }
+        }
+
+        static void DisposeProfilerRecorder(ref ProfilerRecorder recorder)
+        {
+            if (recorder.Valid) recorder.Dispose();
+            recorder = default;
+        }
+
+        static string FormatRecorderValue(ProfilerRecorder recorder)
+        {
+            return recorder.Valid ? recorder.LastValue.ToString() : "unavailable";
+        }
+
+        static string FormatBytesRecorderValue(ProfilerRecorder recorder)
+        {
+            if (!recorder.Valid) return "unavailable";
+            return $"{recorder.LastValue / (1024f * 1024f):0.0}MB";
+        }
+
+        static int CountSceneObjects<T>() where T : UnityEngine.Object
+        {
+            return FindObjectsByType<T>(FindObjectsInactive.Include, FindObjectsSortMode.None).Length;
+        }
+
+        static RendererMaterialStats CollectRendererMaterialStats()
+        {
+            var stats = new RendererMaterialStats();
+            var uniqueMaterialIds = new HashSet<int>();
+            var renderers = FindObjectsByType<Renderer>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            stats.rendererCount = renderers.Length;
+            foreach (var renderer in renderers)
+            {
+                if (renderer == null) continue;
+                var materials = renderer.sharedMaterials;
+                stats.materialSlotCount += materials.Length;
+                for (int i = 0; i < materials.Length; i++)
+                {
+                    var material = materials[i];
+                    if (material == null)
+                    {
+                        stats.nullMaterialSlotCount++;
+                        continue;
+                    }
+
+                    uniqueMaterialIds.Add(material.GetInstanceID());
+                }
+            }
+
+            stats.uniqueSharedMaterialCount = uniqueMaterialIds.Count;
+            return stats;
+        }
+
+        struct RendererMaterialStats
+        {
+            public int rendererCount;
+            public int materialSlotCount;
+            public int uniqueSharedMaterialCount;
+            public int nullMaterialSlotCount;
         }
 
         void StopGameplayActionAudio()
@@ -1291,10 +1602,111 @@ namespace AreaSurvivors
 
         int EndTokenReward()
         {
-            int guaranteedTokens = config.roundEndTokenReward
+            return EndTokenReward(out _, out _, out _);
+        }
+
+        int EndTokenReward(out int guaranteedTokens, out int baseTokens, out float multiplier)
+        {
+            guaranteedTokens = config.roundEndTokenReward
                 + ProgressionStore.GetLevel(UpgradeType.EndTokenGain) * config.roundEndTokenRewardPerUpgradeLevel;
-            int baseTokens = Mathf.Max(0, RunTokens) + Mathf.Max(0, guaranteedTokens);
-            return Mathf.Max(0, Mathf.RoundToInt(baseTokens * RelicEffects.EndTokenMultiplier));
+            baseTokens = Mathf.Max(0, RunTokens) + Mathf.Max(0, guaranteedTokens);
+            multiplier = RelicEffects.EndTokenMultiplier;
+            return Mathf.Max(0, Mathf.RoundToInt(baseTokens * multiplier));
+        }
+
+        void WriteTokenRunLog(
+            bool clear,
+            int clearedStage,
+            int unlockedStage,
+            int tokenEarned,
+            int guaranteedTokens,
+            int tokenBaseBeforeMultiplier,
+            float endTokenMultiplier,
+            int tokenBalanceBeforeEndReward,
+            int tokenBalanceAfterEndReward,
+            int woodEarned,
+            int stoneEarned)
+        {
+            var localNow = DateTime.Now;
+            var utcNow = DateTime.UtcNow;
+            var entry = new TokenRunLogEntry
+            {
+                sessionId = string.IsNullOrEmpty(runSessionId) ? Guid.NewGuid().ToString("N") : runSessionId,
+                timestampLocal = localNow.ToString("yyyy-MM-dd HH:mm:ss"),
+                timestampUtc = utcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                appVersion = Application.version,
+                unityVersion = Application.unityVersion,
+                gameClear = clear,
+                startStage = runStartStage,
+                startStageDifficulty = runStartStageDifficulty,
+                reachedStage = currentStage,
+                reachedStageDifficulty = ProgressionStore.GetStageDifficulty(currentStage),
+                clearedStage = clearedStage,
+                unlockedStage = unlockedStage,
+                survivedSeconds = elapsed,
+                survivedTime = FormatRunTime(elapsed),
+                level = level,
+                kills = kills,
+                damageDealt = damageDealt,
+                runTokensBeforeEndReward = RunTokens,
+                killMilestoneTokens = killMilestoneTokens,
+                elapsedTimeTokens = elapsedTimeTokens,
+                tokenOrbTokens = tokenOrbTokens,
+                paintAreaTokens = paintAreaTokens,
+                relicDuplicateTokens = relicDuplicateTokens,
+                guaranteedEndTokens = guaranteedTokens,
+                endTokenGainLevel = ProgressionStore.GetLevel(UpgradeType.EndTokenGain),
+                endTokenMultiplier = endTokenMultiplier,
+                endTokenBaseBeforeMultiplier = tokenBaseBeforeMultiplier,
+                finalEndRewardTokens = tokenEarned,
+                tokenBalanceAtRunStart = tokenBalanceAtRunStart,
+                tokenBalanceBeforeEndReward = tokenBalanceBeforeEndReward,
+                tokenBalanceAfterEndReward = tokenBalanceAfterEndReward,
+                totalTokenBalanceIncrease = tokenBalanceAfterEndReward - tokenBalanceAtRunStart,
+                killTokenDivisor = config != null ? Mathf.Max(1, config.tokenKillsDivisor) : 1,
+                killTokenRemainder = killTokenProgress,
+                elapsedTokenIntervalSeconds = ElapsedTokenRewardIntervalSeconds,
+                nextElapsedTokenRewardSeconds = nextElapsedTokenRewardSeconds,
+                paintAreaTokenThreshold = PaintAreaTokenThreshold,
+                paintAreaTokenRemainder = paintAreaTokenProgress,
+                woodEarned = woodEarned,
+                stoneEarned = stoneEarned,
+                reachedStageSummary = StageLogSummary(),
+                bossClearSummary = BossClearLogSummary(),
+                reachedStages = new List<RunStageLogEntry>(runReachedStages),
+                bossClears = new List<RunBossClearLogEntry>(runBossClears),
+                upgrades = new List<string>(runUpgrades),
+                acquiredRelics = new List<string>(runRelics)
+            };
+
+            TokenRunLogger.Append(entry);
+        }
+
+        string StageLogSummary()
+        {
+            if (runReachedStages.Count == 0) return string.Empty;
+            var parts = new List<string>();
+            for (int i = 0; i < runReachedStages.Count; i++)
+            {
+                var entry = runReachedStages[i];
+                parts.Add($"STAGE {entry.stage}(難易度{entry.difficulty}, {entry.reachedTime})");
+            }
+
+            return string.Join(" -> ", parts);
+        }
+
+        string BossClearLogSummary()
+        {
+            if (runBossClears.Count == 0) return string.Empty;
+            var parts = new List<string>();
+            for (int i = 0; i < runBossClears.Count; i++)
+            {
+                var entry = runBossClears[i];
+                string unlock = entry.unlockedNextStage ? $", unlock:{entry.unlockedStage}" : string.Empty;
+                parts.Add($"STAGE {entry.stage} {entry.bossName} {entry.clearedTime} first:{entry.firstClear}{unlock}");
+            }
+
+            return string.Join(" | ", parts);
         }
 
         int EndWoodReward()
@@ -1328,19 +1740,62 @@ namespace AreaSurvivors
 
         void BeginStage(int stage, float startStageElapsedSeconds)
         {
+            BeginStage(stage, startStageElapsedSeconds, false);
+        }
+
+        void BeginStage(int stage, float startStageElapsedSeconds, bool preserveRunElapsed)
+        {
             currentStage = Mathf.Max(1, stage);
-            elapsed = StageStartDisplaySeconds() + Mathf.Max(0f, startStageElapsedSeconds);
+            float displayElapsedOffset = preserveRunElapsed ? elapsed : StageStartDisplaySeconds();
+            elapsed = displayElapsedOffset + Mathf.Max(0f, startStageElapsedSeconds);
             hudElapsed = elapsed;
             nextElapsedTokenRewardSeconds = (Mathf.Floor(elapsed / ElapsedTokenRewardIntervalSeconds) + 1f) * ElapsedTokenRewardIntervalSeconds;
             bossActive = false;
+            RecordStageReached(currentStage, runReachedStages.Count == 0);
             AudioManager.PlayBgm(BgmTrack.GameNormal);
             if (timerText != null) timerText.color = Color.white;
             if (spawner != null)
             {
                 spawner.useUpperChunkSpawn = false;
-                spawner.BeginStage(config, grid, Tower.EnemyTarget, currentStage, StageStartDisplaySeconds(), startStageElapsedSeconds);
+                spawner.BeginStage(config, grid, Tower.EnemyTarget, currentStage, displayElapsedOffset, startStageElapsedSeconds);
             }
             gameHud?.SetStage(currentStage);
+        }
+
+        void RecordStageReached(int stage, bool startStage)
+        {
+            runReachedStages.Add(new RunStageLogEntry
+            {
+                stage = Mathf.Max(1, stage),
+                difficulty = ProgressionStore.GetStageDifficulty(stage),
+                reachedSeconds = elapsed,
+                reachedTime = FormatRunTime(elapsed),
+                startStage = startStage
+            });
+        }
+
+        void RecordBossClear(EnemyController boss, bool firstClear, bool unlockedNextStage, int unlockedStage)
+        {
+            runBossClears.Add(new RunBossClearLogEntry
+            {
+                stage = currentStage,
+                difficulty = ProgressionStore.GetStageDifficulty(currentStage),
+                bossName = !string.IsNullOrWhiteSpace(boss != null ? boss.displayName : null) ? boss.displayName : "Boss",
+                enemyKind = boss != null ? boss.enemyKind.ToString() : string.Empty,
+                firstClear = firstClear,
+                unlockedNextStage = unlockedNextStage,
+                unlockedStage = unlockedStage,
+                clearedSeconds = elapsed,
+                clearedTime = FormatRunTime(elapsed),
+                kills = kills,
+                level = level,
+                runTokens = RunTokens
+            });
+        }
+
+        static string FormatRunTime(float seconds)
+        {
+            return TimeSpan.FromSeconds(Mathf.Max(0f, seconds)).ToString(@"mm\:ss");
         }
 
         float StageStartDisplaySeconds()
@@ -1820,7 +2275,7 @@ namespace AreaSurvivors
             if (playerPaintText != null) playerPaintText.text = player.PaintRadius.ToString();
             if (playerReviveText != null) playerReviveText.text = player.ReviveSeconds.ToString("0.0") + "s";
             var stats = player.Stats;
-            if (playerDefenseText != null) playerDefenseText.text = stats.defense.ToString();
+            if (playerDefenseText != null) playerDefenseText.text = stats.defense.ToString("0.#");
             if (playerXpGainText != null) playerXpGainText.text = stats.xpGainMultiplier.ToString("0.0") + "x";
             if (playerRegenText != null) playerRegenText.text = stats.autoRegen.ToString();
             UpdateWeaponStatsPanel();
@@ -2247,7 +2702,7 @@ namespace AreaSurvivors
         {
             var text = new GameObject(name).AddComponent<Text>();
             text.transform.SetParent(parent, false);
-            text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            text.font = JapaneseFontProvider.Font;
             text.text = value;
             text.fontSize = fontSize;
             text.alignment = alignment;

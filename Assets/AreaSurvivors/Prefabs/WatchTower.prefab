@@ -1152,6 +1152,7 @@ MonoBehaviour:
   maxHp: 10
   currentHp: 10
   defense: 0
+  invincible: 0
 --- !u!114 &6433026644420088556
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1167,6 +1168,7 @@ MonoBehaviour:
   baseOrder: 1000
   orderOffset: 0
   sortPivotOffsetY: 0
+  updateFrameInterval: 1
   renderers: []
 --- !u!114 &6785625645054401181
 MonoBehaviour:

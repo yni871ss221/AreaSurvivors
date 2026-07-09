@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace AreaSurvivors
@@ -15,6 +17,10 @@ namespace AreaSurvivors
 
         Canvas lobbyUi;
         SceneNavigator navigator;
+        Button startGameButton;
+        Button upgradeButton;
+        Button titleButton;
+        Button testLaunchButton;
         bool isStartingGame;
 
 #if UNITY_EDITOR
@@ -51,6 +57,14 @@ namespace AreaSurvivors
 
             BindStaticActions();
             Refresh();
+            SelectDefaultButton();
+        }
+
+        void Update()
+        {
+            if (UiSelectionUtility.TickControllerSubmit()) return;
+            var candidates = SelectionCandidates();
+            UiSelectionUtility.EnsureSelection(candidates);
         }
 
         void Refresh()
@@ -60,23 +74,30 @@ namespace AreaSurvivors
             SetText("TotalKillsValue", ProgressionStore.Data.totalKills.ToString());
             SetText("PlayCountValue", ProgressionStore.Data.playCount.ToString());
             DisableCharacterSelection();
+            DisableStatPanelFocus();
             RefreshStageCards();
+            ConfigureLobbyNavigation();
         }
 
         void BindStaticActions()
         {
             BindButton("Start Game Button", StartSelectedStage);
+            startGameButton = FindButton("Start Game Button");
             ConfigureTestLaunchButton();
             BindButton("Upgrade Button", navigator.LoadUpgrades);
+            upgradeButton = FindButton("Upgrade Button");
             if (!BindButton(weaponBookButton, navigator.LoadWeaponBook))
             {
                 BindButton("Weapon Book Button", navigator.LoadWeaponBook);
+                weaponBookButton = FindButton("Weapon Book Button");
             }
             if (!BindButton(relicButton, navigator.LoadRelics))
             {
                 BindButton("Relic Button", navigator.LoadRelics);
+                relicButton = FindButton("Relic Button");
             }
             BindButton("Title Button", navigator.LoadTitle);
+            titleButton = FindButton("Title Button");
         }
 
         void ConfigureTestLaunchButton()
@@ -84,7 +105,8 @@ namespace AreaSurvivors
             var testLaunch = FindChild("Test Launch Button");
             if (testLaunch == null) return;
             testLaunch.gameObject.SetActive(RuntimeFeatureFlags.ShowTestFeatures);
-            if (RuntimeFeatureFlags.ShowTestFeatures) BindButton(testLaunch.GetComponent<Button>(), navigator.LoadGameTestLauncher);
+            testLaunchButton = testLaunch.GetComponent<Button>();
+            if (RuntimeFeatureFlags.ShowTestFeatures) BindButton(testLaunchButton, navigator.LoadGameTestLauncher);
         }
 
         void DisableCharacterSelection()
@@ -108,6 +130,47 @@ namespace AreaSurvivors
             }
 
             HideGeneratedSelectionVisuals(card);
+        }
+
+        void DisableStatPanelFocus()
+        {
+            DisableNonInteractivePanelFocus("Token Panel");
+            DisableNonInteractivePanelFocus("Kill Panel");
+            DisableNonInteractivePanelFocus("Play Panel");
+        }
+
+        void DisableNonInteractivePanelFocus(string name)
+        {
+            var panel = FindChild(name);
+            if (panel == null) return;
+
+            var pointerSelection = panel.GetComponent<SelectOnPointerEnter>();
+            if (pointerSelection != null) pointerSelection.enabled = false;
+
+            var selection = panel.GetComponent<UiSelectionHighlight>();
+            if (selection != null)
+            {
+                selection.SetForceSelected(false);
+                selection.enabled = false;
+            }
+
+            var button = panel.GetComponent<Button>();
+            if (button != null)
+            {
+                button.onClick.RemoveAllListeners();
+                button.transition = Selectable.Transition.None;
+                var navigation = button.navigation;
+                navigation.mode = Navigation.Mode.None;
+                button.navigation = navigation;
+                button.interactable = false;
+            }
+
+            if (EventSystem.current != null && EventSystem.current.currentSelectedGameObject == panel.gameObject)
+            {
+                EventSystem.current.SetSelectedGameObject(null);
+            }
+
+            HideGeneratedSelectionVisuals(panel);
         }
 
         void NormalizeCharacterSelection()
@@ -176,9 +239,10 @@ namespace AreaSurvivors
             if (!cleared) return;
 
             int difficulty = ProgressionStore.GetStageDifficulty(stage);
+            int maxUnlockedDifficulty = ProgressionStore.GetStageMaxUnlockedDifficulty(stage);
             SetText(panel, "Difficulty Label", "\u96e3\u6613\u5ea6" + difficulty);
             ConfigureDifficultyButton(panel, "Difficulty Down Button", stage, difficulty - 1, difficulty > ProgressionStore.MinStageDifficulty);
-            ConfigureDifficultyButton(panel, "Difficulty Up Button", stage, difficulty + 1, difficulty < ProgressionStore.MaxStageDifficulty);
+            ConfigureDifficultyButton(panel, "Difficulty Up Button", stage, difficulty + 1, difficulty < maxUnlockedDifficulty);
         }
 
         void ConfigureDifficultyButton(Transform panel, string name, int stage, int nextDifficulty, bool visible)
@@ -188,6 +252,7 @@ namespace AreaSurvivors
             buttonTransform.gameObject.SetActive(visible);
             var button = buttonTransform.GetComponent<Button>();
             if (button == null) return;
+            EnsureButtonFocus(button);
             button.onClick.RemoveAllListeners();
             if (!visible) return;
             button.interactable = true;
@@ -196,6 +261,7 @@ namespace AreaSurvivors
                 AudioManager.PlayButtonConfirm();
                 ProgressionStore.SetStageDifficulty(stage, nextDifficulty);
                 RefreshStageCards();
+                ConfigureLobbyNavigation();
             });
         }
 
@@ -220,6 +286,11 @@ namespace AreaSurvivors
             BindButton(button, action);
         }
 
+        Button FindButton(string name)
+        {
+            return FindChild(name)?.GetComponent<Button>();
+        }
+
         bool BindButton(Button button, UnityEngine.Events.UnityAction action)
         {
             if (button == null) return false;
@@ -230,6 +301,81 @@ namespace AreaSurvivors
                 action();
             });
             return true;
+        }
+
+        void SelectDefaultButton()
+        {
+            var candidates = SelectionCandidates();
+            UiSelectionUtility.SelectFirst(candidates);
+        }
+
+        Selectable[] SelectionCandidates()
+        {
+            var candidates = new List<Selectable>
+            {
+                upgradeButton,
+                startGameButton,
+                weaponBookButton,
+                relicButton,
+                testLaunchButton,
+                titleButton
+            };
+
+            for (int stage = 1; stage <= StagePanelCount; stage++)
+            {
+                var panel = FindChild("Stage " + stage + " Panel");
+                var stageButton = panel != null ? panel.GetComponent<Button>() : null;
+                if (UiSelectionUtility.IsSelectable(stageButton)) candidates.Add(stageButton);
+
+                AddCandidate(candidates, FindChild(panel, "Difficulty Down Button")?.GetComponent<Button>());
+                AddCandidate(candidates, FindChild(panel, "Difficulty Up Button")?.GetComponent<Button>());
+            }
+
+            return candidates.ToArray();
+        }
+
+        void ConfigureLobbyNavigation()
+        {
+            UiSelectionUtility.ConfigureDirectionalNavigation(SelectionCandidates());
+            ConfigureDifficultyPairNavigation();
+        }
+
+        void ConfigureDifficultyPairNavigation()
+        {
+            for (int stage = 1; stage <= StagePanelCount; stage++)
+            {
+                var panel = FindChild("Stage " + stage + " Panel");
+                var downButton = FindChild(panel, "Difficulty Down Button")?.GetComponent<Button>();
+                var upButton = FindChild(panel, "Difficulty Up Button")?.GetComponent<Button>();
+                if (!UiSelectionUtility.IsSelectable(downButton) || !UiSelectionUtility.IsSelectable(upButton)) continue;
+
+                var downNavigation = downButton.navigation;
+                downNavigation.mode = Navigation.Mode.Explicit;
+                downNavigation.selectOnRight = upButton;
+                downButton.navigation = downNavigation;
+
+                var upNavigation = upButton.navigation;
+                upNavigation.mode = Navigation.Mode.Explicit;
+                upNavigation.selectOnLeft = downButton;
+                upButton.navigation = upNavigation;
+            }
+        }
+
+        static void AddCandidate(List<Selectable> candidates, Selectable selectable)
+        {
+            if (UiSelectionUtility.IsSelectable(selectable)) candidates.Add(selectable);
+        }
+
+        static void EnsureButtonFocus(Button button)
+        {
+            if (button == null) return;
+            button.transition = Selectable.Transition.None;
+            var highlight = button.GetComponent<UiSelectionHighlight>();
+            if (highlight == null) highlight = button.gameObject.AddComponent<UiSelectionHighlight>();
+            highlight.padding = 6f;
+            highlight.thickness = 4f;
+            highlight.enabled = true;
+            if (button.GetComponent<SelectOnPointerEnter>() == null) button.gameObject.AddComponent<SelectOnPointerEnter>();
         }
 
         Canvas FindLobbyCanvas()

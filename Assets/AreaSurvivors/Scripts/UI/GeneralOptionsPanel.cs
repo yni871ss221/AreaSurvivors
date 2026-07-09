@@ -10,6 +10,11 @@ namespace AreaSurvivors
 
         public void Bind()
         {
+            Refresh();
+        }
+
+        public void Refresh()
+        {
             if (languageDropdown == null) return;
 
             languageDropdown.onValueChanged.RemoveListener(OnLanguageChanged);

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
@@ -32,6 +33,21 @@ namespace AreaSurvivors
             BindBackButton();
             InitializeEntries();
             SelectFirstAvailableEntry();
+        }
+
+        void Update()
+        {
+            if (UiSelectionUtility.TickControllerSubmit()) return;
+            if (UiSelectionUtility.CancelPressed())
+            {
+                AudioManager.PlayButtonConfirm();
+                if (navigator != null) navigator.LoadLobby();
+                return;
+            }
+
+            var candidates = SelectionCandidates();
+            UiSelectionUtility.ConfigureVerticalNavigation(candidates);
+            UiSelectionUtility.EnsureSelection(candidates);
         }
 
         public void Select(WeaponBookEntryView entry)
@@ -100,6 +116,8 @@ namespace AreaSurvivors
                     if (entries[i] != null && entries[i].IsUnlocked)
                     {
                         Select(entries[i]);
+                        UiSelectionUtility.ConfigureVerticalNavigation(SelectionCandidates());
+                        UiSelectionUtility.SelectFirst(entries[i].button, backButton);
                         return;
                     }
                 }
@@ -111,6 +129,40 @@ namespace AreaSurvivors
             SetText(specialEffectText, "-");
             SetText(messageText, string.Empty);
             HideDetailTypeIcon();
+            var fallbackCandidates = SelectionCandidates();
+            UiSelectionUtility.ConfigureVerticalNavigation(fallbackCandidates);
+            UiSelectionUtility.SelectFirst(FirstEntryButton(), backButton);
+        }
+
+        Selectable[] SelectionCandidates()
+        {
+            var candidates = new List<Selectable>();
+            if (entries != null)
+            {
+                for (int i = 0; i < entries.Length; i++)
+                {
+                    if (entries[i] != null && entries[i].button != null) candidates.Add(entries[i].button);
+                }
+            }
+
+            candidates.Add(backButton);
+            return candidates.ToArray();
+        }
+
+        Button SelectedEntryButton()
+        {
+            return selectedEntry != null ? selectedEntry.button : null;
+        }
+
+        Button FirstEntryButton()
+        {
+            if (entries == null) return null;
+            for (int i = 0; i < entries.Length; i++)
+            {
+                if (entries[i] != null && UiSelectionUtility.IsSelectable(entries[i].button)) return entries[i].button;
+            }
+
+            return null;
         }
 
         void ShowDetailTypeIcon(WeaponAttributeType attributeType)

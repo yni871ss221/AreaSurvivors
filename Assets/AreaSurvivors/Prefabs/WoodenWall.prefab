@@ -410,6 +410,7 @@ MonoBehaviour:
   maxHp: 10
   currentHp: 10
   defense: 0
+  invincible: 0
 --- !u!61 &6390764566721917861
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -515,6 +516,7 @@ MonoBehaviour:
   baseOrder: 1000
   orderOffset: 0
   sortPivotOffsetY: 0
+  updateFrameInterval: 1
   renderers:
   - {fileID: 0}
   - {fileID: 0}
