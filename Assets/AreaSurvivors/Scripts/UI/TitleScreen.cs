@@ -9,11 +9,15 @@ namespace AreaSurvivors
         public SceneNavigator navigator;
         public Button playButton;
         public Button optionsButton;
+        public Button creditsButton;
         public Button quitButton;
+        public GameObject creditsPanel;
+        public Button creditsCloseButton;
 
         void Start()
         {
-            AudioManager.PlayBgm(BgmTrack.TitleOptions);
+            if (!StudioLogoIntro.IsPlaying) AudioManager.PlayBgm(BgmTrack.TitleOptions);
+            HideCredits(false);
 
             if (navigator == null) navigator = GetComponent<SceneNavigator>();
             if (navigator == null)
@@ -24,23 +28,61 @@ namespace AreaSurvivors
 
             BindButton(playButton, navigator.LoadLobby, "Play Button");
             BindButton(optionsButton, navigator.LoadOptions, "Options Button");
+            BindButton(creditsButton, ShowCredits, "Credits Button");
+            BindButton(creditsCloseButton, HideCredits, "Credits Close Button");
             BindButton(quitButton, navigator.Quit, "Quit Button");
             var candidates = SelectionCandidates();
             UiSelectionUtility.ConfigureVerticalNavigation(candidates);
-            UiSelectionUtility.SelectFirst(candidates);
+            if (!StudioLogoIntro.IsPlaying) UiSelectionUtility.SelectFirst(candidates);
         }
 
         void Update()
         {
-            if (UiSelectionUtility.TickControllerSubmit()) return;
+            if (StudioLogoIntro.IsPlaying) return;
+
             var candidates = SelectionCandidates();
+            if (UiSelectionUtility.TickControllerSubmit(candidates)) return;
+            if (creditsPanel != null && creditsPanel.activeSelf && UiSelectionUtility.CancelPressed())
+            {
+                HideCredits();
+                return;
+            }
+
             UiSelectionUtility.ConfigureVerticalNavigation(candidates);
             UiSelectionUtility.EnsureSelection(candidates);
         }
 
         Selectable[] SelectionCandidates()
         {
-            return new Selectable[] { playButton, optionsButton, quitButton };
+            if (creditsPanel != null && creditsPanel.activeSelf)
+            {
+                return new Selectable[] { creditsCloseButton };
+            }
+
+            return new Selectable[] { playButton, optionsButton, creditsButton, quitButton };
+        }
+
+        void ShowCredits()
+        {
+            if (creditsPanel == null)
+            {
+                Debug.LogError("TitleScreen is missing Credits Panel.");
+                return;
+            }
+
+            creditsPanel.SetActive(true);
+            UiSelectionUtility.SelectFirst(creditsCloseButton);
+        }
+
+        void HideCredits()
+        {
+            HideCredits(true);
+        }
+
+        void HideCredits(bool restoreSelection)
+        {
+            if (creditsPanel != null) creditsPanel.SetActive(false);
+            if (restoreSelection) UiSelectionUtility.SelectFirst(creditsButton, optionsButton, playButton);
         }
 
         void BindButton(Button button, UnityAction action, string name)

@@ -13,7 +13,6 @@ namespace AreaSurvivors.EditorTools
         const string RelicScenePath = "Assets/AreaSurvivors/Scenes/09_Relics.unity";
         const string GameScenePath = "Assets/AreaSurvivors/Scenes/05_Game.unity";
 
-        [MenuItem("Area Survivors/Relics/Sync Relic Book And HUD Slots")]
         public static void Sync()
         {
             string previousScenePath = SceneManager.GetActiveScene().path;
@@ -203,7 +202,7 @@ namespace AreaSurvivors.EditorTools
             if (definition == null) return null;
             var sprite = GeneratedSpriteLoader.Load(definition.iconPath);
             if (sprite != null) return sprite;
-            return AssetDatabase.LoadAssetAtPath<Sprite>("Assets/AreaSurvivors/Sprites/Generated/" + definition.iconPath + ".png");
+            return GeneratedSpriteAssetUtility.LoadSprite(definition.iconPath);
         }
     }
 }

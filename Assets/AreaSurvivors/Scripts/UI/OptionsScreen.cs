@@ -80,20 +80,21 @@ namespace AreaSurvivors
             BindResetButton();
             HideResetDataDialog();
             SelectDefaultControl();
+            ResetOptionScrollToTop();
         }
 
         void Update()
         {
             if (IsResetDataDialogVisible())
             {
-                if (UiSelectionUtility.TickControllerSubmit()) return;
+                var dialogCandidates = ResetDataDialogSelectionCandidates();
+                if (UiSelectionUtility.TickControllerSubmit(dialogCandidates)) return;
                 if (UiSelectionUtility.CancelPressed())
                 {
                     CancelResetData();
                     return;
                 }
 
-                var dialogCandidates = ResetDataDialogSelectionCandidates();
                 UiSelectionUtility.ConfigureHorizontalNavigation(dialogCandidates);
                 UiSelectionUtility.EnsureSelection(dialogCandidates);
                 return;
@@ -101,7 +102,8 @@ namespace AreaSurvivors
 
             if (controlBinding.Tick()) return;
             if (controllerBinding.Tick()) return;
-            if (UiSelectionUtility.TickControllerSubmit()) return;
+            var candidates = SelectionCandidates();
+            if (UiSelectionUtility.TickControllerSubmit(candidates)) return;
             if (UiSelectionUtility.CancelPressed())
             {
                 AudioManager.PlayButtonConfirm();
@@ -109,7 +111,7 @@ namespace AreaSurvivors
                 return;
             }
 
-            EnsureSelection();
+            EnsureSelection(candidates);
         }
 
         void OnDestroy()
@@ -195,9 +197,17 @@ namespace AreaSurvivors
             UiSelectionUtility.SelectFirst(candidates);
         }
 
-        void EnsureSelection()
+        void ResetOptionScrollToTop()
         {
-            var candidates = SelectionCandidates();
+            var scrollController = generalOptionsPanel != null
+                ? generalOptionsPanel.GetComponentInParent<OptionsPanelScrollController>()
+                : GetComponentInChildren<OptionsPanelScrollController>(true);
+            if (scrollController != null) scrollController.ResetToTop();
+        }
+
+        void EnsureSelection(Selectable[] candidates = null)
+        {
+            if (candidates == null) candidates = SelectionCandidates();
             UiSelectionUtility.ConfigureVerticalNavigation(candidates);
             UiSelectionUtility.EnsureSelection(candidates);
         }

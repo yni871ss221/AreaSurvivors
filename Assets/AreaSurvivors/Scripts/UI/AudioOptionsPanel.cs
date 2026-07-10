@@ -91,15 +91,31 @@ namespace AreaSurvivors
 
         void OnBgmVolumeChanged(float value)
         {
+            if (ShouldRejectSliderNavigationChange(bgmSlider))
+            {
+                bgmSlider.SetValueWithoutNotify(bgmLastValue);
+                AudioManager.BgmVolume = bgmLastValue;
+                RefreshPercentTexts();
+                return;
+            }
+
             AudioManager.BgmVolume = value;
-            if (ShouldAcceptSliderChange(bgmSlider)) bgmLastValue = value;
+            bgmLastValue = value;
             RefreshPercentTexts();
         }
 
         void OnSfxVolumeChanged(float value)
         {
+            if (ShouldRejectSliderNavigationChange(sfxSlider))
+            {
+                sfxSlider.SetValueWithoutNotify(sfxLastValue);
+                AudioManager.SfxVolume = sfxLastValue;
+                RefreshPercentTexts();
+                return;
+            }
+
             AudioManager.SfxVolume = value;
-            if (ShouldAcceptSliderChange(sfxSlider)) sfxLastValue = value;
+            sfxLastValue = value;
             RefreshPercentTexts();
         }
 
@@ -188,9 +204,9 @@ namespace AreaSurvivors
             return Mathf.Round(stepped * 100f) / 100f;
         }
 
-        static bool ShouldAcceptSliderChange(Slider slider)
+        static bool ShouldRejectSliderNavigationChange(Slider slider)
         {
-            return !IsSelected(slider) || HorizontalInputDirection() == 0;
+            return IsSelected(slider) && HorizontalInputDirection() != 0;
         }
 
         static bool IsSelected(Slider slider)

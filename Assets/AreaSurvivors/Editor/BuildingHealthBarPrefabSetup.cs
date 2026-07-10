@@ -16,13 +16,12 @@ namespace AreaSurvivors.EditorTools
 
         static readonly BuildingHealthBarSpec[] Specs =
         {
-            new BuildingHealthBarSpec("Assets/AreaSurvivors/Prefabs/WoodenWall.prefab", typeof(WoodenBarrier), new Vector3(0f, 0.72f, 0f)),
-            new BuildingHealthBarSpec("Assets/AreaSurvivors/Prefabs/BallistaTower.prefab", typeof(BallistaTower), new Vector3(0f, 1.02f, 0f)),
-            new BuildingHealthBarSpec("Assets/AreaSurvivors/Prefabs/WatchTower.prefab", typeof(WatchTower), new Vector3(0f, 1.55f, 0f)),
-            new BuildingHealthBarSpec("Assets/AreaSurvivors/Prefabs/CenterTower.prefab", typeof(TowerController), new Vector3(0f, 1.72f, 0f))
+            new BuildingHealthBarSpec("Assets/AreaSurvivors/Prefabs/Buildings/WoodenWall.prefab", typeof(WoodenBarrier), new Vector3(0f, 0.72f, 0f)),
+            new BuildingHealthBarSpec("Assets/AreaSurvivors/Prefabs/Buildings/BallistaTower.prefab", typeof(BallistaTower), new Vector3(0f, 1.02f, 0f)),
+            new BuildingHealthBarSpec("Assets/AreaSurvivors/Prefabs/Buildings/WatchTower.prefab", typeof(WatchTower), new Vector3(0f, 1.55f, 0f)),
+            new BuildingHealthBarSpec("Assets/AreaSurvivors/Prefabs/Buildings/CenterTower.prefab", typeof(TowerController), new Vector3(0f, 1.72f, 0f))
         };
 
-        [MenuItem("Area Survivors/UI/Apply Building Health Bars")]
         public static void Apply()
         {
             foreach (var spec in Specs)

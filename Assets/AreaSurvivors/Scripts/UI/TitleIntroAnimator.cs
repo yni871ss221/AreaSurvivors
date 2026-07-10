@@ -40,6 +40,21 @@ namespace AreaSurvivors
             SetButtonsInteractable(true);
         }
 
+        public void HideInstant()
+        {
+            SetCanvasGroupHidden(panelGroup);
+
+            if (buttonGroups != null)
+            {
+                foreach (var group in buttonGroups)
+                {
+                    SetCanvasGroupHidden(group);
+                }
+            }
+
+            SetButtonsInteractable(false);
+        }
+
         IEnumerator PlayIntro()
         {
             if (initialDelay > 0f) yield return Wait(initialDelay);
@@ -159,6 +174,15 @@ namespace AreaSurvivors
             {
                 if (button != null) button.interactable = interactable;
             }
+        }
+
+        static void SetCanvasGroupHidden(CanvasGroup group)
+        {
+            if (group == null) return;
+
+            group.alpha = 0f;
+            group.blocksRaycasts = false;
+            group.interactable = false;
         }
 
         CanvasGroup GetButtonGroup(int index)

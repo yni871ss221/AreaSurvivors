@@ -27,6 +27,7 @@ namespace AreaSurvivors
         public void OnPointerEnter(PointerEventData eventData)
         {
             if (!UiSelectionUtility.PointerCanDriveFocus()) return;
+            UiSelectionUtility.NotifyKeyboardMouseInput();
             PointerHover = this;
             Show(eventData);
         }
@@ -34,6 +35,7 @@ namespace AreaSurvivors
         public void OnPointerMove(PointerEventData eventData)
         {
             if (!UiSelectionUtility.PointerCanDriveFocus()) return;
+            UiSelectionUtility.NotifyKeyboardMouseInput();
             PointerHover = this;
             Show(eventData);
             PositionTooltip(eventData);

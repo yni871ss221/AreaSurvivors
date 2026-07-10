@@ -25,6 +25,9 @@ namespace AreaSurvivors
         bool pointerOver;
         Image[] brightEdges;
         Image[] darkEdges;
+        Vector2 lastEdgeSize;
+        float lastEdgePadding;
+        float lastEdgeThickness;
         bool wasFocused;
         static UiSelectionHighlight activeHighlight;
         static bool activeHighlightIsPointer;
@@ -41,15 +44,20 @@ namespace AreaSurvivors
             if (rect == null) rect = GetComponent<RectTransform>();
             CaptureBackground();
             EnsureEdges();
+            RefreshEdgeLayout();
             EnsureStateFill();
             bool focused = EventSystem.current != null && EventSystem.current.currentSelectedGameObject == gameObject;
             bool pointerCanDriveFocus = UiSelectionUtility.PointerCanDriveFocus();
             bool mouseOver = pointerCanDriveFocus && IsMouseOverRect();
             if (!pointerCanDriveFocus && pointerOver) ClearPointerHighlight();
-            if (mouseOver && !pointerOver && activeHighlight == null) ActivatePointerHighlight();
+            if (mouseOver && !pointerOver) ActivatePointerHighlight();
             if (!mouseOver && pointerOver) ClearPointerHighlight();
             if (!mouseOver && activeHighlight == this && activeHighlightIsPointer) ClearPointerHighlight();
-            if (focused && !wasFocused && !mouseOver && !pointerOver) ActivateFocusHighlight();
+            if (!pointerCanDriveFocus && focused && !mouseOver && !pointerOver && (!wasFocused || activeHighlight == null || activeHighlightIsPointer))
+            {
+                ActivateFocusHighlight();
+            }
+            if (pointerCanDriveFocus && activeHighlight == this && !activeHighlightIsPointer) activeHighlight = null;
             wasFocused = focused;
 
             bool highlighted = !forceSelected &&
@@ -92,6 +100,7 @@ namespace AreaSurvivors
         public void OnPointerEnter(PointerEventData eventData)
         {
             if (!UiSelectionUtility.PointerCanDriveFocus()) return;
+            UiSelectionUtility.NotifyKeyboardMouseInput();
             ActivatePointerHighlight();
         }
 
@@ -141,7 +150,6 @@ namespace AreaSurvivors
         void BringToFront()
         {
             if (!bringToFrontOnHighlight || transform.parent == null) return;
-            transform.SetAsLastSibling();
             SetEdgesAsLastSiblings();
         }
 
@@ -181,6 +189,7 @@ namespace AreaSurvivors
             if (rect == null || brightEdges != null && brightEdges.Length == 4) return;
             brightEdges = CreateEdges("Selected Edge", color, 0f, thickness);
             darkEdges = CreateEdges("Selected Shadow", shadowColor, 2f, thickness + 3f);
+            RefreshEdgeLayout();
             SetEdgesActive(false);
         }
 
@@ -211,14 +220,32 @@ namespace AreaSurvivors
                 image.raycastTarget = false;
                 edges[i] = image;
             }
+            return edges;
+        }
 
-            float width = rect.sizeDelta.x + padding * 2f + offset * 2f;
-            float height = rect.sizeDelta.y + padding * 2f + offset * 2f;
+        void RefreshEdgeLayout()
+        {
+            if (rect == null || brightEdges == null || darkEdges == null) return;
+            Vector2 size = rect.rect.size;
+            if (size.x <= 0f || size.y <= 0f) return;
+            if (size == lastEdgeSize && Mathf.Approximately(padding, lastEdgePadding) && Mathf.Approximately(thickness, lastEdgeThickness)) return;
+
+            ApplyEdgeLayout(brightEdges, 0f, thickness, size);
+            ApplyEdgeLayout(darkEdges, 2f, thickness + 3f, size);
+            lastEdgeSize = size;
+            lastEdgePadding = padding;
+            lastEdgeThickness = thickness;
+        }
+
+        void ApplyEdgeLayout(Image[] edges, float offset, float edgeThickness, Vector2 baseSize)
+        {
+            if (edges == null || edges.Length < 4) return;
+            float width = baseSize.x + padding * 2f + offset * 2f;
+            float height = baseSize.y + padding * 2f + offset * 2f;
             SetEdge(edges[0].rectTransform, new Vector2(0f, height * 0.5f), new Vector2(width, edgeThickness));
             SetEdge(edges[1].rectTransform, new Vector2(0f, -height * 0.5f), new Vector2(width, edgeThickness));
             SetEdge(edges[2].rectTransform, new Vector2(-width * 0.5f, 0f), new Vector2(edgeThickness, height));
             SetEdge(edges[3].rectTransform, new Vector2(width * 0.5f, 0f), new Vector2(edgeThickness, height));
-            return edges;
         }
 
         static void SetEdge(RectTransform edge, Vector2 position, Vector2 size)

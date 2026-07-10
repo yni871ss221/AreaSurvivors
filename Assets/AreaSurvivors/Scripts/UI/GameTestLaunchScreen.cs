@@ -69,7 +69,8 @@ namespace AreaSurvivors
 
         void Update()
         {
-            if (UiSelectionUtility.TickControllerSubmit()) return;
+            var candidates = AvailableButtons();
+            if (UiSelectionUtility.TickControllerSubmit(candidates)) return;
             if (UiSelectionUtility.CancelPressed())
             {
                 AudioManager.PlayButtonConfirm();
@@ -77,7 +78,6 @@ namespace AreaSurvivors
                 return;
             }
 
-            var candidates = AvailableButtons();
             UiSelectionUtility.ConfigureVerticalNavigation(candidates);
             UiSelectionUtility.EnsureSelection(candidates);
         }

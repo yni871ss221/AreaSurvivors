@@ -14,7 +14,6 @@ namespace AreaSurvivors.Editor
         const float HudOverlapPadding = 96f;
         static readonly Color EdgeColor = new Color(0.58f, 0.68f, 0.40f, 0.9f);
 
-        [MenuItem("Area Survivors/Rebuild/Configure HUD Overlap Groups")]
         public static void ConfigureHudOverlapGroupsMenu()
         {
             var canvas = FindHudCanvas();

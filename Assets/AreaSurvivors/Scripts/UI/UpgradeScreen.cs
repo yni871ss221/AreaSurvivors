@@ -62,8 +62,9 @@ namespace AreaSurvivors
                 return;
             }
 
-            if (UiSelectionUtility.TickControllerSubmit()) return;
-            UiSelectionUtility.EnsureSelection(FirstSelectableNodeButton(), lobbyButton);
+            var candidates = SelectionCandidates();
+            if (UiSelectionUtility.TickControllerSubmit(candidates)) return;
+            UiSelectionUtility.EnsureSelection(candidates);
             RefreshFocusedTooltip();
         }
 
@@ -320,6 +321,33 @@ namespace AreaSurvivors
             return null;
         }
 
+        Selectable[] SelectionCandidates(params Selectable[] priority)
+        {
+            var candidates = new List<Selectable>();
+            if (priority != null)
+            {
+                for (int i = 0; i < priority.Length; i++)
+                {
+                    if (UiSelectionUtility.IsSelectable(priority[i])) candidates.Add(priority[i]);
+                }
+            }
+
+            if (sceneNodes != null)
+            {
+                for (int i = 0; i < sceneNodes.Length; i++)
+                {
+                    var node = sceneNodes[i];
+                    if (node != null && UiSelectionUtility.IsSelectable(node.button) && !candidates.Contains(node.button))
+                    {
+                        candidates.Add(node.button);
+                    }
+                }
+            }
+
+            if (UiSelectionUtility.IsSelectable(lobbyButton) && !candidates.Contains(lobbyButton)) candidates.Add(lobbyButton);
+            return candidates.ToArray();
+        }
+
         void ConfigureSceneNavigation()
         {
             if (sceneNodes == null) return;
@@ -479,12 +507,12 @@ namespace AreaSurvivors
                 preferredFocusNode.ResolveReferences();
                 if (UiSelectionUtility.IsSelectable(preferredFocusNode.button))
                 {
-                    UiSelectionUtility.SelectFirst(preferredFocusNode.button, lobbyButton);
+                    UiSelectionUtility.SelectFirst(SelectionCandidates(preferredFocusNode.button));
                     return;
                 }
             }
 
-            UiSelectionUtility.SelectFirst(FirstSelectableNodeButton(), lobbyButton);
+            UiSelectionUtility.SelectFirst(SelectionCandidates(FirstSelectableNodeButton()));
         }
 
         static void ConfigureNodeFocusHighlight(Button button)

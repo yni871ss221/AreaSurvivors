@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace AreaSurvivors
@@ -36,7 +37,8 @@ namespace AreaSurvivors
 
         void Update()
         {
-            if (UiSelectionUtility.TickControllerSubmit()) return;
+            var candidates = SelectionCandidates();
+            if (UiSelectionUtility.TickControllerSubmit(candidates)) return;
             if (UiSelectionUtility.CancelPressed())
             {
                 AudioManager.PlayButtonConfirm();
@@ -44,16 +46,16 @@ namespace AreaSurvivors
                 return;
             }
 
-            var candidates = SelectionCandidates();
             UiSelectionUtility.ConfigureVerticalNavigation(candidates);
             UiSelectionUtility.EnsureSelection(candidates);
+            SelectFocusedEntry();
         }
 
         public void Select(RelicBookEntryView entry)
         {
             if (entry == null || entry.Definition == null) return;
 
-            if (selectedEntry != null) selectedEntry.SetSelected(false);
+            ClearEntrySelection();
             selectedEntry = entry;
             selectedEntry.SetSelected(true);
 
@@ -67,7 +69,7 @@ namespace AreaSurvivors
 
         public void ShowLockedMessage(RelicBookEntryView entry)
         {
-            if (selectedEntry != null) selectedEntry.SetSelected(false);
+            ClearEntrySelection();
             selectedEntry = null;
 
             SetText(detailTitleText, "LOCK");
@@ -75,6 +77,15 @@ namespace AreaSurvivors
             SetText(descriptionText, LockedMessage);
             SetText(effectText, "-");
             SetText(messageText, string.Empty);
+        }
+
+        void ClearEntrySelection()
+        {
+            if (entries == null) return;
+            for (int i = 0; i < entries.Length; i++)
+            {
+                if (entries[i] != null) entries[i].SetSelected(false);
+            }
         }
 
         void BindBackButton()
@@ -123,9 +134,10 @@ namespace AreaSurvivors
                 {
                     if (entries[i] != null && entries[i].IsOwned)
                     {
-                        Select(entries[i]);
-                        UiSelectionUtility.ConfigureVerticalNavigation(SelectionCandidates());
+                        var candidates = SelectionCandidates();
+                        UiSelectionUtility.ConfigureVerticalNavigation(candidates);
                         UiSelectionUtility.SelectFirst(entries[i].button, backButton);
+                        Select(entries[i]);
                         return;
                     }
                 }
@@ -170,6 +182,21 @@ namespace AreaSurvivors
             }
 
             return null;
+        }
+
+        void SelectFocusedEntry()
+        {
+            var focused = EventSystem.current != null ? EventSystem.current.currentSelectedGameObject : null;
+            if (focused == null || entries == null) return;
+            for (int i = 0; i < entries.Length; i++)
+            {
+                var entry = entries[i];
+                if (entry == null || entry.button == null || entry.button.gameObject != focused) continue;
+                if (entry == selectedEntry) return;
+                if (entry.IsOwned) Select(entry);
+                else ShowLockedMessage(entry);
+                return;
+            }
         }
 
         void ApplyRarityVisuals(RelicDefinition definition)

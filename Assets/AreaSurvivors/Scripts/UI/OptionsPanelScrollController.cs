@@ -71,6 +71,15 @@ namespace AreaSurvivors
             Move(deltaY);
         }
 
+        public void ResetToTop()
+        {
+            Initialize();
+            if (content != null)
+            {
+                content.anchoredPosition = initialAnchoredPosition;
+            }
+        }
+
         void Initialize()
         {
             if (initialized) return;

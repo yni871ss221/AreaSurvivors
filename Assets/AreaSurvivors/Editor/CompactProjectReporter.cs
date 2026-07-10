@@ -19,12 +19,12 @@ namespace AreaSurvivors.Editor
 
         static readonly string[] ImportantPrefabPaths =
         {
-            "Assets/AreaSurvivors/Prefabs/CenterTower.prefab",
-            "Assets/AreaSurvivors/Prefabs/BallistaTower.prefab",
-            "Assets/AreaSurvivors/Prefabs/WoodenWall.prefab",
-            "Assets/AreaSurvivors/Prefabs/WatchTower.prefab",
-            "Assets/AreaSurvivors/Prefabs/Player.prefab",
-            "Assets/AreaSurvivors/Prefabs/Enemy.prefab",
+            "Assets/AreaSurvivors/Prefabs/Buildings/CenterTower.prefab",
+            "Assets/AreaSurvivors/Prefabs/Buildings/BallistaTower.prefab",
+            "Assets/AreaSurvivors/Prefabs/Buildings/WoodenWall.prefab",
+            "Assets/AreaSurvivors/Prefabs/Buildings/WatchTower.prefab",
+            "Assets/AreaSurvivors/Prefabs/Characters/Player.prefab",
+            "Assets/AreaSurvivors/Prefabs/Characters/Enemy.prefab",
         };
 
         static readonly string[] LegacyKeywords =

@@ -62,7 +62,7 @@ namespace AreaSurvivors.Tests
         [Test]
         public void CenterTowerPrefabDoesNotUseYSortOffsetForGridObject()
         {
-            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/AreaSurvivors/Prefabs/CenterTower.prefab");
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/AreaSurvivors/Prefabs/Buildings/CenterTower.prefab");
             Assert.NotNull(prefab);
 
             var ySort = prefab.GetComponent(RequiredType("AreaSurvivors.YSort"));

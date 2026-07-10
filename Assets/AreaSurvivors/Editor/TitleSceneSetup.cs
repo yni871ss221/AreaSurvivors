@@ -15,7 +15,6 @@ namespace AreaSurvivors.EditorTools
         static readonly Color ButtonEdge = new Color(0.56f, 0.65f, 0.42f, 0.96f);
         static readonly Color SubtitleColor = new Color(0.78f, 0.91f, 0.80f);
 
-        [MenuItem("Area Survivors/UI/Apply Title UI")]
         public static void ApplyTitleScene()
         {
             string previousScenePath = SceneManager.GetActiveScene().path;

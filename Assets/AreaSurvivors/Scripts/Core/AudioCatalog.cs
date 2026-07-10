@@ -38,7 +38,8 @@ namespace AreaSurvivors
         StageUnlockPopup,
         MissionCompleteFanfare,
         MissionCompleteCheer,
-        TokenGain
+        TokenGain,
+        StudioLogoBounce
     }
 
     public static class AudioCatalog
@@ -122,6 +123,8 @@ namespace AreaSurvivors
                     return "Audio/SFX/mission_complete_cheer";
                 case SfxTrack.TokenGain:
                     return "Audio/SFX/token_gain";
+                case SfxTrack.StudioLogoBounce:
+                    return "Audio/SFX/studio_logo_bounce";
                 default:
                     return string.Empty;
             }

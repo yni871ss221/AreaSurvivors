@@ -19,7 +19,6 @@ namespace AreaSurvivors.Editor
         const string SelectedScenarioEditorPref = "AreaSurvivors.GameplayTestScenarioPath";
         static bool playModeQueued;
 
-        [MenuItem("Area Survivors/Test Scenarios/Build Gameplay Test Scene")]
         public static void BuildGameplayTestScene()
         {
             EnsureFolder();
@@ -42,14 +41,12 @@ namespace AreaSurvivors.Editor
             Debug.Log($"Lightweight gameplay test scene built: {TestScenePath}");
         }
 
-        [MenuItem("Area Survivors/Test Scenarios/Open Gameplay Test")]
         public static void OpenGameplayTest()
         {
             if (AssetDatabase.LoadAssetAtPath<SceneAsset>(TestScenePath) == null) BuildGameplayTestScene();
             else EditorSceneManager.OpenScene(TestScenePath);
         }
 
-        [MenuItem("Area Survivors/Test Scenarios/Use Selected Scenario")]
         public static void UseSelectedScenario()
         {
             var scenario = Selection.activeObject as GameplayTestScenario;
@@ -62,7 +59,6 @@ namespace AreaSurvivors.Editor
             UseScenarioAsset(scenario);
         }
 
-        [MenuItem("Area Survivors/Test Scenarios/Run Selected Scenario")]
         public static void RunSelectedScenario()
         {
             var scenario = Selection.activeObject as GameplayTestScenario;
@@ -74,70 +70,56 @@ namespace AreaSurvivors.Editor
             RunScenarioAsset(scenario);
         }
 
-        [MenuItem("Area Survivors/Test Scenarios/Run Current Gameplay Test")]
         public static void RunCurrentGameplayTest()
         {
             QueuePlayMode();
         }
 
-        [MenuItem("Area Survivors/Test Scenarios/Run Samples/Prefab Smoke")]
         public static void RunPrefabSmoke() => RunScenarioAsset(EnsurePrefabSmokeScenario());
 
-        [MenuItem("Area Survivors/Test Scenarios/Run Samples/Navigation Default")]
         public static void RunNavigationDefault() => RunScenarioAsset(EnsureDefaultScenario());
 
-        [MenuItem("Area Survivors/Test Scenarios/Run Samples/Map Perimeter")]
         public static void RunMapPerimeter() => RunScenarioAsset(EnsureMapPerimeterScenario());
 
-        [MenuItem("Area Survivors/Test Scenarios/Run Samples/Reboot Weapons")]
         public static void RunRebootWeapons() => RunScenarioAsset(EnsureRebootWeaponsScenario());
 
-        [MenuItem("Area Survivors/Test Scenarios/Run Samples/Stage Progression")]
         public static void RunStageProgression() => RunScenarioAsset(EnsureStageProgressionScenario());
 
-        [MenuItem("Area Survivors/Test Scenarios/Samples/Use Navigation Default")]
         public static void UseNavigationDefault()
         {
             UseScenarioAsset(EnsureDefaultScenario());
         }
 
-        [MenuItem("Area Survivors/Test Scenarios/Samples/Use Prefab Smoke")]
         public static void UsePrefabSmoke()
         {
             UseScenarioAsset(EnsurePrefabSmokeScenario());
         }
 
-        [MenuItem("Area Survivors/Test Scenarios/Samples/Use Action Smoke")]
         public static void UseActionSmoke()
         {
             UseScenarioAsset(EnsureActionSmokeScenario());
         }
 
-        [MenuItem("Area Survivors/Test Scenarios/Samples/Use Enemy Visuals")]
         public static void UseEnemyVisuals()
         {
             UseScenarioAsset(EnsureEnemyVisualsScenario());
         }
 
-        [MenuItem("Area Survivors/Test Scenarios/Samples/Use Map Perimeter")]
         public static void UseMapPerimeter()
         {
             UseScenarioAsset(EnsureMapPerimeterScenario());
         }
 
-        [MenuItem("Area Survivors/Test Scenarios/Samples/Use Reboot Weapons")]
         public static void UseRebootWeapons()
         {
             UseScenarioAsset(EnsureRebootWeaponsScenario());
         }
 
-        [MenuItem("Area Survivors/Test Scenarios/Samples/Use Stage Progression")]
         public static void UseStageProgression()
         {
             UseScenarioAsset(EnsureStageProgressionScenario());
         }
 
-        [MenuItem("Area Survivors/Test Scenarios/Create New Gameplay Scenario")]
         public static void CreateNewGameplayScenario()
         {
             EnsureFolder();
@@ -154,9 +136,9 @@ namespace AreaSurvivors.Editor
         {
             bootstrap.scenario = scenario;
             bootstrap.config = AssetDatabase.LoadAssetAtPath<GameConfig>("Assets/AreaSurvivors/Resources/Config/GameConfig.asset");
-            bootstrap.enemyPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/AreaSurvivors/Prefabs/Enemy.prefab");
-            bootstrap.xpOrbPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/AreaSurvivors/Prefabs/ExperienceOrb.prefab");
-            bootstrap.damagePopupPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/AreaSurvivors/Prefabs/DamagePopup.prefab");
+            bootstrap.enemyPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/AreaSurvivors/Prefabs/Characters/Enemy.prefab");
+            bootstrap.xpOrbPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/AreaSurvivors/Prefabs/Pickups/ExperienceOrb.prefab");
+            bootstrap.damagePopupPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/AreaSurvivors/Prefabs/UI/DamagePopup.prefab");
         }
 
         public static void UseScenarioAsset(GameplayTestScenario scenario)
@@ -224,7 +206,7 @@ namespace AreaSurvivors.Editor
             {
                 new GameplayTestScenario.PrefabPlacement
                 {
-                    prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/AreaSurvivors/Prefabs/ExperienceOrb.prefab"),
+                    prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/AreaSurvivors/Prefabs/Pickups/ExperienceOrb.prefab"),
                     instanceName = "Test Experience Orb",
                     cellOffset = new Vector2Int(2, 0),
                     scale = Vector3.one
@@ -298,7 +280,7 @@ namespace AreaSurvivors.Editor
             {
                 new GameplayTestScenario.PrefabPlacement
                 {
-                    prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/AreaSurvivors/Prefabs/ExperienceOrb.prefab"),
+                    prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/AreaSurvivors/Prefabs/Pickups/ExperienceOrb.prefab"),
                     instanceName = "Scheduled Action Target",
                     cellOffset = new Vector2Int(2, 0),
                     scale = Vector3.one

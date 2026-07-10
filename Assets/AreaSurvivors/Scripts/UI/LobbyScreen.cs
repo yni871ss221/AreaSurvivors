@@ -62,8 +62,8 @@ namespace AreaSurvivors
 
         void Update()
         {
-            if (UiSelectionUtility.TickControllerSubmit()) return;
             var candidates = SelectionCandidates();
+            if (UiSelectionUtility.TickControllerSubmit(candidates)) return;
             UiSelectionUtility.EnsureSelection(candidates);
         }
 

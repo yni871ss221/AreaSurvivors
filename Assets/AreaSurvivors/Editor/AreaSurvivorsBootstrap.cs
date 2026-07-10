@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using AreaSurvivors;
+using AreaSurvivors.EditorTools;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -63,53 +64,50 @@ namespace AreaSurvivors.Editor
             Debug.Log("Weapon level defaults were applied to GameConfig.asset.");
         }
 
-        [MenuItem("Area Survivors/Rebuild Build Prefabs")]
         public static void RebuildBuildPrefabs()
         {
             EnsureFolders();
             ImportGeneratedSprites();
 
-            var arrow = AssetDatabase.LoadAssetAtPath<GameObject>(Prefabs + "/Arrow.prefab");
+            var arrow = AssetDatabase.LoadAssetAtPath<GameObject>(Prefabs + "/Weapons/Arrow.prefab");
             if (arrow == null)
             {
                 var config = CreateConfig();
-                arrow = SavePrefab(CreateProjectile("Arrow", LoadSprite("Arrow"), new Color(0.85f, 0.72f, 0.35f), config), Prefabs + "/Arrow.prefab");
+                arrow = SavePrefab(CreateProjectile("Arrow", LoadSprite("Arrow"), new Color(0.85f, 0.72f, 0.35f), config), Prefabs + "/Weapons/Arrow.prefab");
             }
 
-            SavePrefab(CreateBallista(arrow), Prefabs + "/BallistaTower.prefab");
-            SavePrefab(CreateWoodenWall(), Prefabs + "/WoodenWall.prefab");
+            SavePrefab(CreateBallista(arrow), Prefabs + "/Buildings/BallistaTower.prefab");
+            SavePrefab(CreateWoodenWall(), Prefabs + "/Buildings/WoodenWall.prefab");
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log("Area Survivors build prefabs rebuilt.");
         }
 
-        [MenuItem("Area Survivors/Rebuild Player Prefab")]
         public static void RebuildPlayerPrefab()
         {
             EnsureFolders();
             ImportGeneratedSprites();
 
             var config = CreateConfig();
-            var playerArrow = AssetDatabase.LoadAssetAtPath<GameObject>(Prefabs + "/PlayerArrow.prefab");
+            var playerArrow = AssetDatabase.LoadAssetAtPath<GameObject>(Prefabs + "/Weapons/PlayerArrow.prefab");
             if (playerArrow == null)
             {
                 var playerArrowSprite = LoadSprite("PlayerArrow") ?? LoadSprite("Arrow");
-                playerArrow = SavePrefab(CreateProjectile("PlayerArrow", playerArrowSprite, new Color(0.85f, 0.72f, 0.35f), config, 1f, 1f, false), Prefabs + "/PlayerArrow.prefab");
+                playerArrow = SavePrefab(CreateProjectile("PlayerArrow", playerArrowSprite, new Color(0.85f, 0.72f, 0.35f), config, 1f, 1f, false), Prefabs + "/Weapons/PlayerArrow.prefab");
             }
 
-            var fireball = AssetDatabase.LoadAssetAtPath<GameObject>(Prefabs + "/Fireball.prefab");
+            var fireball = AssetDatabase.LoadAssetAtPath<GameObject>(Prefabs + "/Weapons/Fireball.prefab");
             if (fireball == null)
             {
-                fireball = SavePrefab(CreateProjectile("Fireball", LoadSprite("Fireball"), new Color(1f, 0.35f, 0.16f), config), Prefabs + "/Fireball.prefab");
+                fireball = SavePrefab(CreateProjectile("Fireball", LoadSprite("Fireball"), new Color(1f, 0.35f, 0.16f), config), Prefabs + "/Weapons/Fireball.prefab");
             }
 
-            SavePrefab(CreatePlayer(playerArrow, fireball), Prefabs + "/Player.prefab");
+            SavePrefab(CreatePlayer(playerArrow, fireball), Prefabs + "/Characters/Player.prefab");
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log("Area Survivors player prefab rebuilt.");
         }
 
-        [MenuItem("Area Survivors/Map/Rebuild Map Perimeter")]
         public static void RebuildMapPerimeter()
         {
             var grid = Object.FindObjectOfType<TileGrid>();
@@ -303,22 +301,22 @@ namespace AreaSurvivors.Editor
         static PrefabSet CreatePrefabs(GameConfig config)
         {
             ImportGeneratedSprites();
-            var arrow = SavePrefab(CreateProjectile("Arrow", LoadSprite("Arrow"), new Color(0.85f, 0.72f, 0.35f), config), Prefabs + "/Arrow.prefab");
+            var arrow = SavePrefab(CreateProjectile("Arrow", LoadSprite("Arrow"), new Color(0.85f, 0.72f, 0.35f), config), Prefabs + "/Weapons/Arrow.prefab");
             var playerArrowSprite = LoadSprite("PlayerArrow") ?? LoadSprite("Arrow");
-            var playerArrow = SavePrefab(CreateProjectile("PlayerArrow", playerArrowSprite, new Color(0.85f, 0.72f, 0.35f), config, 1f, 1f, false), Prefabs + "/PlayerArrow.prefab");
-            var fireball = SavePrefab(CreateProjectile("Fireball", LoadSprite("Fireball"), new Color(1f, 0.35f, 0.16f), config), Prefabs + "/Fireball.prefab");
-            var ballista = SavePrefab(CreateBallista(arrow), Prefabs + "/BallistaTower.prefab");
-            var woodenWall = SavePrefab(CreateWoodenWall(), Prefabs + "/WoodenWall.prefab");
+            var playerArrow = SavePrefab(CreateProjectile("PlayerArrow", playerArrowSprite, new Color(0.85f, 0.72f, 0.35f), config, 1f, 1f, false), Prefabs + "/Weapons/PlayerArrow.prefab");
+            var fireball = SavePrefab(CreateProjectile("Fireball", LoadSprite("Fireball"), new Color(1f, 0.35f, 0.16f), config), Prefabs + "/Weapons/Fireball.prefab");
+            var ballista = SavePrefab(CreateBallista(arrow), Prefabs + "/Buildings/BallistaTower.prefab");
+            var woodenWall = SavePrefab(CreateWoodenWall(), Prefabs + "/Buildings/WoodenWall.prefab");
             var set = new PrefabSet
             {
                 arrow = arrow,
                 fireball = fireball,
                 ballista = ballista,
                 woodenWall = woodenWall,
-                player = SavePrefab(CreatePlayer(playerArrow, fireball), Prefabs + "/Player.prefab").GetComponent<PlayerController>(),
-                enemy = SavePrefab(CreateEnemy(), Prefabs + "/Enemy.prefab"),
-                xpOrb = SavePrefab(CreateXpOrb(), Prefabs + "/ExperienceOrb.prefab"),
-                damagePopup = SavePrefab(CreateDamagePopup(), Prefabs + "/DamagePopup.prefab")
+                player = SavePrefab(CreatePlayer(playerArrow, fireball), Prefabs + "/Characters/Player.prefab").GetComponent<PlayerController>(),
+                enemy = SavePrefab(CreateEnemy(), Prefabs + "/Characters/Enemy.prefab"),
+                xpOrb = SavePrefab(CreateXpOrb(), Prefabs + "/Pickups/ExperienceOrb.prefab"),
+                damagePopup = SavePrefab(CreateDamagePopup(), Prefabs + "/UI/DamagePopup.prefab")
             };
             return set;
         }
@@ -1075,27 +1073,31 @@ namespace AreaSurvivors.Editor
 
         static Sprite LoadSprite(string name)
         {
-            return AssetDatabase.LoadAssetAtPath<Sprite>($"{Sprites}/{name}.png") ??
+            return GeneratedSpriteAssetUtility.LoadSprite(name) ??
+                   AssetDatabase.LoadAssetAtPath<Sprite>($"{Sprites}/{name}.png") ??
                    AssetDatabase.LoadAssetAtPath<Sprite>($"{GeneratedSprites}/{name}.png") ??
                    AssetDatabase.LoadAssetAtPath<Sprite>($"{ResourcesPath}/{name}.png");
         }
 
         static Sprite LoadGeneratedSprite(string name)
         {
-            return AssetDatabase.LoadAssetAtPath<Sprite>($"{GeneratedSprites}/{name}.png") ??
+            return GeneratedSpriteAssetUtility.LoadSprite(name) ??
+                   AssetDatabase.LoadAssetAtPath<Sprite>($"{GeneratedSprites}/{name}.png") ??
                    AssetDatabase.LoadAssetAtPath<Sprite>($"{ResourcesPath}/Generated/{name}.png");
         }
 
         static Sprite LoadMapSprite(string name)
         {
-            return AssetDatabase.LoadAssetAtPath<Sprite>($"{GeneratedSprites}/{name}.png") ??
+            return GeneratedSpriteAssetUtility.LoadSprite(name) ??
+                   AssetDatabase.LoadAssetAtPath<Sprite>($"{GeneratedSprites}/{name}.png") ??
                    AssetDatabase.LoadAssetAtPath<Sprite>($"{Sprites}/{name}.png") ??
                    AssetDatabase.LoadAssetAtPath<Sprite>($"{ResourcesPath}/{name}.png");
         }
 
         static Sprite LoadPixelCharacterSprite(string name)
         {
-            return AssetDatabase.LoadAssetAtPath<Sprite>($"{ResourcesPath}/{name}.png") ??
+            return GeneratedSpriteAssetUtility.LoadSprite(name) ??
+                   AssetDatabase.LoadAssetAtPath<Sprite>($"{ResourcesPath}/{name}.png") ??
                    AssetDatabase.LoadAssetAtPath<Sprite>($"{Sprites}/{name}.png") ??
                    AssetDatabase.LoadAssetAtPath<Sprite>($"{GeneratedSprites}/{name}.png");
         }
@@ -1103,6 +1105,7 @@ namespace AreaSurvivors.Editor
         static Sprite LoadCharacterSprite(string name)
         {
             return LoadWalkFrame(name, "Down", 1) ??
+                   GeneratedSpriteAssetUtility.LoadSprite(name) ??
                    AssetDatabase.LoadAssetAtPath<Sprite>($"{ResourcesPath}/Generated/{name}.png") ??
                    AssetDatabase.LoadAssetAtPath<Sprite>($"{GeneratedSprites}/{name}.png") ??
                    LoadPixelCharacterSprite(name);

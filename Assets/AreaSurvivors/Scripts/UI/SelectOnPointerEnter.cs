@@ -9,6 +9,7 @@ namespace AreaSurvivors
         public void OnPointerEnter(PointerEventData eventData)
         {
             if (!UiSelectionUtility.PointerCanDriveFocus()) return;
+            UiSelectionUtility.NotifyKeyboardMouseInput();
             var selectable = GetComponent<Selectable>();
             if (EventSystem.current != null && selectable != null && selectable.IsInteractable())
             {

@@ -5,13 +5,12 @@ namespace AreaSurvivors.EditorTools
 {
     public static class EnemyOutlinePrefabSetup
     {
-        const string EnemyPrefabPath = "Assets/AreaSurvivors/Prefabs/Enemy.prefab";
+        const string EnemyPrefabPath = "Assets/AreaSurvivors/Prefabs/Characters/Enemy.prefab";
         const string VisualName = "Paper Visual";
         const string OutlineChildName = "Runtime Outline";
         const float EnemyOutlineThickness = 0.018f;
         static readonly Color EnemySilhouetteColor = new Color(1f, 0.52f, 0.28f, 0.56f);
 
-        [MenuItem("Area Survivors/Visuals/Apply Enemy Outline Prefab Setup")]
         public static void Apply()
         {
             var root = PrefabUtility.LoadPrefabContents(EnemyPrefabPath);

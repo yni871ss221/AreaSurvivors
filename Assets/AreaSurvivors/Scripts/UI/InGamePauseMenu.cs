@@ -61,9 +61,10 @@ namespace AreaSurvivors
         void Update()
         {
             if (pausedByMenu && optionsPanel != null && optionsPanel.activeSelf && (controlBinding.Tick() || controllerBinding.Tick())) return;
-            if (UiSelectionUtility.TickControllerSubmit()) return;
             if (pausedByMenu)
             {
+                var candidates = ActivePanelSelectionCandidates();
+                if (UiSelectionUtility.TickControllerSubmit(candidates)) return;
                 EnsureActivePanelSelection();
                 if (!UiSelectionUtility.CancelPressed() && !UiSelectionUtility.PausePressed()) return;
 
@@ -150,6 +151,7 @@ namespace AreaSurvivors
             var candidates = OptionsSelectionCandidates();
             UiSelectionUtility.ConfigureVerticalNavigation(candidates);
             UiSelectionUtility.SelectFirst(candidates);
+            ResetOptionScrollToTop();
         }
 
         void ShowAbandonDialog()
@@ -195,9 +197,9 @@ namespace AreaSurvivors
 
         void EnsureActivePanelSelection()
         {
+            var candidates = ActivePanelSelectionCandidates();
             if (abandonDialog != null && abandonDialog.activeSelf)
             {
-                var candidates = AbandonDialogSelectionCandidates();
                 UiSelectionUtility.ConfigureHorizontalNavigation(candidates);
                 UiSelectionUtility.EnsureSelection(candidates);
                 return;
@@ -205,7 +207,6 @@ namespace AreaSurvivors
 
             if (optionsPanel != null && optionsPanel.activeSelf)
             {
-                var candidates = OptionsSelectionCandidates();
                 UiSelectionUtility.ConfigureVerticalNavigation(candidates);
                 UiSelectionUtility.EnsureSelection(candidates);
                 return;
@@ -213,10 +214,17 @@ namespace AreaSurvivors
 
             if (menuPanel != null && menuPanel.activeSelf)
             {
-                var candidates = MainMenuSelectionCandidates();
                 UiSelectionUtility.ConfigureVerticalNavigation(candidates);
                 UiSelectionUtility.EnsureSelection(candidates);
             }
+        }
+
+        Selectable[] ActivePanelSelectionCandidates()
+        {
+            if (abandonDialog != null && abandonDialog.activeSelf) return AbandonDialogSelectionCandidates();
+            if (optionsPanel != null && optionsPanel.activeSelf) return OptionsSelectionCandidates();
+            if (menuPanel != null && menuPanel.activeSelf) return MainMenuSelectionCandidates();
+            return new Selectable[0];
         }
 
         Selectable[] MainMenuSelectionCandidates()
@@ -259,6 +267,14 @@ namespace AreaSurvivors
                 resetOptionsButton,
                 audioOptionsPanel != null ? audioOptionsPanel.backButton : null
             };
+        }
+
+        void ResetOptionScrollToTop()
+        {
+            var scrollController = generalOptionsPanel != null
+                ? generalOptionsPanel.GetComponentInParent<OptionsPanelScrollController>()
+                : GetComponentInChildren<OptionsPanelScrollController>(true);
+            if (scrollController != null) scrollController.ResetToTop();
         }
     }
 }

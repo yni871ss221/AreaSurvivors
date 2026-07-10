@@ -7,6 +7,8 @@ namespace AreaSurvivors
     public sealed class GameOverScreen : MonoBehaviour
     {
         public GameObject root;
+        public GameObject defeatBackground;
+        public GameObject clearBackground;
         public Text titleText;
         public Text survivedValueText;
         public Text killsValueText;
@@ -224,6 +226,7 @@ namespace AreaSurvivors
         {
             AudioManager.StopBgm();
             var result = RunResult.Last ?? new RunResult();
+            ConfigureBackground(result.gameClear);
 
             var survived = TimeSpan.FromSeconds(result.survivedSeconds);
             SetText(titleText, result.gameClear ? "GAME CLEAR" : "GAME OVER");
@@ -258,17 +261,24 @@ namespace AreaSurvivors
             if (introAnimator != null) introAnimator.Play(result.gameClear, hasStageUnlockPopup, missionCompletePopup);
         }
 
+        void ConfigureBackground(bool gameClear)
+        {
+            if (defeatBackground != null) defeatBackground.SetActive(!gameClear);
+            if (clearBackground != null) clearBackground.SetActive(gameClear);
+        }
+
         void Update()
         {
-            if (UiSelectionUtility.TickControllerSubmit()) return;
             if (stageUnlockPopupRoot != null && stageUnlockPopupRoot.activeInHierarchy)
             {
                 var popupCandidates = new Selectable[] { stageUnlockOkButton, lobbyButton };
+                if (UiSelectionUtility.TickControllerSubmit(popupCandidates)) return;
                 UiSelectionUtility.ConfigureVerticalNavigation(popupCandidates);
                 UiSelectionUtility.EnsureSelection(popupCandidates);
                 return;
             }
 
+            if (UiSelectionUtility.TickControllerSubmit(lobbyButton)) return;
             UiSelectionUtility.ConfigureVerticalNavigation(lobbyButton);
             UiSelectionUtility.EnsureSelection(lobbyButton);
         }

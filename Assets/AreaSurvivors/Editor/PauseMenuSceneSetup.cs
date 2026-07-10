@@ -17,7 +17,6 @@ namespace AreaSurvivors.EditorTools
         static readonly Color ButtonEdge = new Color(0.56f, 0.65f, 0.42f, 0.96f);
         static readonly Color TextGold = new Color(0.96f, 0.90f, 0.68f);
 
-        [MenuItem("Area Survivors/UI/Apply Pause And Options UI")]
         public static void ApplyAll()
         {
             string previousScenePath = SceneManager.GetActiveScene().path;

@@ -9,9 +9,9 @@ namespace AreaSurvivors.Editor
     {
         static readonly string[] PrefabPaths =
         {
-            "Assets/AreaSurvivors/Prefabs/WoodenWall.prefab",
-            "Assets/AreaSurvivors/Prefabs/BallistaTower.prefab",
-            "Assets/AreaSurvivors/Prefabs/WatchTower.prefab"
+            "Assets/AreaSurvivors/Prefabs/Buildings/WoodenWall.prefab",
+            "Assets/AreaSurvivors/Prefabs/Buildings/BallistaTower.prefab",
+            "Assets/AreaSurvivors/Prefabs/Buildings/WatchTower.prefab"
         };
 
         [MenuItem("Area Survivors/Reports/Building Prefab Visuals")]

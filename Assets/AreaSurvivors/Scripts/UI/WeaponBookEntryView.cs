@@ -64,6 +64,8 @@ namespace AreaSurvivors
 
         public void SetSelected(bool selected)
         {
+            var highlight = GetComponent<UiSelectionHighlight>();
+            if (highlight != null) highlight.SetNormalBackgroundColor(NormalPanelColor);
             if (background != null) background.color = selected ? SelectedPanelColor : NormalPanelColor;
         }
 

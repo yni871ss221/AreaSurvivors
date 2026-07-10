@@ -5,8 +5,8 @@ namespace AreaSurvivors.EditorTools
 {
     public static class CharacterFootColliderPrefabSetup
     {
-        const string PlayerPrefabPath = "Assets/AreaSurvivors/Prefabs/Player.prefab";
-        const string EnemyPrefabPath = "Assets/AreaSurvivors/Prefabs/Enemy.prefab";
+        const string PlayerPrefabPath = "Assets/AreaSurvivors/Prefabs/Characters/Player.prefab";
+        const string EnemyPrefabPath = "Assets/AreaSurvivors/Prefabs/Characters/Enemy.prefab";
         const string SlideMaterialPath = "Assets/AreaSurvivors/Physics/CharacterSlide.physicsMaterial2D";
         const string PhysicsFolderPath = "Assets/AreaSurvivors/Physics";
 
@@ -18,13 +18,12 @@ namespace AreaSurvivors.EditorTools
         const float BuildingBlockingEdgeRadius = 0.04f;
         static readonly string[] BuildingPrefabPaths =
         {
-            "Assets/AreaSurvivors/Prefabs/WoodenWall.prefab",
-            "Assets/AreaSurvivors/Prefabs/BallistaTower.prefab",
-            "Assets/AreaSurvivors/Prefabs/WatchTower.prefab",
-            "Assets/AreaSurvivors/Prefabs/CenterTower.prefab"
+            "Assets/AreaSurvivors/Prefabs/Buildings/WoodenWall.prefab",
+            "Assets/AreaSurvivors/Prefabs/Buildings/BallistaTower.prefab",
+            "Assets/AreaSurvivors/Prefabs/Buildings/WatchTower.prefab",
+            "Assets/AreaSurvivors/Prefabs/Buildings/CenterTower.prefab"
         };
 
-        [MenuItem("Area Survivors/Physics/Apply Character Foot Colliders")]
         public static void Apply()
         {
             var slideMaterial = EnsureSlideMaterial();

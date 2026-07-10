@@ -6,8 +6,12 @@ namespace AreaSurvivors
 {
     public static class UiSelectionUtility
     {
-        static readonly Color FocusColor = new Color(0.98f, 0.9f, 0.38f, 1f);
-        static readonly Color FocusPressedColor = new Color(0.78f, 0.95f, 0.58f, 1f);
+        static readonly Color UnifiedFocusColor = Color.white;
+        static readonly Color UnifiedFocusShadowColor = new Color(0f, 0f, 0f, 0f);
+        static readonly Color UnifiedFocusBackgroundColor = new Color(0.114f, 0.529f, 0.298f, 0.98f);
+        static readonly Color UnifiedHoverBackgroundColor = new Color(0.106f, 0.353f, 0.216f, 0.98f);
+        const float UnifiedFocusPadding = 0f;
+        const float UnifiedFocusThickness = 4f;
         const float ScrollPadding = 28f;
         const float PointerMoveThresholdSqr = 0.25f;
         const float DirectionDotThreshold = 0.15f;
@@ -17,6 +21,7 @@ namespace AreaSurvivors
         static bool pointerPositionInitialized;
         static bool controllerInputMode;
         static int lastInputModeUpdateFrame = -1;
+        static int dropdownCancelConsumedFrame = -1;
 
         public static bool IsControllerInputMode
         {
@@ -39,7 +44,25 @@ namespace AreaSurvivors
         public static void EnsureSelection(params Selectable[] candidates)
         {
             ApplyFocusStyle(candidates);
-            if (HasValidSelection())
+            UpdateInputMode();
+            if (DropdownPadNavigator.HasOpenDropdown)
+            {
+                DropdownPadNavigator.EnsureOpenDropdownSelection();
+                return;
+            }
+
+            if (!controllerInputMode)
+            {
+                if (HasValidSelection(candidates))
+                {
+                    lastValidSelection = EventSystem.current.currentSelectedGameObject.GetComponent<Selectable>();
+                    UpdateCurrentSelectionPresentation(false);
+                }
+
+                return;
+            }
+
+            if (HasValidSelection(candidates))
             {
                 lastValidSelection = EventSystem.current.currentSelectedGameObject.GetComponent<Selectable>();
                 UpdateCurrentSelectionPresentation();
@@ -57,26 +80,57 @@ namespace AreaSurvivors
 
         public static bool CancelPressed()
         {
+            if (DropdownPadNavigator.TryHandleCancel())
+            {
+                dropdownCancelConsumedFrame = Time.frameCount;
+                return false;
+            }
+
             bool controllerCancel = ControllerInputSettingsStore.CancelPressed();
             if (controllerCancel) SetControllerInputMode();
-            return SafeGetButtonDown("Cancel") || Input.GetKeyDown(KeyCode.Escape) || controllerCancel;
+            bool keyboardCancel = SafeGetButtonDown("Cancel") || Input.GetKeyDown(KeyCode.Escape);
+            if (keyboardCancel) SetKeyboardMouseInputMode();
+            return keyboardCancel || controllerCancel;
         }
 
         public static bool PausePressed()
         {
+            if (dropdownCancelConsumedFrame == Time.frameCount) return false;
+
             bool controllerPause = Input.GetKeyDown(KeyCode.JoystickButton7) || ControllerInputSettingsStore.CancelPressed();
             if (controllerPause) SetControllerInputMode();
-            return Input.GetKeyDown(KeyCode.Escape) || controllerPause;
+            bool keyboardPause = Input.GetKeyDown(KeyCode.Escape);
+            if (keyboardPause) SetKeyboardMouseInputMode();
+            return keyboardPause || controllerPause;
         }
 
         public static bool TickControllerSubmit()
         {
+            if (DropdownPadNavigator.TryHandleControllerSubmit()) return true;
             if (!ControllerInputSettingsStore.SubmitPressed()) return false;
             SetControllerInputMode();
             if (EventSystem.current == null) return false;
 
             var selected = EventSystem.current.currentSelectedGameObject;
             if (selected == null || !selected.activeInHierarchy) return false;
+
+            ExecuteEvents.Execute(selected, new BaseEventData(EventSystem.current), ExecuteEvents.submitHandler);
+            UpdateCurrentSelectionPresentation();
+            return true;
+        }
+
+        public static bool TickControllerSubmit(params Selectable[] candidates)
+        {
+            if (DropdownPadNavigator.TryHandleControllerSubmit()) return true;
+            if (!ControllerInputSettingsStore.SubmitPressed()) return false;
+            SetControllerInputMode();
+            EnsureSelection(candidates);
+            if (EventSystem.current == null) return false;
+
+            var selected = EventSystem.current.currentSelectedGameObject;
+            if (selected == null || !selected.activeInHierarchy) return false;
+            var selectable = selected.GetComponent<Selectable>();
+            if (!IsCandidate(selectable, candidates)) return false;
 
             ExecuteEvents.Execute(selected, new BaseEventData(EventSystem.current), ExecuteEvents.submitHandler);
             UpdateCurrentSelectionPresentation();
@@ -103,6 +157,11 @@ namespace AreaSurvivors
         {
             UpdateInputMode();
             return !controllerInputMode;
+        }
+
+        public static void NotifyKeyboardMouseInput()
+        {
+            SetKeyboardMouseInputMode();
         }
 
         public static Button FirstButtonInChildren(Transform root)
@@ -167,8 +226,27 @@ namespace AreaSurvivors
                 navigation.selectOnDown = BestDirectionalSelectable(selectable, active, Vector2.down);
                 navigation.selectOnLeft = BestDirectionalSelectable(selectable, active, Vector2.left);
                 navigation.selectOnRight = BestDirectionalSelectable(selectable, active, Vector2.right);
+                ReserveSliderValueAxis(selectable, ref navigation);
                 selectable.navigation = navigation;
             }
+        }
+
+        static void ReserveSliderValueAxis(Selectable selectable, ref Navigation navigation)
+        {
+            var slider = selectable as Slider;
+            if (slider == null) return;
+
+            bool horizontal = slider.direction == Slider.Direction.LeftToRight ||
+                slider.direction == Slider.Direction.RightToLeft;
+            if (horizontal)
+            {
+                navigation.selectOnLeft = null;
+                navigation.selectOnRight = null;
+                return;
+            }
+
+            navigation.selectOnUp = null;
+            navigation.selectOnDown = null;
         }
 
         static void Select(Selectable selectable)
@@ -287,16 +365,40 @@ namespace AreaSurvivors
         static void ApplyFocusStyle(Selectable selectable)
         {
             if (selectable == null) return;
-            if (selectable.transition == Selectable.Transition.ColorTint)
+            if (selectable.GetComponent<UiSceneManagedSelectable>() != null) return;
+            if (IsRuntimeDropdownBlocker(selectable.gameObject))
             {
-                var colors = selectable.colors;
-                colors.highlightedColor = FocusColor;
-                colors.selectedColor = FocusColor;
-                colors.pressedColor = FocusPressedColor;
-                colors.colorMultiplier = Mathf.Max(colors.colorMultiplier, 1f);
-                colors.fadeDuration = Mathf.Min(colors.fadeDuration, 0.08f);
-                selectable.colors = colors;
+                selectable.transition = Selectable.Transition.None;
+                return;
             }
+
+            // Focus visuals are handled by UiSelectionHighlight so mouse and controller
+            // modes do not stack Unity's built-in ColorTint selection on top.
+            selectable.transition = Selectable.Transition.None;
+            var highlight = selectable.GetComponent<UiSelectionHighlight>();
+            if (highlight == null) highlight = selectable.gameObject.AddComponent<UiSelectionHighlight>();
+            highlight.padding = UnifiedFocusPadding;
+            highlight.thickness = UnifiedFocusThickness;
+            highlight.focusColor = UnifiedFocusColor;
+            highlight.shadowColor = UnifiedFocusShadowColor;
+            highlight.selectedBackgroundColor = UnifiedFocusBackgroundColor;
+            highlight.hoverBackgroundColor = UnifiedHoverBackgroundColor;
+            highlight.showBackgroundOnFocus = true;
+            highlight.bringToFrontOnHighlight = true;
+            if (selectable.GetComponent<SelectOnPointerEnter>() == null)
+            {
+                selectable.gameObject.AddComponent<SelectOnPointerEnter>();
+            }
+
+            if (selectable is Dropdown && selectable.GetComponent<DropdownPadNavigator>() == null)
+            {
+                selectable.gameObject.AddComponent<DropdownPadNavigator>();
+            }
+        }
+
+        static bool IsRuntimeDropdownBlocker(GameObject target)
+        {
+            return target != null && target.name == "Blocker";
         }
 
         static void UpdateCurrentSelectionPresentation(bool forceKeepSelectedInView = false)
@@ -308,7 +410,7 @@ namespace AreaSurvivors
 
             ApplyFocusStyle(selected.GetComponent<Selectable>());
             bool selectionChanged = selected != lastPresentedSelection;
-            if (forceKeepSelectedInView || selectionChanged)
+            if (controllerInputMode && (forceKeepSelectedInView || selectionChanged))
             {
                 KeepSelectedInView(selected.transform as RectTransform);
             }
@@ -361,13 +463,14 @@ namespace AreaSurvivors
             scrollRect.content.anchoredPosition = position;
         }
 
-        static bool HasValidSelection()
+        static bool HasValidSelection(params Selectable[] candidates)
         {
             if (EventSystem.current == null) return false;
             var selected = EventSystem.current.currentSelectedGameObject;
             if (selected == null || !selected.activeInHierarchy) return false;
             var selectable = selected.GetComponent<Selectable>();
-            return IsSelectable(selectable);
+            if (!IsSelectable(selectable)) return false;
+            return candidates == null || candidates.Length == 0 || IsCandidate(selectable, candidates);
         }
 
         static bool SafeGetButtonDown(string buttonName)
@@ -388,34 +491,65 @@ namespace AreaSurvivors
             lastInputModeUpdateFrame = Time.frameCount;
 
             var pointer = Input.mousePosition;
+            bool pointerMoved = false;
             if (!pointerPositionInitialized)
             {
                 lastPointerPosition = pointer;
                 pointerPositionInitialized = true;
             }
-
-            bool controllerInput = ControllerInputSettingsStore.MoveVector().sqrMagnitude > 0.25f
-                || ControllerInputSettingsStore.PressedBinding().kind != ControllerInputKind.None;
-            if (controllerInput)
+            else
             {
-                SetControllerInputMode();
-                lastPointerPosition = pointer;
-                return;
+                pointerMoved = (pointer - lastPointerPosition).sqrMagnitude > PointerMoveThresholdSqr;
             }
 
-            bool pointerMoved = (pointer - lastPointerPosition).sqrMagnitude > PointerMoveThresholdSqr;
             bool pointerAction = pointerMoved
                 || Input.GetMouseButtonDown(0)
                 || Input.GetMouseButtonDown(1)
                 || Input.GetMouseButtonDown(2)
                 || Mathf.Abs(Input.mouseScrollDelta.y) > 0.01f;
-            if (pointerAction) controllerInputMode = false;
+            bool keyboardMouseAction = pointerAction || KeyboardMouseKeyPressed();
+            if (keyboardMouseAction)
+            {
+                SetKeyboardMouseInputMode();
+                lastPointerPosition = pointer;
+                return;
+            }
+
+            bool controllerInput = ControllerInputSettingsStore.MoveVector().sqrMagnitude > 0.25f
+                || ControllerInputSettingsStore.PressedBinding().kind != ControllerInputKind.None;
+            if (controllerInput) SetControllerInputMode();
             lastPointerPosition = pointer;
         }
 
         static void SetControllerInputMode()
         {
             controllerInputMode = true;
+        }
+
+        static void SetKeyboardMouseInputMode()
+        {
+            controllerInputMode = false;
+        }
+
+        static bool KeyboardMouseKeyPressed()
+        {
+            if (!Input.anyKeyDown) return false;
+            if (!string.IsNullOrEmpty(Input.inputString)) return true;
+            return Input.GetKeyDown(KeyCode.Escape)
+                || Input.GetKeyDown(KeyCode.Return)
+                || Input.GetKeyDown(KeyCode.KeypadEnter)
+                || Input.GetKeyDown(KeyCode.Space)
+                || Input.GetKeyDown(KeyCode.Tab)
+                || Input.GetKeyDown(KeyCode.Backspace)
+                || Input.GetKeyDown(KeyCode.Delete)
+                || Input.GetKeyDown(KeyCode.UpArrow)
+                || Input.GetKeyDown(KeyCode.DownArrow)
+                || Input.GetKeyDown(KeyCode.LeftArrow)
+                || Input.GetKeyDown(KeyCode.RightArrow)
+                || Input.GetKeyDown(KeyCode.W)
+                || Input.GetKeyDown(KeyCode.A)
+                || Input.GetKeyDown(KeyCode.S)
+                || Input.GetKeyDown(KeyCode.D);
         }
     }
 }
