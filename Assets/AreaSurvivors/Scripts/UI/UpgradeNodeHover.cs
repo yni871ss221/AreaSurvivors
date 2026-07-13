@@ -64,8 +64,8 @@ namespace AreaSurvivors
 
         void Show(PointerEventData eventData, Vector2? fallbackPointer = null)
         {
-            if (title != null) title.text = titleText;
-            if (description != null) description.text = descriptionText;
+            if (title != null) title.text = LocalizationService.LocalizeSource(titleText);
+            if (description != null) description.text = LocalizationService.LocalizeSource(descriptionText);
             if (tooltipRoot != null)
             {
                 tooltipRoot.gameObject.SetActive(true);

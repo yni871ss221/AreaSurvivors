@@ -259,6 +259,7 @@ namespace AreaSurvivors
             DisplaySettingsStore.ResetDefaults();
             InputSettingsStore.ResetDefaults();
             ControllerInputSettingsStore.ResetDefaults();
+            LocalizationSettingsStore.ResetDefaults();
 
             if (general != null) general.Refresh();
             if (audio != null) audio.Refresh();
@@ -402,17 +403,19 @@ namespace AreaSurvivors
         {
             if (moveText != null)
             {
-                moveText.text = HasActionControls() ? string.Empty : InputSettingsStore.MovementLabel() + "  ［変更］";
+                moveText.text = HasActionControls()
+                    ? string.Empty
+                    : LocalizationService.LocalizeSource(InputSettingsStore.MovementLabel() + "  ［変更］");
             }
 
-            if (attackText != null) attackText.text = "自動攻撃（変更不可）";
+            if (attackText != null) attackText.text = LocalizationService.LocalizeSource("自動攻撃（変更不可）");
             RefreshActionTexts();
         }
 
         void ShowRebindPrompt()
         {
             if (rebindIndex < 0 || rebindIndex >= moveActions.Length) return;
-            if (moveText != null) moveText.text = $"{ActionLabel(moveActions[rebindIndex])}キー入力中";
+            if (moveText != null) moveText.text = LocalizationService.LocalizeSource($"{ActionLabel(moveActions[rebindIndex])}キー入力中");
             RefreshActionTexts();
             SetWaitingText("入力待ち");
         }
@@ -420,7 +423,7 @@ namespace AreaSurvivors
         void ShowDuplicateKey(KeyCode key)
         {
             if (rebindIndex < 0 || rebindIndex >= moveActions.Length) return;
-            if (moveText != null) moveText.text = $"{InputSettingsStore.KeyLabel(key)} は使用中です";
+            if (moveText != null) moveText.text = LocalizationService.LocalizeSource($"{InputSettingsStore.KeyLabel(key)} は使用中です");
             RefreshActionTexts();
             SetWaitingText("再入力");
         }
@@ -470,7 +473,7 @@ namespace AreaSurvivors
         void SetActionText(int index, string value)
         {
             if (actionTexts == null || index < 0 || index >= actionTexts.Length) return;
-            if (actionTexts[index] != null) actionTexts[index].text = value;
+            if (actionTexts[index] != null) actionTexts[index].text = LocalizationService.LocalizeSource(value);
         }
 
         void SetWaitingText(string value)
@@ -490,7 +493,7 @@ namespace AreaSurvivors
         {
             var inputs = alternate ? alternateActionInputs : actionInputs;
             if (inputs == null || index < 0 || index >= inputs.Length) return;
-            if (inputs[index] != null) inputs[index].SetTextWithoutNotify(value);
+            if (inputs[index] != null) inputs[index].SetTextWithoutNotify(LocalizationService.LocalizeSource(value));
         }
 
         bool HasActionInput(int index)
@@ -708,8 +711,8 @@ namespace AreaSurvivors
                 SetActionInput(i, ControllerInputSettingsStore.BindingLabel(ControllerInputSettingsStore.GetAlternateBinding(moveActions[i])), true);
             }
 
-            if (submitInput != null) submitInput.SetTextWithoutNotify(ControllerInputSettingsStore.BindingLabel(ControllerInputSettingsStore.GetSubmitBinding()));
-            if (cancelInput != null) cancelInput.SetTextWithoutNotify(ControllerInputSettingsStore.BindingLabel(ControllerInputSettingsStore.GetCancelBinding()));
+            if (submitInput != null) submitInput.SetTextWithoutNotify(LocalizationService.LocalizeSource(ControllerInputSettingsStore.BindingLabel(ControllerInputSettingsStore.GetSubmitBinding())));
+            if (cancelInput != null) cancelInput.SetTextWithoutNotify(LocalizationService.LocalizeSource(ControllerInputSettingsStore.BindingLabel(ControllerInputSettingsStore.GetCancelBinding())));
         }
 
         void BeginSingleRebind(int index, bool alternate)
@@ -783,20 +786,20 @@ namespace AreaSurvivors
         {
             var inputs = alternate ? alternateActionInputs : actionInputs;
             if (inputs == null || index < 0 || index >= inputs.Length) return;
-            if (inputs[index] != null) inputs[index].SetTextWithoutNotify(value);
+            if (inputs[index] != null) inputs[index].SetTextWithoutNotify(LocalizationService.LocalizeSource(value));
         }
 
         void SetWaitingInput(string value)
         {
             if (rebindSubmit)
             {
-                if (submitInput != null) submitInput.SetTextWithoutNotify(value);
+                if (submitInput != null) submitInput.SetTextWithoutNotify(LocalizationService.LocalizeSource(value));
                 return;
             }
 
             if (rebindCancel)
             {
-                if (cancelInput != null) cancelInput.SetTextWithoutNotify(value);
+                if (cancelInput != null) cancelInput.SetTextWithoutNotify(LocalizationService.LocalizeSource(value));
                 return;
             }
 

@@ -23,6 +23,16 @@ namespace AreaSurvivors
 
         WeaponBookEntryView selectedEntry;
 
+        void OnEnable()
+        {
+            LocalizationService.LanguageChanged += RefreshLocalizedContent;
+        }
+
+        void OnDisable()
+        {
+            LocalizationService.LanguageChanged -= RefreshLocalizedContent;
+        }
+
         void Start()
         {
             AudioManager.PlayBgm(BgmTrack.LobbyUpgrades);
@@ -60,10 +70,12 @@ namespace AreaSurvivors
             selectedEntry = entry;
             selectedEntry.SetSelected(true);
 
-            SetText(detailTitleText, entry.displayName);
-            SetText(featureText, string.IsNullOrEmpty(entry.featureDescription) ? "-" : entry.featureDescription);
-            SetText(statsText, InitialStatsText(entry));
-            SetText(specialEffectText, string.IsNullOrEmpty(entry.specialEffectDescription) ? "特殊効果は今後追加予定です。" : entry.specialEffectDescription);
+            SetText(detailTitleText, entry.LocalizedDisplayName);
+            SetText(featureText, string.IsNullOrEmpty(entry.featureDescription) ? "-" : entry.LocalizedFeatureDescription);
+            SetText(statsText, LocalizationService.LocalizeSource(InitialStatsText(entry)));
+            SetText(specialEffectText, string.IsNullOrEmpty(entry.specialEffectDescription)
+                ? LocalizationService.Text("特殊効果は今後追加予定です。", "Special effects will be added in a future update.")
+                : entry.LocalizedSpecialEffectDescription);
             SetText(messageText, string.Empty);
             ShowDetailTypeIcon(entry.attributeType);
         }
@@ -74,11 +86,22 @@ namespace AreaSurvivors
             selectedEntry = null;
 
             SetText(detailTitleText, "LOCK");
-            SetText(featureText, LockedMessage);
+            SetText(featureText, LocalizationService.Text(LockedMessage, "Unlock this weapon in the skill tree."));
             SetText(statsText, "-");
             SetText(specialEffectText, "-");
             SetText(messageText, string.Empty);
             HideDetailTypeIcon();
+        }
+
+        void RefreshLocalizedContent()
+        {
+            if (!isActiveAndEnabled || entries == null) return;
+            foreach (var entry in entries)
+            {
+                if (entry != null) entry.Refresh();
+            }
+
+            if (selectedEntry != null) Select(selectedEntry);
         }
 
         void ClearEntrySelection()
@@ -214,7 +237,7 @@ namespace AreaSurvivors
             if (entry == null) return "-";
             if (!entry.usesRuntimeStats || config == null)
             {
-                return string.IsNullOrEmpty(entry.initialStatsText) ? "-" : entry.initialStatsText;
+                return string.IsNullOrEmpty(entry.initialStatsText) ? "-" : entry.LocalizedInitialStatsText;
             }
 
             var stats = config.GetWeaponStats(entry.weaponType, 1);
@@ -250,7 +273,7 @@ namespace AreaSurvivors
 
         static void SetText(Text text, string value)
         {
-            if (text != null) text.text = value;
+            if (text != null) text.text = LocalizationService.LocalizeSource(value);
         }
 
         static void AppendAdvancedStats(StringBuilder builder, WeaponType weaponType, WeaponStatBlock stats)

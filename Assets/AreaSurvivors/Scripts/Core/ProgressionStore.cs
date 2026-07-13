@@ -339,6 +339,15 @@ namespace AreaSurvivors
             Save();
         }
 
+        public static bool ShouldShowOpeningStory => !Data.openingStoryCompleted && Data.playCount <= 0;
+
+        public static void MarkOpeningStoryCompleted()
+        {
+            if (Data.openingStoryCompleted) return;
+            Data.openingStoryCompleted = true;
+            Save();
+        }
+
         public static bool IsStageUnlocked(int stage)
         {
             return stage >= 1 && Data.highestUnlockedStage >= stage;

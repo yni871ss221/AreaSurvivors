@@ -30,6 +30,11 @@ namespace AreaSurvivors
 
         WeaponBookScreen owner;
 
+        public string LocalizedDisplayName => WeaponCatalog.DisplayName(weaponType);
+        public string LocalizedFeatureDescription => LocalizationService.LocalizeSource(featureDescription);
+        public string LocalizedInitialStatsText => LocalizationService.LocalizeSource(initialStatsText);
+        public string LocalizedSpecialEffectDescription => LocalizationService.LocalizeSource(specialEffectDescription);
+
         public bool IsUnlocked
         {
             get
@@ -56,7 +61,7 @@ namespace AreaSurvivors
         public void Refresh()
         {
             bool unlocked = IsUnlocked;
-            if (nameText != null) nameText.text = unlocked ? displayName : "LOCK";
+            if (nameText != null) nameText.text = unlocked ? LocalizedDisplayName : "LOCK";
             if (silhouetteOverlay != null) silhouetteOverlay.gameObject.SetActive(!unlocked);
             if (icon != null) icon.color = unlocked ? Color.white : LockedIconColor;
             SetSelected(false);

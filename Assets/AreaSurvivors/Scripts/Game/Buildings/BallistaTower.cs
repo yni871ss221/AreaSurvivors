@@ -9,6 +9,7 @@ namespace AreaSurvivors
         public GameConfig config;
         public TileGrid grid;
         public GameObject arrowPrefab;
+        public AttackBounceAnimator attackBounce;
         public Collider2D blockingCollider;
         public PaperMeshVisual completeRenderer;
         public PaperMeshVisual sparkleRenderer;
@@ -51,6 +52,7 @@ namespace AreaSurvivors
         {
             health = GetComponent<Health>();
             if (health == null) health = gameObject.AddComponent<Health>();
+            if (attackBounce == null) attackBounce = GetComponent<AttackBounceAnimator>();
             marker = GetComponent<GridObjectMarker>();
             EnsureGridObjectVisual();
             health.Died += _ => Break();
@@ -375,6 +377,7 @@ namespace AreaSurvivors
             projectile.paintsTerritory = false;
             projectile.SetDamageSource(RunDamageSource.ForBuilding(RunDamageBuildingSource.Ballista));
             projectile.Launch(direction.normalized, RelicEffects.ApplyBallistaDamage(damage, grid), speed, false);
+            attackBounce?.PlayBounce();
         }
 
         static void SetActive(GameObject target, bool active)

@@ -32,6 +32,7 @@ namespace AreaSurvivors
         public GameObject levelUpInputBlocker;
         public GameObject relicChestPrefab;
         public RelicAcquisitionPanel relicAcquisitionPanelPrefab;
+        public ScreenFadeOverlay screenFade;
 
         public PlayerController Player { get; private set; }
         public TowerController Tower { get; private set; }
@@ -49,6 +50,7 @@ namespace AreaSurvivors
         public int RunTokens { get; private set; }
         public int Kills => kills;
         public MapSessionMode SessionMode => sessionMode;
+        public event Action CombatModifiersChanged;
 
         int kills;
         int level = 1;
@@ -74,6 +76,7 @@ namespace AreaSurvivors
         const int InitialTowerTerritoryRadius = 10;
         const int PaintAreaTokenThreshold = 500;
         const float ElapsedTokenRewardIntervalSeconds = 30f;
+        const float OpeningEffectsDelayAfterFadeSeconds = 0.15f;
         int paintAreaTokenProgress;
         int killTokenProgress;
         int killMilestoneTokens;
@@ -100,7 +103,7 @@ namespace AreaSurvivors
 
         void Start()
         {
-            Time.timeScale = 1f;
+            Time.timeScale = screenFade != null ? 0f : 1f;
             remainingLevelUpSkips = LevelUpSkipLimit;
             remainingLevelUpRerolls = LevelUpRerollLimit;
             lastLevelUpActionFrame = -1;
@@ -166,13 +169,30 @@ namespace AreaSurvivors
                 buildPlacement.Initialize(config, grid, sessionMode == MapSessionMode.Build ? null : Player);
             }
             if (buildPlacement != null) buildPlacement.RestoreStageBuildings(stage);
-            SpawnInitialRelicChest();
             PolishHud();
             ConfigureGameHud();
 
             var cameraFollow = Camera.main.GetComponent<CameraFollow>();
             if (cameraFollow != null && sessionMode == MapSessionMode.Game && Player != null) cameraFollow.Configure(Player.transform, Tower.transform, config);
             if (hasBossTestSpawnSide && spawner != null) spawner.SetNextBossTestSpawnSide(bossTestSpawnSide);
+            UpdateHud();
+            StartCoroutine(BeginGameAfterFade(stage, startStageElapsedSeconds));
+        }
+
+        IEnumerator BeginGameAfterFade(int stage, float startStageElapsedSeconds)
+        {
+            if (screenFade != null)
+            {
+                yield return screenFade.FadeFromBlack();
+                yield return new WaitForSecondsRealtime(OpeningEffectsDelayAfterFadeSeconds);
+            }
+            else
+            {
+                Debug.LogError("GameManager requires a Scene-authored ScreenFadeOverlay.");
+            }
+
+            Time.timeScale = 1f;
+            SpawnInitialRelicChest();
             BeginStage(stage, startStageElapsedSeconds);
             UpdateHud();
             BeginOpeningPlayerLevelBonus();
@@ -481,6 +501,7 @@ namespace AreaSurvivors
         public void RegisterKill()
         {
             kills++;
+            if (kills % 100 == 0) CombatModifiersChanged?.Invoke();
             AwardKillTokens();
         }
 
@@ -536,7 +557,7 @@ namespace AreaSurvivors
 
         public void RegisterWeaponSlot(WeaponType type, int slotIndex)
         {
-            runDamageTracker.RegisterWeaponSlot(type, slotIndex, WeaponCatalog.DisplayName(type));
+            runDamageTracker.RegisterWeaponSlot(type, slotIndex, WeaponCatalog.DisplayNameSource(type));
         }
 
         public void MarkWeaponActive(WeaponType type)
@@ -591,7 +612,9 @@ namespace AreaSurvivors
         {
             int gained = Mathf.Max(0, amount);
             if (gained <= 0) return;
+            int previousAttackTier = RunTokens / 10;
             RunTokens += gained;
+            if (RunTokens / 10 != previousAttackTier) CombatModifiersChanged?.Invoke();
             TrackRunTokenSource(source, gained);
             ShowTokenGainFeedback(gained);
             UpdateHud();
@@ -724,8 +747,16 @@ namespace AreaSurvivors
 
         void ConfigureLevelUpActionButtons()
         {
-            ConfigureLevelUpActionButton(skipLevelUpButton, "スキップ 残り" + remainingLevelUpSkips, remainingLevelUpSkips > 0, SkipLevelUp);
-            ConfigureLevelUpActionButton(rerollLevelUpButton, "リロール 残り" + remainingLevelUpRerolls, remainingLevelUpRerolls > 0, RerollLevelUp);
+            ConfigureLevelUpActionButton(
+                skipLevelUpButton,
+                LocalizationService.Format("スキップ 残り{0}", "SKIP ({0} LEFT)", remainingLevelUpSkips),
+                remainingLevelUpSkips > 0,
+                SkipLevelUp);
+            ConfigureLevelUpActionButton(
+                rerollLevelUpButton,
+                LocalizationService.Format("リロール 残り{0}", "REROLL ({0} LEFT)", remainingLevelUpRerolls),
+                remainingLevelUpRerolls > 0,
+                RerollLevelUp);
         }
 
         static void ConfigureLevelUpActionButton(Button button, string labelText, bool interactable, UnityEngine.Events.UnityAction action)
@@ -811,6 +842,11 @@ namespace AreaSurvivors
                 bool canAcquireNewWeapon = weapon.HasOpenWeaponSlot;
                 if (canAcquireNewWeapon)
                 {
+                    if (!weapon.SlashUnlocked && ProgressionStore.IsUnlocked(UpgradeType.RemoveStartingSlash))
+                    {
+                        pool.Add(RunUpgradeChoice.NewWeapon(WeaponType.Slash, () => weapon.UnlockSlash()));
+                    }
+
                     foreach (var weaponType in WeaponCatalog.UnlockableWeapons)
                     {
                         if (weapon.IsWeaponUnlocked(weaponType)) continue;
@@ -1019,8 +1055,9 @@ namespace AreaSurvivors
             if (choice == null || !TryBeginLevelUpAction()) return;
 
             choice.apply();
-            runUpgrades.Add(choice.label);
+            runUpgrades.Add(choice.sourceLabel);
             Player.ApplyCurrentStats(false);
+            CombatModifiersChanged?.Invoke();
             CompleteCurrentLevelUp();
         }
 
@@ -1079,7 +1116,8 @@ namespace AreaSurvivors
         {
             if (button == null || choice == null) return;
 
-            var weaponIcon = FindImage(button.transform, "Weapon Icon");
+            var weaponIcon = FindImage(button.transform, "Weapon Icon Panel/Weapon Icon")
+                ?? FindImage(button.transform, "Weapon Icon");
             var weaponName = FindText(button.transform, "Weapon Name Text");
             var upgradeText = FindText(button.transform, "Upgrade Text");
             var label = FindText(button.transform, "Label");
@@ -1091,19 +1129,27 @@ namespace AreaSurvivors
 
             if (label != null) label.gameObject.SetActive(false);
             SetImage(weaponIcon, GeneratedSpriteLoader.Load(choice.weaponIconResource), true);
-            weaponName.text = choice.weaponName;
-            upgradeText.text = choice.upgradeText;
+            weaponName.text = LocalizationService.LocalizeSource(choice.weaponName);
+            upgradeText.text = LocalizationService.LocalizeSource(choice.upgradeText);
             ConfigureLevelUpButtonTypeIcon(button, choice.hasAttributeType, choice.attributeType);
 
             var upgradeIcon = FindImage(button.transform, "Upgrade Icon");
             var newWeaponMark = FindText(button.transform, "New Weapon Mark");
+            var newWeaponStars = button.transform.Find("New Weapon Stars");
+            if (newWeaponStars != null) newWeaponStars.gameObject.SetActive(false);
+            upgradeText.gameObject.SetActive(true);
+            upgradeText.alignment = TextAnchor.MiddleLeft;
             if (choice.isNewWeapon)
             {
                 if (upgradeIcon != null) upgradeIcon.gameObject.SetActive(false);
+                upgradeText.gameObject.SetActive(false);
+                if (newWeaponStars != null) newWeaponStars.gameObject.SetActive(true);
                 if (newWeaponMark != null)
                 {
                     newWeaponMark.gameObject.SetActive(true);
-                    newWeaponMark.text = "★";
+                    newWeaponMark.text = "NEW";
+                    newWeaponMark.alignment = TextAnchor.MiddleLeft;
+                    newWeaponMark.color = new Color32(255, 216, 74, 255);
                 }
                 return;
             }
@@ -1122,7 +1168,7 @@ namespace AreaSurvivors
                 if (icon != null) icon.gameObject.SetActive(false);
                 ConfigureLevelUpButtonTypeIcon(button, false, WeaponAttributeType.None);
                 ConfigureLevelUpButtonLabel(label, false, false);
-                if (label != null) label.text = choice.label;
+                if (label != null) label.text = LocalizationService.LocalizeSource(choice.label);
                 return;
             }
 
@@ -1130,7 +1176,7 @@ namespace AreaSurvivors
             {
                 ConfigureLevelUpButtonTypeIcon(button, choice.hasAttributeType, choice.attributeType);
                 ConfigureLevelUpButtonLabel(label, false, choice.hasAttributeType);
-                if (label != null) label.text = choice.label;
+                if (label != null) label.text = LocalizationService.LocalizeSource(choice.label);
                 return;
             }
 
@@ -1140,7 +1186,7 @@ namespace AreaSurvivors
 
             bool typeVisible = ConfigureLevelUpButtonTypeIcon(button, choice.hasAttributeType, choice.attributeType);
             ConfigureLevelUpButtonLabel(label, true, typeVisible);
-            if (label != null) label.text = choice.label;
+            if (label != null) label.text = LocalizationService.LocalizeSource(choice.label);
         }
 
         static bool ConfigureLevelUpButtonTypeIcon(Button button, bool hasAttributeType, WeaponAttributeType attributeType)
@@ -1417,7 +1463,7 @@ namespace AreaSurvivors
             AudioManager.PlaySfx(SfxTrack.RelicChestPickup);
             if (!RelicCatalog.TryPickRandom(out var definition))
             {
-                ShowAnnouncement("レリックが見つかりません");
+                ShowAnnouncement(LocalizationService.Text("レリックが見つかりません", "No relic found"));
                 yield break;
             }
 
@@ -1473,23 +1519,28 @@ namespace AreaSurvivors
         {
             if (definition == null)
             {
-                ShowAnnouncement("レリック獲得");
+                ShowAnnouncement(LocalizationService.Text("レリック獲得", "Relic acquired"));
                 onClosed?.Invoke();
                 return;
             }
 
-            runRelics.Add(duplicateTokenReward > 0 ? definition.displayName + "（変換）" : definition.displayName);
+            runRelics.Add(duplicateTokenReward > 0
+                ? definition.displayNameSource + "（変換）"
+                : definition.displayNameSource);
             if (duplicateTokenReward > 0) relicDuplicateTokens += duplicateTokenReward;
             runRelicEntries.Add(new RunRelicReportEntry
             {
                 type = definition.type,
-                displayName = definition.displayName,
+                displayName = definition.displayNameSource,
                 convertedToToken = duplicateTokenReward > 0
             });
+            CombatModifiersChanged?.Invoke();
             gameHud?.RefreshRelics();
             if (relicAcquisitionPanelPrefab == null)
             {
-                ShowAnnouncement(duplicateTokenReward > 0 ? "レリック変換: トークン +" + duplicateTokenReward : "レリック獲得: " + definition.displayName);
+                ShowAnnouncement(duplicateTokenReward > 0
+                    ? LocalizationService.Format("レリック変換: トークン +{0}", "Relic converted: +{0} tokens", duplicateTokenReward)
+                    : LocalizationService.Format("レリック獲得: {0}", "Relic acquired: {0}", definition.displayName));
                 onClosed?.Invoke();
                 return;
             }
@@ -1497,7 +1548,9 @@ namespace AreaSurvivors
             var panel = Instantiate(relicAcquisitionPanelPrefab);
             panel.Show(definition, duplicateTokenReward, () =>
             {
-                ShowAnnouncement(duplicateTokenReward > 0 ? "レリック変換: トークン +" + duplicateTokenReward : "レリック獲得: " + definition.displayName);
+                ShowAnnouncement(duplicateTokenReward > 0
+                    ? LocalizationService.Format("レリック変換: トークン +{0}", "Relic converted: +{0} tokens", duplicateTokenReward)
+                    : LocalizationService.Format("レリック獲得: {0}", "Relic acquired: {0}", definition.displayName));
                 onClosed?.Invoke();
             });
         }
@@ -1947,6 +2000,7 @@ namespace AreaSurvivors
         sealed class RunUpgradeChoice
         {
             public readonly string label;
+            public readonly string sourceLabel;
             public readonly string iconResource;
             public readonly string weaponName;
             public readonly string weaponIconResource;
@@ -1959,6 +2013,7 @@ namespace AreaSurvivors
             public RunUpgradeChoice(string label, string iconResource, Action apply)
             {
                 this.label = label;
+                sourceLabel = label;
                 this.iconResource = iconResource;
                 weaponName = string.Empty;
                 weaponIconResource = null;
@@ -1975,6 +2030,7 @@ namespace AreaSurvivors
                 weaponIconResource = WeaponIconResource(weaponType);
                 this.upgradeText = upgradeText;
                 this.label = weaponName + " " + upgradeText;
+                sourceLabel = WeaponCatalog.DisplayNameSource(weaponType) + " " + upgradeText;
                 this.iconResource = iconResource;
                 this.attributeType = WeaponAttributeCatalog.ForWeapon(weaponType);
                 this.apply = apply;
@@ -1988,6 +2044,7 @@ namespace AreaSurvivors
                 weaponIconResource = WeaponIconResource(weaponType);
                 upgradeText = "新規武器：" + weaponName + "を獲得";
                 label = upgradeText;
+                sourceLabel = "新規武器：" + WeaponCatalog.DisplayNameSource(weaponType) + "を獲得";
                 iconResource = StatIconCatalog.WeaponLevel;
                 attributeType = WeaponAttributeCatalog.ForWeapon(weaponType);
                 this.apply = apply;
@@ -2064,6 +2121,10 @@ namespace AreaSurvivors
         Text playerXpGainText;
         Text playerRegenText;
         readonly WeaponHudPanelBinding weaponHud = new WeaponHudPanelBinding();
+        Health playerHealth;
+        TileGrid weaponHudGrid;
+        bool weaponHudDirty = true;
+        Coroutine weaponHudRefreshRoutine;
         bool warnedMissingPlayerStatsHud;
         bool warnedMissingWeaponStatsHud;
         Text tokenText;
@@ -2072,6 +2133,7 @@ namespace AreaSurvivors
         Image bossHpFill;
         Text bossHpText;
         Text announcementText;
+        AnnouncementBannerTextAnimator announcementAnimator;
         RelicHudPanel relicHud;
         EnemyController activeBoss;
         Health bossHealth;
@@ -2084,6 +2146,7 @@ namespace AreaSurvivors
             buildPlacement = placement;
             gameManager = owner;
             player = owner != null ? owner.Player : null;
+            BindWeaponHudRefreshSources();
             towerController = tower;
             towerHealth = tower != null ? tower.GetComponent<Health>() : null;
             if (towerHealth != null) towerHealth.Damaged += OnTowerDamaged;
@@ -2105,6 +2168,7 @@ namespace AreaSurvivors
             BindRelicHud(canvas.transform);
             ConfigureHudOverlapGroups(canvas.transform);
             UpdatePlayerPanel();
+            RefreshWeaponStatsIfDirty();
             UpdateTokenHud();
             UpdateTowerPanel();
             UpdateBossHud();
@@ -2115,6 +2179,14 @@ namespace AreaSurvivors
             if (towerHealth != null) towerHealth.Damaged -= OnTowerDamaged;
             if (towerController != null) towerController.Upgraded -= OnTowerUpgraded;
             if (bossHealth != null) bossHealth.Died -= OnBossDied;
+            if (gameManager != null) gameManager.CombatModifiersChanged -= MarkWeaponHudDirty;
+            if (weaponHudGrid != null) weaponHudGrid.ControlChanged -= MarkWeaponHudDirty;
+            if (playerHealth != null)
+            {
+                playerHealth.Damaged -= OnPlayerHealthChanged;
+                playerHealth.Healed -= OnPlayerHealthChanged;
+            }
+            LocalizationService.LanguageChanged -= RefreshWeaponStatsForLanguageChange;
         }
 
         void ApplySessionHudVisibility(Transform parent)
@@ -2138,7 +2210,13 @@ namespace AreaSurvivors
 
         void Update()
         {
-            if (player == null && gameManager != null) player = gameManager.Player;
+            if (player == null && gameManager != null)
+            {
+                player = gameManager.Player;
+                BindPlayerHealth();
+                MarkWeaponHudDirty();
+            }
+            BindWeaponHudGrid();
             UpdatePlayerPanel();
             UpdateTokenHud();
             UpdateTowerPanel();
@@ -2149,6 +2227,82 @@ namespace AreaSurvivors
         public void RefreshRelics()
         {
             relicHud?.Refresh(true);
+            MarkWeaponHudDirty();
+        }
+
+        public void RefreshWeaponStats()
+        {
+            MarkWeaponHudDirty();
+        }
+
+        void BindWeaponHudRefreshSources()
+        {
+            if (gameManager != null)
+            {
+                gameManager.CombatModifiersChanged -= MarkWeaponHudDirty;
+                gameManager.CombatModifiersChanged += MarkWeaponHudDirty;
+            }
+
+            LocalizationService.LanguageChanged -= RefreshWeaponStatsForLanguageChange;
+            LocalizationService.LanguageChanged += RefreshWeaponStatsForLanguageChange;
+            BindWeaponHudGrid();
+            BindPlayerHealth();
+            MarkWeaponHudDirty();
+        }
+
+        void BindWeaponHudGrid()
+        {
+            var nextGrid = gameManager != null ? gameManager.grid : null;
+            if (weaponHudGrid == nextGrid) return;
+            if (weaponHudGrid != null) weaponHudGrid.ControlChanged -= MarkWeaponHudDirty;
+            weaponHudGrid = nextGrid;
+            if (weaponHudGrid != null) weaponHudGrid.ControlChanged += MarkWeaponHudDirty;
+            MarkWeaponHudDirty();
+        }
+
+        void BindPlayerHealth()
+        {
+            var nextHealth = player != null ? player.Health : null;
+            if (playerHealth == nextHealth) return;
+            if (playerHealth != null)
+            {
+                playerHealth.Damaged -= OnPlayerHealthChanged;
+                playerHealth.Healed -= OnPlayerHealthChanged;
+            }
+
+            playerHealth = nextHealth;
+            if (playerHealth != null)
+            {
+                playerHealth.Damaged += OnPlayerHealthChanged;
+                playerHealth.Healed += OnPlayerHealthChanged;
+            }
+        }
+
+        void OnPlayerHealthChanged(Health _, int __)
+        {
+            MarkWeaponHudDirty();
+        }
+
+        void MarkWeaponHudDirty()
+        {
+            weaponHudDirty = true;
+            if (weaponHudRefreshRoutine == null && isActiveAndEnabled)
+            {
+                weaponHudRefreshRoutine = StartCoroutine(RefreshWeaponStatsDeferred());
+            }
+        }
+
+        void RefreshWeaponStatsForLanguageChange()
+        {
+            weaponHudDirty = true;
+            RefreshWeaponStatsIfDirty();
+        }
+
+        IEnumerator RefreshWeaponStatsDeferred()
+        {
+            yield return null;
+            weaponHudRefreshRoutine = null;
+            RefreshWeaponStatsIfDirty();
         }
 
         void BindSceneRunStats(Transform parent)
@@ -2197,6 +2351,9 @@ namespace AreaSurvivors
             var fill = parent.Find("Boss Status/Boss HP Bar/Fill");
             bossHpFill = fill != null ? fill.GetComponent<Image>() : null;
             announcementText = FindText(parent, "Announcement/Label");
+            announcementAnimator = announcementText != null
+                ? announcementText.GetComponent<AnnouncementBannerTextAnimator>()
+                : null;
             if (bossPanel != null) bossPanel.gameObject.SetActive(false);
             if (announcementText != null) announcementText.transform.parent.gameObject.SetActive(false);
         }
@@ -2208,7 +2365,9 @@ namespace AreaSurvivors
             bossHealth = boss != null ? boss.GetComponent<Health>() : null;
             if (bossHealth != null) bossHealth.Died += OnBossDied;
             if (bossPanel != null) bossPanel.gameObject.SetActive(boss != null);
-            if (bossNameText != null) bossNameText.text = boss != null ? boss.displayName : "";
+            if (bossNameText != null) bossNameText.text = boss != null
+                ? LocalizationService.LocalizeSource(boss.displayName)
+                : "";
             UpdateBossHud();
         }
 
@@ -2216,7 +2375,7 @@ namespace AreaSurvivors
         {
             if (announcementText == null || string.IsNullOrEmpty(message)) return;
             if (announcementRoutine != null) StopCoroutine(announcementRoutine);
-            announcementRoutine = StartCoroutine(AnnouncementRoutine(message));
+            announcementRoutine = StartCoroutine(AnnouncementRoutine(LocalizationService.LocalizeSource(message)));
         }
 
         IEnumerator AnnouncementRoutine(string message)
@@ -2227,8 +2386,18 @@ namespace AreaSurvivors
             var color = announcementText.color;
             color.a = 1f;
             announcementText.color = color;
-            yield return new WaitForSecondsRealtime(1.8f);
+
+            if (announcementAnimator != null)
+            {
+                yield return announcementAnimator.Play(message);
+            }
+            else
+            {
+                yield return new WaitForSecondsRealtime(1.8f);
+            }
+
             root.SetActive(false);
+            if (announcementAnimator != null) announcementAnimator.ResetVisual();
             announcementRoutine = null;
         }
 
@@ -2373,11 +2542,12 @@ namespace AreaSurvivors
             if (playerDefenseText != null) playerDefenseText.text = stats.defense.ToString("0.#");
             if (playerXpGainText != null) playerXpGainText.text = stats.xpGainMultiplier.ToString("0.0") + "x";
             if (playerRegenText != null) playerRegenText.text = stats.autoRegen.ToString();
-            UpdateWeaponStatsPanel();
         }
 
-        void UpdateWeaponStatsPanel()
+        void RefreshWeaponStatsIfDirty()
         {
+            if (!weaponHudDirty) return;
+            weaponHudDirty = false;
             weaponHud.Update(player != null ? player.weapon : null);
         }
 

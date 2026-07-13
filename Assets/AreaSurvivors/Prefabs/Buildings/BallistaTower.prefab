@@ -20,6 +20,7 @@ GameObject:
   - component: {fileID: 5277762551745827781}
   - component: {fileID: 1152097176119260912}
   - component: {fileID: 351714564250440363}
+  - component: {fileID: 919000000000000001}
   m_Layer: 0
   m_Name: BallistaTower
   m_TagString: Untagged
@@ -221,6 +222,7 @@ MonoBehaviour:
   config: {fileID: 0}
   grid: {fileID: 0}
   arrowPrefab: {fileID: 6415672035725512546, guid: 7a9f5c1a6d6f4d8f9f6a2c3b1e5d9a77, type: 3}
+  attackBounce: {fileID: 919000000000000001}
   blockingCollider: {fileID: 5540733325055689913}
   completeRenderer: {fileID: 5924226535242596999}
   sparkleRenderer: {fileID: 513159471278788643}
@@ -333,6 +335,25 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hpBar: {fileID: 6347943915433365905}
   fullHideThreshold: 0.999
+--- !u!114 &919000000000000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 368178252523101967}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 16c60b2630c38ab41b7cb76a3448ecff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  visualTargets:
+  - {fileID: 782573833923900883}
+  - {fileID: 4646868896199110736}
+  duration: 0.28
+  amplitude: 0.14
+  verticalStretch: 0.16
+  horizontalSquash: 0.07
 --- !u!1 &719268151610935976
 GameObject:
   m_ObjectHideFlags: 0

@@ -52,8 +52,14 @@ namespace AreaSurvivors
                 if (root != null) root.SetActive(active);
                 if (!active) return;
 
-                string name = entry != null ? entry.displayName : string.Empty;
-                if (entry != null && entry.convertedToToken) name += "（変換）";
+                var definition = entry != null ? RelicCatalog.Get(entry.type) : null;
+                string name = definition != null
+                    ? definition.displayName
+                    : entry != null ? LocalizationService.LocalizeSource(entry.displayName) : string.Empty;
+                if (entry != null && entry.convertedToToken)
+                {
+                    name += LocalizationService.Text("（変換）", " (converted)");
+                }
                 SetText(nameText, name);
                 if (icons != null) icons.Set(entry != null ? entry.type : RelicType.None);
             }
@@ -127,7 +133,9 @@ namespace AreaSurvivors
                 if (root != null) root.SetActive(active);
                 if (!active) return;
 
-                SetText(titleText, entry != null && !string.IsNullOrWhiteSpace(entry.label) ? entry.label : "-");
+                SetText(titleText, entry != null && !string.IsNullOrWhiteSpace(entry.label)
+                    ? LocalizationService.LocalizeSource(entry.label)
+                    : "-");
                 SetText(totalDamageText, entry != null ? entry.totalDamage.ToString() : "-");
                 SetText(dpsText, entry != null ? FormatDps(entry.Dps) : "-");
                 if (icons != null) icons.Set(entry);
@@ -245,7 +253,7 @@ namespace AreaSurvivors
             if (clearMessageText != null)
             {
                 clearMessageText.gameObject.SetActive(hasClearMessage);
-                clearMessageText.text = hasClearMessage ? result.clearMessage : string.Empty;
+                clearMessageText.text = hasClearMessage ? LocalizationService.LocalizeSource(result.clearMessage) : string.Empty;
             }
 
             bool missionCompletePopup;
@@ -297,7 +305,9 @@ namespace AreaSurvivors
             if (stageUnlockMessageText != null)
             {
                 stageUnlockMessageText.gameObject.SetActive(!missionComplete);
-                SetText(stageUnlockMessageText, missionComplete ? string.Empty : $"ステージ{unlockedStage}が解放されました");
+                SetText(stageUnlockMessageText, missionComplete
+                    ? string.Empty
+                    : LocalizationService.Format("ステージ{0}が解放されました", "Stage {0} unlocked", unlockedStage));
             }
 
             if (missionCompleteText != null)
@@ -363,7 +373,7 @@ namespace AreaSurvivors
                     var entry = hasEntryRelics && i < entries.Count ? entries[i] : null;
                     bool active = entry != null || i == 0 && !hasEntryRelics;
                     item.Set(entry, active);
-                    if (entry == null && active) SetText(item.nameText, "なし");
+                    if (entry == null && active) SetText(item.nameText, LocalizationService.Text("なし", "None"));
                 }
 
                 return;
@@ -375,7 +385,9 @@ namespace AreaSurvivors
 
             for (int i = 0; i < relicSummaryTexts.Length; i++)
             {
-                string value = hasRelics && i < relics.Count ? relics[i] : i == 0 && !hasRelics ? "なし" : string.Empty;
+                string value = hasRelics && i < relics.Count
+                    ? LocalizationService.LocalizeSource(relics[i])
+                    : i == 0 && !hasRelics ? LocalizationService.Text("なし", "None") : string.Empty;
                 SetText(relicSummaryTexts[i], value);
                 if (relicSummaryTexts[i] != null) relicSummaryTexts[i].gameObject.SetActive(!string.IsNullOrEmpty(value));
             }
@@ -383,7 +395,7 @@ namespace AreaSurvivors
 
         static void SetText(Text text, string value)
         {
-            if (text != null) text.text = value;
+            if (text != null) text.text = LocalizationService.LocalizeSource(value);
         }
 
         static string FormatDps(float value)

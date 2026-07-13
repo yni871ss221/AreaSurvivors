@@ -5,9 +5,19 @@
 - GameplayTestはScenario AssetとBootstrapで再現する。通常プレイでランダム発生を待つ検証は避ける。
 - Scenario切り替えでScene差分を出さない。Scenario選択は `EditorPrefs` を使う。
 - 通常検証はコード確認、Unity Compile 1回、関連GameplayTest 1件を目安にする。
+- ユーザーがその作業で長時間・徹底検証を明示していない場合、通常検証か大規模変更かを問わず、Unity Compileは最大2回、Play Mode開始は最大2回を標準上限とする。失敗、タイムアウト後の再試行、Sceneを変えた再確認も同じ回数へ含める。
+- 1回目は実装成立確認、2回目は原因を特定した修正後の最終確認として使う。原因未特定のまま2回目を消費してはいけない。
+- 3回目のCompileまたはPlay Modeが必要になった場合は検証を続行せず、変更を止めて原因調査フェーズへ移る。追加実行できるのは、(1) 原因がログ・設定・参照・再現条件から確定している、かつ (2) 3回目が必要な理由をユーザーへ説明して追加許可を得た場合に限る。
 - 大規模変更、再発バグ、見た目確認が必要な変更、ユーザー指定がある場合だけ完全検証を行う。
+- 直前に同じ画面・同じ分岐をPlay Mode確認済みの軽微な追調整は、関連コード/Scene差分、Unity Compile 1回、Console Error確認1回を基本とする。見た目が変わる場合だけ代表状態を1件確認し、同じ目的のリロール、連続スクリーンショット、Scene再オープンを繰り返さない。
+- 状態別表示の確認が必要な場合は、対象状態を直接再現して1件だけ確認する。通常プレイ待ちやランダムなリロール反復で確認対象を探さない。
 - よく使う確認は `unicli exec Compile`、`unicli exec Console.GetLog --logType Error --maxCount 30`、`git diff --check`。
 - UniCLIやUnity検証が止まったように見える場合は、同じ呼び出しを繰り返す前にUnityの状態、プロジェクトロック、ログ、実行中コマンドを確認する。
+- 権限確認やUniCLI呼び出しがタイムアウトした場合は、状態確認後の再試行を最大1回にする。再試行成功後は、タイムアウトを理由に追加の完全検証へ拡大しない。
+- Play Modeで想定外の結果が出たら、次の順で読み取り確認する: `PlayMode.Status` → Active Scene → 対象コンポーネントの有効状態とScene参照 → Console Error → Enter Play Mode Options（Domain Reload / Scene Reload）→ 実行した入口がユーザーの本番・テスト経路と一致しているか。これらを確認する前にコードを修正してはいけない。
+- Scene Reload無効環境では、SceneをEditorで開いてからの `PlayMode.Enter` をSceneロード時の `Awake` / `Start` 検証に使わない。テストメニューから対象Sceneへ遷移するか、限定RunnerでSceneを明示ロードして検証する。
+- フェード、待機、コルーチン、入力受付など時間依存演出の確認に、複数のUniCLI `Eval`、外部ShellのSleep、同一Scene再ロードを組み合わせない。既存テストメニュー、決定的なテスト用入口、または専用Runnerへ部品化して1回のPlay Mode内で確認する。
+- Scene/Prefab移行後はPlay Modeへ入る前に、serialized referenceがScene実体を指すこと、Prefab stripped component参照が実行時nullにならないことをReporterまたは対象限定のScene検査で確認する。
 - UniCLI `Eval` に複雑なC#コードを直接渡さない。Scene操作、Validator実行、移行処理は一時Editor Runner/Migratorを作成し、単純なEvalで呼び出す。
 - Scene/Prefabの調整値は、可能なら小さなConfig asset、ScriptableObject、座標表、専用Reporter/Validatorへ逃がし、Scene/Prefab YAML全文を読まなくて済む構造にする。
 - HUD、スキルツリー、建造メニューなどは、座標・重なり・参照欠けを要約するReporter/Validatorを優先し、全文diffや高解像度スクリーンショット確認を最後に回す。

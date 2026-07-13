@@ -9,6 +9,7 @@ namespace AreaSurvivors
     {
         public GameConfig config;
         public TileGrid grid;
+        public AttackBounceAnimator attackBounce;
         public Collider2D blockingCollider;
         public PaperMeshVisual completeRenderer;
         public PaperMeshVisual sparkleRenderer;
@@ -50,6 +51,7 @@ namespace AreaSurvivors
         void Awake()
         {
             health = GetComponent<Health>();
+            if (attackBounce == null) attackBounce = GetComponent<AttackBounceAnimator>();
             marker = GetComponent<GridObjectMarker>();
             EnsureGridObjectVisual();
             EnsureFootprintColliders();
@@ -199,6 +201,7 @@ namespace AreaSurvivors
             float searchRadius = AutoPaintSearchRadiusWorld();
             var colliders = Physics2D.OverlapCircleAll(RangeCenterWorld(), searchRadius);
             damagedTargets.Clear();
+            bool dealtDamage = false;
             for (int i = 0; i < colliders.Length; i++)
             {
                 var collider = colliders[i];
@@ -213,7 +216,10 @@ namespace AreaSurvivors
                 int creditedDamage = health.DamageAmount(damage);
                 health.Damage(damage, enemy.transform.position);
                 GameManager.Instance?.RegisterBuildingDamage(RunDamageBuildingSource.WatchTower, creditedDamage);
+                if (creditedDamage > 0) dealtDamage = true;
             }
+
+            if (dealtDamage) attackBounce?.PlayBounce();
         }
 
         bool IsCellOffsetInAutoPaintEllipse(int x, int y)

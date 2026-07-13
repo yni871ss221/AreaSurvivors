@@ -47,6 +47,10 @@ namespace AreaSurvivors
         bool hasBuildCell;
         bool canPlaceBuild;
         bool buildSceneMode;
+        string lastBuildTextSource;
+        GameLanguage lastBuildTextLanguage;
+        Color lastBuildTextColor;
+        bool hasBuildTextState;
 
         public int SelectedHudSlot { get; private set; } = -1;
 
@@ -908,8 +912,17 @@ namespace AreaSurvivors
                 buildMode == BuildMode.WatchTower ? "3 \u76e3\u8996\u5854" : "1 \u6728\u306e\u57ce\u58c1";
             var cost = CurrentBuildCost();
             var status = !buildSelectionActive ? "選択待ち" : hasBuildCell || buildBlockReason != BuildBlockReason.NoCell ? BuildStatusLabel(buildBlockReason) : "E/Click";
-            buildText.text = $"{label}\n{BuildCostLabel(cost.x, cost.y)}\n{status}";
-            buildText.color = CurrentBuildStatusColor();
+            string source = $"{label}\n{BuildCostLabel(cost.x, cost.y)}\n{status}";
+            Color color = CurrentBuildStatusColor();
+            var language = LocalizationService.CurrentLanguage;
+            if (hasBuildTextState && source == lastBuildTextSource && color == lastBuildTextColor && language == lastBuildTextLanguage) return;
+
+            lastBuildTextSource = source;
+            lastBuildTextColor = color;
+            lastBuildTextLanguage = language;
+            hasBuildTextState = true;
+            buildText.text = LocalizationService.LocalizeSource(source);
+            buildText.color = color;
         }
 
         static string BuildStatusLabel(BuildBlockReason reason)

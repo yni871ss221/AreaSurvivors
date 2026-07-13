@@ -15,12 +15,15 @@ namespace AreaSurvivors
 
         GameManager gameManager;
         PlayerController player;
-        float refreshTimer;
+        TileGrid boundGrid;
+        Health playerHealth;
+        RelicDefinition tooltipDefinition;
 
         public void Initialize(GameManager owner)
         {
             gameManager = owner;
             player = owner != null ? owner.Player : null;
+            BindRefreshSources();
             if (slots == null || slots.Length == 0) slots = GetComponentsInChildren<RelicHudSlot>(true);
             SortSlotsByDisplayOrder();
             for (int i = 0; i < slots.Length; i++)
@@ -32,17 +35,15 @@ namespace AreaSurvivors
             Refresh(true);
         }
 
-        void Update()
+        void OnDestroy()
         {
-            refreshTimer -= Time.unscaledDeltaTime;
-            if (refreshTimer > 0f) return;
-            refreshTimer = 0.15f;
-            Refresh(false);
+            UnbindRefreshSources();
         }
 
         public void Refresh(bool force = false)
         {
             if (gameManager != null && player == null) player = gameManager.Player;
+            BindPlayerHealth();
             if (slots == null) return;
             var weapon = player != null ? player.weapon : null;
             var grid = gameManager != null ? gameManager.grid : null;
@@ -61,6 +62,7 @@ namespace AreaSurvivors
         public void ShowTooltip(RelicDefinition definition)
         {
             if (definition == null || tooltipRoot == null) return;
+            tooltipDefinition = definition;
             if (tooltipTitleText != null) tooltipTitleText.text = definition.displayName;
             if (tooltipDescriptionText != null) tooltipDescriptionText.text = definition.description;
             if (tooltipEffectText != null) tooltipEffectText.text = definition.effectText;
@@ -78,7 +80,68 @@ namespace AreaSurvivors
 
         public void HideTooltip()
         {
+            tooltipDefinition = null;
             if (tooltipRoot != null) tooltipRoot.SetActive(false);
+        }
+
+        void BindRefreshSources()
+        {
+            UnbindRefreshSources();
+            if (gameManager != null)
+            {
+                gameManager.CombatModifiersChanged += OnRefreshRequested;
+                boundGrid = gameManager.grid;
+                if (boundGrid != null) boundGrid.ControlChanged += OnRefreshRequested;
+            }
+
+            LocalizationService.LanguageChanged += OnRefreshRequested;
+            BindPlayerHealth();
+        }
+
+        void UnbindRefreshSources()
+        {
+            if (gameManager != null) gameManager.CombatModifiersChanged -= OnRefreshRequested;
+            if (boundGrid != null) boundGrid.ControlChanged -= OnRefreshRequested;
+            boundGrid = null;
+            if (playerHealth != null)
+            {
+                playerHealth.Damaged -= OnPlayerHealthChanged;
+                playerHealth.Healed -= OnPlayerHealthChanged;
+            }
+            playerHealth = null;
+            LocalizationService.LanguageChanged -= OnRefreshRequested;
+        }
+
+        void BindPlayerHealth()
+        {
+            var nextHealth = player != null ? player.Health : null;
+            if (nextHealth == playerHealth) return;
+            if (playerHealth != null)
+            {
+                playerHealth.Damaged -= OnPlayerHealthChanged;
+                playerHealth.Healed -= OnPlayerHealthChanged;
+            }
+
+            playerHealth = nextHealth;
+            if (playerHealth != null)
+            {
+                playerHealth.Damaged += OnPlayerHealthChanged;
+                playerHealth.Healed += OnPlayerHealthChanged;
+            }
+        }
+
+        void OnPlayerHealthChanged(Health _, int __)
+        {
+            OnRefreshRequested();
+        }
+
+        void OnRefreshRequested()
+        {
+            Refresh(false);
+            if (tooltipDefinition != null && tooltipRoot != null && tooltipRoot.activeSelf)
+            {
+                ShowTooltip(tooltipDefinition);
+            }
         }
 
         void SortSlotsByDisplayOrder()

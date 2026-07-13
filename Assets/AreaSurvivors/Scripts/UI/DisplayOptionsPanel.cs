@@ -27,8 +27,14 @@ namespace AreaSurvivors
 
         void OnEnable()
         {
+            LocalizationService.LanguageChanged += Refresh;
             Refresh();
             ignoreResizeUntil = Time.unscaledTime + 0.35f;
+        }
+
+        void OnDisable()
+        {
+            LocalizationService.LanguageChanged -= Refresh;
         }
 
         void Update()
@@ -103,7 +109,11 @@ namespace AreaSurvivors
         {
             bool windowed = DisplaySettingsStore.Mode == DisplayWindowMode.Windowed;
             if (resolutionRoot != null) resolutionRoot.SetActive(windowed);
-            if (statusText != null) statusText.text = "現在: " + DisplaySettingsStore.CurrentResolutionLabel();
+            if (statusText != null)
+            {
+                statusText.text = LocalizationService.Text("現在: ", "Current: ")
+                    + LocalizationService.LocalizeSource(DisplaySettingsStore.CurrentResolutionLabel());
+            }
             RefreshDropdowns(windowed);
 
             SetButtonLabelColor(fullscreenButton, !windowed ? selectedColor : normalColor);
@@ -174,11 +184,10 @@ namespace AreaSurvivors
         {
             if (modeDropdown != null)
             {
-                if (modeDropdown.options == null || modeDropdown.options.Count != 2)
-                {
-                    modeDropdown.ClearOptions();
-                    modeDropdown.AddOptions(new List<string> { "フルスクリーン", "ウィンドウ" });
-                }
+                modeDropdown.ClearOptions();
+                modeDropdown.AddOptions(LocalizationService.IsEnglish
+                    ? new List<string> { "Fullscreen", "Windowed" }
+                    : new List<string> { "フルスクリーン", "ウィンドウ" });
 
                 modeDropdown.SetValueWithoutNotify(windowed ? (int)DisplayWindowMode.Windowed : (int)DisplayWindowMode.Fullscreen);
                 modeDropdown.RefreshShownValue();
@@ -194,7 +203,8 @@ namespace AreaSurvivors
             int selectedIndex = Mathf.Clamp(DisplaySettingsStore.PresetIndex, 0, DisplaySettingsStore.Presets.Length - 1);
             if (DisplaySettingsStore.IsCustomWindowSize)
             {
-                labels.Add("カスタム " + DisplaySettingsStore.CustomWidth + " x " + DisplaySettingsStore.CustomHeight);
+                labels.Add(LocalizationService.Text("カスタム ", "Custom ")
+                    + DisplaySettingsStore.CustomWidth + " x " + DisplaySettingsStore.CustomHeight);
                 selectedIndex = labels.Count - 1;
             }
 

@@ -20,6 +20,13 @@ AreaSurvivors リポジトリ全体に適用する低トークン運用の入口
 ## Low Token First
 
 - 単純なUI追加、検索、差分確認、小修正は軽量モデル・低推論で始める。設計判断、原因不明バグ、Scene/Prefab移行、戦闘仕様変更だけ高推論に上げる。
+- ユーザーがその作業で「時間をかけてもよい」「徹底検証してよい」等を明示していない限り、作業規模を問わず Unity Compile は最大2回、Play Mode開始は最大2回を標準上限とする。失敗した実行、再試行、確認目的の再実行も回数へ含める。
+- CompileまたはPlay Modeの3回目が必要になった時点で実装・修正を止める。直前までの結果、想定外の事象、未確定の仮説を整理し、コードを変更せず原因調査を優先する。原因を根拠付きで確定できず、ユーザーの追加許可もない状態で3回目を実行してはいけない。
+- 想定外の結果が出た後に、仮説だけでコード修正→Compile→Play Modeを反復することを禁止する。先にEditor設定、Play/Compile状態、Active Scene、Scene/Prefab参照、ライフサイクル、Console、テスト経路が本番経路と同一かを読み取り確認する。
+- 同種のコマンド失敗、引数ミス、エスケープ不良、検証不能が2回発生した場合、それ以上の手打ち再試行を禁止する。`Tools/TokenUsage` のWrapper、限定Editor Runner、Reporter、Validator、または再利用可能な検証コマンドとして部品化し、以後はその入口だけを使う。
+- 文言、色、整列、数値、数px単位の位置など、直前に確認済み機能への軽微な追調整はFast Pathで扱う。対象特定 → 同種変更の一括適用 → Unity Compile 1回 → 必要な代表表示1件 → Console Error確認1回を上限目安とし、確認済み経路のPlay Mode、リロール、スクリーンショット、Scene往復を重複実行しない。
+- 同じScene/UIの複数要素や複数プロパティを変更する場合、`unicli` を1要素・1プロパティごとに反復しない。最初に対象と調整値を表にまとめ、明示依頼された対象だけをSceneへ一括反映して保存は1回にする。
+- 権限確認やUnity連携がタイムアウトした場合は、モデル推論や実装不良と混同しない。Unity状態を確認して同じ操作を最大1回だけ再試行し、成功後に検証範囲を追加で広げない。
 - 作業種別が曖昧な場合は `Tools/TokenUsage/rule-router.ps1 -Task "<依頼内容>"` で読む詳細ルールと中核ファイルを絞る。
 - 初手で `Assets/AreaSurvivors` 全体へ広域 `rg` をかけない。`safe-search.ps1 -FilesOnly`、`-HitSummary`、`focused-search.ps1` を先に使う。
 - 読み取りは `safe-read.ps1 -Pattern <語> -Context <行数>` または `-StartLine` / `-EndLine` を優先する。

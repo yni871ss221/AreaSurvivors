@@ -82,9 +82,15 @@ namespace AreaSurvivors
     public sealed class RelicDefinition
     {
         public RelicType type;
-        public string displayName;
-        public string description;
-        public string effectText;
+        readonly string displayNameJapanese;
+        readonly string descriptionJapanese;
+        readonly string effectTextJapanese;
+        public string displayNameSource => displayNameJapanese;
+        public string descriptionSource => descriptionJapanese;
+        public string effectTextSource => effectTextJapanese;
+        public string displayName => LocalizationService.LocalizeSource(displayNameJapanese);
+        public string description => LocalizationService.LocalizeSource(descriptionJapanese);
+        public string effectText => LocalizationService.LocalizeSource(effectTextJapanese);
         public string iconPath;
         public RelicRarity rarity;
         public RelicEffectKind effectKind;
@@ -105,9 +111,9 @@ namespace AreaSurvivors
             WeaponAttributeType targetAttribute = WeaponAttributeType.None)
         {
             this.type = type;
-            this.displayName = displayName;
-            this.description = description;
-            this.effectText = effectText;
+            displayNameJapanese = displayName;
+            descriptionJapanese = description;
+            effectTextJapanese = effectText;
             this.iconPath = iconPath;
             this.rarity = rarity;
             this.effectKind = effectKind;
@@ -131,7 +137,7 @@ namespace AreaSurvivors
             new RelicDefinition(RelicType.WindBoots, "風走りの靴", "風を編み込んだ軽い靴。危険地帯を駆け抜けやすくなります。", "移動速度 +8%", "RelicWindBoots", RelicRarity.Uncommon, RelicEffectKind.MoveSpeedMultiplier, 0.08f),
             new RelicDefinition(RelicType.ScholarLens, "学びのレンズ", "経験の流れを見通す小さなレンズ。戦いから多くを学べます。", "経験値獲得量 +10%", "RelicScholarLens", RelicRarity.Uncommon, RelicEffectKind.XpGainMultiplier, 0.1f),
             new RelicDefinition(RelicType.GoldenSeal, "黄金の印章", "勝利の報酬を呼び込む黄金の印。遠征後の成果が増えます。", "クリア/敗北時トークン +10%", "RelicGoldenSeal", RelicRarity.Uncommon, RelicEffectKind.EndTokenMultiplier, 0.1f),
-            new RelicDefinition(RelicType.MasonStrikeSigil, "石工の打撃符", "職人の槌跡が刻まれた札。建造物の一撃をわずかに重くします。", "建造物の攻撃力 +1", "RelicMasonStrikeSigil", RelicRarity.Common, RelicEffectKind.BuildingAttackBonus, 1f),
+            new RelicDefinition(RelicType.MasonStrikeSigil, "石工の打撃符", "職人の槌跡が刻まれた札。中心塔とバリスタの一撃をわずかに重くします。", "中心塔とバリスタの攻撃力 +1", "RelicMasonStrikeSigil", RelicRarity.Common, RelicEffectKind.BuildingAttackBonus, 1f),
             new RelicDefinition(RelicType.SwordsmanGlove, "剣士の小手", "握りを安定させる革の小手。近接武器の威力を高めます。", "近接系武器の攻撃力 +1", "RelicSwordsmanGlove", RelicRarity.Common, RelicEffectKind.WeaponAttackBonus, 1f, WeaponType.Slash, WeaponAttributeType.Melee),
             new RelicDefinition(RelicType.Hawkfeather, "鷹目の羽根", "矢筋を読む羽根飾り。遠距離武器の攻撃間隔を短縮します。", "遠距離系武器の攻撃間隔 -5%", "RelicHawkfeather", RelicRarity.Common, RelicEffectKind.WeaponCooldownMultiplier, 0.95f, WeaponType.Arrow, WeaponAttributeType.Ranged),
             new RelicDefinition(RelicType.ChantingHourglass, "詠唱の砂時計", "砂が落ちるたびに詠唱が整います。魔法武器の攻撃間隔を短縮します。", "魔法系武器の攻撃間隔 -5%", "RelicChantingHourglass", RelicRarity.Common, RelicEffectKind.WeaponCooldownMultiplier, 0.95f, WeaponType.Fireball, WeaponAttributeType.Magic),
@@ -154,7 +160,7 @@ namespace AreaSurvivors
             new RelicDefinition(RelicType.DominionCrown, "王域の王冠", "支配した土地の力を中心塔へ集める王冠です。", "塗ったエリアに応じて中心塔の攻撃力上昇（最大2倍）", "RelicDominionCrown", RelicRarity.Rare, RelicEffectKind.CenterTowerPaintAttackMultiplier, 1f),
             new RelicDefinition(RelicType.RulerSight, "支配者の照準器", "領域の広がりを弩の狙いへ変える照準器です。", "塗ったエリアに応じてバリスタの攻撃力上昇（最大2倍）", "RelicRulerSight", RelicRarity.Rare, RelicEffectKind.BallistaPaintAttackMultiplier, 1f),
             new RelicDefinition(RelicType.RegeneratingWallstone, "再生する城壁石", "欠けてもゆっくり形を戻す不思議な石材です。", "壁の自動回復 +3", "RelicRegeneratingWallstone", RelicRarity.Uncommon, RelicEffectKind.WallAutoRegenBonus, 3f),
-            new RelicDefinition(RelicType.SlayerMedal, "討伐者の勲章", "倒した敵の数だけ重みを増す勲章です。", "敵撃破100ごとに攻撃力 +1（最大+10）", "RelicSlayerMedal", RelicRarity.Rare, RelicEffectKind.KillAttackBonusPerHundred, 1f),
+            new RelicDefinition(RelicType.SlayerMedal, "討伐者の勲章", "このランで倒した敵の数だけ重みを増す勲章です。", "ラン中の敵撃破100体ごとに攻撃力 +1（最大+10）", "RelicSlayerMedal", RelicRarity.Rare, RelicEffectKind.KillAttackBonusPerHundred, 1f),
             new RelicDefinition(RelicType.WealthWarSeal, "富豪の戦印", "戦場で得た富を力へ変える戦印です。", "ラン中トークン10ごとに攻撃力 +1（最大+10）", "RelicWealthWarSeal", RelicRarity.Rare, RelicEffectKind.RunTokenAttackBonusPerTen, 1f),
             new RelicDefinition(RelicType.TriBladeCrest, "三刃王の紋章", "三つの刃を束ねる王の紋章です。近接武器のみで攻める者に豪腕を授けます。", "近接武器3種装備時、攻撃力 +20", "RelicTriBladeCrest", RelicRarity.Legendary, RelicEffectKind.TripleMeleeAttackBonus, 20f),
             new RelicDefinition(RelicType.StarbowSightCrown, "星弓の照準冠", "星の軌跡を矢筋へ変える黄金の冠です。遠距離武器の連携を極限まで研ぎ澄まします。", "遠距離武器3種装備時、攻撃力 +20", "RelicStarbowSightCrown", RelicRarity.Legendary, RelicEffectKind.TripleRangedAttackBonus, 20f),
@@ -352,19 +358,26 @@ namespace AreaSurvivors
 
         public static string GetRarityDisplayName(RelicRarity rarity)
         {
+            string japanese;
             switch (rarity)
             {
                 case RelicRarity.Common:
-                    return "コモン";
+                    japanese = "コモン";
+                    break;
                 case RelicRarity.Uncommon:
-                    return "アンコモン";
+                    japanese = "アンコモン";
+                    break;
                 case RelicRarity.Rare:
-                    return "レア";
+                    japanese = "レア";
+                    break;
                 case RelicRarity.Legendary:
-                    return "レジェンダリー";
+                    japanese = "レジェンダリー";
+                    break;
                 default:
                     return string.Empty;
             }
+
+            return LocalizationService.LocalizeSource(japanese);
         }
 
         static RelicRarity PickAvailableRarity()

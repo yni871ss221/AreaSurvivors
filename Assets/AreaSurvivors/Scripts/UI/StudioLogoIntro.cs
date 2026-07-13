@@ -8,12 +8,12 @@ namespace AreaSurvivors
     public sealed class StudioLogoIntro : MonoBehaviour
     {
         public static bool IsPlaying { get; private set; }
-        public static bool HasPlayedThisSession { get; private set; }
 
         public GameObject logoOverlay;
         public CanvasGroup logoGroup;
         public RectTransform logoRect;
         public TitleIntroAnimator titleIntroAnimator;
+        public OpeningStorySequence openingStorySequence;
         public float fadeInDuration = 0.28f;
         public float bounceDuration = 0.72f;
         public float holdDuration = 0.95f;
@@ -23,27 +23,29 @@ namespace AreaSurvivors
         public Vector3 finalScale = Vector3.one;
 
         Graphic logoGraphic;
+        bool introRequested;
+        bool startWithStory;
+        bool startWithLogo;
+        bool playStoryAfterLogo;
 
         void Awake()
         {
             logoGraphic = logoRect != null ? logoRect.GetComponent<Graphic>() : null;
+            bool storyTestRequested = RuntimeFeatureFlags.ShowTestFeatures && RunState.ConsumeOpeningStoryTestRequest();
+            bool initialLaunchIntro = ApplicationLaunchSession.TryStartLaunchIntro();
+            startWithStory = storyTestRequested;
+            startWithLogo = initialLaunchIntro;
+            playStoryAfterLogo = initialLaunchIntro && RuntimeFeatureFlags.PlayOpeningStoryOnApplicationLaunch;
 
-            if (HasPlayedThisSession)
+            if (!startWithStory && !startWithLogo)
             {
+                introRequested = false;
                 IsPlaying = false;
-                if (logoOverlay != null) logoOverlay.SetActive(false);
-                if (logoGroup != null)
-                {
-                    logoGroup.alpha = 0f;
-                    logoGroup.interactable = false;
-                    logoGroup.blocksRaycasts = false;
-                }
-
-                SetLogoAlpha(0f);
+                HideIntroVisuals();
                 return;
             }
 
-            HasPlayedThisSession = true;
+            introRequested = true;
             IsPlaying = true;
             if (titleIntroAnimator != null)
             {
@@ -51,7 +53,7 @@ namespace AreaSurvivors
                 titleIntroAnimator.HideInstant();
             }
 
-            if (logoOverlay != null) logoOverlay.SetActive(true);
+            if (logoOverlay != null) logoOverlay.SetActive(false);
             if (logoGroup != null)
             {
                 logoGroup.alpha = 1f;
@@ -65,12 +67,34 @@ namespace AreaSurvivors
             }
 
             SetLogoAlpha(0f);
+            if (openingStorySequence != null) openingStorySequence.gameObject.SetActive(false);
         }
 
         void Start()
         {
-            if (!IsPlaying) return;
-            StartCoroutine(Play());
+            if (!introRequested) return;
+            IsPlaying = true;
+            if (startWithLogo)
+            {
+                StartCoroutine(PlayLogo());
+                return;
+            }
+
+            if (startWithStory)
+            {
+                if (openingStorySequence != null)
+                {
+                    openingStorySequence.Play(OnOpeningStoryCompleted);
+                }
+                else
+                {
+                    BeginTitleIntro();
+                }
+
+                return;
+            }
+
+            StartCoroutine(PlayLogo());
         }
 
         void OnDisable()
@@ -78,7 +102,7 @@ namespace AreaSurvivors
             IsPlaying = false;
         }
 
-        IEnumerator Play()
+        IEnumerator PlayLogo()
         {
             if (logoOverlay == null || logoRect == null)
             {
@@ -86,6 +110,9 @@ namespace AreaSurvivors
                 yield break;
             }
 
+            logoOverlay.SetActive(true);
+            logoRect.localScale = startScale;
+            SetLogoAlpha(0f);
             yield return FadeLogo(0f, 1f, fadeInDuration);
             yield return Scale(startScale, overshootScale, bounceDuration * 0.55f, EaseOutBack);
             AudioManager.PlaySfx(SfxTrack.StudioLogoBounce);
@@ -94,14 +121,42 @@ namespace AreaSurvivors
             yield return FadeLogo(1f, 0f, fadeOutDuration);
 
             if (logoOverlay != null) logoOverlay.SetActive(false);
+            if (playStoryAfterLogo && openingStorySequence != null)
+            {
+                playStoryAfterLogo = false;
+                openingStorySequence.Play(OnOpeningStoryCompleted);
+                yield break;
+            }
+
+            BeginTitleIntro();
+        }
+
+        void OnOpeningStoryCompleted(bool skipped)
+        {
+            if (openingStorySequence != null) openingStorySequence.gameObject.SetActive(false);
             BeginTitleIntro();
         }
 
         void BeginTitleIntro()
         {
+            HideIntroVisuals();
             IsPlaying = false;
             AudioManager.PlayBgm(BgmTrack.TitleOptions);
             if (titleIntroAnimator != null) titleIntroAnimator.enabled = true;
+        }
+
+        void HideIntroVisuals()
+        {
+            if (openingStorySequence != null) openingStorySequence.gameObject.SetActive(false);
+            if (logoOverlay != null) logoOverlay.SetActive(false);
+            if (logoGroup != null)
+            {
+                logoGroup.alpha = 0f;
+                logoGroup.interactable = false;
+                logoGroup.blocksRaycasts = false;
+            }
+
+            SetLogoAlpha(0f);
         }
 
         IEnumerator FadeLogo(float from, float to, float duration)
@@ -188,6 +243,41 @@ namespace AreaSurvivors
 
             t -= 2.625f / d1;
             return n1 * t * t + 0.984375f;
+        }
+    }
+
+    static class ApplicationLaunchSession
+    {
+        static int sessionStartFrame;
+        static bool launchIntroClaimed;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetApplicationSession()
+        {
+            // SubsystemRegistration runs once for every normal Play/application session.
+            sessionStartFrame = Time.frameCount;
+            launchIntroClaimed = false;
+        }
+
+#if UNITY_EDITOR
+        [UnityEditor.InitializeOnEnterPlayMode]
+        static void ResetEditorPlaySession(UnityEditor.EnterPlayModeOptions options)
+        {
+            // RuntimeInitializeOnLoadMethod is skipped when both Domain Reload
+            // and Scene Reload are disabled, so reset the same session state here.
+            ResetApplicationSession();
+        }
+#endif
+
+        public static bool TryStartLaunchIntro()
+        {
+            // A StudioLogoIntro can claim the launch sequence only while the
+            // application's initial Scene is awakening. Returning to Title in
+            // a later frame never replays either the story or studio logo.
+            if (launchIntroClaimed || Time.frameCount - sessionStartFrame > 1) return false;
+
+            launchIntroClaimed = true;
+            return true;
         }
     }
 }

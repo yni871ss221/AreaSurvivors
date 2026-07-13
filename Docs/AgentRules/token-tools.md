@@ -2,6 +2,14 @@
 
 - 日常の高出力候補コマンドは `Tools/TokenUsage/guarded-command.ps1`、`safe-status.ps1`、`safe-diff.ps1`、`safe-search.ps1`、`safe-read.ps1`、`safe-unity.ps1` を入口にする。
 - 小規模変更では既知の中核ファイル2〜3個から読み、初手で `Assets/AreaSurvivors` 全体へ広域検索しない。
+- 軽微な追調整では、同一対象への `unicli exec Component.SetProperty`、`GameObject.SetParent`、`Scene.Save` を細切れに反復しない。対象ID、変更プロパティ、最終値を先にまとめ、可能な限り1回の一括Scene編集または単一の限定Runnerで反映し、保存も最後の1回だけにする。
+- 作業規模にかかわらず、ユーザーが長時間検証を明示していない作業ではCompile最大2回、Play Mode最大2回をコマンド予算として作業開始時に確保する。予算を使い切ってから原因調査を始めるのではなく、最初の想定外結果で調査へ切り替える。
+- 同じ目的のUniCLI、PowerShell、Eval、Scene操作を引数だけ変えて2回失敗した場合、3回目を手打ちしない。既存Wrapperの有無を確認し、なければ `Tools/TokenUsage` の限定Wrapper、Editor Runner、Reporter、Validatorへ部品化する。
+- 部品化するコマンドは、入力パラメータ、前提状態、実行対象、期待結果、失敗時の診断出力を固定し、成功条件を機械判定できる形にする。単に長い手打ちコマンドをスクリプトへ移すだけでは不十分とする。
+- エスケープやShell差異で失敗したコマンドを同じ会話内で再構成し続けない。PowerShellの文字列処理、Unity Eval、画像処理、Scene移行は用途別Wrapperへ分離し、検証済みの呼び出し形式だけを再利用する。
+- 想定外の結果を受けた調査コマンドは読み取り専用を優先する。状態を変更するEval、Scene再ロード、Play Mode再開始は原因調査ではなく検証回数として数える。
+- 直前の作業で取得済みのScene階層、instance ID、Sprite参照、表示経路は、Scene再読込やコンパイルで無効化されていない限り再検索しない。
+- 軽微なUI変更のスクリーンショットは代表状態1枚を上限目安とする。通常状態と特殊状態の両方が変更対象の場合だけ各1枚とし、同一状態の再撮影を避ける。
 - `safe-search.ps1 -PrintOutput` は原則 `-First 20` 以下。広域検索は `-FilesOnly` または `-HitSummary` を先に使う。
 - `safe-read.ps1` は `-Pattern` / `-Context` または `-StartLine` / `-EndLine` を優先し、長い `Get-Content` を避ける。
 - Scene/Prefab内検索は `Tools/TokenUsage/safe-unity-search.ps1 -Query <対象名>` またはUnity Reporterを使い、YAML全文を読まない。

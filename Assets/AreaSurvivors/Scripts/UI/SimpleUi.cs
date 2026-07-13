@@ -76,7 +76,7 @@ namespace AreaSurvivors
             go.transform.SetParent(parent, false);
             var label = go.AddComponent<Text>();
             label.font = JapaneseFontProvider.Font;
-            label.text = text;
+            label.text = LocalizationService.LocalizeSource(text);
             label.fontSize = fontSize;
             label.alignment = alignment;
             label.color = color ?? Color.white;

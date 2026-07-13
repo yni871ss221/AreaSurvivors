@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -14,6 +15,7 @@ namespace AreaSurvivors
 
         public Button weaponBookButton;
         public Button relicButton;
+        public ScreenFadeOverlay screenFade;
 
         Canvas lobbyUi;
         SceneNavigator navigator;
@@ -275,6 +277,20 @@ namespace AreaSurvivors
             if (isStartingGame) return;
             if (!ProgressionStore.IsStageUnlocked(stage)) return;
             isStartingGame = true;
+            StartCoroutine(LoadGameAfterFade(stage));
+        }
+
+        IEnumerator LoadGameAfterFade(int stage)
+        {
+            if (screenFade != null)
+            {
+                yield return screenFade.FadeToBlack();
+            }
+            else
+            {
+                Debug.LogError("LobbyScreen requires a Scene-authored ScreenFadeOverlay.");
+            }
+
             ProgressionStore.IncrementPlayCount();
             RunState.SetNextStartStage(stage);
             navigator.LoadGame();
@@ -418,13 +434,13 @@ namespace AreaSurvivors
         void SetText(string name, string value)
         {
             var text = FindChild(name)?.GetComponent<Text>();
-            if (text != null) text.text = value;
+            if (text != null) text.text = LocalizationService.LocalizeSource(value);
         }
 
         static void SetText(Transform root, string name, string value)
         {
             var text = FindChild(root, name)?.GetComponent<Text>();
-            if (text != null) text.text = value;
+            if (text != null) text.text = LocalizationService.LocalizeSource(value);
         }
 
         static void SetActive(Transform root, string name, bool active)

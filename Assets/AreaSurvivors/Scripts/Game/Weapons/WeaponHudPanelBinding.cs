@@ -74,7 +74,7 @@ namespace AreaSurvivors
             {
                 case WeaponType.Slash:
                     var slash = weapon.EffectiveSlashStats;
-                    slot.ConfigureHeader("スラッシュ", "Slash_0", WeaponAttributeType.Melee);
+                    slot.ConfigureHeader(WeaponCatalog.DisplayNameSource(WeaponType.Slash), "Slash_0", WeaponAttributeType.Melee);
                     slot.ConfigureRows(
                         RowSpec.Normal("攻撃力", weapon.SlashAttackPower.ToString(), StatIconCatalog.Attack),
                         RowSpec.Normal("攻撃間隔", Seconds(slash.cooldownSeconds), StatIconCatalog.Cooldown),
@@ -83,7 +83,7 @@ namespace AreaSurvivors
                     break;
                 case WeaponType.Arrow:
                     var arrow = weapon.EffectiveArrowStats;
-                    slot.ConfigureHeader("弓", "ArrowHudIcon", WeaponAttributeType.Ranged);
+                    slot.ConfigureHeader(WeaponCatalog.DisplayNameSource(WeaponType.Arrow), "ArrowHudIcon", WeaponAttributeType.Ranged);
                     slot.ConfigureRows(
                         RowSpec.Normal("攻撃力", arrow.attackPower.ToString(), StatIconCatalog.Attack),
                         RowSpec.Normal("攻撃間隔", Seconds(arrow.cooldownSeconds), StatIconCatalog.Cooldown),
@@ -92,7 +92,7 @@ namespace AreaSurvivors
                     break;
                 case WeaponType.Fireball:
                     var fireball = weapon.EffectiveFireballStats;
-                    slot.ConfigureHeader("ファイアボール", "FireballHudIcon", WeaponAttributeType.Magic);
+                    slot.ConfigureHeader(WeaponCatalog.DisplayNameSource(WeaponType.Fireball), "FireballHudIcon", WeaponAttributeType.Magic);
                     slot.ConfigureRows(
                         RowSpec.Normal("攻撃力", fireball.attackPower.ToString(), StatIconCatalog.Attack),
                         RowSpec.Normal("攻撃間隔", Seconds(fireball.cooldownSeconds), StatIconCatalog.Cooldown),
@@ -101,7 +101,7 @@ namespace AreaSurvivors
                     break;
                 case WeaponType.Shield:
                     var shield = weapon.EffectiveShieldStats;
-                    slot.ConfigureHeader("シールド", "Shield", WeaponAttributeType.Defense);
+                    slot.ConfigureHeader(WeaponCatalog.DisplayNameSource(WeaponType.Shield), "Shield", WeaponAttributeType.Defense);
                     slot.ConfigureRows(
                         RowSpec.Normal("攻撃力", shield.attackPower.ToString(), StatIconCatalog.Attack),
                         RowSpec.Normal("シールド数", shield.projectileCount.ToString(), StatIconCatalog.Defense),
@@ -117,7 +117,7 @@ namespace AreaSurvivors
         static void ConfigureAdvancedSlot(WeaponSlotBinding slot, WeaponController weapon, WeaponType type, bool specialActive)
         {
             var stats = weapon.GetEffectiveWeaponStatsFor(type);
-            slot.ConfigureHeader(WeaponCatalog.DisplayName(type), WeaponCatalog.IconResource(type), WeaponAttributeCatalog.ForWeapon(type));
+            slot.ConfigureHeader(WeaponCatalog.DisplayNameSource(type), WeaponCatalog.IconResource(type), WeaponAttributeCatalog.ForWeapon(type));
             switch (type)
             {
                 case WeaponType.Flag:
@@ -196,7 +196,8 @@ namespace AreaSurvivors
             slot.SetContentVisible(visible);
             if (slotIndex < weaponSlotPositions.Length)
             {
-                slot.Panel.anchoredPosition = weaponSlotPositions[slotIndex];
+                Vector2 targetPosition = weaponSlotPositions[slotIndex];
+                if (slot.Panel.anchoredPosition != targetPosition) slot.Panel.anchoredPosition = targetPosition;
             }
         }
 
@@ -270,6 +271,9 @@ namespace AreaSurvivors
             readonly Image icon;
             readonly WeaponAttributeIconSet attributeIconSet;
             readonly List<RowBinding> rows = new List<RowBinding>();
+            string lastIconResource;
+            WeaponAttributeType lastAttributeType = WeaponAttributeType.None;
+            bool hasHeaderState;
 
             public WeaponSlotBinding(RectTransform panel)
             {
@@ -295,28 +299,35 @@ namespace AreaSurvivors
             {
                 SetActive(icon != null ? icon.gameObject : null, visible);
                 SetActive(title != null ? title.gameObject : null, visible);
-                if (attributeIconSet != null)
+                if (attributeIconSet != null && !visible)
                 {
-                    if (visible) attributeIconSet.Show(WeaponAttributeType.Melee);
-                    else attributeIconSet.Hide();
+                    attributeIconSet.Hide();
+                    hasHeaderState = false;
                 }
 
-                foreach (var row in rows)
+                if (!visible)
                 {
-                    row.SetVisible(false);
+                    foreach (var row in rows)
+                    {
+                        row.SetVisible(false);
+                    }
                 }
             }
 
             public void ConfigureHeader(string label, string iconResource, WeaponAttributeType attributeType)
             {
-                if (title != null) title.text = label;
-                if (icon != null)
+                string localizedLabel = LocalizationService.LocalizeSource(label);
+                if (title != null && title.text != localizedLabel) title.text = localizedLabel;
+                if (icon != null && lastIconResource != iconResource)
                 {
                     var sprite = GeneratedSpriteLoader.Load(iconResource);
                     if (sprite != null) icon.sprite = sprite;
                 }
 
-                if (attributeIconSet != null) attributeIconSet.Show(attributeType);
+                if (attributeIconSet != null && (!hasHeaderState || lastAttributeType != attributeType)) attributeIconSet.Show(attributeType);
+                lastIconResource = iconResource;
+                lastAttributeType = attributeType;
+                hasHeaderState = true;
             }
 
             public void ConfigureRows(params RowSpec[] specs)
@@ -340,7 +351,7 @@ namespace AreaSurvivors
 
             static void SetActive(GameObject go, bool active)
             {
-                if (go != null) go.SetActive(active);
+                if (go != null && go.activeSelf != active) go.SetActive(active);
             }
         }
 
@@ -351,6 +362,12 @@ namespace AreaSurvivors
             public readonly Text Value;
             readonly Image icon;
             readonly Color normalValueColor;
+            string lastLabelSource;
+            GameLanguage lastLanguage;
+            string lastValue;
+            string lastIconResource;
+            bool lastSpecialActive;
+            bool hasState;
 
             public RowBinding(Transform row)
             {
@@ -364,23 +381,37 @@ namespace AreaSurvivors
             public void Apply(RowSpec spec)
             {
                 SetVisible(true);
-                if (label != null) label.text = spec.Label;
+                var language = LocalizationService.CurrentLanguage;
+                if (label != null && (!hasState || lastLabelSource != spec.Label || lastLanguage != language))
+                {
+                    label.text = LocalizationService.LocalizeSource(spec.Label);
+                }
                 if (Value != null)
                 {
-                    Value.text = spec.Value;
-                    Value.color = spec.SpecialActive ? SpecialActiveColor : normalValueColor;
+                    if (!hasState || lastValue != spec.Value) Value.text = spec.Value;
+                    if (!hasState || lastSpecialActive != spec.SpecialActive)
+                    {
+                        Value.color = spec.SpecialActive ? SpecialActiveColor : normalValueColor;
+                    }
                 }
 
-                if (icon != null)
+                if (icon != null && (!hasState || lastIconResource != spec.IconResource))
                 {
                     var sprite = StatIconCatalog.Load(spec.IconResource);
                     if (sprite != null) icon.sprite = sprite;
                 }
+
+                lastLabelSource = spec.Label;
+                lastLanguage = language;
+                lastValue = spec.Value;
+                lastIconResource = spec.IconResource;
+                lastSpecialActive = spec.SpecialActive;
+                hasState = true;
             }
 
             public void SetVisible(bool visible)
             {
-                if (root != null) root.SetActive(visible);
+                if (root != null && root.activeSelf != visible) root.SetActive(visible);
             }
         }
 

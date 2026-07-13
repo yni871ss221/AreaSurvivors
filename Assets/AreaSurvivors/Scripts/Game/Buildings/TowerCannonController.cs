@@ -9,6 +9,7 @@ namespace AreaSurvivors
         public Sprite cannonballSprite;
         public Sprite explosionSprite;
         public Vector3 muzzleOffset = Vector3.zero;
+        public AttackBounceAnimator attackBounce;
         int damageBonus;
         float explosionRadiusMultiplier = 1f;
         float cooldown;
@@ -20,6 +21,7 @@ namespace AreaSurvivors
             config = gameConfig;
             cooldown = Mathf.Min(0.75f, CooldownSeconds());
             grid = FindObjectOfType<TileGrid>();
+            if (attackBounce == null) attackBounce = GetComponent<AttackBounceAnimator>();
             configured = true;
         }
 
@@ -105,6 +107,7 @@ namespace AreaSurvivors
                 (config != null ? config.towerCannonExplosionRadius : 1.25f) * explosionRadiusMultiplier,
                 config != null ? config.towerCannonProjectileLifetime : 4.2f,
                 config != null ? config.towerCannonProjectileVisualScale : 0.32f);
+            attackBounce?.PlayBounce();
         }
     }
 }

@@ -14,6 +14,7 @@ namespace AreaSurvivors
         public int highestUnlockedStage = 1;
         public int highestClearedStage;
         public int selectedStage = 1;
+        public bool openingStoryCompleted;
         public CharacterType selectedCharacter;
         public List<UpgradeLevel> upgrades = new List<UpgradeLevel>();
         public List<RelicRecord> relics = new List<RelicRecord>();

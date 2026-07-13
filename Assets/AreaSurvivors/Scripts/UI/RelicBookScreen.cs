@@ -226,7 +226,7 @@ namespace AreaSurvivors
 
         static void SetText(Text text, string value)
         {
-            if (text != null) text.text = value;
+            if (text != null) text.text = LocalizationService.LocalizeSource(value);
         }
 
         static void SetAlpha(Graphic graphic, float alpha)

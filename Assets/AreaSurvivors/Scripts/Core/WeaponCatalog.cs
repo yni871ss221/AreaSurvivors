@@ -33,6 +33,11 @@ namespace AreaSurvivors
 
         public static string DisplayName(WeaponType type)
         {
+            return LocalizationService.LocalizeSource(DisplayNameSource(type));
+        }
+
+        public static string DisplayNameSource(WeaponType type)
+        {
             switch (type)
             {
                 case WeaponType.Arrow: return "弓";

@@ -24,6 +24,7 @@ namespace AreaSurvivors
         static BossTestSpawnSide nextBossTestSpawnSide;
         static bool hasNextTestStartingWeapon;
         static WeaponType nextTestStartingWeapon;
+        static bool openingStoryTestRequested;
 
         public static void SetNextStartStage(int stage)
         {
@@ -84,6 +85,18 @@ namespace AreaSurvivors
             if (!hasNextTestStartingWeapon) return false;
             hasNextTestStartingWeapon = false;
             nextTestStartingWeapon = default;
+            return true;
+        }
+
+        public static void RequestOpeningStoryTest()
+        {
+            openingStoryTestRequested = true;
+        }
+
+        public static bool ConsumeOpeningStoryTestRequest()
+        {
+            if (!openingStoryTestRequested) return false;
+            openingStoryTestRequested = false;
             return true;
         }
     }

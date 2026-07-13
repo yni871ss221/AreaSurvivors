@@ -239,6 +239,16 @@ namespace AreaSurvivors
             return true;
         }
 
+        public bool UnlockSlash()
+        {
+            if (SlashUnlocked) return false;
+            if (!HasOpenWeaponSlot) return false;
+            slashLevel = 1;
+            RegisterAcquiredWeapon(WeaponType.Slash);
+            RefreshFromStats();
+            return true;
+        }
+
         public bool UnlockArrow()
         {
             if (ArrowUnlocked) return false;
@@ -273,10 +283,10 @@ namespace AreaSurvivors
         {
             switch (type)
             {
+                case WeaponType.Slash: return UnlockSlash();
                 case WeaponType.Arrow: return UnlockArrow();
                 case WeaponType.Fireball: return UnlockFireball();
                 case WeaponType.Shield: return UnlockShield();
-                case WeaponType.Slash: return false;
             }
 
             if (!WeaponCatalog.IsAdvanced(type) || IsWeaponUnlocked(type) || !HasOpenWeaponSlot) return false;

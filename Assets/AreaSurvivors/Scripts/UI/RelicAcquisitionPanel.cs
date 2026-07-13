@@ -68,6 +68,7 @@ namespace AreaSurvivors
             BindButtons();
             ResetVisuals(definition);
             gameObject.SetActive(true);
+            LocalizationService.RefreshHierarchy(gameObject);
             if (rootGroup != null)
             {
                 rootGroup.alpha = 1f;
@@ -322,14 +323,17 @@ namespace AreaSurvivors
 
         static void SetText(Text text, string value)
         {
-            if (text != null) text.text = value;
+            if (text != null) text.text = LocalizationService.LocalizeSource(value);
         }
 
         string DuplicateMessageOrDescription(RelicDefinition definition)
         {
             if (duplicateTokenReward > 0)
             {
-                return "既に獲得済みのレリックのためトークン" + duplicateTokenReward + "に変換します";
+                return LocalizationService.Format(
+                    "すでに獲得済みのため、トークン +{0} に変換されました。",
+                    "Already owned. Converted into +{0} tokens.",
+                    duplicateTokenReward);
             }
 
             return definition != null ? definition.description : string.Empty;

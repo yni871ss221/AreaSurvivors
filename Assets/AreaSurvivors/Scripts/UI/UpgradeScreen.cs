@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -7,6 +8,20 @@ namespace AreaSurvivors
 {
     public sealed class UpgradeScreen : MonoBehaviour
     {
+        const float LinkRevealDuration = 0.9f;
+        const float NodeRevealDuration = 0.55f;
+        const float OutlineBounceDistance = 8f;
+
+        sealed class NodeRevealState
+        {
+            public SkillNodeView node;
+            public Graphic[] graphics;
+            public Color[] graphicColors;
+            public Outline outline;
+            public Vector2 outlineDistance;
+            public Color outlineColor;
+        }
+
         Transform graphRoot;
         RectTransform tooltipRoot;
         RectTransform canvasRoot;
@@ -18,6 +33,17 @@ namespace AreaSurvivors
         SceneNavigator navigator;
         Button lobbyButton;
         UpgradeNodeHover focusedHover;
+        bool purchaseAnimationRunning;
+
+        void OnEnable()
+        {
+            LocalizationService.LanguageChanged += RefreshLocalizedContent;
+        }
+
+        void OnDisable()
+        {
+            LocalizationService.LanguageChanged -= RefreshLocalizedContent;
+        }
 
         void Start()
         {
@@ -141,13 +167,12 @@ namespace AreaSurvivors
         void RefreshSceneTree(SkillNodeView preferredFocusNode = null)
         {
             if (graphRoot == null) return;
-            if (tokenLabel != null) tokenLabel.text = $"所持トークン {ProgressionStore.Data.tokens}";
+            if (tokenLabel != null) tokenLabel.text = LocalizationService.LocalizeSource($"所持トークン {ProgressionStore.Data.tokens}");
 
             foreach (var node in sceneNodes)
             {
                 if (node == null) continue;
                 node.ResolveReferences();
-                node.ApplyGridPosition();
             }
 
             foreach (var node in sceneNodes)
@@ -185,6 +210,8 @@ namespace AreaSurvivors
             bool affordable = ProgressionStore.Data.tokens >= cost;
             bool prerequisiteMet = AreScenePrerequisitesMet(node);
             bool maxed = level >= ProgressionStore.GetMaxLevel(node.type);
+            string localizedTitle = LocalizationService.LocalizeSource(node.title);
+            string localizedDescription = LocalizationService.LocalizeSource(node.description);
 
             if (node.background != null)
             {
@@ -203,7 +230,8 @@ namespace AreaSurvivors
 
             if (node.statusText != null)
             {
-                node.statusText.text = !node.implemented ? "予定" : maxed ? $"Lv {level} MAX" : purchased ? $"Lv {level}" : prerequisiteMet ? $"Cost {cost}" : "LOCK";
+                string status = !node.implemented ? "予定" : maxed ? $"Lv {level} MAX" : purchased ? $"Lv {level}" : prerequisiteMet ? $"Cost {cost}" : "LOCK";
+                node.statusText.text = LocalizationService.LocalizeSource(status);
                 node.statusText.color = GetStatusTextColor(node.implemented, purchased, prerequisiteMet, maxed);
                 node.statusText.transform.SetAsLastSibling();
             }
@@ -218,6 +246,7 @@ namespace AreaSurvivors
                 node.button.colors = colors;
                 node.button.onClick.AddListener(() =>
                 {
+                    if (purchaseAnimationRunning) return;
                     int currentLevel = ProgressionStore.GetLevel(node.type);
                     bool canPurchase = node.implemented
                         && AreScenePrerequisitesMet(node)
@@ -226,7 +255,9 @@ namespace AreaSurvivors
                     if (!canPurchase) return;
 
                     AudioManager.PlayButtonConfirm();
-                    if (ProgressionStore.TryBuy(node.type)) RefreshSceneTree(node);
+                    var visibleNodesBefore = CaptureVisibleNodes();
+                    var visibleLinksBefore = CaptureVisibleLinks();
+                    if (ProgressionStore.TryBuy(node.type)) RefreshSceneTreeAfterPurchase(node, visibleNodesBefore, visibleLinksBefore);
                 });
             }
 
@@ -240,9 +271,19 @@ namespace AreaSurvivors
                 hover.canvasRoot = canvasRoot;
                 hover.canvas = uiCanvas;
                 hover.targetRect = node.RectTransform;
-                hover.titleText = node.implemented ? $"{node.title}  Lv {level}  Cost {cost}" : $"{node.title}  実装予定";
-                hover.descriptionText = node.implemented ? node.description : node.description + "（現在はツリー上の予約ノードです）";
+                hover.titleText = node.implemented
+                    ? $"{localizedTitle}  Lv {level}  Cost {cost}"
+                    : LocalizationService.Format("{0}  実装予定", "{0}  PLANNED", localizedTitle);
+                hover.descriptionText = node.implemented
+                    ? localizedDescription
+                    : localizedDescription + LocalizationService.Text("（現在はツリー上の予約ノードです）", " (reserved for a future update)");
             }
+        }
+
+        void RefreshLocalizedContent()
+        {
+            if (!isActiveAndEnabled || graphRoot == null) return;
+            RefreshSceneTree();
         }
 
         void RefreshSceneLinks()
@@ -275,9 +316,197 @@ namespace AreaSurvivors
                         && IsSceneNodeVisible(link.fromNode)
                         && IsSceneNodeVisible(link.toNode);
                     link.gameObject.SetActive(visible);
-                    if (visible) link.ApplyState(true);
+                    if (visible)
+                    {
+                        link.ApplyState(true);
+                        link.SetRevealProgress(1f);
+                    }
                 }
             }
+        }
+
+        HashSet<SkillNodeView> CaptureVisibleNodes()
+        {
+            var visibleNodes = new HashSet<SkillNodeView>();
+            if (sceneNodes == null) return visibleNodes;
+            foreach (var node in sceneNodes)
+            {
+                if (IsSceneNodeVisible(node)) visibleNodes.Add(node);
+            }
+
+            return visibleNodes;
+        }
+
+        HashSet<SkillLinkView> CaptureVisibleLinks()
+        {
+            var visibleLinks = new HashSet<SkillLinkView>();
+            if (graphRoot == null) return visibleLinks;
+            foreach (var link in graphRoot.GetComponentsInChildren<SkillLinkView>(true))
+            {
+                if (IsSceneLinkVisible(link)) visibleLinks.Add(link);
+            }
+
+            return visibleLinks;
+        }
+
+        void RefreshSceneTreeAfterPurchase(
+            SkillNodeView purchasedNode,
+            HashSet<SkillNodeView> visibleNodesBefore,
+            HashSet<SkillLinkView> visibleLinksBefore)
+        {
+            var revealedNodes = new List<SkillNodeView>();
+            if (sceneNodes != null)
+            {
+                foreach (var node in sceneNodes)
+                {
+                    if (IsSceneNodeVisible(node) && !visibleNodesBefore.Contains(node)) revealedNodes.Add(node);
+                }
+            }
+
+            var revealedLinks = new List<SkillLinkView>();
+            if (graphRoot != null)
+            {
+                foreach (var link in graphRoot.GetComponentsInChildren<SkillLinkView>(true))
+                {
+                    if (IsSceneLinkVisible(link) && !visibleLinksBefore.Contains(link)) revealedLinks.Add(link);
+                }
+            }
+
+            if (revealedNodes.Count == 0 && revealedLinks.Count == 0)
+            {
+                RefreshSceneTree(purchasedNode);
+                return;
+            }
+
+            purchaseAnimationRunning = true;
+            RefreshSceneTree(purchasedNode);
+
+            foreach (var link in revealedLinks)
+            {
+                if (link == null) continue;
+                link.gameObject.SetActive(true);
+                link.ApplyState(true);
+                link.SetRevealProgress(0f);
+            }
+
+            var nodeStates = new List<NodeRevealState>(revealedNodes.Count);
+            foreach (var node in revealedNodes)
+            {
+                if (node == null) continue;
+                nodeStates.Add(CaptureNodeRevealState(node));
+                if (node.button != null) node.button.interactable = false;
+            }
+
+            ConfigureSceneNavigation();
+
+            StartCoroutine(PlayPurchaseReveal(purchasedNode, revealedLinks, nodeStates));
+        }
+
+        IEnumerator PlayPurchaseReveal(
+            SkillNodeView purchasedNode,
+            List<SkillLinkView> links,
+            List<NodeRevealState> nodeStates)
+        {
+            float linkDuration = links.Count > 0 ? LinkRevealDuration : 0f;
+            float elapsed = 0f;
+            while (elapsed < linkDuration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float progress = Mathf.Clamp01(elapsed / linkDuration);
+                float easedProgress = 1f - Mathf.Pow(1f - progress, 3f);
+                foreach (var link in links)
+                {
+                    if (link != null) link.SetRevealProgress(easedProgress);
+                }
+
+                yield return null;
+            }
+
+            foreach (var link in links)
+            {
+                if (link != null) link.SetRevealProgress(1f);
+            }
+
+            elapsed = 0f;
+            while (elapsed < NodeRevealDuration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float progress = Mathf.Clamp01(elapsed / NodeRevealDuration);
+                float fade = 1f - Mathf.Pow(1f - progress, 3f);
+                float bounce = Mathf.Sin(progress * Mathf.PI * 3f) * (1f - progress);
+                foreach (var state in nodeStates)
+                {
+                    ApplyNodeRevealState(state, fade, bounce);
+                }
+
+                yield return null;
+            }
+
+            foreach (var state in nodeStates) RestoreNodeRevealState(state);
+            purchaseAnimationRunning = false;
+            RefreshSceneTree(purchasedNode);
+        }
+
+        static NodeRevealState CaptureNodeRevealState(SkillNodeView node)
+        {
+            var graphics = node.GetComponentsInChildren<Graphic>(true);
+            var colors = new Color[graphics.Length];
+            for (int i = 0; i < graphics.Length; i++) colors[i] = graphics[i].color;
+
+            var state = new NodeRevealState
+            {
+                node = node,
+                graphics = graphics,
+                graphicColors = colors,
+                outline = node.panelOutline,
+                outlineDistance = node.panelOutline != null ? node.panelOutline.effectDistance : Vector2.zero,
+                outlineColor = node.panelOutline != null ? node.panelOutline.effectColor : Color.clear
+            };
+
+            ApplyNodeRevealState(state, 0f, 0f);
+            return state;
+        }
+
+        static void ApplyNodeRevealState(NodeRevealState state, float fade, float bounce)
+        {
+            if (state == null || state.node == null) return;
+            for (int i = 0; i < state.graphics.Length; i++)
+            {
+                if (state.graphics[i] == null) continue;
+                Color color = state.graphicColors[i];
+                color.a *= fade;
+                state.graphics[i].color = color;
+            }
+
+            if (state.outline == null) return;
+            Vector2 bounceDirection = new Vector2(
+                state.outlineDistance.x < 0f ? -1f : 1f,
+                state.outlineDistance.y > 0f ? 1f : -1f);
+            state.outline.effectDistance = state.outlineDistance + bounceDirection * (OutlineBounceDistance * bounce);
+            Color outlineColor = state.outlineColor;
+            outlineColor.a *= fade;
+            state.outline.effectColor = outlineColor;
+        }
+
+        static void RestoreNodeRevealState(NodeRevealState state)
+        {
+            if (state == null) return;
+            for (int i = 0; i < state.graphics.Length; i++)
+            {
+                if (state.graphics[i] != null) state.graphics[i].color = state.graphicColors[i];
+            }
+
+            if (state.outline == null) return;
+            state.outline.effectDistance = state.outlineDistance;
+            state.outline.effectColor = state.outlineColor;
+        }
+
+        static bool IsSceneLinkVisible(SkillLinkView link)
+        {
+            return link != null
+                && ProgressionStore.GetLevel(link.prerequisite) > 0
+                && IsSceneNodeVisible(link.fromNode)
+                && IsSceneNodeVisible(link.toNode);
         }
 
         static bool AreScenePrerequisitesMet(SkillNodeView node)

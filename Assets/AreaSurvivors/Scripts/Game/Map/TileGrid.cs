@@ -119,12 +119,14 @@ namespace AreaSurvivors
         GameObject groundChunkRoot;
         readonly List<Mesh> groundChunkMeshes = new List<Mesh>();
         Material groundChunkMaterial;
+        bool controlChangedPending;
         TileBase[] grassDetailTiles;
         TileBase[] dirtDetailTiles;
         TileBase[] pathDetailTiles;
         readonly List<TileBase> generatedGroundTiles = new List<TileBase>();
 
         public event Action<int> PlayerCellsPainted;
+        public event Action ControlChanged;
 
         public void ApplySquareChunkMapLayout(int columns = DefaultMapChunkColumns, int rows = DefaultMapChunkRows)
         {
@@ -143,6 +145,11 @@ namespace AreaSurvivors
         void Update()
         {
             UpdatePaintTransitions();
+            if (controlChangedPending)
+            {
+                controlChangedPending = false;
+                ControlChanged?.Invoke();
+            }
             UpdateTerritoryBoundaryOverlay();
         }
 
@@ -806,6 +813,7 @@ namespace AreaSurvivors
             {
                 AdjustOwnerCounts(previousOwner, nextOwner);
                 owners[x, y] = nextOwner;
+                controlChangedPending = true;
                 if (nextOwner == TileOwner.Player && previousOwner != TileOwner.Player)
                 {
                     PlayerCellsPainted?.Invoke(1);

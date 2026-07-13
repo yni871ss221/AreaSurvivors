@@ -3441,7 +3441,7 @@ MonoBehaviour:
   linkRoutes: []
   implemented: 1
   title: "\u58C1\u2461\u30A2\u30C3\u30D7\u30B0\u30EC\u30FC\u30C9"
-  description: "\u58C1\u2461\u3092\u30A2\u30C3\u30D7\u30B0\u30EC\u30FC\u30C9\u53EF\u80FD\u306B\u3057\u307E\u3059\u3002"
+  description: "\u5EFA\u9020\u8A2D\u8A08\u306E\u5916\u5468\u306B\u3042\u308B\u58C1\u2461\u3092\u30A2\u30C3\u30D7\u30B0\u30EC\u30FC\u30C9\u3057\u307E\u3059\u3002"
   button: {fileID: 1413749950}
   background: {fileID: 1413749951}
   icon: {fileID: 838714466}
@@ -6609,7 +6609,7 @@ MonoBehaviour:
   linkRoutes: []
   implemented: 1
   title: "\u58C1\u8010\u4E45\u4E0A\u6607"
-  description: "\u58C1\u3068\u9580\u306E\u6700\u5927HP\u3092 +20 / Lv \u4E0A\u3052\u307E\u3059\u3002"
+  description: "\u58C1\u306E\u6700\u5927HP\u3092 +20 / Lv \u4E0A\u3052\u307E\u3059\u3002"
   button: {fileID: 1698285551}
   background: {fileID: 1698285552}
   icon: {fileID: 815963109}
@@ -8652,7 +8652,7 @@ MonoBehaviour:
   linkRoutes: []
   implemented: 1
   title: "\u58C1\u8010\u4E45\u4E0A\u6607"
-  description: "\u58C1\u3068\u9580\u306E\u6700\u5927HP\u3092 +20 / Lv \u4E0A\u3052\u307E\u3059\u3002"
+  description: "\u58C1\u306E\u6700\u5927HP\u3092 +20 / Lv \u4E0A\u3052\u307E\u3059\u3002"
   button: {fileID: 1702718437}
   background: {fileID: 1702718438}
   icon: {fileID: 1999148393}
@@ -11685,7 +11685,7 @@ MonoBehaviour:
   linkRoutes: []
   implemented: 1
   title: "\u5857\u308A\u7BC4\u56F2"
-  description: "2\u30EC\u30D9\u30EB\u3054\u3068\u306B\u5857\u308A\u7BC4\u56F2\u304C\u3055\u3089\u306B1\u30BB\u30EB\u5E83\u304C\u308A\u307E\u3059\u3002"
+  description: "2\u3064\u306E\u300C\u5857\u308A\u7BC4\u56F2\u300D\u30B9\u30AD\u30EB\u306E\u5408\u8A08\u30EC\u30D9\u30EB\u304C2\u4E0A\u304C\u308B\u3054\u3068\u306B\u3001\u5857\u308A\u7BC4\u56F2\u304C1\u30BB\u30EB\u5E83\u304C\u308A\u307E\u3059\u3002"
   button: {fileID: 740222505}
   background: {fileID: 740222506}
   icon: {fileID: 733513950}
@@ -14943,7 +14943,7 @@ MonoBehaviour:
   linkRoutes: []
   implemented: 1
   title: "\u58C1\u8FFD\u52A0"
-  description: "\u6728\u306E\u57CE\u58C1\u3068\u6728\u306E\u57CE\u9580\u3092\u5EFA\u9020\u53EF\u80FD\u306B\u3057\u307E\u3059\u3002"
+  description: "\u6728\u306E\u57CE\u58C1\u3092\u5EFA\u9020\u53EF\u80FD\u306B\u3057\u307E\u3059\u3002"
   button: {fileID: 416496174}
   background: {fileID: 416496175}
   icon: {fileID: 1488226214}
@@ -20629,7 +20629,7 @@ MonoBehaviour:
   linkRoutes: []
   implemented: 1
   title: "\u58C1\u8010\u4E45\u4E0A\u6607"
-  description: "\u58C1\u3068\u9580\u306E\u6700\u5927HP\u3092 +20 / Lv \u4E0A\u3052\u307E\u3059\u3002"
+  description: "\u58C1\u306E\u6700\u5927HP\u3092 +20 / Lv \u4E0A\u3052\u307E\u3059\u3002"
   button: {fileID: 377032701}
   background: {fileID: 377032702}
   icon: {fileID: 222605969}
@@ -27018,7 +27018,7 @@ MonoBehaviour:
   linkRoutes: []
   implemented: 1
   title: "\u58C1\u30A2\u30C3\u30D7\u30B0\u30EC\u30FC\u30C9"
-  description: "\u30B2\u30FC\u30E0\u4E2D\u306B\u58C1\u3068\u9580\u3092\u30A2\u30C3\u30D7\u30B0\u30EC\u30FC\u30C9\u53EF\u80FD\u306B\u3057\u307E\u3059\u3002"
+  description: "\u30B2\u30FC\u30E0\u4E2D\u306B\u58C1\u3092\u30A2\u30C3\u30D7\u30B0\u30EC\u30FC\u30C9\u53EF\u80FD\u306B\u3057\u307E\u3059\u3002"
   button: {fileID: 1681192993}
   background: {fileID: 1681192994}
   icon: {fileID: 200679812}
@@ -27490,7 +27490,8 @@ MonoBehaviour:
   linkRoutes: []
   implemented: 1
   title: "\u5EFA\u9020\u7269\u81EA\u52D5\u56DE\u5FA9"
-  description: "\u5EFA\u9020\u7269\u304C\u4E00\u5B9A\u9593\u9694\u3067HP\u3092\u81EA\u52D5\u56DE\u5FA9\u3057\u307E\u3059\u3002"
+  description: "\u58C1\u30FB\u30D0\u30EA\u30B9\u30BF\u30FB\u76E3\u8996\u5854\u304C2\u79D2\u3054\u3068\u306BHP\u3092
+    1 / Lv \u81EA\u52D5\u56DE\u5FA9\u3057\u307E\u3059\u3002"
   button: {fileID: 419162043}
   background: {fileID: 419162044}
   icon: {fileID: 853724112}

@@ -31,6 +31,8 @@ namespace AreaSurvivors
         public Color activeColor = new Color(0.50f, 0.92f, 0.72f, 0.85f);
         public Color inactiveColor = new Color(0.30f, 0.36f, 0.34f, 0.75f);
 
+        float revealProgress = 1f;
+
         protected override void Awake()
         {
             base.Awake();
@@ -54,6 +56,14 @@ namespace AreaSurvivors
         public void ApplyState(bool active)
         {
             color = active ? activeColor : inactiveColor;
+            SetVerticesDirty();
+        }
+
+        public void SetRevealProgress(float progress)
+        {
+            float nextProgress = Mathf.Clamp01(progress);
+            if (Mathf.Approximately(revealProgress, nextProgress)) return;
+            revealProgress = nextProgress;
             SetVerticesDirty();
         }
 
@@ -95,7 +105,7 @@ namespace AreaSurvivors
             vh.Clear();
             if (fromNode == null || toNode == null || fromNode.RectTransform == null || toNode.RectTransform == null) return;
 
-            var points = BuildRoundedRoute(BuildRoute());
+            var points = BuildVisibleRoute(BuildRoundedRoute(BuildRoute()));
             if (points.Count < 2) return;
 
             for (int i = 0; i < points.Count - 1; i++)
@@ -108,6 +118,44 @@ namespace AreaSurvivors
             {
                 AddDisc(vh, points[i], radius);
             }
+        }
+
+        List<Vector2> BuildVisibleRoute(List<Vector2> route)
+        {
+            if (route == null || route.Count < 2 || revealProgress >= 0.999f) return route;
+            if (revealProgress <= 0.001f) return new List<Vector2>();
+
+            float totalLength = 0f;
+            for (int i = 0; i < route.Count - 1; i++)
+            {
+                totalLength += Vector2.Distance(route[i], route[i + 1]);
+            }
+
+            if (totalLength <= 0.01f) return route;
+
+            float targetLength = totalLength * revealProgress;
+            float accumulatedLength = 0f;
+            var visibleRoute = new List<Vector2>(route.Count) { route[0] };
+            for (int i = 0; i < route.Count - 1; i++)
+            {
+                Vector2 start = route[i];
+                Vector2 end = route[i + 1];
+                float segmentLength = Vector2.Distance(start, end);
+                if (segmentLength <= 0.001f) continue;
+
+                if (accumulatedLength + segmentLength < targetLength)
+                {
+                    visibleRoute.Add(end);
+                    accumulatedLength += segmentLength;
+                    continue;
+                }
+
+                float segmentProgress = Mathf.Clamp01((targetLength - accumulatedLength) / segmentLength);
+                visibleRoute.Add(Vector2.Lerp(start, end, segmentProgress));
+                break;
+            }
+
+            return visibleRoute;
         }
 
         List<Vector2> BuildRoute()

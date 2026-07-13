@@ -44,6 +44,7 @@ namespace AreaSurvivors
             BindButton("Start Stage 2 Test Button", () => StartGameFromStageForTesting(2));
             BindButton("Start Stage 3 Test Button", () => StartGameFromStageForTesting(3));
             BindButton("Start Stage 4 Test Button", () => StartGameFromStageForTesting(4));
+            BindButton("Opening Story Test Button", StartOpeningStoryTest);
             foreach (var weaponType in WeaponCatalog.TestableWeapons)
             {
                 var capturedType = weaponType;
@@ -97,6 +98,12 @@ namespace AreaSurvivors
         {
             RunState.SetNextStartStage(stage);
             navigator.LoadGame();
+        }
+
+        void StartOpeningStoryTest()
+        {
+            RunState.RequestOpeningStoryTest();
+            navigator.LoadTitle();
         }
 
         void StartStageOneBossTest()
@@ -225,10 +232,11 @@ namespace AreaSurvivors
             if (statusText == null) return;
             int ownedRelics = CountOwnedRelics();
 
-            statusText.text = message
+            string source = message
                 + "\n所持トークン: " + ProgressionStore.Data.tokens
                 + " / クリア: " + ProgressionStore.Data.highestClearedStage + "/4"
                 + " / 所持レリック: " + ownedRelics + "/" + RelicCatalog.All.Length;
+            statusText.text = LocalizationService.LocalizeSource(source);
         }
 
         static int CountOwnedRelics()
@@ -303,7 +311,7 @@ namespace AreaSurvivors
                     text.resizeTextMaxSize = 14;
                     text.horizontalOverflow = HorizontalWrapMode.Wrap;
                     text.verticalOverflow = VerticalWrapMode.Overflow;
-                    text.text = label;
+                    text.text = LocalizationService.LocalizeSource(label);
                 }
             }
         }

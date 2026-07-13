@@ -4,6 +4,7 @@ namespace AreaSurvivors
     {
         TitleOptions,
         LobbyUpgrades,
+        OpeningStory,
         GameNormal,
         GameBoss
     }
@@ -52,6 +53,8 @@ namespace AreaSurvivors
                     return "Audio/BGM/title_options";
                 case BgmTrack.LobbyUpgrades:
                     return "Audio/BGM/lobby_upgrades";
+                case BgmTrack.OpeningStory:
+                    return "Audio/BGM/opening_story";
                 case BgmTrack.GameNormal:
                     return "Audio/BGM/game_normal";
                 case BgmTrack.GameBoss:

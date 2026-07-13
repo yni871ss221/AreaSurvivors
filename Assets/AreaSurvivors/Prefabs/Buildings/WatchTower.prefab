@@ -975,6 +975,7 @@ GameObject:
   - component: {fileID: 1692760708742366297}
   - component: {fileID: 5239572251808933782}
   - component: {fileID: 7633446704968412549}
+  - component: {fileID: 919000000000000002}
   m_Layer: 0
   m_Name: WatchTower
   m_TagString: Untagged
@@ -1184,6 +1185,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   config: {fileID: 0}
   grid: {fileID: 0}
+  attackBounce: {fileID: 919000000000000002}
   blockingCollider: {fileID: 3476240401191411356}
   completeRenderer: {fileID: 2809085680989848580}
   sparkleRenderer: {fileID: 6821138016265981990}
@@ -1255,6 +1257,25 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   hpBar: {fileID: 4802100733528538087}
   fullHideThreshold: 0.999
+--- !u!114 &919000000000000002
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4955589404155924230}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 16c60b2630c38ab41b7cb76a3448ecff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  visualTargets:
+  - {fileID: 589801223796621970}
+  - {fileID: 6662475371880759167}
+  duration: 0.3
+  amplitude: 0.12
+  verticalStretch: 0.12
+  horizontalSquash: 0.05
 --- !u!1 &6003187027218524196
 GameObject:
   m_ObjectHideFlags: 0

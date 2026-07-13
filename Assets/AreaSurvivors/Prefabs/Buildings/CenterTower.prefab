@@ -466,6 +466,7 @@ GameObject:
   - component: {fileID: 6797244645586937832}
   - component: {fileID: 7287168737638359681}
   - component: {fileID: 1803100000000000101}
+  - component: {fileID: 919000000000000003}
   m_Layer: 0
   m_Name: CenterTower
   m_TagString: Untagged
@@ -1059,3 +1060,22 @@ Transform:
   - {fileID: 2200599913408644794}
   m_Father: {fileID: 4765409154412782307}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &919000000000000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4438274097458221408}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 16c60b2630c38ab41b7cb76a3448ecff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  visualTargets:
+  - {fileID: 4278886699151312299}
+  - {fileID: 4649332538353569673}
+  duration: 0.3
+  amplitude: 0.16
+  verticalStretch: 0.18
+  horizontalSquash: 0.08

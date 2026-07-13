@@ -39,19 +39,20 @@ namespace AreaSurvivors
 
         public void SetOwnedVisible(bool owned)
         {
+            if (gameObject.activeSelf == owned) return;
             if (!owned)
             {
                 active = false;
                 bounceTime = 0f;
                 transform.localScale = Vector3.one;
             }
-
-            if (gameObject.activeSelf != owned) gameObject.SetActive(owned);
+            gameObject.SetActive(owned);
         }
 
         public void SetActiveState(bool nextActive, bool force)
         {
             if (!initialized) Initialize(owner);
+            if (!force && active == nextActive) return;
             if (nextActive && (!active || force)) bounceTime = 0.34f;
             active = nextActive;
 

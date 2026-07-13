@@ -7,9 +7,15 @@ namespace AreaSurvivors
     public sealed class GeneralOptionsPanel : MonoBehaviour
     {
         public Dropdown languageDropdown;
+        bool languageEventBound;
 
         public void Bind()
         {
+            if (!languageEventBound)
+            {
+                LocalizationService.LanguageChanged += OnLanguageRefreshed;
+                languageEventBound = true;
+            }
             Refresh();
         }
 
@@ -19,8 +25,10 @@ namespace AreaSurvivors
 
             languageDropdown.onValueChanged.RemoveListener(OnLanguageChanged);
             languageDropdown.ClearOptions();
-            languageDropdown.AddOptions(new List<string> { "日本語" });
-            languageDropdown.SetValueWithoutNotify(0);
+            languageDropdown.AddOptions(LocalizationService.IsEnglish
+                ? new List<string> { "Japanese", "English" }
+                : new List<string> { "日本語", "English" });
+            languageDropdown.SetValueWithoutNotify((int)LocalizationSettingsStore.Current);
             languageDropdown.RefreshShownValue();
             languageDropdown.onValueChanged.AddListener(OnLanguageChanged);
         }
@@ -28,11 +36,19 @@ namespace AreaSurvivors
         void OnDestroy()
         {
             if (languageDropdown != null) languageDropdown.onValueChanged.RemoveListener(OnLanguageChanged);
+            if (languageEventBound) LocalizationService.LanguageChanged -= OnLanguageRefreshed;
+        }
+
+        void OnLanguageRefreshed()
+        {
+            Refresh();
         }
 
         static void OnLanguageChanged(int value)
         {
-            // 現時点では日本語のみ。将来の多言語化時に保存処理をここへ追加する。
+            LocalizationSettingsStore.Set(value == (int)GameLanguage.English
+                ? GameLanguage.English
+                : GameLanguage.Japanese);
         }
     }
 }
