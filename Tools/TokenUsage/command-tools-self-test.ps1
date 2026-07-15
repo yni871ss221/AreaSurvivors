@@ -17,6 +17,7 @@ $scripts = @(
     "safe-search.ps1",
     "focused-search.ps1",
     "append-vault-note.ps1",
+    "normalize-vault-note-eof.ps1",
     "temp-file-presence-report.ps1",
     "copy-generated-image-batch.ps1",
     "safe-unity-search.ps1",
@@ -61,6 +62,13 @@ $appendVaultCommand = Get-Command (Join-Path $PSScriptRoot "append-vault-note.ps
 foreach ($requiredParameter in @("VaultRoot", "RelativePath", "ContentPath")) {
     if (-not $appendVaultCommand.Parameters.ContainsKey($requiredParameter)) {
         throw "append-vault-note.ps1 formal contract is missing -$requiredParameter."
+    }
+}
+
+$normalizeVaultEofCommand = Get-Command (Join-Path $PSScriptRoot "normalize-vault-note-eof.ps1")
+foreach ($requiredParameter in @("VaultRoot", "RelativePath", "WhatIf")) {
+    if (-not $normalizeVaultEofCommand.Parameters.ContainsKey($requiredParameter)) {
+        throw "normalize-vault-note-eof.ps1 formal contract is missing -$requiredParameter."
     }
 }
 foreach ($invalidRememberedParameter in @("VaultPath", "NotePath", "AppendFile")) {
