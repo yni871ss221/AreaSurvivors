@@ -85,7 +85,7 @@ switch ($Action) {
         $pathArgs = Join-QuotedPaths $Path
         if ([string]::IsNullOrWhiteSpace($pathArgs)) { $pathArgs = "Assets Tools AGENTS.md" }
         $patternArg = Quote-PowerShellValue $Pattern
-        $command = "rg -n --hidden -g '!Library/**' -g '!Temp/**' -g '!Obj/**' -g '!.git/**' $ExtraArgs $patternArg $pathArgs | Select-Object -First $First"
+        $command = "`$hits = @(rg -n --hidden -g '!Library/**' -g '!Temp/**' -g '!Obj/**' -g '!.git/**' $ExtraArgs $patternArg $pathArgs 2>&1); `$rgExit = `$LASTEXITCODE; if (`$rgExit -gt 1) { `$hits | ForEach-Object { [Console]::Error.WriteLine(`$_) }; exit `$rgExit }; `$hits | Select-Object -First $First; exit 0"
     }
     "Read" {
         if ($Path.Count -ne 1) { throw "Read requires exactly one -Path." }

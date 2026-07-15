@@ -7,8 +7,11 @@ namespace AreaSurvivors
     public sealed class WeaponController : MonoBehaviour
     {
         public GameObject arrowPrefab;
+        public GameObject goldenArrowPrefab;
         public GameObject fireballPrefab;
+        public GameObject fireMissilePrefab;
         public GameObject slashPrefab;
+        public GameObject swordRushSlashPrefab;
         public Transform slashOrigin;
         public const int MaxEquippedWeapons = 3;
         const float FireballProjectileVisualScale = 0.38f;
@@ -18,6 +21,7 @@ namespace AreaSurvivors
         public const float FireballExplosionUpgradeAmount = 0.25f;
         public const float ShieldKnockbackUpgradeAmount = 1f;
         public const float ShieldRotationSpeedUpgradeAmount = 20f;
+        public const int EvolutionTestUpgradeCount = 2;
         GameConfig config;
         PlayerController player;
         TileGrid grid;
@@ -28,11 +32,14 @@ namespace AreaSurvivors
         WeaponStatBlock shieldStats;
         AdvancedWeaponRuntime advancedRuntime;
         bool runtimeStopped;
+        float nextArrowVolleyAt;
+        readonly HashSet<WeaponType> evolvedWeapons = new HashSet<WeaponType>();
         int slashLevel = 1;
         int arrowLevel;
         int fireballLevel;
         int shieldLevel;
         readonly Dictionary<WeaponType, int> advancedWeaponLevels = new Dictionary<WeaponType, int>();
+        readonly Dictionary<WeaponType, int> runWeaponDisplayLevels = new Dictionary<WeaponType, int>();
         readonly Dictionary<WeaponType, WeaponRunUpgradeState> advancedWeaponUpgrades = new Dictionary<WeaponType, WeaponRunUpgradeState>();
         readonly List<WeaponType> acquiredWeaponOrder = new List<WeaponType>();
         int slashAttackBonus;
@@ -41,6 +48,7 @@ namespace AreaSurvivors
         int shieldAttackBonus;
         float slashCooldownMultiplier = 1f;
         float arrowCooldownMultiplier = 1f;
+        readonly Dictionary<WeaponType, int> testStatLevelOverrides = new Dictionary<WeaponType, int>();
         float fireballCooldownMultiplier = 1f;
         float slashKnockbackBonus;
         float slashRangeBonus;
@@ -60,6 +68,19 @@ namespace AreaSurvivors
         public bool ArrowUnlocked => arrowLevel > 0;
         public bool FireballUnlocked => fireballLevel > 0;
         public bool ShieldUnlocked => shieldLevel > 0;
+        public bool SlashEvolved => IsEvolved(WeaponType.Slash);
+        public bool BoomerangSwordEvolved => IsEvolved(WeaponType.BoomerangSword);
+        public bool CanEvolveSlash => CanEvolveWeapon(WeaponType.Slash);
+        public bool CanEvolveBoomerangSword => CanEvolveWeapon(WeaponType.BoomerangSword);
+        public bool CanEvolveAuraSword => CanEvolveWeapon(WeaponType.AuraSword);
+        public bool CanEvolveArrow => CanEvolveWeapon(WeaponType.Arrow);
+        public bool CanEvolveArrowRain => CanEvolveWeapon(WeaponType.ArrowRain);
+        public bool CanEvolveGun => CanEvolveWeapon(WeaponType.Gun);
+        public bool CanEvolveFireball => CanEvolveWeapon(WeaponType.Fireball);
+        public bool CanEvolveFrost => CanEvolveWeapon(WeaponType.Frost);
+        public bool CanEvolveThunderBall => CanEvolveWeapon(WeaponType.ThunderBall);
+        public bool CanEvolveShield => CanEvolveWeapon(WeaponType.Shield);
+        public bool CanEvolveFlag => CanEvolveWeapon(WeaponType.Flag);
         public bool CanLevelUp => CanLevelUpSlash;
         public bool CanLevelUpSlash => SlashUnlocked && slashLevel < GameConfig.MaxWeaponLevel;
         public bool CanLevelUpArrow => arrowLevel < GameConfig.MaxWeaponLevel;
@@ -96,14 +117,20 @@ namespace AreaSurvivors
             arrowLevel = 0;
             fireballLevel = 0;
             shieldLevel = 0;
+            evolvedWeapons.Clear();
             advancedWeaponLevels.Clear();
+            runWeaponDisplayLevels.Clear();
             shieldOrbit = GetComponent<ShieldOrbitController>();
             if (shieldOrbit != null) shieldOrbit.Configure(this, transform, config);
             advancedRuntime = GetComponent<AdvancedWeaponRuntime>();
             if (advancedRuntime != null) advancedRuntime.Configure(this, owner, gameConfig);
             runtimeStopped = false;
+            nextArrowVolleyAt = 0f;
+            testStatLevelOverrides.Clear();
             acquiredWeaponOrder.Clear();
-            if (RunState.TryConsumeNextTestStartingWeapon(out var testStartingWeapon))
+            WeaponType testStartingWeapon = default;
+            bool hasTestStartingWeapon = RunState.TryConsumeNextTestStartingWeapon(out testStartingWeapon);
+            if (hasTestStartingWeapon)
             {
                 ApplyTestStartingWeapon(testStartingWeapon);
             }
@@ -112,6 +139,7 @@ namespace AreaSurvivors
                 RegisterAcquiredWeapon(WeaponType.Slash);
             }
             ResetRunWeaponUpgrades();
+            if (hasTestStartingWeapon) ApplyTestStartingWeaponProfile(testStartingWeapon);
             RefreshFromStats();
             StopAllCoroutines();
             StartCoroutine(SlashLoop());
@@ -152,10 +180,10 @@ namespace AreaSurvivors
         public void RefreshFromStats()
         {
             if (config == null || player == null) return;
-            slashStats = config.GetWeaponStats(WeaponType.Slash, Mathf.Max(1, slashLevel));
-            arrowStats = config.GetWeaponStats(WeaponType.Arrow, Mathf.Max(1, arrowLevel));
-            fireballStats = config.GetWeaponStats(WeaponType.Fireball, Mathf.Max(1, fireballLevel));
-            shieldStats = config.GetWeaponStats(WeaponType.Shield, Mathf.Max(1, shieldLevel));
+            slashStats = config.GetWeaponStats(WeaponType.Slash, ResolveTestStatLevel(WeaponType.Slash, slashLevel));
+            arrowStats = config.GetWeaponStats(WeaponType.Arrow, ResolveTestStatLevel(WeaponType.Arrow, arrowLevel));
+            fireballStats = config.GetWeaponStats(WeaponType.Fireball, ResolveTestStatLevel(WeaponType.Fireball, fireballLevel));
+            shieldStats = config.GetWeaponStats(WeaponType.Shield, ResolveTestStatLevel(WeaponType.Shield, shieldLevel));
             ApplyRunWeaponUpgrades();
             SyncShieldOrbit();
             SyncAdvancedWeapons();
@@ -163,21 +191,25 @@ namespace AreaSurvivors
 
         void ApplyRunWeaponUpgrades()
         {
+            ApplyStandardEvolutionBaseValues(WeaponType.Slash, ref slashStats);
             slashStats.attackPower += slashAttackBonus;
             slashStats.cooldownSeconds = Mathf.Max(0.05f, slashStats.cooldownSeconds * slashCooldownMultiplier);
             slashStats.knockback += slashKnockbackBonus;
             slashStats.range += slashRangeBonus;
 
+            ApplyStandardEvolutionBaseValues(WeaponType.Arrow, ref arrowStats);
             arrowStats.attackPower += arrowAttackBonus;
             arrowStats.cooldownSeconds = Mathf.Max(0.05f, arrowStats.cooldownSeconds * arrowCooldownMultiplier);
             arrowStats.projectileCount = Mathf.Max(1, arrowStats.projectileCount + arrowProjectileCountBonus);
             arrowStats.range += arrowRangeBonus;
 
+            ApplyStandardEvolutionBaseValues(WeaponType.Fireball, ref fireballStats);
             fireballStats.attackPower += fireballAttackBonus;
             fireballStats.cooldownSeconds = Mathf.Max(0.05f, fireballStats.cooldownSeconds * fireballCooldownMultiplier);
             fireballStats.explosionRadius += fireballExplosionRadiusBonus;
             fireballStats.range += fireballRangeBonus;
 
+            ApplyStandardEvolutionBaseValues(WeaponType.Shield, ref shieldStats);
             shieldStats.attackPower += shieldAttackBonus;
             shieldStats.projectileCount = Mathf.Max(1, shieldStats.projectileCount + shieldCountBonus);
             shieldStats.knockback += shieldKnockbackBonus;
@@ -187,6 +219,45 @@ namespace AreaSurvivors
             arrowStats = RelicEffects.ApplyWeaponStatBonuses(WeaponType.Arrow, arrowStats);
             fireballStats = RelicEffects.ApplyWeaponStatBonuses(WeaponType.Fireball, fireballStats);
             shieldStats = RelicEffects.ApplyWeaponStatBonuses(WeaponType.Shield, shieldStats);
+        }
+
+        void ApplyStandardEvolutionBaseValues(WeaponType type, ref WeaponStatBlock stats)
+        {
+            if (!IsEvolved(type) || config == null) return;
+
+            var baseStats = config.GetWeaponStats(type, 1);
+            switch (type)
+            {
+                case WeaponType.Slash:
+                    int slashBaseFinalAttackPower = baseStats.attackPower + config.slashDamageBonus;
+                    stats.attackPower += Mathf.Max(0, config.swordRushBaseAttackPower) - slashBaseFinalAttackPower;
+                    stats.range += Mathf.Max(0f, config.swordRushBaseRange) - baseStats.range;
+                    break;
+                case WeaponType.Arrow:
+                    stats.attackPower += baseStats.attackPower;
+                    break;
+                case WeaponType.Fireball:
+                    stats.cooldownSeconds = ResolveEvolutionBaseCooldown(stats.cooldownSeconds,
+                        baseStats.cooldownSeconds, config.fireMissileBaseCooldownMultiplier);
+                    stats.range += baseStats.range;
+                    break;
+                case WeaponType.Shield:
+                    stats.projectileCount += Mathf.Max(1, baseStats.projectileCount);
+                    stats.rotationSpeed += baseStats.rotationSpeed;
+                    stats.range += baseStats.range;
+                    break;
+            }
+            stats.attackPower = Mathf.Max(0, stats.attackPower);
+            stats.range = Mathf.Max(0f, stats.range);
+            stats.cooldownSeconds = Mathf.Max(0.05f, stats.cooldownSeconds);
+        }
+
+        public static float ResolveEvolutionBaseCooldown(float currentCooldown, float levelOneBaseCooldown,
+            float evolutionBaseMultiplier)
+        {
+            float baseCooldown = Mathf.Max(0.05f, levelOneBaseCooldown);
+            float evolvedBaseCooldown = Mathf.Max(0.05f, baseCooldown * Mathf.Max(0f, evolutionBaseMultiplier));
+            return Mathf.Max(0.05f, currentCooldown + evolvedBaseCooldown - baseCooldown);
         }
 
         void Update()
@@ -301,6 +372,18 @@ namespace AreaSurvivors
             switch (type)
             {
                 case WeaponType.Slash: return SlashUnlocked;
+                case WeaponType.SwordRush: return SlashEvolved;
+                case WeaponType.Banana: return BoomerangSwordEvolved;
+                case WeaponType.Excalibur:
+                case WeaponType.GoldenBow:
+                case WeaponType.ArrowShower:
+                case WeaponType.MachineGun:
+                case WeaponType.FireMissile:
+                case WeaponType.FrostStorm:
+                case WeaponType.ThunderStorm:
+                case WeaponType.DualShield:
+                case WeaponType.GoddessBlessing:
+                    return IsEvolved(WeaponCatalog.BaseWeaponOf(type));
                 case WeaponType.Arrow: return ArrowUnlocked;
                 case WeaponType.Fireball: return FireballUnlocked;
                 case WeaponType.Shield: return ShieldUnlocked;
@@ -309,8 +392,85 @@ namespace AreaSurvivors
             }
         }
 
+        public int GetRunWeaponDisplayLevel(WeaponType type)
+        {
+            type = EvolutionSourceType(type);
+            return runWeaponDisplayLevels.TryGetValue(type, out var level) ? Mathf.Max(1, level) : 0;
+        }
+
+        public void RegisterRunWeaponUpgrade(WeaponType type)
+        {
+            type = EvolutionSourceType(type);
+            if (!IsWeaponUnlocked(type)) return;
+            runWeaponDisplayLevels[type] = GetRunWeaponDisplayLevel(type) + 1;
+        }
+
+        public WeaponType GetDisplayWeaponType(WeaponType type)
+        {
+            type = EvolutionSourceType(type);
+            return IsEvolved(type) ? WeaponCatalog.EvolutionOf(type) : type;
+        }
+
+        public bool EvolveSlash()
+        {
+            return EvolveWeapon(WeaponType.Slash);
+        }
+
+        public bool EvolveBoomerangSword()
+        {
+            return EvolveWeapon(WeaponType.BoomerangSword);
+        }
+
+        public bool EvolveWeapon(WeaponType sourceType)
+        {
+            sourceType = EvolutionSourceType(sourceType);
+            if (!CanEvolveWeapon(sourceType)) return false;
+            evolvedWeapons.Add(sourceType);
+            RefreshFromStats();
+            ProgressionStore.MarkEvolutionDiscovered(WeaponCatalog.EvolutionOf(sourceType));
+            return true;
+        }
+
+        static WeaponType EvolutionSourceType(WeaponType type)
+        {
+            return WeaponCatalog.BaseWeaponOf(type);
+        }
+
+        bool IsEvolved(WeaponType sourceType)
+        {
+            return evolvedWeapons.Contains(EvolutionSourceType(sourceType));
+        }
+
+        public bool CanEvolveWeapon(WeaponType sourceType)
+        {
+            sourceType = EvolutionSourceType(sourceType);
+            if (WeaponCatalog.EvolutionOf(sourceType) == sourceType || IsEvolved(sourceType)) return false;
+            if (!IsWeaponUnlocked(sourceType) || GetRunWeaponDisplayLevel(sourceType) < GameConfig.MaxWeaponLevel) return false;
+            var manager = GameManager.Instance;
+            switch (sourceType)
+            {
+                case WeaponType.Slash: return ProgressionStore.Data.playCount >= 5;
+                case WeaponType.BoomerangSword: return manager != null && manager.Kills >= 300;
+                case WeaponType.AuraSword: return ProgressionStore.OwnedRelicCount() >= 10;
+                case WeaponType.Arrow: return manager != null && manager.RunTokens >= 50;
+                case WeaponType.ArrowRain: return IsPlayerAreaControlSpecialActive(0.5f);
+                case WeaponType.Gun: return manager != null && manager.CurrentLevel >= 30;
+                case WeaponType.Fireball: return manager != null && manager.BossActive;
+                case WeaponType.Frost: return ProgressionStore.DiscoveredEvolutionCount() >= 3;
+                case WeaponType.ThunderBall: return ProgressionStore.Data.totalKills + (manager != null ? manager.Kills : 0) >= 10000;
+                case WeaponType.Shield:
+                    var playerHealth = player != null ? player.GetComponent<Health>() : null;
+                    return playerHealth != null && playerHealth.Normalized < 1f;
+                case WeaponType.Flag:
+                    var towerHealth = manager != null && manager.Tower != null ? manager.Tower.GetComponent<Health>() : null;
+                    return towerHealth != null && towerHealth.Normalized <= 0.5f;
+                default: return false;
+            }
+        }
+
         public WeaponStatBlock GetWeaponStatsFor(WeaponType type)
         {
+            type = EvolutionSourceType(type);
             switch (type)
             {
                 case WeaponType.Slash: return slashStats;
@@ -319,13 +479,15 @@ namespace AreaSurvivors
                 case WeaponType.Shield: return shieldStats;
             }
 
-            int level = advancedWeaponLevels.TryGetValue(type, out var value) ? Mathf.Max(1, value) : 1;
+            int logicalLevel = advancedWeaponLevels.TryGetValue(type, out var value) ? Mathf.Max(1, value) : 1;
+            int level = ResolveTestStatLevel(type, logicalLevel);
             var stats = config != null ? config.GetWeaponStats(type, level) : default;
             return ApplyAdvancedRunUpgrades(type, stats);
         }
 
         public WeaponStatBlock GetEffectiveWeaponStatsFor(WeaponType type)
         {
+            type = EvolutionSourceType(type);
             switch (type)
             {
                 case WeaponType.Slash: return EffectiveSlashStats;
@@ -341,6 +503,7 @@ namespace AreaSurvivors
             if (!acquiredWeaponOrder.Contains(type))
             {
                 acquiredWeaponOrder.Add(type);
+                runWeaponDisplayLevels[type] = 1;
                 GameManager.Instance?.RegisterWeaponSlot(type, acquiredWeaponOrder.Count - 1);
             }
         }
@@ -357,6 +520,9 @@ namespace AreaSurvivors
 
         void ApplyTestStartingWeapon(WeaponType type)
         {
+            bool startEvolved = WeaponCatalog.IsEvolution(type);
+            WeaponType requestedType = type;
+            if (startEvolved) type = WeaponCatalog.BaseWeaponOf(type);
             slashLevel = 0;
             arrowLevel = 0;
             fireballLevel = 0;
@@ -366,19 +532,22 @@ namespace AreaSurvivors
             switch (type)
             {
                 case WeaponType.Slash:
-                    slashLevel = 1;
+                    slashLevel = startEvolved ? GameConfig.MaxWeaponLevel : 1;
                     break;
                 case WeaponType.Arrow:
-                    arrowLevel = 1;
+                    arrowLevel = startEvolved ? GameConfig.MaxWeaponLevel : 1;
                     break;
                 case WeaponType.Fireball:
-                    fireballLevel = 1;
+                    fireballLevel = startEvolved ? GameConfig.MaxWeaponLevel : 1;
                     break;
                 case WeaponType.Shield:
-                    shieldLevel = 1;
+                    shieldLevel = startEvolved ? GameConfig.MaxWeaponLevel : 1;
                     break;
                 default:
-                    if (WeaponCatalog.IsAdvanced(type)) advancedWeaponLevels[type] = 1;
+                    if (WeaponCatalog.IsAdvanced(type))
+                    {
+                        advancedWeaponLevels[type] = startEvolved ? GameConfig.MaxWeaponLevel : 1;
+                    }
                     else
                     {
                         type = WeaponType.Slash;
@@ -388,6 +557,107 @@ namespace AreaSurvivors
             }
 
             RegisterAcquiredWeapon(type);
+            if (startEvolved)
+            {
+                evolvedWeapons.Add(type);
+                runWeaponDisplayLevels[type] = GameConfig.MaxWeaponLevel;
+                ProgressionStore.MarkEvolutionDiscovered(requestedType);
+            }
+        }
+
+        void ApplyTestStartingWeaponProfile(WeaponType requestedType)
+        {
+            if (config == null || !WeaponCatalog.IsEvolution(requestedType)) return;
+
+            WeaponType sourceType = WeaponCatalog.BaseWeaponOf(requestedType);
+            testStatLevelOverrides[sourceType] = 1;
+            ApplyUniformEvolutionTestUpgrades(sourceType, EvolutionTestUpgradeCount);
+        }
+
+        int ResolveTestStatLevel(WeaponType type, int logicalLevel)
+        {
+            return Mathf.Max(1, testStatLevelOverrides.TryGetValue(type, out var level) ? level : logicalLevel);
+        }
+
+        public static int ResolveTestStatLevel(int logicalLevel, int? testStatLevelOverride)
+        {
+            return Mathf.Max(1, testStatLevelOverride ?? logicalLevel);
+        }
+
+        void ApplyUniformEvolutionTestUpgrades(WeaponType type, int upgradeCount)
+        {
+            int count = Mathf.Max(0, upgradeCount);
+            int attackBonus = Mathf.Max(1, config.runAttackPowerBonus) * count;
+            float cooldownMultiplier = Mathf.Pow(Mathf.Clamp(config.runAttackCooldownMultiplier, 0.05f, 1f), count);
+
+            switch (type)
+            {
+                case WeaponType.Slash:
+                    slashAttackBonus += attackBonus;
+                    slashCooldownMultiplier *= cooldownMultiplier;
+                    slashKnockbackBonus += SlashKnockbackUpgradeAmount * count;
+                    slashRangeBonus += SlashRangeUpgradeAmount * count;
+                    return;
+                case WeaponType.Arrow:
+                    arrowAttackBonus += attackBonus;
+                    arrowCooldownMultiplier *= cooldownMultiplier;
+                    arrowProjectileCountBonus += count;
+                    arrowRangeBonus += ProjectileRangeUpgradeAmount * count;
+                    return;
+                case WeaponType.Fireball:
+                    fireballAttackBonus += attackBonus;
+                    fireballCooldownMultiplier *= cooldownMultiplier;
+                    fireballExplosionRadiusBonus += FireballExplosionUpgradeAmount * count;
+                    fireballRangeBonus += ProjectileRangeUpgradeAmount * count;
+                    return;
+                case WeaponType.Shield:
+                    shieldAttackBonus += attackBonus;
+                    shieldCountBonus += count;
+                    shieldKnockbackBonus += ShieldKnockbackUpgradeAmount * count;
+                    shieldRotationSpeedBonus += ShieldRotationSpeedUpgradeAmount * count;
+                    return;
+            }
+
+            var upgrade = GetAdvancedUpgrade(type);
+            upgrade.attackBonus += attackBonus;
+            switch (type)
+            {
+                case WeaponType.Flag:
+                    upgrade.rangeBonus += ProjectileRangeUpgradeAmount * count;
+                    upgrade.slowBonus += 0.05f * count;
+                    upgrade.damageIntervalMultiplier *= cooldownMultiplier;
+                    break;
+                case WeaponType.BoomerangSword:
+                    upgrade.projectileCountBonus += count;
+                    upgrade.rangeBonus += SlashRangeUpgradeAmount * count;
+                    upgrade.cooldownMultiplier *= cooldownMultiplier;
+                    break;
+                case WeaponType.AuraSword:
+                    upgrade.projectileCountBonus += count;
+                    upgrade.rangeBonus += ProjectileRangeUpgradeAmount * count;
+                    upgrade.distanceBonus += ProjectileRangeUpgradeAmount * count;
+                    break;
+                case WeaponType.ArrowRain:
+                    upgrade.rangeBonus += ProjectileRangeUpgradeAmount * count;
+                    upgrade.durationBonus += 0.4f * count;
+                    upgrade.cooldownMultiplier *= cooldownMultiplier;
+                    break;
+                case WeaponType.Gun:
+                    upgrade.cooldownMultiplier *= cooldownMultiplier;
+                    upgrade.distanceBonus += ProjectileRangeUpgradeAmount * count;
+                    upgrade.projectileCountBonus += count;
+                    break;
+                case WeaponType.Frost:
+                    upgrade.rangeBonus += ProjectileRangeUpgradeAmount * count;
+                    upgrade.slowBonus += 0.05f * count;
+                    upgrade.cooldownMultiplier *= cooldownMultiplier;
+                    break;
+                case WeaponType.ThunderBall:
+                    upgrade.rangeBonus += ProjectileRangeUpgradeAmount * count;
+                    upgrade.projectileCountBonus += count;
+                    upgrade.durationBonus += 0.5f * count;
+                    break;
+            }
         }
 
         public void AddSlashAttack(int amount)
@@ -561,8 +831,22 @@ namespace AreaSurvivors
         {
             while (true)
             {
-                if (player != null && !player.IsReviving && SlashUnlocked) KnightSlash(slashStats);
-                yield return new WaitForSeconds(GetCooldown(slashStats));
+                var stats = slashStats;
+                float burstDuration = 0f;
+                if (player != null && !player.IsReviving && SlashUnlocked)
+                {
+                    if (SlashEvolved)
+                    {
+                        burstDuration = SwordRushBurstDuration();
+                        yield return SwordRush(stats);
+                    }
+                    else
+                    {
+                        KnightSlash(stats);
+                    }
+                }
+
+                yield return new WaitForSeconds(Mathf.Max(0f, GetCooldown(stats) - burstDuration));
             }
         }
 
@@ -570,8 +854,14 @@ namespace AreaSurvivors
         {
             while (true)
             {
-                if (player != null && !player.IsReviving && ArrowUnlocked) ShootArrowsAtNearestTargets(arrowPrefab, arrowStats);
-                yield return new WaitForSeconds(GetCooldown(arrowStats));
+                float cooldown = GetCooldown(arrowStats);
+                if (player != null && !player.IsReviving && ArrowUnlocked)
+                {
+                    var displayType = GetDisplayWeaponType(WeaponType.Arrow);
+                    var prefab = displayType == WeaponType.GoldenBow && goldenArrowPrefab != null ? goldenArrowPrefab : arrowPrefab;
+                    TryShootArrowVolley(prefab, arrowStats, displayType, cooldown);
+                }
+                yield return new WaitForSeconds(cooldown);
             }
         }
 
@@ -579,7 +869,12 @@ namespace AreaSurvivors
         {
             while (true)
             {
-                if (player != null && !player.IsReviving && FireballUnlocked) ShootForward(fireballPrefab, fireballStats);
+                if (player != null && !player.IsReviving && FireballUnlocked)
+                {
+                    var displayType = GetDisplayWeaponType(WeaponType.Fireball);
+                    if (displayType == WeaponType.FireMissile) ShootFireMissileAtNearestTarget(fireMissilePrefab != null ? fireMissilePrefab : fireballPrefab, fireballStats);
+                    else ShootForward(fireballPrefab, fireballStats);
+                }
                 yield return new WaitForSeconds(GetCooldown(fireballStats));
             }
         }
@@ -591,35 +886,113 @@ namespace AreaSurvivors
 
         void KnightSlash(WeaponStatBlock stats)
         {
-            AudioManager.PlaySfx(SfxTrack.SlashSwing);
-            var effectiveStats = ApplySlashSpecialEffect(stats);
-            var direction = player.Facing.sqrMagnitude > 0.01f ? player.Facing.normalized : Vector2.down;
-            float range = Mathf.Max(0.01f, effectiveStats.range);
-            float baseRange = config != null ? Mathf.Max(0.01f, config.slashRange) : range;
-            int damage = effectiveStats.attackPower + config.slashDamageBonus;
-            float knockback = effectiveStats.knockback * config.knockbackForceUnit;
-            SlashView.Flash(slashPrefab, transform.position, direction, range, baseRange, damage, knockback, config.knockbackDuration);
+            var direction = FacingDirection();
+            PlaySlashStrike(stats, direction, slashPrefab, config != null ? config.slashRange : stats.range);
         }
 
-        void ShootArrowsAtNearestTargets(GameObject prefab, WeaponStatBlock stats)
+        IEnumerator SwordRush(WeaponStatBlock stats)
         {
-            if (prefab == null) return;
+            var direction = FacingDirection();
+            int strikeCount = config != null ? Mathf.Max(1, config.swordRushStrikeCount) : 5;
+            float strikeInterval = config != null ? Mathf.Max(0f, config.swordRushStrikeIntervalSeconds) : 0.09f;
+            float baseRange = config != null ? Mathf.Max(0.01f, config.swordRushBaseRange) : Mathf.Max(0.01f, stats.range);
+            var prefab = swordRushSlashPrefab != null ? swordRushSlashPrefab : slashPrefab;
+            for (int i = 0; i < strikeCount; i++)
+            {
+                if (runtimeStopped || player == null || player.IsReviving) yield break;
+                PlaySlashStrike(stats, direction, prefab, baseRange, i % 2);
+                if (i < strikeCount - 1 && strikeInterval > 0f) yield return new WaitForSeconds(strikeInterval);
+            }
+        }
+
+        float SwordRushBurstDuration()
+        {
+            if (config == null) return 0.36f;
+            return Mathf.Max(0, config.swordRushStrikeCount - 1) * Mathf.Max(0f, config.swordRushStrikeIntervalSeconds);
+        }
+
+        Vector2 FacingDirection()
+        {
+            return player != null && player.Facing.sqrMagnitude > 0.01f ? player.Facing.normalized : Vector2.down;
+        }
+
+        void PlaySlashStrike(WeaponStatBlock stats, Vector2 direction, GameObject prefab, float baseRange, int animationFrameIndex = -1)
+        {
+            AudioManager.PlaySfx(SfxTrack.SlashSwing);
+            var effectiveStats = ApplySlashSpecialEffect(stats);
+            float range = Mathf.Max(0.01f, effectiveStats.range);
+            int damage = effectiveStats.attackPower + (config != null ? config.slashDamageBonus : 0);
+            float knockback = effectiveStats.knockback * (config != null ? config.knockbackForceUnit : 1f);
+            float knockbackDuration = config != null ? config.knockbackDuration : 0f;
+            SlashView.Flash(prefab, transform.position, direction, range, Mathf.Max(0.01f, baseRange), damage, knockback, knockbackDuration, animationFrameIndex);
+        }
+
+        void TryShootArrowVolley(GameObject prefab, WeaponStatBlock stats, WeaponType displayType, float cooldown)
+        {
+            if (!TryConsumeArrowSchedule(Time.time, cooldown))
+            {
+                return;
+            }
+
+            int launchedCount = ShootArrowsAtNearestTargets(prefab, stats, displayType);
+            if (launchedCount <= 0) return;
+        }
+
+        bool TryConsumeArrowSchedule(float now, float cooldown)
+        {
+            if (now + 0.0001f < nextArrowVolleyAt) return false;
+            nextArrowVolleyAt = now + Mathf.Max(0.05f, cooldown);
+            return true;
+        }
+
+        int ShootArrowsAtNearestTargets(GameObject prefab, WeaponStatBlock stats, WeaponType displayType)
+        {
+            if (prefab == null) return 0;
             var effectiveStats = ApplyArrowSpecialEffect(stats);
             var targets = CollectArrowTargetsInRange(effectiveStats);
-            if (targets.Count <= 0) return;
+            if (targets.Count <= 0) return 0;
 
             float projectileSpeed = Mathf.Max(0.01f, effectiveStats.projectileSpeed);
             float range = Mathf.Max(0.01f, effectiveStats.range);
             float lifetime = Mathf.Max(0.05f, range / projectileSpeed);
-            int projectileCount = Mathf.Min(Mathf.Max(1, effectiveStats.projectileCount), targets.Count);
+            int projectileCount = ResolveArrowVolleyProjectileCount(effectiveStats.projectileCount, targets.Count);
+            int launchedCount = 0;
             for (int i = 0; i < projectileCount; i++)
             {
                 var enemy = targets[i].enemy;
                 if (enemy == null) continue;
-                if (i == 0) AudioManager.PlaySfx(SfxTrack.ArrowShot);
+                if (launchedCount == 0) AudioManager.PlaySfx(SfxTrack.ArrowShot);
                 var shotDirection = (Vector2)(enemy.transform.position - transform.position);
-                LaunchProjectile(prefab, false, effectiveStats, shotDirection.normalized, projectileSpeed, 0f, lifetime);
+                LaunchProjectile(prefab, false, effectiveStats, shotDirection.normalized, projectileSpeed, 0f, lifetime, displayType, enemy.transform);
+                launchedCount++;
             }
+            return launchedCount;
+        }
+
+        public static int ResolveArrowVolleyProjectileCount(int projectileCount, int targetCount)
+        {
+            if (targetCount <= 0) return 0;
+            return Mathf.Min(Mathf.Max(1, projectileCount), targetCount);
+        }
+
+        void ShootFireMissileAtNearestTarget(GameObject prefab, WeaponStatBlock stats)
+        {
+            if (prefab == null) return;
+            var effectiveStats = ApplyFireballSpecialEffect(stats);
+            var targets = CollectArrowTargetsInRange(effectiveStats);
+            if (targets.Count <= 0 || targets[0].enemy == null) return;
+            var enemy = targets[0].enemy;
+            var direction = ResolveFireMissileLaunchDirection(UnityEngine.Random.Range(0f, 360f));
+            float speed = Mathf.Max(0.01f, effectiveStats.projectileSpeed);
+            float lifetime = Mathf.Max(0.05f, FireballFlightRange(effectiveStats) / speed);
+            AudioManager.PlaySfx(SfxTrack.FireballCast);
+            LaunchProjectile(prefab, true, effectiveStats, direction, speed, Mathf.Max(0.05f, effectiveStats.explosionRadius), lifetime, WeaponType.FireMissile, enemy.transform);
+        }
+
+        public static Vector2 ResolveFireMissileLaunchDirection(float angleDegrees)
+        {
+            float radians = angleDegrees * Mathf.Deg2Rad;
+            return new Vector2(Mathf.Cos(radians), Mathf.Sin(radians)).normalized;
         }
 
         List<ArrowTargetCandidate> CollectArrowTargetsInRange(WeaponStatBlock stats)
@@ -651,7 +1024,7 @@ namespace AreaSurvivors
             float lifetime = Mathf.Max(0.05f, FireballFlightRange(effectiveStats) / projectileSpeed);
             float radius = Mathf.Max(0.05f, effectiveStats.explosionRadius);
             AudioManager.PlaySfx(SfxTrack.FireballCast);
-            LaunchProjectile(prefab, true, effectiveStats, direction, projectileSpeed, radius, lifetime);
+            LaunchProjectile(prefab, true, effectiveStats, direction, projectileSpeed, radius, lifetime, WeaponType.Fireball, null);
         }
 
         float FireballFlightRange(WeaponStatBlock stats)
@@ -687,6 +1060,7 @@ namespace AreaSurvivors
         {
             if (shieldOrbit == null) return;
             bool active = player != null && !player.IsReviving && ShieldUnlocked;
+            shieldOrbit.SetEvolution(GetDisplayWeaponType(WeaponType.Shield) == WeaponType.DualShield);
             shieldOrbit.SetActive(active);
             if (active) shieldOrbit.SetStats(EffectiveShieldStats);
         }
@@ -699,6 +1073,7 @@ namespace AreaSurvivors
 
         WeaponStatBlock ApplyAdvancedRunUpgrades(WeaponType type, WeaponStatBlock stats)
         {
+            stats = ApplyAdvancedEvolutionBaseValues(type, stats);
             if (advancedWeaponUpgrades.TryGetValue(type, out var upgrade))
             {
                 stats.attackPower += upgrade.attackBonus;
@@ -712,6 +1087,44 @@ namespace AreaSurvivors
             }
 
             stats = RelicEffects.ApplyWeaponStatBonuses(type, stats);
+            return stats;
+        }
+
+        WeaponStatBlock ApplyAdvancedEvolutionBaseValues(WeaponType type, WeaponStatBlock stats)
+        {
+            if (!IsEvolved(type) || config == null) return stats;
+
+            var baseStats = config.GetWeaponStats(type, 1);
+            switch (type)
+            {
+                case WeaponType.BoomerangSword:
+                    stats.range += Mathf.Max(0f, config.bananaBaseRange) - baseStats.range;
+                    stats.projectileCount += Mathf.Max(0, config.bananaBaseProjectileCountBonus);
+                    break;
+                case WeaponType.AuraSword:
+                    stats.range += baseStats.range;
+                    stats.distance += baseStats.distance;
+                    stats.damageIntervalSeconds = Mathf.Max(0.05f, config.excaliburDamageIntervalSeconds);
+                    break;
+                case WeaponType.ArrowRain:
+                    stats.range += Mathf.Max(0.05f, config.evolvedGroundStrikeRadius) - baseStats.range;
+                    break;
+                case WeaponType.Gun:
+                    stats.projectileCount += Mathf.Max(0, config.machineGunBaseAttackCountBonus);
+                    break;
+                case WeaponType.Frost:
+                    stats.range += Mathf.Max(0.05f, config.evolvedGroundStrikeRadius) - baseStats.range;
+                    break;
+                case WeaponType.ThunderBall:
+                    stats.projectileCount += Mathf.Max(0, config.thunderStormOrbitCount);
+                    break;
+                case WeaponType.Flag:
+                    stats.attackPower += baseStats.attackPower;
+                    break;
+            }
+            stats.range = Mathf.Max(0.05f, stats.range);
+            stats.distance = Mathf.Max(0f, stats.distance);
+            stats.projectileCount = Mathf.Max(1, stats.projectileCount);
             return stats;
         }
 
@@ -766,7 +1179,7 @@ namespace AreaSurvivors
             }
         }
 
-        void LaunchProjectile(GameObject prefab, bool explosive, WeaponStatBlock stats, Vector2 direction, float projectileSpeed, float radius, float lifetime)
+        void LaunchProjectile(GameObject prefab, bool explosive, WeaponStatBlock stats, Vector2 direction, float projectileSpeed, float radius, float lifetime, WeaponType displayType, Transform homingTarget)
         {
             var go = Instantiate(prefab, transform.position, Quaternion.identity);
             var projectile = go.GetComponent<Projectile>();
@@ -781,7 +1194,11 @@ namespace AreaSurvivors
                 float projectileVisualScale = explosive
                     ? FireballProjectileVisualScale
                     : config.projectileVisualScale;
-                projectile.SetDamageSource(RunDamageSource.ForWeapon(explosive ? WeaponType.Fireball : WeaponType.Arrow));
+                projectile.SetDamageSource(RunDamageSource.ForWeapon(WeaponCatalog.BaseWeaponOf(displayType)));
+                float homingTurnSpeed = displayType == WeaponType.FireMissile && config != null
+                    ? config.fireMissileHomingTurnSpeedDegrees
+                    : 180f;
+                projectile.ConfigureWeaponBehavior(displayType, homingTarget, homingTurnSpeed);
                 projectile.Launch(direction, stats.attackPower, projectileSpeed, explosive, radius, lifetime, projectileVisualScale);
                 projectile.knockback = stats.knockback * config.knockbackForceUnit;
                 projectile.knockbackDuration = config.knockbackDuration;

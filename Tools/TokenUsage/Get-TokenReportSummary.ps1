@@ -7,6 +7,7 @@ param(
     [int]$Top = 10,
     [int]$Recent = 0,
     [switch]$SinceLastStart,
+    [switch]$FailedOnly,
     [switch]$IncludeBenchmark,
     [switch]$Json
 )
@@ -58,6 +59,9 @@ foreach ($file in $reportFiles) {
                 risk = if ($record.estimate) { $record.estimate.risk } else { "" }
                 blocked = [bool]$record.blocked
                 exit_code = $record.exit_code
+                timeout_seconds = $record.timeout_seconds
+                timed_out = [bool]$record.timed_out
+                capture_path = $record.capture_path
                 report_file = $file.Name
             }
         } catch {
@@ -69,6 +73,9 @@ foreach ($file in $reportFiles) {
                 risk = "unknown"
                 blocked = $false
                 exit_code = $null
+                timeout_seconds = $null
+                timed_out = $false
+                capture_path = ""
                 report_file = $file.Name
             }
         }
@@ -94,6 +101,9 @@ if (-not $IncludeBenchmark) {
 if ($kindSet.Count -gt 0) {
     $records = @($records | Where-Object { $kindSet.ContainsKey([string]$_.kind) })
 }
+if ($FailedOnly) {
+    $records = @($records | Where-Object { $_.kind -eq "parse_error" -or $_.timed_out -or ($_.exit_code -ne $null -and [int]$_.exit_code -ne 0) })
+}
 if ($Recent -gt 0) {
     $records = @($records | Sort-Object timestamp | Select-Object -Last $Recent)
 }
@@ -107,6 +117,7 @@ $summary = [pscustomobject]@{
     kinds = @($kindSet.Keys)
     recent = $Recent
     since_last_start = [bool]$SinceLastStart
+    failed_only = [bool]$FailedOnly
     records = $records.Count
     total_estimated_tokens = [int]$totalTokens
     blocked_count = @($records | Where-Object { $_.blocked }).Count

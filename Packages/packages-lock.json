@@ -43,11 +43,10 @@
       }
     },
     "com.yucchiy.unicli-server": {
-      "version": "https://github.com/yucchiy/UniCli.git?path=src/UniCli.Unity/Packages/com.yucchiy.unicli-server",
+      "version": "file:com.yucchiy.unicli-server",
       "depth": 0,
-      "source": "git",
-      "dependencies": {},
-      "hash": "77ddefc136a3c59376a4000f98a9dc6bb2484441"
+      "source": "embedded",
+      "dependencies": {}
     },
     "com.unity.modules.animation": {
       "version": "1.0.0",

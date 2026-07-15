@@ -6,6 +6,7 @@ namespace AreaSurvivors
     public sealed class ShieldOrbitController : MonoBehaviour
     {
         public GameObject shieldPrefab;
+        public GameObject dualShieldPrefab;
 
         readonly List<ShieldOrbitShield> shields = new List<ShieldOrbitShield>();
         WeaponController weapon;
@@ -14,6 +15,7 @@ namespace AreaSurvivors
         WeaponStatBlock stats;
         bool active;
         float angleDegrees;
+        bool dualShield;
 
         public void Configure(WeaponController owner, Transform target, GameConfig gameConfig)
         {
@@ -39,6 +41,17 @@ namespace AreaSurvivors
             ApplyShieldStats();
         }
 
+        public void SetEvolution(bool evolved)
+        {
+            if (dualShield == evolved) return;
+            dualShield = evolved;
+            for (int i = 0; i < shields.Count; i++)
+            {
+                if (shields[i] != null) Destroy(shields[i].gameObject);
+            }
+            shields.Clear();
+        }
+
         void Update()
         {
             if (!active || orbitTarget == null) return;
@@ -51,7 +64,8 @@ namespace AreaSurvivors
         {
             for (int i = shields.Count; i < count; i++)
             {
-                var instance = shieldPrefab != null ? Instantiate(shieldPrefab, transform) : null;
+                var selectedPrefab = dualShield && dualShieldPrefab != null ? dualShieldPrefab : shieldPrefab;
+                var instance = selectedPrefab != null ? Instantiate(selectedPrefab, transform) : null;
                 if (instance == null) break;
                 instance.name = "Orbit Shield " + (i + 1);
                 var shield = instance.GetComponent<ShieldOrbitShield>();

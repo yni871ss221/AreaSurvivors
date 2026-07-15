@@ -5,6 +5,8 @@ param(
     [string]$Shell = "powershell",
     [int]$WarnTokens = 3000,
     [int]$BlockTokens = 8000,
+    [ValidateRange(1, 600)]
+    [int]$TimeoutSeconds = 60,
     [switch]$AllowHighOutput,
     [switch]$PrintOutput,
     [string]$ReportPath,
@@ -16,21 +18,55 @@ $ErrorActionPreference = "Stop"
 
 $capturePath = Join-Path ([System.IO.Path]::GetTempPath()) ("safe-command-" + [guid]::NewGuid().ToString("N") + ".txt")
 $exitCode = $null
+$timedOut = $false
 
 if ($Shell -eq "cmd") {
     $stdoutPath = $capturePath + ".stdout"
     $stderrPath = $capturePath + ".stderr"
-    & cmd.exe /d /c $Command 1> $stdoutPath 2> $stderrPath
-    $exitCode = $LASTEXITCODE
+    $escapedCommand = $Command.Replace("'", "''")
+    $escapedStdoutPath = $stdoutPath.Replace("'", "''")
+    $escapedStderrPath = $stderrPath.Replace("'", "''")
+    $script = @"
+`$command = '$escapedCommand'
+& cmd.exe /d /c `$command 1> '$escapedStdoutPath' 2> '$escapedStderrPath'
+exit `$LASTEXITCODE
+"@
+} else {
+    $escapedPath = $capturePath.Replace("'", "''")
+    $script = @"
+`$utf8NoBom = New-Object System.Text.UTF8Encoding(`$false)
+[Console]::InputEncoding = `$utf8NoBom
+[Console]::OutputEncoding = `$utf8NoBom
+`$OutputEncoding = `$utf8NoBom
+& { $Command } *>&1 | Out-File -LiteralPath '$escapedPath' -Encoding utf8
+if (`$global:LASTEXITCODE -ne `$null) { exit `$global:LASTEXITCODE }
+"@
+}
+
+$encodedScript = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($script))
+$process = Start-Process -FilePath "powershell.exe" `
+    -ArgumentList @("-NoProfile", "-ExecutionPolicy", "Bypass", "-EncodedCommand", $encodedScript) `
+    -WindowStyle Hidden `
+    -PassThru
+
+if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+    $timedOut = $true
+    try {
+        $process.Kill()
+        $process.WaitForExit(5000) | Out-Null
+    } catch {
+        Write-Warning ("Timed-out command process could not be stopped cleanly: {0}" -f $_.Exception.Message)
+    }
+    $exitCode = 124
+} else {
+    $exitCode = $process.ExitCode
+}
+
+if ($Shell -eq "cmd") {
     $parts = @()
     if (Test-Path -LiteralPath $stdoutPath) { $parts += [System.IO.File]::ReadAllText($stdoutPath) }
     if (Test-Path -LiteralPath $stderrPath) { $parts += [System.IO.File]::ReadAllText($stderrPath) }
     [System.IO.File]::WriteAllText($capturePath, ($parts -join "`n"))
-} else {
-    $escapedPath = $capturePath.Replace("'", "''")
-    $script = "& { $Command } *>&1 | Out-File -LiteralPath '$escapedPath' -Encoding utf8; if (`$global:LASTEXITCODE -ne `$null) { exit `$global:LASTEXITCODE }"
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command $script | Out-Null
-    $exitCode = $LASTEXITCODE
 }
 
 $text = if (Test-Path -LiteralPath $capturePath) { [System.IO.File]::ReadAllText($capturePath) } else { "" }
@@ -44,6 +80,8 @@ $record = [pscustomobject]@{
     command = $Command
     shell = $Shell
     exit_code = $exitCode
+    timeout_seconds = $TimeoutSeconds
+    timed_out = $timedOut
     capture_path = $capturePath
     warn_tokens = $WarnTokens
     block_tokens = $BlockTokens
@@ -59,6 +97,8 @@ if ($Json) {
 } else {
     Write-Output ("command: {0}" -f $Command)
     Write-Output ("exit_code: {0}" -f $exitCode)
+    Write-Output ("timeout_seconds: {0}" -f $TimeoutSeconds)
+    Write-Output ("timed_out: {0}" -f $timedOut)
     Write-Output ("estimated_tokens: {0}" -f $estimate.estimated_tokens)
     Write-Output ("risk: {0}" -f $estimate.risk)
     Write-Output ("captured_to: {0}" -f $capturePath)
@@ -78,3 +118,5 @@ if ($PrintOutput -and -not $blocked) {
     Write-Output "--- captured output ---"
     Write-Output $text
 }
+
+$global:LASTEXITCODE = $exitCode

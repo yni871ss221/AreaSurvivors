@@ -107,6 +107,11 @@ namespace AreaSurvivors
             }
         }
 
+        void OnDidApplyAnimationProperties()
+        {
+            ApplySprite();
+        }
+
         public Color color
         {
             get => tint;

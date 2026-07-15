@@ -173,6 +173,25 @@ namespace AreaSurvivors
         public int slashDamageBonus = 2;
         public float slashRange = 1.6f;
         public float slashOffset = 1.05f;
+        [Header("Weapon Evolution")]
+        [Min(0)] public int swordRushBaseAttackPower = 16;
+        [Min(0f)] public float swordRushBaseRange = 3.2f;
+        [Min(1)] public int swordRushStrikeCount = 5;
+        [Min(0f)] public float swordRushStrikeIntervalSeconds = 0.09f;
+        [Min(0f)] public float bananaBaseRange = 1.4f;
+        [Min(0)] public int bananaBaseProjectileCountBonus = 3;
+        [Min(0.1f)] public float excaliburTravelSpeedCellsPerSecond = 5f;
+        [Min(0.05f)] public float excaliburDamageIntervalSeconds = 0.2f;
+        [Min(0.05f)] public float arrowShowerStrikeIntervalSeconds = 0.25f;
+        [Min(0.05f)] public float evolvedGroundStrikeRadius = 0.7f;
+        [Min(0.1f)] public float evolvedGroundStrikeTargetRadiusCells = 15f;
+        [Min(0.05f)] public float machineGunShotIntervalSeconds = 0.2f;
+        [Min(0)] public int machineGunBaseAttackCountBonus = 10;
+        [Range(0.05f, 2f)] public float fireMissileBaseCooldownMultiplier = 0.5f;
+        [Min(1f)] public float fireMissileHomingTurnSpeedDegrees = 180f;
+        [Min(0)] public int frostStormTargetCount = 5;
+        [Min(0)] public int thunderStormOrbitCount = 3;
+        [Min(0)] public int goddessBlessingHealAmount = 5;
         public float arrowRangeCells = 10f;
         public float arrowRangeCellsPerLevel = 1f;
         public float fireballExplosionRadius = 1.1f;

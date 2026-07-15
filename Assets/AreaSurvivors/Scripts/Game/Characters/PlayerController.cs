@@ -14,22 +14,13 @@ namespace AreaSurvivors
         public Slider hpBar;
         public GameObject damagePopupPrefab;
         public TokenGainPopup tokenGainPopup;
-        public DirectionalSpriteAnimator directionalAnimator;
+        public DirectionalAnimatorDriver directionalAnimatorDriver;
+        public RuntimeAnimatorController knightAnimatorController;
+        public RuntimeAnimatorController archerAnimatorController;
+        public RuntimeAnimatorController mageAnimatorController;
         public Sprite knightSprite;
         public Sprite archerSprite;
         public Sprite mageSprite;
-        public Sprite[] knightDownFrames;
-        public Sprite[] knightLeftFrames;
-        public Sprite[] knightRightFrames;
-        public Sprite[] knightUpFrames;
-        public Sprite[] archerDownFrames;
-        public Sprite[] archerLeftFrames;
-        public Sprite[] archerRightFrames;
-        public Sprite[] archerUpFrames;
-        public Sprite[] mageDownFrames;
-        public Sprite[] mageLeftFrames;
-        public Sprite[] mageRightFrames;
-        public Sprite[] mageUpFrames;
         public bool IsReviving { get; private set; }
         public bool IsInvincible { get; private set; }
 
@@ -106,25 +97,13 @@ namespace AreaSurvivors
 
         void ApplyCharacterSprite(CharacterType type)
         {
-            var sprite = type == CharacterType.Archer ? archerSprite : type == CharacterType.Mage ? mageSprite : knightSprite;
-            var visual = GetComponentInChildren<PaperMeshVisual>();
-            if (sprite != null && visual != null) visual.sprite = sprite;
-
-            if (directionalAnimator != null)
-            {
-                if (type == CharacterType.Archer)
-                {
-                    directionalAnimator.SetFrames(archerDownFrames, archerLeftFrames, archerRightFrames, archerUpFrames);
-                }
-                else if (type == CharacterType.Mage)
-                {
-                    directionalAnimator.SetFrames(mageDownFrames, mageLeftFrames, mageRightFrames, mageUpFrames);
-                }
-                else
-                {
-                    directionalAnimator.SetFrames(knightDownFrames, knightLeftFrames, knightRightFrames, knightUpFrames);
-                }
-            }
+            if (directionalAnimatorDriver == null) return;
+            var controller = type == CharacterType.Archer
+                ? archerAnimatorController
+                : type == CharacterType.Mage
+                    ? mageAnimatorController
+                    : knightAnimatorController;
+            directionalAnimatorDriver.SetController(controller);
         }
 
         void Update()
@@ -145,7 +124,7 @@ namespace AreaSurvivors
                 ? 1f
                 : grid.GetMoveMultiplier(movementSample, TileOwner.Player, Mathf.Clamp01(enemyTerritoryMultiplier));
             body.velocity = input * moveSpeed * territory;
-            if (directionalAnimator != null) directionalAnimator.Tick(facing, input.sqrMagnitude > 0.01f);
+            if (directionalAnimatorDriver != null) directionalAnimatorDriver.Tick(facing, input.sqrMagnitude > 0.01f);
             grid.Paint(movementSample, TileOwner.Player, paintRadius);
         }
 
@@ -195,7 +174,7 @@ namespace AreaSurvivors
             IsReviving = true;
             body.velocity = Vector2.zero;
             if (hitCollider != null) hitCollider.enabled = false;
-            if (directionalAnimator != null) directionalAnimator.enabled = false;
+            if (directionalAnimatorDriver != null) directionalAnimatorDriver.SetPlaybackEnabled(false);
 
             var mainVisual = GetComponentInChildren<PaperMeshVisual>();
             var deathPose = new GameObject("Revive Pose");
@@ -228,7 +207,7 @@ namespace AreaSurvivors
                 mainVisual.color = Color.white;
                 mainVisual.visible = true;
             }
-            if (directionalAnimator != null) directionalAnimator.enabled = true;
+            if (directionalAnimatorDriver != null) directionalAnimatorDriver.SetPlaybackEnabled(true);
             if (hitCollider != null) hitCollider.enabled = true;
             IsReviving = false;
             invincibilityRoutine = StartCoroutine(ReviveInvincibilityRoutine());

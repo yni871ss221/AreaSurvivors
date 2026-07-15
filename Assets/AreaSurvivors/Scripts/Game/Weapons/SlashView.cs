@@ -7,13 +7,12 @@ namespace AreaSurvivors
     [RequireComponent(typeof(BoxCollider2D), typeof(Rigidbody2D))]
     public sealed class SlashView : MonoBehaviour
     {
-        static Sprite[] frames;
-
         [SerializeField] BoxCollider2D hitbox;
         [SerializeField] Rigidbody2D body;
         [SerializeField] Transform visualRoot;
-        [SerializeField] PaperMeshVisual visual;
-        [SerializeField] PaperBillboard billboard;
+        [SerializeField] Animator animator;
+        [SerializeField] AnimationClip animationClip;
+        [SerializeField] SpriteRenderer spriteRenderer;
         [SerializeField] float hitboxWidthMultiplier = 0.9f;
         [SerializeField] float hitboxForwardCenterMultiplier = 0.56f;
         [SerializeField] float visualReferenceRange = DefaultVisualReferenceRange;
@@ -29,10 +28,11 @@ namespace AreaSurvivors
         int damage;
         float knockback;
         float knockbackDuration;
+        int selectedAnimationFrame = -1;
         const int SlashPaintRadius = 1;
         const float DefaultVisualReferenceRange = 1.05f;
 
-        public static void Flash(GameObject prefab, Vector3 position, Vector2 direction, float range, float baseRange, int damage, float knockback, float knockbackDuration)
+        public static void Flash(GameObject prefab, Vector3 position, Vector2 direction, float range, float baseRange, int damage, float knockback, float knockbackDuration, int animationFrameIndex = -1)
         {
             if (prefab == null)
             {
@@ -49,7 +49,7 @@ namespace AreaSurvivors
                 return;
             }
 
-            slash.Play(position, direction, range, baseRange, damage, knockback, knockbackDuration);
+            slash.Play(position, direction, range, baseRange, damage, knockback, knockbackDuration, animationFrameIndex);
         }
 
         public static void Flash(Vector3 position, Vector2 direction, float range, float baseRange, int damage, float knockback, float knockbackDuration)
@@ -57,9 +57,10 @@ namespace AreaSurvivors
             Debug.LogError("Slash prefab overload should be used for slash attacks.");
         }
 
-        public void Play(Vector3 position, Vector2 direction, float range, float baseRange, int damage, float knockback, float knockbackDuration)
+        public void Play(Vector3 position, Vector2 direction, float range, float baseRange, int damage, float knockback, float knockbackDuration, int animationFrameIndex = -1)
         {
             EnsureReferences();
+            selectedAnimationFrame = animationFrameIndex;
             var dir = direction.sqrMagnitude > 0.01f ? direction.normalized : Vector2.down;
             float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
             float referenceRange = visualReferenceRange > 0f ? visualReferenceRange : baseRange;
@@ -89,48 +90,30 @@ namespace AreaSurvivors
                 visualRoot.localScale = Vector3.one * (visualScaleMultiplier * rangeScale);
             }
 
-            if (billboard != null) billboard.rollDegrees = angle;
-            EnsureFrames();
-            if (visual != null)
-            {
-                var sprite = frames.Length > 0 && frames[0] != null ? frames[0] : visual.sprite;
-                visual.Configure(sprite, slashColor, slashSortingOrder);
-            }
-
             origin = position;
             attackDirection = dir;
             this.damage = damage;
             this.knockback = knockback;
             this.knockbackDuration = knockbackDuration;
 
+            PlayAnimatorState();
             StartCoroutine(DamageAfterPhysicsSync());
-            StartCoroutine(Life(dir));
+            StartCoroutine(Life());
         }
 
-        static void EnsureFrames()
+        void PlayAnimatorState()
         {
-            if (frames != null) return;
-            frames = new[]
-            {
-                GeneratedSpriteLoader.Load("Slash_0"),
-                GeneratedSpriteLoader.Load("Slash_1"),
-                GeneratedSpriteLoader.Load("Slash_2")
-            };
+            if (animator == null || animator.runtimeAnimatorController == null) return;
+            string stateName = selectedAnimationFrame >= 0
+                ? (selectedAnimationFrame % 2 == 0 ? "SwordRushFrame0" : "SwordRushFrame1")
+                : "Slash";
+            animator.Play(stateName, 0, 0f);
         }
 
-        IEnumerator Life(Vector2 direction)
+        IEnumerator Life()
         {
-            EnsureFrames();
-            for (int i = 0; i < frames.Length; i++)
-            {
-                if (visual != null)
-                {
-                    if (frames[i] != null) visual.sprite = frames[i];
-                    visual.color = new Color(slashColor.r, slashColor.g, slashColor.b, Mathf.Lerp(slashColor.a, 0.32f, i / Mathf.Max(1f, frames.Length - 1f)));
-                }
-                transform.position += (Vector3)direction * 0.035f;
-                yield return new WaitForSeconds(frameSeconds);
-            }
+            float duration = animationClip != null ? animationClip.length : Mathf.Max(0.01f, frameSeconds);
+            yield return new WaitForSeconds(duration);
             Destroy(gameObject);
         }
 
@@ -181,9 +164,14 @@ namespace AreaSurvivors
         {
             if (hitbox == null) hitbox = GetComponent<BoxCollider2D>();
             if (body == null) body = GetComponent<Rigidbody2D>();
-            if (visual == null) visual = GetComponentInChildren<PaperMeshVisual>(true);
-            if (visualRoot == null && visual != null) visualRoot = visual.transform;
-            if (billboard == null && visualRoot != null) billboard = visualRoot.GetComponent<PaperBillboard>();
+            if (animator == null) animator = GetComponentInChildren<Animator>(true);
+            if (spriteRenderer == null && animator != null) spriteRenderer = animator.GetComponent<SpriteRenderer>();
+            if (visualRoot == null && animator != null) visualRoot = animator.transform.parent;
+            if (animationClip == null && animator != null && animator.runtimeAnimatorController != null)
+            {
+                var clips = animator.runtimeAnimatorController.animationClips;
+                if (clips != null && clips.Length > 0) animationClip = clips[0];
+            }
         }
     }
 }

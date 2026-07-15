@@ -27,6 +27,12 @@ namespace AreaSurvivors
         bool explosive;
         bool resolved;
         RunDamageSource damageSource;
+        WeaponType weaponType = WeaponType.Arrow;
+        Transform homingTarget;
+        float homingSearchRange;
+        float homingTurnSpeedDegrees = 180f;
+        float nextHomingSearchAt;
+        readonly HashSet<Health> piercedTargets = new HashSet<Health>();
         float explosionRadius = 1.1f;
         float trailTimer;
         float trailPaintTimer;
@@ -50,6 +56,11 @@ namespace AreaSurvivors
             TrailFleck();
         }
 
+        void FixedUpdate()
+        {
+            UpdateHomingDirection(Time.fixedDeltaTime);
+        }
+
         public void Launch(Vector2 direction, int amount, float speed, bool isExplosive)
         {
             Launch(direction, amount, speed, isExplosive, explosionRadius, lifetime, visualScale);
@@ -63,6 +74,7 @@ namespace AreaSurvivors
             explosive = isExplosive;
             explosionRadius = Mathf.Max(0.05f, radius);
             lifetime = Mathf.Max(0.05f, seconds);
+            homingSearchRange = Mathf.Max(0.05f, speed * lifetime);
             visualScale = Mathf.Max(0.05f, scale);
             trailTimer = 0f;
             trailPaintTimer = 0f;
@@ -87,10 +99,19 @@ namespace AreaSurvivors
             damageSource = source;
         }
 
+        public void ConfigureWeaponBehavior(WeaponType type, Transform target, float turnSpeedDegrees = 180f)
+        {
+            weaponType = type;
+            homingTarget = target;
+            homingTurnSpeedDegrees = Mathf.Max(0f, turnSpeedDegrees);
+            nextHomingSearchAt = 0f;
+            piercedTargets.Clear();
+        }
+
         void OnTriggerEnter2D(Collider2D other)
         {
             if (resolved) return;
-            var enemy = other.GetComponent<EnemyController>();
+            var enemy = other.GetComponentInParent<EnemyController>();
             if (enemy == null) return;
             if (explosive)
             {
@@ -98,16 +119,89 @@ namespace AreaSurvivors
             }
             else
             {
+                var health = enemy.GetComponent<Health>();
+                if (weaponType == WeaponType.GoldenBow && health != null && piercedTargets.Contains(health)) return;
                 ImpactFlash();
-                var health = other.GetComponent<Health>();
                 int creditedDamage = health != null && !health.IsDead ? health.DamageAmount(damage) : 0;
                 if (health != null) health.Damage(damage, other.ClosestPoint(transform.position));
                 if (paintsTerritory) PaintPlayerTerritory(enemy.transform.position, ArrowPaintRadius);
                 ApplyKnockback(enemy, GetComponent<Rigidbody2D>() != null ? GetComponent<Rigidbody2D>().velocity.normalized : transform.right);
                 RegisterDamage(creditedDamage);
+                if (weaponType == WeaponType.GoldenBow)
+                {
+                    if (health != null) piercedTargets.Add(health);
+                    return;
+                }
                 resolved = true;
                 Destroy(gameObject);
             }
+        }
+
+        void UpdateHomingDirection(float deltaTime)
+        {
+            if (weaponType != WeaponType.FireMissile || resolved) return;
+            if (!IsLivingHomingTarget(homingTarget) && Time.time >= nextHomingSearchAt)
+            {
+                nextHomingSearchAt = Time.time + 0.1f;
+                homingTarget = FindNearestHomingTarget();
+            }
+            if (homingTarget == null) return;
+            var body = GetComponent<Rigidbody2D>();
+            if (body == null) return;
+            var desired = ((Vector2)(homingTarget.position - transform.position)).normalized;
+            if (desired.sqrMagnitude < 0.001f) return;
+            float speed = Mathf.Max(0.1f, body.velocity.magnitude);
+            var current = body.velocity.sqrMagnitude > 0.001f ? body.velocity.normalized : desired;
+            var steered = ResolveHomingDirection(current, desired, homingTurnSpeedDegrees, deltaTime);
+            body.velocity = steered * speed;
+            float zDegrees = Mathf.Atan2(steered.y, steered.x) * Mathf.Rad2Deg;
+            transform.rotation = Quaternion.Euler(0f, 0f, zDegrees);
+            var billboard = GetComponentInChildren<PaperBillboard>();
+            if (billboard != null) billboard.rollDegrees = zDegrees;
+        }
+
+        public static Vector2 ResolveHomingDirection(Vector2 currentDirection, Vector2 targetDirection,
+            float turnSpeedDegreesPerSecond, float deltaTime)
+        {
+            var desired = targetDirection.normalized;
+            if (desired.sqrMagnitude < 0.001f) return currentDirection.normalized;
+
+            var current = currentDirection.normalized;
+            if (current.sqrMagnitude < 0.001f) return desired;
+
+            float currentAngle = Mathf.Atan2(current.y, current.x) * Mathf.Rad2Deg;
+            float targetAngle = Mathf.Atan2(desired.y, desired.x) * Mathf.Rad2Deg;
+            float maxTurn = Mathf.Max(0f, turnSpeedDegreesPerSecond) * Mathf.Max(0f, deltaTime);
+            float nextAngle = Mathf.MoveTowardsAngle(currentAngle, targetAngle, maxTurn) * Mathf.Deg2Rad;
+            return new Vector2(Mathf.Cos(nextAngle), Mathf.Sin(nextAngle)).normalized;
+        }
+
+        static bool IsLivingHomingTarget(Transform target)
+        {
+            if (target == null) return false;
+            var enemy = target.GetComponentInParent<EnemyController>();
+            var health = enemy != null ? enemy.GetComponent<Health>() : null;
+            return health != null && !health.IsDead;
+        }
+
+        Transform FindNearestHomingTarget()
+        {
+            EnemyController nearest = null;
+            float nearestDistanceSqr = Mathf.Max(0.05f, homingSearchRange);
+            nearestDistanceSqr *= nearestDistanceSqr;
+            var enemies = FindObjectsOfType<EnemyController>();
+            for (int i = 0; i < enemies.Length; i++)
+            {
+                var enemy = enemies[i];
+                if (enemy == null) continue;
+                var health = enemy.GetComponent<Health>();
+                if (health == null || health.IsDead) continue;
+                float distanceSqr = (enemy.transform.position - transform.position).sqrMagnitude;
+                if (distanceSqr >= nearestDistanceSqr) continue;
+                nearest = enemy;
+                nearestDistanceSqr = distanceSqr;
+            }
+            return nearest != null ? nearest.transform : null;
         }
 
         void Expire()
@@ -129,7 +223,6 @@ namespace AreaSurvivors
             resolved = true;
             AudioManager.PlaySfx(SfxTrack.ExplosionHit);
             ImpactFlash();
-            if (paintsTerritory) PaintPlayerTerritory(transform.position, Mathf.CeilToInt(explosionRadius));
             ProjectileExplosionHitbox.Spawn(explosionHitboxPrefab, transform.position, explosionRadius, damage, knockback, knockbackDuration, paintsTerritory, damageSource);
             Destroy(gameObject);
         }

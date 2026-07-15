@@ -8,7 +8,12 @@ namespace AreaSurvivors
     {
         readonly Dictionary<Text, Color> defaultTextColors = new Dictionary<Text, Color>();
         WeaponSlotBinding[] slots = System.Array.Empty<WeaponSlotBinding>();
-        Vector2[] weaponSlotPositions = System.Array.Empty<Vector2>();
+        WeaponHudCompactIconSlot[] compactSlots = System.Array.Empty<WeaponHudCompactIconSlot>();
+        GameObject compactGroup;
+        bool detailedMode;
+        const string WeaponStatusRootName = "Weapon Status";
+        const string WeaponInfoRootName = "Weapon Info";
+        const string WeaponPanelGroupName = "Weapon Panel Group";
         static readonly Color SpecialActiveColor = new Color(1f, 0.24f, 0.18f, 1f);
 
         public bool HasMissingReferences { get; private set; }
@@ -23,7 +28,25 @@ namespace AreaSurvivors
                 BindSlot(hudRoot, statsRoot, "Arrow Weapon Status"),
                 BindSlot(hudRoot, statsRoot, "Fireball Weapon Status")
             };
-            weaponSlotPositions = CaptureWeaponSlotPositions(slots);
+            compactSlots = new[]
+            {
+                BindCompactSlot(hudRoot, "Weapon Icon Slot 1"),
+                BindCompactSlot(hudRoot, "Weapon Icon Slot 2"),
+                BindCompactSlot(hudRoot, "Weapon Icon Slot 3")
+            };
+            var compactGroupRect = FindRect(hudRoot, WeaponInfoRootName + "/" + WeaponPanelGroupName);
+            if (compactGroupRect == null) compactGroupRect = FindRect(hudRoot, WeaponInfoRootName);
+            compactGroup = compactGroupRect != null ? compactGroupRect.gameObject : null;
+            if (compactGroup == null) HasMissingReferences = true;
+        }
+
+        public void SetDetailedMode(bool visible)
+        {
+            detailedMode = visible;
+            if (compactGroup != null && compactGroup.activeSelf == visible)
+            {
+                compactGroup.SetActive(!visible);
+            }
         }
 
         public void Update(WeaponController weapon)
@@ -32,7 +55,8 @@ namespace AreaSurvivors
             {
                 for (int i = 0; i < slots.Length; i++)
                 {
-                    PlaceWeaponPanel(slots[i], false, i);
+                    SetDetailPanelVisible(slots[i], false);
+                    SetUnusedCompactSlot(i);
                 }
 
                 return;
@@ -43,14 +67,25 @@ namespace AreaSurvivors
             {
                 if (slotIndex >= slots.Length) break;
                 if (!IsWeaponVisible(weapon, type)) continue;
-                PlaceWeaponPanel(slots[slotIndex], true, slotIndex);
-                ConfigureSlot(slots[slotIndex], weapon, type, weapon.IsSpecialEffectActiveFor(type));
+                var displayType = weapon.GetDisplayWeaponType(type);
+                if (detailedMode)
+                {
+                    SetDetailPanelVisible(slots[slotIndex], true);
+                    ConfigureSlot(slots[slotIndex], weapon, displayType, weapon.IsSpecialEffectActiveFor(type));
+                    HideCompactSlot(slotIndex);
+                }
+                else
+                {
+                    SetDetailPanelVisible(slots[slotIndex], false);
+                    ShowCompactSlot(slotIndex, displayType, weapon.GetRunWeaponDisplayLevel(type));
+                }
                 slotIndex++;
             }
 
             for (int i = slotIndex; i < slots.Length; i++)
             {
-                PlaceWeaponPanel(slots[i], false, i);
+                SetDetailPanelVisible(slots[i], false);
+                SetUnusedCompactSlot(i);
             }
         }
 
@@ -81,9 +116,19 @@ namespace AreaSurvivors
                         RowSpec.Special("ノックバック", Number(slash.knockback), StatIconCatalog.Knockback, specialActive),
                         RowSpec.Normal("攻撃範囲", Number(slash.range), StatIconCatalog.Range));
                     break;
+                case WeaponType.SwordRush:
+                    var swordRush = weapon.EffectiveSlashStats;
+                    slot.ConfigureHeader(WeaponCatalog.DisplayNameSource(WeaponType.SwordRush), WeaponCatalog.IconResource(WeaponType.SwordRush), WeaponAttributeType.Melee, WeaponType.SwordRush);
+                    slot.ConfigureRows(
+                        RowSpec.Normal("攻撃力", weapon.SlashAttackPower.ToString(), StatIconCatalog.Attack),
+                        RowSpec.Normal("攻撃間隔", Seconds(swordRush.cooldownSeconds), StatIconCatalog.Cooldown),
+                        RowSpec.Special("ノックバック", Number(swordRush.knockback), StatIconCatalog.Knockback, specialActive),
+                        RowSpec.Normal("攻撃範囲", Number(swordRush.range), StatIconCatalog.Range));
+                    break;
                 case WeaponType.Arrow:
+                case WeaponType.GoldenBow:
                     var arrow = weapon.EffectiveArrowStats;
-                    slot.ConfigureHeader(WeaponCatalog.DisplayNameSource(WeaponType.Arrow), "ArrowHudIcon", WeaponAttributeType.Ranged);
+                    slot.ConfigureHeader(WeaponCatalog.DisplayNameSource(type), WeaponCatalog.IconResource(type), WeaponAttributeType.Ranged, type);
                     slot.ConfigureRows(
                         RowSpec.Normal("攻撃力", arrow.attackPower.ToString(), StatIconCatalog.Attack),
                         RowSpec.Normal("攻撃間隔", Seconds(arrow.cooldownSeconds), StatIconCatalog.Cooldown),
@@ -91,8 +136,9 @@ namespace AreaSurvivors
                         RowSpec.Special("射程", Number(arrow.range), StatIconCatalog.Range, specialActive));
                     break;
                 case WeaponType.Fireball:
+                case WeaponType.FireMissile:
                     var fireball = weapon.EffectiveFireballStats;
-                    slot.ConfigureHeader(WeaponCatalog.DisplayNameSource(WeaponType.Fireball), "FireballHudIcon", WeaponAttributeType.Magic);
+                    slot.ConfigureHeader(WeaponCatalog.DisplayNameSource(type), WeaponCatalog.IconResource(type), WeaponAttributeType.Magic, type);
                     slot.ConfigureRows(
                         RowSpec.Normal("攻撃力", fireball.attackPower.ToString(), StatIconCatalog.Attack),
                         RowSpec.Normal("攻撃間隔", Seconds(fireball.cooldownSeconds), StatIconCatalog.Cooldown),
@@ -100,8 +146,9 @@ namespace AreaSurvivors
                         RowSpec.Normal("射程", Number(weapon.FireballRange), StatIconCatalog.Range));
                     break;
                 case WeaponType.Shield:
+                case WeaponType.DualShield:
                     var shield = weapon.EffectiveShieldStats;
-                    slot.ConfigureHeader(WeaponCatalog.DisplayNameSource(WeaponType.Shield), "Shield", WeaponAttributeType.Defense);
+                    slot.ConfigureHeader(WeaponCatalog.DisplayNameSource(type), WeaponCatalog.IconResource(type), WeaponAttributeType.Defense, type);
                     slot.ConfigureRows(
                         RowSpec.Normal("攻撃力", shield.attackPower.ToString(), StatIconCatalog.Attack),
                         RowSpec.Normal("シールド数", shield.projectileCount.ToString(), StatIconCatalog.Defense),
@@ -117,10 +164,11 @@ namespace AreaSurvivors
         static void ConfigureAdvancedSlot(WeaponSlotBinding slot, WeaponController weapon, WeaponType type, bool specialActive)
         {
             var stats = weapon.GetEffectiveWeaponStatsFor(type);
-            slot.ConfigureHeader(WeaponCatalog.DisplayNameSource(type), WeaponCatalog.IconResource(type), WeaponAttributeCatalog.ForWeapon(type));
+            slot.ConfigureHeader(WeaponCatalog.DisplayNameSource(type), WeaponCatalog.IconResource(type), WeaponAttributeCatalog.ForWeapon(type), WeaponCatalog.IsEvolution(type) ? type : WeaponType.Slash);
             switch (type)
             {
                 case WeaponType.Flag:
+                case WeaponType.GoddessBlessing:
                     slot.ConfigureRows(
                         RowSpec.Normal("攻撃力", stats.attackPower.ToString(), StatIconCatalog.Attack),
                         RowSpec.Special("攻撃範囲", Number(stats.range), StatIconCatalog.Range, specialActive),
@@ -128,6 +176,7 @@ namespace AreaSurvivors
                         RowSpec.Normal("攻撃間隔", Seconds(stats.damageIntervalSeconds), StatIconCatalog.Cooldown));
                     break;
                 case WeaponType.BoomerangSword:
+                case WeaponType.Banana:
                     slot.ConfigureRows(
                         RowSpec.Normal("攻撃力", stats.attackPower.ToString(), StatIconCatalog.Attack),
                         RowSpec.Special("剣本数", stats.projectileCount.ToString(), StatIconCatalog.Projectile, specialActive),
@@ -135,6 +184,7 @@ namespace AreaSurvivors
                         RowSpec.Normal("攻撃間隔", Seconds(stats.cooldownSeconds), StatIconCatalog.Cooldown));
                     break;
                 case WeaponType.AuraSword:
+                case WeaponType.Excalibur:
                     slot.ConfigureRows(
                         RowSpec.Normal("攻撃力", stats.attackPower.ToString(), StatIconCatalog.Attack),
                         RowSpec.Normal("攻撃回数", stats.projectileCount.ToString(), StatIconCatalog.Projectile),
@@ -142,6 +192,7 @@ namespace AreaSurvivors
                         RowSpec.Normal("攻撃距離", Number(stats.distance), StatIconCatalog.Range));
                     break;
                 case WeaponType.ArrowRain:
+                case WeaponType.ArrowShower:
                     slot.ConfigureRows(
                         RowSpec.Normal("攻撃力", stats.attackPower.ToString(), StatIconCatalog.Attack),
                         RowSpec.Special("攻撃範囲", Number(stats.range), StatIconCatalog.Range, specialActive),
@@ -149,6 +200,7 @@ namespace AreaSurvivors
                         RowSpec.Normal("攻撃間隔", Seconds(stats.cooldownSeconds), StatIconCatalog.Cooldown));
                     break;
                 case WeaponType.Gun:
+                case WeaponType.MachineGun:
                     slot.ConfigureRows(
                         RowSpec.Special("攻撃力", stats.attackPower.ToString(), StatIconCatalog.Attack, specialActive),
                         RowSpec.Normal("攻撃間隔", Seconds(stats.cooldownSeconds), StatIconCatalog.Cooldown),
@@ -156,6 +208,7 @@ namespace AreaSurvivors
                         RowSpec.Normal("攻撃回数", stats.projectileCount.ToString(), StatIconCatalog.Projectile));
                     break;
                 case WeaponType.Frost:
+                case WeaponType.FrostStorm:
                     slot.ConfigureRows(
                         RowSpec.Normal("攻撃力", stats.attackPower.ToString(), StatIconCatalog.Attack),
                         RowSpec.Special("攻撃範囲", Number(stats.range), StatIconCatalog.Range, specialActive),
@@ -163,6 +216,7 @@ namespace AreaSurvivors
                         RowSpec.Normal("攻撃間隔", Seconds(stats.cooldownSeconds), StatIconCatalog.Cooldown));
                     break;
                 case WeaponType.ThunderBall:
+                case WeaponType.ThunderStorm:
                     slot.ConfigureRows(
                         RowSpec.Normal("攻撃力", stats.attackPower.ToString(), StatIconCatalog.Attack),
                         RowSpec.Special("攻撃範囲", Number(stats.range), StatIconCatalog.Range, specialActive),
@@ -189,24 +243,53 @@ namespace AreaSurvivors
             }
         }
 
-        void PlaceWeaponPanel(WeaponSlotBinding slot, bool visible, int slotIndex)
+        static void SetDetailPanelVisible(WeaponSlotBinding slot, bool visible)
         {
             if (slot == null || slot.Panel == null) return;
-            slot.Panel.gameObject.SetActive(true);
-            slot.SetContentVisible(visible);
-            if (slotIndex < weaponSlotPositions.Length)
+            if (slot.Panel.gameObject.activeSelf != visible) slot.Panel.gameObject.SetActive(visible);
+            if (visible) slot.SetContentVisible(true);
+        }
+
+        void ShowCompactSlot(int slotIndex, WeaponType weaponType, int level)
+        {
+            if (slotIndex < compactSlots.Length && compactSlots[slotIndex] != null)
             {
-                Vector2 targetPosition = weaponSlotPositions[slotIndex];
-                if (slot.Panel.anchoredPosition != targetPosition) slot.Panel.anchoredPosition = targetPosition;
+                compactSlots[slotIndex].Show(weaponType, level);
             }
+        }
+
+        void HideCompactSlot(int slotIndex)
+        {
+            if (slotIndex < compactSlots.Length && compactSlots[slotIndex] != null)
+            {
+                compactSlots[slotIndex].Hide();
+            }
+        }
+
+        void SetUnusedCompactSlot(int slotIndex)
+        {
+            if (slotIndex >= compactSlots.Length || compactSlots[slotIndex] == null) return;
+            if (detailedMode) compactSlots[slotIndex].Hide();
+            else compactSlots[slotIndex].Clear();
         }
 
         RectTransform BindPanel(Transform hudRoot, Transform statsRoot, string panelName)
         {
-            var panel = FindRect(hudRoot, panelName);
+            var panel = FindRect(hudRoot, WeaponStatusRootName + "/" + panelName);
+            if (panel == null) panel = FindRect(hudRoot, panelName);
             if (panel == null) panel = FindRect(statsRoot, panelName);
             if (panel == null) HasMissingReferences = true;
             return panel;
+        }
+
+        WeaponHudCompactIconSlot BindCompactSlot(Transform hudRoot, string panelName)
+        {
+            var panel = FindRect(hudRoot, WeaponInfoRootName + "/" + WeaponPanelGroupName + "/" + panelName);
+            if (panel == null) panel = FindRect(hudRoot, WeaponInfoRootName + "/" + panelName);
+            if (panel == null) panel = FindRect(hudRoot, panelName);
+            var compactSlot = panel != null ? panel.GetComponent<WeaponHudCompactIconSlot>() : null;
+            if (compactSlot == null) HasMissingReferences = true;
+            return compactSlot;
         }
 
         static RectTransform FindRect(Transform parent, string path)
@@ -214,21 +297,6 @@ namespace AreaSurvivors
             if (parent == null || string.IsNullOrEmpty(path)) return null;
             var target = parent.Find(path);
             return target != null ? target.GetComponent<RectTransform>() : null;
-        }
-
-        static Vector2[] CaptureWeaponSlotPositions(WeaponSlotBinding[] bindings)
-        {
-            if (bindings == null || bindings.Length == 0) return System.Array.Empty<Vector2>();
-
-            var positions = new Vector2[bindings.Length];
-            for (int i = 0; i < bindings.Length; i++)
-            {
-                positions[i] = bindings[i] != null && bindings[i].Panel != null
-                    ? bindings[i].Panel.anchoredPosition
-                    : Vector2.zero;
-            }
-
-            return positions;
         }
 
         void RememberDefaultColor(Text text)
@@ -269,6 +337,7 @@ namespace AreaSurvivors
             public readonly RectTransform Panel;
             readonly Text title;
             readonly Image icon;
+            readonly Dictionary<WeaponType, GameObject> evolutionIcons = new Dictionary<WeaponType, GameObject>();
             readonly WeaponAttributeIconSet attributeIconSet;
             readonly List<RowBinding> rows = new List<RowBinding>();
             string lastIconResource;
@@ -281,6 +350,17 @@ namespace AreaSurvivors
                 if (panel == null) return;
                 title = panel.Find("Title")?.GetComponent<Text>();
                 icon = panel.Find("Icon")?.GetComponent<Image>();
+                AddEvolutionIcon(WeaponType.SwordRush, panel.Find("Sword Rush Icon")?.gameObject);
+                AddEvolutionIcon(WeaponType.Banana, panel.Find("Banana Icon")?.gameObject);
+                AddEvolutionIcon(WeaponType.Excalibur, panel.Find("Excalibur Icon")?.gameObject);
+                AddEvolutionIcon(WeaponType.GoldenBow, panel.Find("Golden Bow Icon")?.gameObject);
+                AddEvolutionIcon(WeaponType.ArrowShower, panel.Find("Arrow Shower Icon")?.gameObject);
+                AddEvolutionIcon(WeaponType.MachineGun, panel.Find("Machine Gun Icon")?.gameObject);
+                AddEvolutionIcon(WeaponType.FireMissile, panel.Find("Fire Missile Icon")?.gameObject);
+                AddEvolutionIcon(WeaponType.FrostStorm, panel.Find("Frost Storm Icon")?.gameObject);
+                AddEvolutionIcon(WeaponType.ThunderStorm, panel.Find("Thunder Storm Icon")?.gameObject);
+                AddEvolutionIcon(WeaponType.DualShield, panel.Find("Dual Shield Icon")?.gameObject);
+                AddEvolutionIcon(WeaponType.GoddessBlessing, panel.Find("Goddess Blessing Icon")?.gameObject);
                 attributeIconSet = panel.Find("Weapon Type Icons")?.GetComponent<WeaponAttributeIconSet>();
 
                 for (int i = 0; i < panel.childCount; i++)
@@ -298,6 +378,10 @@ namespace AreaSurvivors
             public void SetContentVisible(bool visible)
             {
                 SetActive(icon != null ? icon.gameObject : null, visible);
+                foreach (var pair in evolutionIcons)
+                {
+                    if (!visible) SetActive(pair.Value, false);
+                }
                 SetActive(title != null ? title.gameObject : null, visible);
                 if (attributeIconSet != null && !visible)
                 {
@@ -314,11 +398,14 @@ namespace AreaSurvivors
                 }
             }
 
-            public void ConfigureHeader(string label, string iconResource, WeaponAttributeType attributeType)
+            public void ConfigureHeader(string label, string iconResource, WeaponAttributeType attributeType, WeaponType evolutionType = WeaponType.Slash)
             {
                 string localizedLabel = LocalizationService.LocalizeSource(label);
                 if (title != null && title.text != localizedLabel) title.text = localizedLabel;
-                if (icon != null && lastIconResource != iconResource)
+                bool evolved = WeaponCatalog.IsEvolution(evolutionType);
+                foreach (var pair in evolutionIcons) SetActive(pair.Value, evolved && pair.Key == evolutionType);
+                SetActive(icon != null ? icon.gameObject : null, !evolved);
+                if (!evolved && icon != null && lastIconResource != iconResource)
                 {
                     var sprite = GeneratedSpriteLoader.Load(iconResource);
                     if (sprite != null) icon.sprite = sprite;
@@ -328,6 +415,11 @@ namespace AreaSurvivors
                 lastIconResource = iconResource;
                 lastAttributeType = attributeType;
                 hasHeaderState = true;
+            }
+
+            void AddEvolutionIcon(WeaponType type, GameObject iconObject)
+            {
+                if (iconObject != null) evolutionIcons[type] = iconObject;
             }
 
             public void ConfigureRows(params RowSpec[] specs)

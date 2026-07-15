@@ -908,7 +908,7 @@ namespace AreaSurvivors
             Vector3 rightStep = groundTilemap.GetCellCenterWorld(GridToCell(1, 0)) - firstCenter;
             Vector3 upStep = groundTilemap.GetCellCenterWorld(GridToCell(0, 1)) - firstCenter;
             if (width == 1) rightStep = new Vector3(cellSize, 0f, 0f);
-            if (height == 1) upStep = new Vector3(0f, 0.5f, 0f);
+            if (height == 1) upStep = new Vector3(0f, cellSize, 0f);
 
             Vector3 bottomLeft = firstCenter - rightStep * 0.5f - upStep * 0.5f;
             for (int x = 0; x <= width; x++)
@@ -1017,7 +1017,7 @@ namespace AreaSurvivors
             Vector3 rightStep = groundTilemap.GetCellCenterWorld(GridToCell(1, 0)) - firstCenter;
             Vector3 upStep = groundTilemap.GetCellCenterWorld(GridToCell(0, 1)) - firstCenter;
             if (width == 1) rightStep = new Vector3(cellSize, 0f, 0f);
-            if (height == 1) upStep = new Vector3(0f, 0.5f, 0f);
+            if (height == 1) upStep = new Vector3(0f, cellSize, 0f);
 
             Vector3 bottomLeft = firstCenter - rightStep * 0.5f - upStep * 0.5f;
             Transform overlayRoot = territoryBoundaryOverlay.transform;

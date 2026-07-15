@@ -42,7 +42,18 @@ namespace AreaSurvivors
         ArrowRain,
         Gun,
         Frost,
-        ThunderBall
+        ThunderBall,
+        SwordRush,
+        Banana,
+        Excalibur,
+        GoldenBow,
+        ArrowShower,
+        MachineGun,
+        FireMissile,
+        FrostStorm,
+        ThunderStorm,
+        DualShield,
+        GoddessBlessing
     }
 
     public enum WeaponAttributeType

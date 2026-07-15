@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
@@ -8,6 +9,14 @@ namespace AreaSurvivors
 {
     public sealed class WeaponBookScreen : MonoBehaviour
     {
+        [Serializable]
+        public struct EvolutionIconEntry
+        {
+            public WeaponType weaponType;
+            public GameObject discoveredIcon;
+            public GameObject undiscoveredIcon;
+        }
+
         const string LockedMessage = "スキルツリーでアンロックが必要です";
 
         public GameConfig config;
@@ -17,6 +26,13 @@ namespace AreaSurvivors
         public Text featureText;
         public Text statsText;
         public Text specialEffectText;
+        public GameObject evolutionPanel;
+        public Text evolutionHeadingText;
+        public Text evolutionWeaponNameText;
+        public Text evolutionDescriptionText;
+        public GameObject evolutionDiscoveredIcon;
+        public GameObject evolutionUndiscoveredIcon;
+        public EvolutionIconEntry[] evolutionIcons = Array.Empty<EvolutionIconEntry>();
         public Text messageText;
         public WeaponAttributeIconSet detailTypeIcons;
         public WeaponBookEntryView[] entries;
@@ -78,6 +94,7 @@ namespace AreaSurvivors
                 : entry.LocalizedSpecialEffectDescription);
             SetText(messageText, string.Empty);
             ShowDetailTypeIcon(entry.attributeType);
+            ConfigureEvolution(entry.weaponType);
         }
 
         public void ShowLockedMessage(WeaponBookEntryView entry)
@@ -91,6 +108,7 @@ namespace AreaSurvivors
             SetText(specialEffectText, "-");
             SetText(messageText, string.Empty);
             HideDetailTypeIcon();
+            SetEvolutionPanelActive(false);
         }
 
         void RefreshLocalizedContent()
@@ -164,6 +182,7 @@ namespace AreaSurvivors
             SetText(specialEffectText, "-");
             SetText(messageText, string.Empty);
             HideDetailTypeIcon();
+            SetEvolutionPanelActive(false);
             var fallbackCandidates = SelectionCandidates();
             UiSelectionUtility.ConfigureVerticalNavigation(fallbackCandidates);
             UiSelectionUtility.SelectFirst(FirstEntryButton(), backButton);
@@ -232,6 +251,85 @@ namespace AreaSurvivors
             if (detailTypeIcons != null) detailTypeIcons.Hide();
         }
 
+        void ConfigureEvolution(WeaponType baseWeaponType)
+        {
+            var evolutionType = WeaponCatalog.EvolutionOf(baseWeaponType);
+            bool hasEvolution = evolutionType != baseWeaponType && WeaponCatalog.IsEvolution(evolutionType);
+            SetEvolutionPanelActive(hasEvolution);
+            if (!hasEvolution) return;
+
+            bool discovered = ProgressionStore.HasDiscoveredEvolution(evolutionType);
+            SetText(evolutionHeadingText, "進化武器");
+            SetText(evolutionWeaponNameText, discovered ? WeaponCatalog.DisplayNameSource(evolutionType) : "？？？");
+            SetLocalizedText(evolutionDescriptionText, EvolutionDetailText(evolutionType, discovered));
+            ShowEvolutionIcons(evolutionType, discovered);
+        }
+
+        void ShowEvolutionIcons(WeaponType evolutionType, bool discovered)
+        {
+            bool hasTypedIcons = evolutionIcons != null && evolutionIcons.Length > 0;
+            if (!hasTypedIcons)
+            {
+                if (evolutionDiscoveredIcon != null) evolutionDiscoveredIcon.SetActive(discovered);
+                if (evolutionUndiscoveredIcon != null) evolutionUndiscoveredIcon.SetActive(!discovered);
+                return;
+            }
+
+            SetIconActive(evolutionDiscoveredIcon, false);
+            SetIconActive(evolutionUndiscoveredIcon, false);
+
+            for (int i = 0; i < evolutionIcons.Length; i++)
+            {
+                bool selected = evolutionIcons[i].weaponType == evolutionType;
+                var discoveredIcon = evolutionIcons[i].discoveredIcon;
+                var undiscoveredIcon = evolutionIcons[i].undiscoveredIcon;
+                if (discoveredIcon != null && discoveredIcon.activeSelf != (selected && discovered))
+                {
+                    discoveredIcon.SetActive(selected && discovered);
+                }
+                if (undiscoveredIcon != null && undiscoveredIcon.activeSelf != (selected && !discovered))
+                {
+                    undiscoveredIcon.SetActive(selected && !discovered);
+                }
+            }
+        }
+
+        static void SetIconActive(GameObject icon, bool active)
+        {
+            if (icon != null && icon.activeSelf != active) icon.SetActive(active);
+        }
+
+        static string EvolutionDetailText(WeaponType evolutionType, bool discovered)
+        {
+            var requirements = WeaponCatalog.EvolutionRequirementSources(evolutionType);
+            var builder = new StringBuilder();
+            builder.Append(LocalizationService.Text("進化条件：", "Evolution requirement: "));
+            if (requirements == null || requirements.Length == 0)
+            {
+                builder.Append('-');
+            }
+            else
+            {
+                string separator = LocalizationService.Text("、", ", ");
+                for (int i = 0; i < requirements.Length; i++)
+                {
+                    if (i > 0) builder.Append(separator);
+                    builder.Append(LocalizationService.LocalizeSource(requirements[i]));
+                }
+            }
+
+            builder.AppendLine();
+            builder.Append(LocalizationService.LocalizeSource(discovered
+                ? WeaponCatalog.EvolutionDescriptionSource(evolutionType)
+                : WeaponCatalog.EvolutionUndiscoveredHintSource()));
+            return builder.ToString();
+        }
+
+        void SetEvolutionPanelActive(bool active)
+        {
+            if (evolutionPanel != null && evolutionPanel.activeSelf != active) evolutionPanel.SetActive(active);
+        }
+
         string InitialStatsText(WeaponBookEntryView entry)
         {
             if (entry == null) return "-";
@@ -274,6 +372,11 @@ namespace AreaSurvivors
         static void SetText(Text text, string value)
         {
             if (text != null) text.text = LocalizationService.LocalizeSource(value);
+        }
+
+        static void SetLocalizedText(Text text, string value)
+        {
+            if (text != null) text.text = value ?? string.Empty;
         }
 
         static void AppendAdvancedStats(StringBuilder builder, WeaponType weaponType, WeaponStatBlock stats)

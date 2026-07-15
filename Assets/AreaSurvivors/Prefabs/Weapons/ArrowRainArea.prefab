@@ -9,10 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6301328523247452565}
-  - component: {fileID: 7999473714825017081}
-  - component: {fileID: 3101914378369115500}
-  - component: {fileID: 4007050470114693336}
-  - component: {fileID: 6254537057604906656}
+  - component: {fileID: 8935873840560251781}
   m_Layer: 0
   m_Name: Arrow Rain Animation 03
   m_TagString: Untagged
@@ -29,55 +26,33 @@ Transform:
   m_GameObject: {fileID: 131712291457706943}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.54, y: 0.12, z: 0}
+  m_LocalPosition: {x: 0.66, y: 0.42, z: 0}
   m_LocalScale: {x: 0.56, y: 0.56, z: 0.56}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 221244695066287461}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &7999473714825017081
-MonoBehaviour:
+--- !u!212 &8935873840560251781
+SpriteRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 131712291457706943}
   m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: af95e33ef29cde24c9c5b191152bad53, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  faceCamera: 1
-  rollDegrees: 0
---- !u!33 &3101914378369115500
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 131712291457706943}
-  m_Mesh: {fileID: 0}
---- !u!23 &4007050470114693336
-MeshRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 131712291457706943}
-  m_Enabled: 1
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
   m_DynamicOccludee: 1
   m_StaticShadowCaster: 0
   m_MotionVectors: 1
   m_LightProbeUsage: 1
   m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 2
+  m_RayTracingMode: 0
   m_RayTraceProcedural: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 0}
+  - {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -90,7 +65,7 @@ MeshRenderer:
   m_IgnoreNormalsForChartDetection: 0
   m_ImportantGI: 0
   m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 3
+  m_SelectedEditorRenderState: 0
   m_MinimumChartSize: 4
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
@@ -98,29 +73,17 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 7220
-  m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &6254537057604906656
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 131712291457706943}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7fa5a912dec849d4ca60b09970a366d4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  sourceSprite: {fileID: 21300000, guid: a30c50ec1a61c714baaeed7e0af6aec2, type: 3}
-  shapeSpriteOverride: {fileID: 0}
-  useEllipseShape: 0
-  ellipseSegments: 64
-  ellipseTextureCrop: 0
-  useSourceTexture: 1
-  tint: {r: 1, g: 1, b: 1, a: 1}
-  sortingOrder: 7220
-  anchorBottomCenter: 0
-  verticalFill: 1
+  m_Sprite: {fileID: 21300000, guid: a30c50ec1a61c714baaeed7e0af6aec2, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_FlipX: 0
+  m_FlipY: 0
+  m_DrawMode: 0
+  m_Size: {x: 2, y: 2}
+  m_AdaptiveModeThreshold: 0.5
+  m_SpriteTileMode: 0
+  m_WasSpriteAssigned: 1
+  m_MaskInteraction: 0
+  m_SpriteSortPoint: 0
 --- !u!1 &667824855313121162
 GameObject:
   m_ObjectHideFlags: 0
@@ -130,10 +93,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6575564338460808843}
-  - component: {fileID: 7097362483926345593}
-  - component: {fileID: 3731476346533797771}
-  - component: {fileID: 2246277209813887819}
-  - component: {fileID: 7192665430196381679}
+  - component: {fileID: 8587160096460449389}
   m_Layer: 0
   m_Name: Arrow Rain Animation 04
   m_TagString: Untagged
@@ -150,55 +110,33 @@ Transform:
   m_GameObject: {fileID: 667824855313121162}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.22, y: -0.08, z: 0}
+  m_LocalPosition: {x: -0.04, y: 0.03, z: 0}
   m_LocalScale: {x: 0.56, y: 0.56, z: 0.56}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 221244695066287461}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &7097362483926345593
-MonoBehaviour:
+--- !u!212 &8587160096460449389
+SpriteRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 667824855313121162}
   m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: af95e33ef29cde24c9c5b191152bad53, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  faceCamera: 1
-  rollDegrees: 0
---- !u!33 &3731476346533797771
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 667824855313121162}
-  m_Mesh: {fileID: 0}
---- !u!23 &2246277209813887819
-MeshRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 667824855313121162}
-  m_Enabled: 1
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
   m_DynamicOccludee: 1
   m_StaticShadowCaster: 0
   m_MotionVectors: 1
   m_LightProbeUsage: 1
   m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 2
+  m_RayTracingMode: 0
   m_RayTraceProcedural: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 0}
+  - {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -211,7 +149,7 @@ MeshRenderer:
   m_IgnoreNormalsForChartDetection: 0
   m_ImportantGI: 0
   m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 3
+  m_SelectedEditorRenderState: 0
   m_MinimumChartSize: 4
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
@@ -219,29 +157,17 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 7220
-  m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &7192665430196381679
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 667824855313121162}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7fa5a912dec849d4ca60b09970a366d4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  sourceSprite: {fileID: 21300000, guid: d2d44598110159543ad63b37af151ed7, type: 3}
-  shapeSpriteOverride: {fileID: 0}
-  useEllipseShape: 0
-  ellipseSegments: 64
-  ellipseTextureCrop: 0
-  useSourceTexture: 1
-  tint: {r: 1, g: 1, b: 1, a: 1}
-  sortingOrder: 7220
-  anchorBottomCenter: 0
-  verticalFill: 1
+  m_Sprite: {fileID: 21300000, guid: d2d44598110159543ad63b37af151ed7, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_FlipX: 0
+  m_FlipY: 0
+  m_DrawMode: 0
+  m_Size: {x: 2, y: 2}
+  m_AdaptiveModeThreshold: 0.5
+  m_SpriteTileMode: 0
+  m_WasSpriteAssigned: 1
+  m_MaskInteraction: 0
+  m_SpriteSortPoint: 0
 --- !u!1 &1803813912275836194
 GameObject:
   m_ObjectHideFlags: 0
@@ -251,10 +177,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3506153795047897910}
-  - component: {fileID: 224105543341052225}
-  - component: {fileID: 1527419360962415691}
-  - component: {fileID: 1418703047240426953}
-  - component: {fileID: 2480821980774186016}
+  - component: {fileID: 7174109886439203165}
   m_Layer: 0
   m_Name: Arrow Rain Animation 02
   m_TagString: Untagged
@@ -271,55 +194,33 @@ Transform:
   m_GameObject: {fileID: 1803813912275836194}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.1, y: 0.51, z: 0}
+  m_LocalPosition: {x: 0.19, y: -0.76, z: 0}
   m_LocalScale: {x: 0.56, y: 0.56, z: 0.56}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 221244695066287461}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &224105543341052225
-MonoBehaviour:
+--- !u!212 &7174109886439203165
+SpriteRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1803813912275836194}
   m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: af95e33ef29cde24c9c5b191152bad53, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  faceCamera: 1
-  rollDegrees: 0
---- !u!33 &1527419360962415691
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1803813912275836194}
-  m_Mesh: {fileID: 0}
---- !u!23 &1418703047240426953
-MeshRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1803813912275836194}
-  m_Enabled: 1
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
   m_DynamicOccludee: 1
   m_StaticShadowCaster: 0
   m_MotionVectors: 1
   m_LightProbeUsage: 1
   m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 2
+  m_RayTracingMode: 0
   m_RayTraceProcedural: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 0}
+  - {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -332,7 +233,7 @@ MeshRenderer:
   m_IgnoreNormalsForChartDetection: 0
   m_ImportantGI: 0
   m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 3
+  m_SelectedEditorRenderState: 0
   m_MinimumChartSize: 4
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
@@ -340,29 +241,17 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 7220
-  m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &2480821980774186016
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1803813912275836194}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7fa5a912dec849d4ca60b09970a366d4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  sourceSprite: {fileID: 21300000, guid: 0cc1524dba2b5c6458414943cfa2167d, type: 3}
-  shapeSpriteOverride: {fileID: 0}
-  useEllipseShape: 0
-  ellipseSegments: 64
-  ellipseTextureCrop: 0
-  useSourceTexture: 1
-  tint: {r: 1, g: 1, b: 1, a: 1}
-  sortingOrder: 7220
-  anchorBottomCenter: 0
-  verticalFill: 1
+  m_Sprite: {fileID: 21300000, guid: 0cc1524dba2b5c6458414943cfa2167d, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_FlipX: 0
+  m_FlipY: 0
+  m_DrawMode: 0
+  m_Size: {x: 2, y: 2}
+  m_AdaptiveModeThreshold: 0.5
+  m_SpriteTileMode: 0
+  m_WasSpriteAssigned: 1
+  m_MaskInteraction: 0
+  m_SpriteSortPoint: 0
 --- !u!1 &3032429673401853748
 GameObject:
   m_ObjectHideFlags: 0
@@ -639,6 +528,7 @@ GameObject:
   - component: {fileID: 221244695066287461}
   - component: {fileID: 5673471169869913680}
   - component: {fileID: 2927947530118999552}
+  - component: {fileID: 2255155891078266062}
   m_Layer: 0
   m_Name: ArrowRainArea
   m_TagString: Untagged
@@ -681,6 +571,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9de51bda008a5cb498134d963baa62aa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  visualScaleRoot: {fileID: 0}
 --- !u!114 &2927947530118999552
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -696,36 +587,42 @@ MonoBehaviour:
   fillMeshFilter: {fileID: 1637234235937272101}
   fillRenderer: {fileID: 1507333938760962005}
   outlineRenderer: {fileID: 8910639326434511368}
-  arrowVisual: {fileID: 558920322884949880}
-  arrowVisuals:
-  - {fileID: 558920322884949880}
-  - {fileID: 2480821980774186016}
-  - {fileID: 6254537057604906656}
-  - {fileID: 7192665430196381679}
-  - {fileID: 1821433714062072851}
-  - {fileID: 3091823415848914818}
-  - {fileID: 6972992089511622223}
-  frames:
-  - {fileID: 21300000, guid: a2e00873cc0f47d4e860b990ad21e87f, type: 3}
-  - {fileID: 21300000, guid: 0cc1524dba2b5c6458414943cfa2167d, type: 3}
-  - {fileID: 21300000, guid: a30c50ec1a61c714baaeed7e0af6aec2, type: 3}
-  - {fileID: 21300000, guid: d2d44598110159543ad63b37af151ed7, type: 3}
-  - {fileID: 21300000, guid: 75dbe16caa152af47b1e05969f3f2e85, type: 3}
-  - {fileID: 21300000, guid: fe2dd987f1a87e84ab014b87827f8270, type: 3}
-  - {fileID: 21300000, guid: 064fecea0f53cbc489130b76ece37573, type: 3}
-  - {fileID: 21300000, guid: a424913fd86d6f947b90f5e08cfbcbbe, type: 3}
-  framesPerSecond: 8
+  animatorVisuals:
+  - {fileID: 3917202485709325967}
+  - {fileID: 3506153795047897910}
+  - {fileID: 6301328523247452565}
+  - {fileID: 6575564338460808843}
+  - {fileID: 2916208837471065987}
+  - {fileID: 6267062028501969661}
+  - {fileID: 6583193308828754777}
   arrowAnimationScale: 0.56
-  arrowFallTravel: 1.8
-  arrowFallCyclesPerSecond: 2
-  arrowFallDesync: 0.85
-  arrowHeightJitter: 0.45
   fillColor: {r: 0.24, g: 0.62, b: 0.96, a: 0.24}
   outlineColor: {r: 0.58, g: 0.86, b: 1, a: 0.78}
   fillSortingOrder: 900
   outlineSortingOrder: 901
   outlineWidth: 0.05
   areaVerticalAspect: 1
+--- !u!95 &2255155891078266062
+Animator:
+  serializedVersion: 5
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4866575879241071890}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: 42535e35435e95944b3d1dcdb6912193, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
 --- !u!1 &5715055919488419525
 GameObject:
   m_ObjectHideFlags: 0
@@ -735,10 +632,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2916208837471065987}
-  - component: {fileID: 1731335851073843939}
-  - component: {fileID: 9049965652308677297}
-  - component: {fileID: 8140108039973535093}
-  - component: {fileID: 1821433714062072851}
+  - component: {fileID: 201033641123904607}
   m_Layer: 0
   m_Name: Arrow Rain Animation 05
   m_TagString: Untagged
@@ -755,55 +649,33 @@ Transform:
   m_GameObject: {fileID: 5715055919488419525}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.34, y: -0.34, z: 0}
+  m_LocalPosition: {x: -0.78, y: -0.16, z: 0}
   m_LocalScale: {x: 0.56, y: 0.56, z: 0.56}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 221244695066287461}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1731335851073843939
-MonoBehaviour:
+--- !u!212 &201033641123904607
+SpriteRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5715055919488419525}
   m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: af95e33ef29cde24c9c5b191152bad53, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  faceCamera: 1
-  rollDegrees: 0
---- !u!33 &9049965652308677297
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5715055919488419525}
-  m_Mesh: {fileID: 0}
---- !u!23 &8140108039973535093
-MeshRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5715055919488419525}
-  m_Enabled: 1
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
   m_DynamicOccludee: 1
   m_StaticShadowCaster: 0
   m_MotionVectors: 1
   m_LightProbeUsage: 1
   m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 2
+  m_RayTracingMode: 0
   m_RayTraceProcedural: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 0}
+  - {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -816,7 +688,7 @@ MeshRenderer:
   m_IgnoreNormalsForChartDetection: 0
   m_ImportantGI: 0
   m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 3
+  m_SelectedEditorRenderState: 0
   m_MinimumChartSize: 4
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
@@ -824,29 +696,17 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 7220
-  m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &1821433714062072851
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5715055919488419525}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7fa5a912dec849d4ca60b09970a366d4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  sourceSprite: {fileID: 21300000, guid: 75dbe16caa152af47b1e05969f3f2e85, type: 3}
-  shapeSpriteOverride: {fileID: 0}
-  useEllipseShape: 0
-  ellipseSegments: 64
-  ellipseTextureCrop: 0
-  useSourceTexture: 1
-  tint: {r: 1, g: 1, b: 1, a: 1}
-  sortingOrder: 7220
-  anchorBottomCenter: 0
-  verticalFill: 1
+  m_Sprite: {fileID: 21300000, guid: 75dbe16caa152af47b1e05969f3f2e85, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_FlipX: 0
+  m_FlipY: 0
+  m_DrawMode: 0
+  m_Size: {x: 2, y: 2}
+  m_AdaptiveModeThreshold: 0.5
+  m_SpriteTileMode: 0
+  m_WasSpriteAssigned: 1
+  m_MaskInteraction: 0
+  m_SpriteSortPoint: 0
 --- !u!1 &5756246606699401366
 GameObject:
   m_ObjectHideFlags: 0
@@ -856,10 +716,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6267062028501969661}
-  - component: {fileID: 4022647309108068134}
-  - component: {fileID: 3669278843219448840}
-  - component: {fileID: 7101857325698459364}
-  - component: {fileID: 3091823415848914818}
+  - component: {fileID: 2725322608971996384}
   m_Layer: 0
   m_Name: Arrow Rain Animation 06
   m_TagString: Untagged
@@ -876,55 +733,33 @@ Transform:
   m_GameObject: {fileID: 5756246606699401366}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.64, y: -0.42, z: 0}
+  m_LocalPosition: {x: 0.59, y: -0.54, z: 0}
   m_LocalScale: {x: 0.56, y: 0.56, z: 0.56}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 221244695066287461}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &4022647309108068134
-MonoBehaviour:
+--- !u!212 &2725322608971996384
+SpriteRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5756246606699401366}
   m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: af95e33ef29cde24c9c5b191152bad53, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  faceCamera: 1
-  rollDegrees: 0
---- !u!33 &3669278843219448840
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5756246606699401366}
-  m_Mesh: {fileID: 0}
---- !u!23 &7101857325698459364
-MeshRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5756246606699401366}
-  m_Enabled: 1
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
   m_DynamicOccludee: 1
   m_StaticShadowCaster: 0
   m_MotionVectors: 1
   m_LightProbeUsage: 1
   m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 2
+  m_RayTracingMode: 0
   m_RayTraceProcedural: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 0}
+  - {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -937,7 +772,7 @@ MeshRenderer:
   m_IgnoreNormalsForChartDetection: 0
   m_ImportantGI: 0
   m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 3
+  m_SelectedEditorRenderState: 0
   m_MinimumChartSize: 4
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
@@ -945,29 +780,17 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 7220
-  m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &3091823415848914818
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5756246606699401366}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7fa5a912dec849d4ca60b09970a366d4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  sourceSprite: {fileID: 21300000, guid: fe2dd987f1a87e84ab014b87827f8270, type: 3}
-  shapeSpriteOverride: {fileID: 0}
-  useEllipseShape: 0
-  ellipseSegments: 64
-  ellipseTextureCrop: 0
-  useSourceTexture: 1
-  tint: {r: 1, g: 1, b: 1, a: 1}
-  sortingOrder: 7220
-  anchorBottomCenter: 0
-  verticalFill: 1
+  m_Sprite: {fileID: 21300000, guid: fe2dd987f1a87e84ab014b87827f8270, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_FlipX: 0
+  m_FlipY: 0
+  m_DrawMode: 0
+  m_Size: {x: 2, y: 2}
+  m_AdaptiveModeThreshold: 0.5
+  m_SpriteTileMode: 0
+  m_WasSpriteAssigned: 1
+  m_MaskInteraction: 0
+  m_SpriteSortPoint: 0
 --- !u!1 &5997515210915004979
 GameObject:
   m_ObjectHideFlags: 0
@@ -977,10 +800,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 3917202485709325967}
-  - component: {fileID: 1867544666521966126}
-  - component: {fileID: 1238410126464599270}
-  - component: {fileID: 1567660934535123232}
-  - component: {fileID: 558920322884949880}
+  - component: {fileID: 6504566939177117587}
   m_Layer: 0
   m_Name: Arrow Rain Animation 01
   m_TagString: Untagged
@@ -997,55 +817,33 @@ Transform:
   m_GameObject: {fileID: 5997515210915004979}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -0.58, y: 0.28, z: 0}
+  m_LocalPosition: {x: -0.68, y: 0.46, z: 0}
   m_LocalScale: {x: 0.56, y: 0.56, z: 0.56}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 221244695066287461}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1867544666521966126
-MonoBehaviour:
+--- !u!212 &6504566939177117587
+SpriteRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5997515210915004979}
   m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: af95e33ef29cde24c9c5b191152bad53, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  faceCamera: 1
-  rollDegrees: 0
---- !u!33 &1238410126464599270
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5997515210915004979}
-  m_Mesh: {fileID: 0}
---- !u!23 &1567660934535123232
-MeshRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5997515210915004979}
-  m_Enabled: 1
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
   m_DynamicOccludee: 1
   m_StaticShadowCaster: 0
   m_MotionVectors: 1
   m_LightProbeUsage: 1
   m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 2
+  m_RayTracingMode: 0
   m_RayTraceProcedural: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 0}
+  - {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1058,7 +856,7 @@ MeshRenderer:
   m_IgnoreNormalsForChartDetection: 0
   m_ImportantGI: 0
   m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 3
+  m_SelectedEditorRenderState: 0
   m_MinimumChartSize: 4
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
@@ -1066,29 +864,17 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 7220
-  m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &558920322884949880
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5997515210915004979}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7fa5a912dec849d4ca60b09970a366d4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  sourceSprite: {fileID: 21300000, guid: a2e00873cc0f47d4e860b990ad21e87f, type: 3}
-  shapeSpriteOverride: {fileID: 0}
-  useEllipseShape: 0
-  ellipseSegments: 64
-  ellipseTextureCrop: 0
-  useSourceTexture: 1
-  tint: {r: 1, g: 1, b: 1, a: 1}
-  sortingOrder: 7220
-  anchorBottomCenter: 0
-  verticalFill: 1
+  m_Sprite: {fileID: 21300000, guid: a2e00873cc0f47d4e860b990ad21e87f, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_FlipX: 0
+  m_FlipY: 0
+  m_DrawMode: 0
+  m_Size: {x: 2, y: 2}
+  m_AdaptiveModeThreshold: 0.5
+  m_SpriteTileMode: 0
+  m_WasSpriteAssigned: 1
+  m_MaskInteraction: 0
+  m_SpriteSortPoint: 0
 --- !u!1 &7862879359314718815
 GameObject:
   m_ObjectHideFlags: 0
@@ -1098,10 +884,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6583193308828754777}
-  - component: {fileID: 9045610377461553104}
-  - component: {fileID: 6328496809566116441}
-  - component: {fileID: 3954846727762719102}
-  - component: {fileID: 6972992089511622223}
+  - component: {fileID: 7330979881124704944}
   m_Layer: 0
   m_Name: Arrow Rain Animation 07
   m_TagString: Untagged
@@ -1118,55 +901,33 @@ Transform:
   m_GameObject: {fileID: 7862879359314718815}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.02, y: -0.68, z: 0}
+  m_LocalPosition: {x: -0.16, y: 0.78, z: 0}
   m_LocalScale: {x: 0.56, y: 0.56, z: 0.56}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 221244695066287461}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &9045610377461553104
-MonoBehaviour:
+--- !u!212 &7330979881124704944
+SpriteRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7862879359314718815}
   m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: af95e33ef29cde24c9c5b191152bad53, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  faceCamera: 1
-  rollDegrees: 0
---- !u!33 &6328496809566116441
-MeshFilter:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7862879359314718815}
-  m_Mesh: {fileID: 0}
---- !u!23 &3954846727762719102
-MeshRenderer:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7862879359314718815}
-  m_Enabled: 1
-  m_CastShadows: 1
-  m_ReceiveShadows: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
   m_DynamicOccludee: 1
   m_StaticShadowCaster: 0
   m_MotionVectors: 1
   m_LightProbeUsage: 1
   m_ReflectionProbeUsage: 1
-  m_RayTracingMode: 2
+  m_RayTracingMode: 0
   m_RayTraceProcedural: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 0}
+  - {fileID: 10754, guid: 0000000000000000f000000000000000, type: 0}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1179,7 +940,7 @@ MeshRenderer:
   m_IgnoreNormalsForChartDetection: 0
   m_ImportantGI: 0
   m_StitchLightmapSeams: 1
-  m_SelectedEditorRenderState: 3
+  m_SelectedEditorRenderState: 0
   m_MinimumChartSize: 4
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
@@ -1187,26 +948,14 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 7220
-  m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &6972992089511622223
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7862879359314718815}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7fa5a912dec849d4ca60b09970a366d4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  sourceSprite: {fileID: 21300000, guid: 064fecea0f53cbc489130b76ece37573, type: 3}
-  shapeSpriteOverride: {fileID: 0}
-  useEllipseShape: 0
-  ellipseSegments: 64
-  ellipseTextureCrop: 0
-  useSourceTexture: 1
-  tint: {r: 1, g: 1, b: 1, a: 1}
-  sortingOrder: 7220
-  anchorBottomCenter: 0
-  verticalFill: 1
+  m_Sprite: {fileID: 21300000, guid: 064fecea0f53cbc489130b76ece37573, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_FlipX: 0
+  m_FlipY: 0
+  m_DrawMode: 0
+  m_Size: {x: 2, y: 2}
+  m_AdaptiveModeThreshold: 0.5
+  m_SpriteTileMode: 0
+  m_WasSpriteAssigned: 1
+  m_MaskInteraction: 0
+  m_SpriteSortPoint: 0

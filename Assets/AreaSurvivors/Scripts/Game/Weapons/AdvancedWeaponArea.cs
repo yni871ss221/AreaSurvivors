@@ -5,6 +5,11 @@ namespace AreaSurvivors
 {
     public sealed class AdvancedWeaponArea : MonoBehaviour
     {
+        static readonly Color HealPopupColor = new Color(0.35f, 1f, 0.34f, 1f);
+
+        [SerializeField] Transform visualScaleRoot;
+        [SerializeField] GameObject healPopupPrefab;
+        [SerializeField] Vector3 healPopupOffset = new Vector3(0f, 0.58f, 0f);
         readonly Dictionary<Health, float> hitTimers = new Dictionary<Health, float>();
         Transform followTarget;
         float radius;
@@ -19,6 +24,11 @@ namespace AreaSurvivors
         PaperMeshVisual visual;
         bool paintsTerritory;
         WeaponType sourceWeaponType = WeaponType.Flag;
+        int allyHealAmount;
+        float nextHealAt;
+        float activateAt;
+        bool activated;
+        bool configured;
 
         public void Configure(
             Transform target,
@@ -33,16 +43,19 @@ namespace AreaSurvivors
             float visualAlpha = 0.45f,
             float areaVerticalScale = 1f,
             bool paintTerritory = false,
-            WeaponType weaponType = WeaponType.Flag)
+            WeaponType weaponType = WeaponType.Flag,
+            int healAmount = 0,
+            float activationDelaySeconds = 0f)
         {
             if (visual == null) visual = GetComponentInChildren<PaperMeshVisual>();
             followTarget = target;
             transform.position = followTarget != null ? followTarget.position : position;
             radius = Mathf.Max(0.05f, areaRadius);
             bool usesSpriteShape = visual != null && visual.UsesEllipseShape;
-            verticalRadiusMultiplier = usesSpriteShape
+            float spriteShapeAspectY = usesSpriteShape
                 ? Mathf.Max(0.05f, visual.EllipseShapeAspectY)
-                : Mathf.Max(0.05f, areaVerticalScale);
+                : 1f;
+            verticalRadiusMultiplier = Mathf.Max(0.05f, areaVerticalScale);
             if (paintTerritory)
             {
                 var grid = FindObjectOfType<TileGrid>();
@@ -60,20 +73,27 @@ namespace AreaSurvivors
             sfxInterval = Mathf.Max(0f, repeatSfxSeconds);
             paintsTerritory = paintTerritory;
             sourceWeaponType = weaponType;
+            activateAt = Time.time + Mathf.Max(0f, activationDelaySeconds);
+            activated = activationDelaySeconds <= 0f;
+            int previousHealAmount = allyHealAmount;
+            allyHealAmount = Mathf.Max(0, healAmount);
+            if (!configured || (previousHealAmount <= 0 && allyHealAmount > 0)) nextHealAt = Time.time;
+            configured = true;
             var arrowRainVisual = GetComponentInChildren<ArrowRainAreaVisual>();
             bool usesAreaMeshAspect = arrowRainVisual != null && paintTerritory;
-            transform.localScale = usesAreaMeshAspect
+            Vector3 visualScale = usesAreaMeshAspect
                 ? Vector3.one * radius
                 : usesSpriteShape
-                ? new Vector3(radius, radius, radius)
+                ? new Vector3(radius, radius * verticalRadiusMultiplier / spriteShapeAspectY, radius)
                 : new Vector3(radius, radius * verticalRadiusMultiplier, radius);
+            (visualScaleRoot != null ? visualScaleRoot : transform).localScale = visualScale;
             if (arrowRainVisual != null)
             {
                 if (usesAreaMeshAspect) arrowRainVisual.SetAreaShape(verticalRadiusMultiplier);
                 arrowRainVisual.SetAreaAlpha(visualAlpha);
             }
             else ApplyVisualAlpha(visualAlpha);
-            PaintTerritoryIfNeeded();
+            if (activated) PaintTerritoryIfNeeded();
         }
 
         void ApplyVisualAlpha(float alpha)
@@ -94,6 +114,12 @@ namespace AreaSurvivors
             }
 
             if (followTarget != null) transform.position = followTarget.position;
+            if (!activated)
+            {
+                if (Time.time < activateAt) return;
+                activated = true;
+                PaintTerritoryIfNeeded();
+            }
             if (sfxInterval > 0f && Time.time >= nextSfxAt)
             {
                 AudioManager.PlaySfx(tickSfx);
@@ -101,6 +127,38 @@ namespace AreaSurvivors
             }
 
             DamageEnemiesInRadius();
+            HealAlliesInRadius();
+        }
+
+        void HealAlliesInRadius()
+        {
+            if (allyHealAmount <= 0 || Time.time < nextHealAt) return;
+            nextHealAt = Time.time + damageInterval;
+            var manager = GameManager.Instance;
+            var playerHealth = manager != null && manager.Player != null ? manager.Player.GetComponent<Health>() : null;
+            HealIfInside(playerHealth);
+            var towerHealth = manager != null && manager.Tower != null ? manager.Tower.GetComponent<Health>() : null;
+            HealIfInside(towerHealth);
+            var buildings = FindObjectsOfType<BuildingPersistentState>();
+            for (int i = 0; i < buildings.Length; i++)
+            {
+                if (buildings[i] == null) continue;
+                var health = buildings[i].GetComponent<Health>();
+                if (health == towerHealth) continue;
+                HealIfInside(health);
+            }
+        }
+
+        void HealIfInside(Health health)
+        {
+            if (health == null || health.IsDead || !ContainsPoint(health.transform.position)) return;
+            int healed = health.Heal(allyHealAmount);
+            if (healed <= 0) return;
+            DamagePopup.Show(
+                healPopupPrefab,
+                health.transform.position + healPopupOffset,
+                healed,
+                HealPopupColor);
         }
 
         void DamageEnemiesInRadius()

@@ -140,13 +140,13 @@ GameObject:
   - component: {fileID: 6038107585253942123}
   - component: {fileID: 8715880638092075946}
   - component: {fileID: 4894644458828844375}
-  - component: {fileID: 7473428987504874668}
   - component: {fileID: 5299838330735792647}
   - component: {fileID: 7452492259972727542}
   - component: {fileID: 4859309599482876718}
   - component: {fileID: 7443439833097392598}
   - component: {fileID: 760493295662600798}
   - component: {fileID: 3415048298470648933}
+  - component: {fileID: 831398574938792321}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -213,7 +213,7 @@ Rigidbody2D:
   m_ExcludeLayers:
     serializedVersion: 2
     m_Bits: 0
-  m_Interpolate: 0
+  m_Interpolate: 1
   m_SleepingMode: 1
   m_CollisionDetection: 0
   m_Constraints: 4
@@ -233,23 +233,6 @@ MonoBehaviour:
   currentHp: 10
   defense: 0
   invincible: 0
---- !u!114 &7473428987504874668
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2990740223808934395}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: fb4ca01ae0cac8d47b7656f99460a48e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  downFrames: []
-  leftFrames: []
-  rightFrames: []
-  upFrames: []
-  framesPerSecond: 8
 --- !u!114 &5299838330735792647
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -269,58 +252,13 @@ MonoBehaviour:
   hpBar: {fileID: 2382903243143012373}
   damagePopupPrefab: {fileID: 0}
   tokenGainPopup: {fileID: 8806967032817224478}
-  directionalAnimator: {fileID: 7473428987504874668}
+  directionalAnimatorDriver: {fileID: 831398574938792321}
+  knightAnimatorController: {fileID: 22100000, guid: 571f008540200c042aad3f131dd341b3, type: 2}
+  archerAnimatorController: {fileID: 22100000, guid: d2d7269136f585f4e90cc83be9711afe, type: 2}
+  mageAnimatorController: {fileID: 22100000, guid: 1627cb9c964faec4c8e4d227856f3c5a, type: 2}
   knightSprite: {fileID: 21300000, guid: d21065662d338ce4c9baae72c8186739, type: 3}
   archerSprite: {fileID: 21300000, guid: a8371564d3e7a5c4cb784805d7239468, type: 3}
   mageSprite: {fileID: 21300000, guid: 3a236bbfe960a164aa2152fc1de51ec5, type: 3}
-  knightDownFrames:
-  - {fileID: 21300000, guid: a2c684a9d1621a14db4466711422337a, type: 3}
-  - {fileID: 21300000, guid: d21065662d338ce4c9baae72c8186739, type: 3}
-  - {fileID: 21300000, guid: b277cc2437b33144ba340caf2721ccea, type: 3}
-  knightLeftFrames:
-  - {fileID: 21300000, guid: 6eaffe9c55b0c7f44b3091a8f92b3bd8, type: 3}
-  - {fileID: 21300000, guid: ea68293a8b937b749b74ed48d49eb28f, type: 3}
-  - {fileID: 21300000, guid: bb67c71e73b7b3942ae3b29ef4c4e08e, type: 3}
-  knightRightFrames:
-  - {fileID: 21300000, guid: 95dad25259213a04ebb4f9908f04bbde, type: 3}
-  - {fileID: 21300000, guid: f2548f9c00d6fde4ca6b8a4f77e9dfa4, type: 3}
-  - {fileID: 21300000, guid: b16795b3fe240574dade6b25325a6cca, type: 3}
-  knightUpFrames:
-  - {fileID: 21300000, guid: 1f493a1743cd1474bbb79ebf4d8953ce, type: 3}
-  - {fileID: 21300000, guid: 60c1fbbaed44f4446948c1202a197ad8, type: 3}
-  - {fileID: 21300000, guid: d68338a5ed75a0f44af4667468eb115a, type: 3}
-  archerDownFrames:
-  - {fileID: 21300000, guid: 92d7952a5d12d314a940c006a3bcc703, type: 3}
-  - {fileID: 21300000, guid: a8371564d3e7a5c4cb784805d7239468, type: 3}
-  - {fileID: 21300000, guid: 5c58ff708996e2e40986bb2c344df3a6, type: 3}
-  archerLeftFrames:
-  - {fileID: 21300000, guid: b746de23df3153841bd8267c61759534, type: 3}
-  - {fileID: 21300000, guid: 5f1ff28a4d39509408116b758d22f65b, type: 3}
-  - {fileID: 21300000, guid: d6bf46286d1431945a45c2d28d70f000, type: 3}
-  archerRightFrames:
-  - {fileID: 21300000, guid: 89312cb120174e44c8236e7ae97c53c3, type: 3}
-  - {fileID: 21300000, guid: 0f1caba8868354d4e9ca3e8eab395c97, type: 3}
-  - {fileID: 21300000, guid: 33962396bc88aee45af57c800d7ed6a8, type: 3}
-  archerUpFrames:
-  - {fileID: 21300000, guid: 69ee10a9248e1774ea8d166933981b8f, type: 3}
-  - {fileID: 21300000, guid: dea0a55c308aaaa428d292c884a0c4fd, type: 3}
-  - {fileID: 21300000, guid: 25f26476e79d21e4eb023b42af376952, type: 3}
-  mageDownFrames:
-  - {fileID: 21300000, guid: af28fb21b67d3b24db35141c5a7053ad, type: 3}
-  - {fileID: 21300000, guid: 3a236bbfe960a164aa2152fc1de51ec5, type: 3}
-  - {fileID: 21300000, guid: 58d4927f54cade34686abc064ae4bb21, type: 3}
-  mageLeftFrames:
-  - {fileID: 21300000, guid: 345e5ef0f62e1bb4cb8d7ba7eeea0fb4, type: 3}
-  - {fileID: 21300000, guid: e24819eaaa4a3e54ba556e4c591d8f70, type: 3}
-  - {fileID: 21300000, guid: 802dd5410a1445949b40c470b162ce4c, type: 3}
-  mageRightFrames:
-  - {fileID: 21300000, guid: 5dc6ebabda66d8840a386bcd698105af, type: 3}
-  - {fileID: 21300000, guid: 8cdcc7a693bc60942bc5c62d39738c65, type: 3}
-  - {fileID: 21300000, guid: 845dc3c776ec886489b1fa273bdfb3dd, type: 3}
-  mageUpFrames:
-  - {fileID: 21300000, guid: 6502094460567b4458029bd2c3835076, type: 3}
-  - {fileID: 21300000, guid: 1fe90d3cffa228d4ba20f7de5657691a, type: 3}
-  - {fileID: 21300000, guid: ac94e96d9d3874f4d82ad439e3661a3a, type: 3}
 --- !u!114 &7452492259972727542
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -334,8 +272,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   arrowPrefab: {fileID: 6415672035725512546, guid: 4fff427d22da444295e8051c155c8933, type: 3}
+  goldenArrowPrefab: {fileID: 6415672035725512546, guid: 49a8e3f99168e6644888c6e591e2b672, type: 3}
   fireballPrefab: {fileID: 233849472752207496, guid: 67a5e3fcf592beb4d8617154d124e986, type: 3}
+  fireMissilePrefab: {fileID: 233849472752207496, guid: 2fc9ca22d677e694b9bb8cae9c28127a, type: 3}
   slashPrefab: {fileID: 1702100000000000011, guid: 8e8ab35f85704de4bd7b0f4f2a10cf79, type: 3}
+  swordRushSlashPrefab: {fileID: 7502075828102578530, guid: af971cfe8e2107c488e471546488ff1b, type: 3}
   slashOrigin: {fileID: 0}
 --- !u!61 &4859309599482876718
 BoxCollider2D:
@@ -409,6 +350,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   shieldPrefab: {fileID: 8176750643719323012, guid: 8133df025c4078549973cfb5229ca7e3, type: 3}
+  dualShieldPrefab: {fileID: 8176750643719323012, guid: 48b03f37cd4c56f4a84172039ef60c3e, type: 3}
 --- !u!114 &3415048298470648933
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -422,15 +364,32 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   areaPrefab: {fileID: 1661342893041220278, guid: be3bc470771b94f49b515abc0a494645, type: 3}
+  goddessBlessingAreaPrefab: {fileID: 1661342893041220278, guid: 7e7409ad41d0f1d47a0cdde4a7ef4a06, type: 3}
   arrowRainAreaPrefab: {fileID: 4866575879241071890, guid: 4d3cf54987f60ff47a32b62f4b3f71d6, type: 3}
+  arrowShowerStrikePrefab: {fileID: 1661342893041220278, guid: 6ae83a686cfd461438d9deb557407fd0, type: 3}
   frostAreaPrefab: {fileID: 9189710609794034881, guid: fafb3bf91aaec274990ccf280270abcd, type: 3}
+  frostStormSpikePrefab: {fileID: 9189710609794034881, guid: 165f681c7c1dd1b4ebb8f6a4c856f569, type: 3}
   boomerangPrefab: {fileID: 2328760525848876628, guid: 1dd9b78433e2bd34b92d3b63c9eb2b8c, type: 3}
+  bananaPrefab: {fileID: 2328760525848876628, guid: 58e0c837a1daadd418ea58cd5f55005f, type: 3}
   auraSlashPrefab: {fileID: 7778262334708668249, guid: 3bcd1204645744f42bd48a9236133c49, type: 3}
+  excaliburSlashPrefab: {fileID: 7778262334708668249, guid: a2db48eb66cef384c8c054f6d8411f03, type: 3}
   bulletPrefab: {fileID: 8055447122775411626, guid: b9887a4f17f619e44a742696b2aaa299, type: 3}
+  machineGunBulletPrefab: {fileID: 8055447122775411626, guid: 04734db342265da468b2c61607b61e56, type: 3}
   thunderBallPrefab: {fileID: 5358192397732457347, guid: bdeb174ea6bf8344bbeb646c38cb411c, type: 3}
-  flagAreaPerspectiveYScale: 0.65
-  arrowRainAreaPerspectiveYScale: 0.65
-  frostAreaPerspectiveYScale: 0.65
+  thunderStormOrbPrefab: {fileID: 5358192397732457347, guid: 0a1bf422b3d49dc4188839f728832a73, type: 3}
+--- !u!114 &831398574938792321
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2990740223808934395}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b5db364f21b07334bbf0df35f7d71bff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  animator: {fileID: 206202744264521849}
 --- !u!1 &3101405684633296734
 GameObject:
   m_ObjectHideFlags: 0
@@ -932,6 +891,7 @@ GameObject:
   - component: {fileID: 7483612439917177067}
   - component: {fileID: 940987762023602898}
   - component: {fileID: 8323513492433126272}
+  - component: {fileID: 206202744264521849}
   m_Layer: 0
   m_Name: Paper Visual
   m_TagString: Untagged
@@ -1026,3 +986,24 @@ MonoBehaviour:
   sortingOrder: 1000
   anchorBottomCenter: 0
   verticalFill: 1
+--- !u!95 &206202744264521849
+Animator:
+  serializedVersion: 5
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7464594867759238010}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 22100000, guid: 571f008540200c042aad3f131dd341b3, type: 2}
+  m_CullingMode: 1
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0

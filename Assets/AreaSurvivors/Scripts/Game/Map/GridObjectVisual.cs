@@ -23,7 +23,7 @@ namespace AreaSurvivors
         [SerializeField] Vector3Int gridOriginCell;
 
         public const float CellWidth = 0.7f;
-        public const float CellHeight = 0.5f;
+        public const float CellHeight = 0.7f;
 
         public Vector2 FootprintWorldSize
         {
@@ -137,7 +137,9 @@ namespace AreaSurvivors
 
         public BoxCollider2D ConfigureFootprintBox(BoxCollider2D collider, bool isTrigger)
         {
-            if (collider == null) collider = gameObject.AddComponent<BoxCollider2D>();
+            if (collider != null) return collider;
+
+            collider = gameObject.AddComponent<BoxCollider2D>();
             var size = FootprintWorldSize;
             float bottomInset = isTrigger ? 0f : Mathf.Clamp(blockingColliderBottomInset, 0f, Mathf.Max(0f, size.y - 0.01f));
             var colliderSize = new Vector2(size.x, size.y - bottomInset);
@@ -154,7 +156,9 @@ namespace AreaSurvivors
 
         public CircleCollider2D ConfigureCharacterCircle(CircleCollider2D collider)
         {
-            if (collider == null) collider = gameObject.AddComponent<CircleCollider2D>();
+            if (collider != null) return collider;
+
+            collider = gameObject.AddComponent<CircleCollider2D>();
             float maxDiameter = Mathf.Max(0.1f, FootprintWorldSize.x);
             float worldRadius = Mathf.Min(maxDiameter * 0.5f, maxDiameter * Mathf.Clamp(characterFootRadiusScale, 0.1f, 0.5f));
             float scale = Mathf.Max(0.001f, Mathf.Abs(transform.lossyScale.x));

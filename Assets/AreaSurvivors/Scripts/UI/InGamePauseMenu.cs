@@ -9,6 +9,7 @@ namespace AreaSurvivors
         public GameObject menuPanel;
         public GameObject optionsPanel;
         public GameObject abandonDialog;
+        public GameObject pauseBackdrop;
         public GeneralOptionsPanel generalOptionsPanel;
         public AudioOptionsPanel audioOptionsPanel;
         public DisplayOptionsPanel displayOptionsPanel;
@@ -49,6 +50,7 @@ namespace AreaSurvivors
         public Button confirmAbandonButton;
 
         bool pausedByMenu;
+        GameHudController gameHud;
         readonly KeyboardMouseControlOptionsBinding controlBinding = new KeyboardMouseControlOptionsBinding();
         readonly ControllerControlOptionsBinding controllerBinding = new ControllerControlOptionsBinding();
 
@@ -56,6 +58,7 @@ namespace AreaSurvivors
         {
             BindButtons();
             HideAll();
+            SetPauseDetailsVisible(false);
         }
 
         void Update()
@@ -130,6 +133,8 @@ namespace AreaSurvivors
         {
             pausedByMenu = true;
             Time.timeScale = 0f;
+            SetActive(pauseBackdrop, true);
+            SetPauseDetailsVisible(true);
             ShowMainMenu();
         }
 
@@ -167,15 +172,24 @@ namespace AreaSurvivors
         void ResumeGame()
         {
             HideAll();
+            SetPauseDetailsVisible(false);
             if (pausedByMenu) Time.timeScale = 1f;
             pausedByMenu = false;
         }
 
         void AbandonRun()
         {
+            SetActive(pauseBackdrop, false);
+            SetPauseDetailsVisible(false);
             Time.timeScale = 1f;
             pausedByMenu = false;
             SceneManager.LoadScene(SceneNames.Lobby);
+        }
+
+        void SetPauseDetailsVisible(bool visible)
+        {
+            if (gameHud == null) gameHud = FindObjectOfType<GameHudController>();
+            if (gameHud != null) gameHud.SetPauseDetailsVisible(visible);
         }
 
         void ResetAllOptions()
@@ -185,6 +199,7 @@ namespace AreaSurvivors
 
         void HideAll()
         {
+            SetActive(pauseBackdrop, false);
             SetActive(menuPanel, false);
             SetActive(optionsPanel, false);
             SetActive(abandonDialog, false);

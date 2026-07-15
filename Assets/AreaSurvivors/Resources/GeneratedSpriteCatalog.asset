@@ -569,8 +569,32 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 738b2318fd179954ebbdbaf0c11f87f9, type: 3}
   - name: TreasureChestOpen
     sprite: {fileID: 21300000, guid: c0592ac743a69144c9e59c16d89d7677, type: 3}
+  - name: UI/FuroPizzaStudioLogo
+    sprite: {fileID: 21300000, guid: bfae4b3db63c4def9e0e9e67b78fe63f, type: 3}
+  - name: UI/GameClearBackground
+    sprite: {fileID: 21300000, guid: 2284747cf82040c5a5d13afd2151c903, type: 3}
+  - name: UI/GameEndBackground
+    sprite: {fileID: 21300000, guid: 4e17657ba5984f6c9b23ef77ba5b4dd6, type: 3}
+  - name: UI/LevelUpPanelBackground
+    sprite: {fileID: 21300000, guid: 8140f62be8575b648a0cacee2e4865e4, type: 3}
   - name: UI/LobbyBackground
     sprite: {fileID: 21300000, guid: b17806bf661d48d42870dc5cbcb21638, type: 3}
+  - name: UI/OpeningStory/OpeningStory01
+    sprite: {fileID: 21300000, guid: 70ffd0cdcf86cfa4f8696cc0ca0e517d, type: 3}
+  - name: UI/OpeningStory/OpeningStory02
+    sprite: {fileID: 21300000, guid: e9fb543714c69714fa0c06b342470c84, type: 3}
+  - name: UI/OpeningStory/OpeningStory03
+    sprite: {fileID: 21300000, guid: 0cb385471df0713458c7e5eb5cd3b080, type: 3}
+  - name: UI/OpeningStory/OpeningStory04
+    sprite: {fileID: 21300000, guid: e609ba00aedc68349b98ebcf26c08dac, type: 3}
+  - name: UI/OpeningStory/OpeningStory05
+    sprite: {fileID: 21300000, guid: a333b0b137070334b82388a41ab84eb4, type: 3}
+  - name: UI/OpeningStory/OpeningStory06
+    sprite: {fileID: 21300000, guid: 5fa9ca5bbbf6bec4d8af9008fc3967df, type: 3}
+  - name: UI/OpeningStory/OpeningStoryEdgeVignette
+    sprite: {fileID: 21300000, guid: bc440f4fd901c2f47982c4e1780aa303, type: 3}
+  - name: UI/RelicBookBackground
+    sprite: {fileID: 21300000, guid: 5d982b2122b64cde878c441cce4e14ab, type: 3}
   - name: UI/SkullIcon
     sprite: {fileID: 21300000, guid: 870356cd8343469aab6fd56ce2920ea5, type: 3}
   - name: UI/StoneIcon
@@ -581,6 +605,8 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: c0666bbce34b4754bef7804eb49fdc58, type: 3}
   - name: UI/UpgradeBackground
     sprite: {fileID: 21300000, guid: f3bea78236e7af1409aa5c0fe19a87bd, type: 3}
+  - name: UI/WeaponBookBackground
+    sprite: {fileID: 21300000, guid: 06e2a1df2fb948fba24143a9a75db900, type: 3}
   - name: UI/WeaponTypeDefense
     sprite: {fileID: 21300000, guid: abad00691e3169d429ac0e83094a4d8e, type: 3}
   - name: UI/WeaponTypeMagic
@@ -1001,12 +1027,26 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 064fecea0f53cbc489130b76ece37573, type: 3}
   - name: Weapons/ArrowRainFrame_7
     sprite: {fileID: 21300000, guid: a424913fd86d6f947b90f5e08cfbcbbe, type: 3}
+  - name: Weapons/ArrowShowerEffect
+    sprite: {fileID: 21300000, guid: a37236e0dae680346b3451ff8e48f4bc, type: 3}
+  - name: Weapons/ArrowShowerIcon
+    sprite: {fileID: 21300000, guid: 677028d250e62944a8d8721da29b5671, type: 3}
+  - name: Weapons/ArrowShowerImpactFrame01
+    sprite: {fileID: 21300000, guid: d306630f71811d140b6f85b64045e287, type: 3}
+  - name: Weapons/ArrowShowerImpactFrame02
+    sprite: {fileID: 21300000, guid: 915f31738d4591d418113062eda10cf2, type: 3}
+  - name: Weapons/ArrowShowerImpactFrame03
+    sprite: {fileID: 21300000, guid: 7260b697a60d8c24e8221b78d4e23549, type: 3}
   - name: Weapons/AuraSword
     sprite: {fileID: 21300000, guid: eae5da43efda70741b01d3026eb402e9, type: 3}
   - name: Weapons/AuraSwordSlash
     sprite: {fileID: 21300000, guid: ec07f98c7713abc4db831392922e909f, type: 3}
   - name: Weapons/Axe
     sprite: {fileID: 21300000, guid: bf9ccc17ca6d0d144810ed5ee8604c0d, type: 3}
+  - name: Weapons/BananaIcon
+    sprite: {fileID: 21300000, guid: b537566ddc6a0224abdad6ff318def57, type: 3}
+  - name: Weapons/BananaProjectile
+    sprite: {fileID: 21300000, guid: e54a0b2502df9e64aaa6489f2dc8acf1, type: 3}
   - name: Weapons/BoomerangSword
     sprite: {fileID: 21300000, guid: 565b272eb9124a54a911ae687be14fce, type: 3}
   - name: Weapons/BoomerangSwordBlade
@@ -1015,6 +1055,18 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: cdbe110e60164bdfaf916542e9e5bc3e, type: 3}
   - name: Weapons/Cannonball
     sprite: {fileID: 21300000, guid: e368e2c6b2424ad8950fa2077e9458a0, type: 3}
+  - name: Weapons/DualShieldEffect
+    sprite: {fileID: 21300000, guid: 23cecb373f085524f97d471ad88a665d, type: 3}
+  - name: Weapons/DualShieldIcon
+    sprite: {fileID: 21300000, guid: 8fb1619f47aff434a93159ae86e76ea2, type: 3}
+  - name: Weapons/ExcaliburEffect
+    sprite: {fileID: 21300000, guid: 8daa2e8b9164c054cbcb19d144abde8f, type: 3}
+  - name: Weapons/ExcaliburIcon
+    sprite: {fileID: 21300000, guid: 37defc64a548591408097a91edef3439, type: 3}
+  - name: Weapons/FireMissileEffect
+    sprite: {fileID: 21300000, guid: 579f6925d5fd4b148a2a567025c3567c, type: 3}
+  - name: Weapons/FireMissileIcon
+    sprite: {fileID: 21300000, guid: 090b0d344af88b846bfa264e2dadeede, type: 3}
   - name: Weapons/Fireball
     sprite: {fileID: 21300000, guid: 132bacae8e22e2f418a6b868c4fe9ea0, type: 3}
   - name: Weapons/FireballHudIcon
@@ -1027,12 +1079,32 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: b3f5e6a19f4d4d7ca71263fb6ad7d2c1, type: 3}
   - name: Weapons/FrostAreaTextureAlt
     sprite: {fileID: 21300000, guid: d7e2f5c11b334db8adf2893cfd58e142, type: 3}
+  - name: Weapons/FrostStormEffect
+    sprite: {fileID: 21300000, guid: 9f723469f4cb8d249b12d7102fa9fea9, type: 3}
+  - name: Weapons/FrostStormIcon
+    sprite: {fileID: 21300000, guid: 5b032c203f0b0b8428b960bb1b7d2262, type: 3}
+  - name: Weapons/FrostStormSpikeTall
+    sprite: {fileID: 21300000, guid: e514449afaad7d1429db2c624f25b4f1, type: 3}
+  - name: Weapons/GoddessBlessingEffect
+    sprite: {fileID: 21300000, guid: 3003331f69c55714d86b0a2dcec7f934, type: 3}
+  - name: Weapons/GoddessBlessingIcon
+    sprite: {fileID: 21300000, guid: bc89bbfa4ce53dc45bfeb558be9ae9a2, type: 3}
+  - name: Weapons/GoldenBowEffect
+    sprite: {fileID: 21300000, guid: d3a53ba2aeb437945ba33ca657973e06, type: 3}
+  - name: Weapons/GoldenBowIcon
+    sprite: {fileID: 21300000, guid: 09a7dfedfe4f0454bbf10eb0aea80fd9, type: 3}
   - name: Weapons/Gun
     sprite: {fileID: 21300000, guid: 841e2dc613f9a7c4d9eed5842da77b7f, type: 3}
   - name: Weapons/GunBullet
     sprite: {fileID: 21300000, guid: 0dae26ed7a39ade42bdb5676031b768c, type: 3}
   - name: Weapons/Hammer
     sprite: {fileID: 21300000, guid: f676b99de6e632e4bb5fc678669464c1, type: 3}
+  - name: Weapons/MachineGunBullet
+    sprite: {fileID: 21300000, guid: a6b79ded38538e24fa796103e39b21cc, type: 3}
+  - name: Weapons/MachineGunEffect
+    sprite: {fileID: 21300000, guid: d0cced2f79be1ca4eaa798d0058d9e7a, type: 3}
+  - name: Weapons/MachineGunIcon
+    sprite: {fileID: 21300000, guid: fee69f10819ae854e8ad74c88ba60280, type: 3}
   - name: Weapons/Orb
     sprite: {fileID: 21300000, guid: 75deff6ab9beb69488fa042adb2101b9, type: 3}
   - name: Weapons/Pickaxe
@@ -1047,8 +1119,18 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 140d9a3174fd9df409d37dcfc0608dcf, type: 3}
   - name: Weapons/Slash_2
     sprite: {fileID: 21300000, guid: e785731d8ef781549a1c95ded30892ef, type: 3}
+  - name: Weapons/SwordRushIcon
+    sprite: {fileID: 21300000, guid: 8c20dec9c160e884abb498e26bf9af61, type: 3}
+  - name: Weapons/SwordRushSlashEffect
+    sprite: {fileID: 21300000, guid: 82b6953c081232146aa053601ee6d510, type: 3}
+  - name: Weapons/SwordRushSlashEffectAlt
+    sprite: {fileID: 21300000, guid: c6713dce5acc4f79862e1838b38d3fc2, type: 3}
   - name: Weapons/ThunderBall
     sprite: {fileID: 21300000, guid: 21fb944cb3d009448af6147fdad00323, type: 3}
+  - name: Weapons/ThunderStormEffect
+    sprite: {fileID: 21300000, guid: 542488fc37a35e4479c1ccd9a08b17c4, type: 3}
+  - name: Weapons/ThunderStormIcon
+    sprite: {fileID: 21300000, guid: 2d5e56f2a19648147ae8cc9d7d0c3ace, type: 3}
   - name: WoodIcon
     sprite: {fileID: 21300000, guid: 19845df25c834f04bb999aecaafd7a89, type: 3}
   - name: WoodenWall

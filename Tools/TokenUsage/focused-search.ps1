@@ -1,15 +1,23 @@
 param(
     [Parameter(Mandatory = $true)][string]$Pattern,
     [string[]]$Path = @("Assets/AreaSurvivors"),
+    [Alias("First")]
     [int]$TopFiles = 3,
     [int]$Context = 12,
     [int]$MaxMatchesPerFile = 2,
+    [Alias("Include")]
     [string[]]$Extension = @("cs"),
     [switch]$IncludeUnityYaml,
     [switch]$PrintOutput
 )
 
 $ErrorActionPreference = "Stop"
+
+foreach ($item in $Path) {
+    if ([string]::IsNullOrWhiteSpace($item) -or -not (Test-Path -LiteralPath $item)) {
+        throw "Each -Path item must exist. For powershell -File calls, use one path per invocation instead of a comma-joined value: $item"
+    }
+}
 
 function Quote-PowerShellValue {
     param([Parameter(Mandatory = $true)][string]$Value)
@@ -18,7 +26,7 @@ function Quote-PowerShellValue {
 
 $extraArgs = @()
 foreach ($ext in $Extension) {
-    $trimmed = $ext.Trim().TrimStart(".")
+    $trimmed = $ext.Trim().TrimStart("*").TrimStart(".")
     if (-not [string]::IsNullOrWhiteSpace($trimmed)) {
         $extraArgs += "-g"
         $extraArgs += Quote-PowerShellValue "*.$trimmed"
@@ -33,9 +41,12 @@ if (-not $IncludeUnityYaml) {
 $pathArgs = ($Path | ForEach-Object { Quote-PowerShellValue $_ }) -join " "
 $patternArg = Quote-PowerShellValue $Pattern
 $extra = $extraArgs -join " "
-$command = "rg -l --hidden -g '!Library/**' -g '!Temp/**' -g '!Obj/**' -g '!.git/**' $extra $patternArg $pathArgs | Select-Object -First $TopFiles"
+$command = "`$items = @(rg -l --hidden -g '!Library/**' -g '!Temp/**' -g '!Obj/**' -g '!.git/**' $extra $patternArg $pathArgs 2>&1); `$rgExit = `$LASTEXITCODE; if (`$rgExit -gt 1) { `$items | ForEach-Object { [Console]::Error.WriteLine(`$_) }; exit `$rgExit }; `$items | Select-Object -First $TopFiles; exit 0"
 $json = & "$PSScriptRoot\Safe-Command.ps1" -Command $command -Json
 $record = $json | ConvertFrom-Json
+if ($record.exit_code -ne 0) {
+    throw "focused-search file discovery failed with exit code $($record.exit_code). Capture: $($record.capture_path)"
+}
 $filesText = if (Test-Path -LiteralPath $record.capture_path) { Get-Content -LiteralPath $record.capture_path -Encoding UTF8 } else { @() }
 $files = @($filesText | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
 

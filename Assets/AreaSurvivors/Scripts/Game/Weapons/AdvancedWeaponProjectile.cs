@@ -20,6 +20,11 @@ namespace AreaSurvivors
         float spinDegrees;
         TileGrid grid;
         float thunderBallVerticalRadiusMultiplier = 1f;
+        Transform orbitTarget;
+        float orbitAngleDegrees;
+        float orbitRadius;
+        float orbitSpeedDegrees = 180f;
+        bool consumed;
 
         public void Configure(WeaponType weaponType, Vector2 launchDirection, WeaponStatBlock weaponStats, GameConfig gameConfig)
         {
@@ -32,20 +37,35 @@ namespace AreaSurvivors
             spawnTime = Time.time;
             float speed = Mathf.Max(0.1f, stats.projectileSpeed);
             float distance = Mathf.Max(stats.distance, stats.range);
-            lifetime = type == WeaponType.ThunderBall
+            lifetime = type == WeaponType.ThunderBall || type == WeaponType.ThunderStorm
                 ? Mathf.Max(0.1f, stats.durationSeconds)
                 : Mathf.Max(0.1f, distance / speed);
-            if (type == WeaponType.BoomerangSword) SetupBoomerangMotion(speed, distance);
+            if (type == WeaponType.Excalibur)
+            {
+                float speedCells = config != null ? Mathf.Max(0.1f, config.excaliburTravelSpeedCellsPerSecond) : 5f;
+                stats.projectileSpeed = Mathf.Max(0.1f, speedCells * TileGrid.DefaultCellSize);
+                lifetime = Mathf.Max(0.1f, stats.distance / stats.projectileSpeed);
+            }
+            if (type == WeaponType.BoomerangSword || type == WeaponType.Banana) SetupBoomerangMotion(speed, distance, type == WeaponType.Banana);
             else outboundSeconds = lifetime;
             ApplyDirectionRoll(direction);
             ApplyVisualScale();
-            if (type == WeaponType.ThunderBall)
+            if (type == WeaponType.ThunderBall || type == WeaponType.ThunderStorm)
             {
                 thunderBallVerticalRadiusMultiplier = GridCellAspectY();
                 var rangeVisual = GetComponentInChildren<ThunderBallRangeVisual>();
                 if (rangeVisual != null) rangeVisual.Configure(stats.range, thunderBallVerticalRadiusMultiplier);
             }
             PaintAttackTrail();
+        }
+
+        public void ConfigureOrbit(Transform target, int index, int count, float radius)
+        {
+            orbitTarget = target;
+            orbitAngleDegrees = 360f * Mathf.Max(0, index) / Mathf.Max(1, count);
+            orbitRadius = Mathf.Max(0.05f, radius);
+            orbitSpeedDegrees = Mathf.Max(90f, stats.rotationSpeed > 0f ? stats.rotationSpeed : 180f);
+            if (orbitTarget != null) TickOrbit(0f);
         }
 
         void Update()
@@ -56,13 +76,19 @@ namespace AreaSurvivors
                 return;
             }
 
-            if (type == WeaponType.ThunderBall)
+            if (orbitTarget != null)
+            {
+                TickOrbit(Time.deltaTime);
+                return;
+            }
+
+            if (type == WeaponType.ThunderBall || type == WeaponType.ThunderStorm)
             {
                 TickThunderBall();
                 return;
             }
 
-            if (type == WeaponType.BoomerangSword)
+            if (type == WeaponType.BoomerangSword || type == WeaponType.Banana)
             {
                 TickBoomerang();
                 return;
@@ -71,6 +97,16 @@ namespace AreaSurvivors
             var moveDirection = direction;
             transform.position += (Vector3)(moveDirection * Mathf.Max(0.1f, stats.projectileSpeed) * Time.deltaTime);
             PaintAttackTrail();
+        }
+
+        void TickOrbit(float deltaTime)
+        {
+            if (orbitTarget == null) return;
+            orbitAngleDegrees += orbitSpeedDegrees * deltaTime;
+            float radians = orbitAngleDegrees * Mathf.Deg2Rad;
+            transform.position = orbitTarget.position + new Vector3(Mathf.Cos(radians), Mathf.Sin(radians), 0f) * orbitRadius;
+            ApplyRoll(orbitAngleDegrees);
+            TickThunderBallDamageOnly();
         }
 
         void OnTriggerEnter2D(Collider2D other)
@@ -83,9 +119,9 @@ namespace AreaSurvivors
             TryDamage(other);
         }
 
-        void SetupBoomerangMotion(float speed, float distance)
+        void SetupBoomerangMotion(float speed, float distance, bool preserveLaunchDirection)
         {
-            var initialDirection = Random.insideUnitCircle;
+            var initialDirection = preserveLaunchDirection ? direction : Random.insideUnitCircle;
             if (initialDirection.sqrMagnitude < 0.01f) initialDirection = Vector2.right;
             initialDirection.Normalize();
 
@@ -119,6 +155,11 @@ namespace AreaSurvivors
 
             transform.position += (Vector3)(direction * Mathf.Max(0.1f, stats.projectileSpeed) * Time.deltaTime);
             ApplyDirectionRoll(direction);
+            TickThunderBallDamageOnly();
+        }
+
+        void TickThunderBallDamageOnly()
+        {
             float radiusX = Mathf.Max(0.05f, stats.range);
             float radiusY = Mathf.Max(0.05f, stats.range * thunderBallVerticalRadiusMultiplier);
             var colliders = Physics2D.OverlapCircleAll(transform.position, Mathf.Max(radiusX, radiusY));
@@ -153,28 +194,35 @@ namespace AreaSurvivors
 
         void TryDamage(Collider2D other)
         {
+            if (consumed) return;
             var enemy = other != null ? other.GetComponentInParent<EnemyController>() : null;
             if (enemy == null) return;
             var health = enemy.GetComponent<Health>();
             if (health == null || health.IsDead) return;
-            if (type == WeaponType.Gun && piercedTargets.Contains(health)) return;
+            if ((type == WeaponType.Gun || type == WeaponType.MachineGun) && piercedTargets.Contains(health)) return;
             if (!CanHit(health)) return;
 
             int damage = Mathf.Max(0, stats.attackPower);
             int creditedDamage = health.DamageAmount(damage);
             int dealt = health.Damage(damage, enemy.transform.position);
             if (dealt <= 0) return;
-            GameManager.Instance?.RegisterWeaponDamage(type, creditedDamage);
-            if (type == WeaponType.Gun) piercedTargets.Add(health);
+            GameManager.Instance?.RegisterWeaponDamage(WeaponCatalog.BaseWeaponOf(type), creditedDamage);
+            if (type == WeaponType.Gun || type == WeaponType.MachineGun) piercedTargets.Add(health);
             ApplyKnockback(enemy);
+            if (type == WeaponType.MachineGun)
+            {
+                consumed = true;
+                Destroy(gameObject);
+            }
         }
 
         bool CanHit(Health health)
         {
             if (health == null) return false;
-            float interval = type == WeaponType.ThunderBall
+            float interval = type == WeaponType.ThunderBall || type == WeaponType.ThunderStorm
                 ? Mathf.Max(0.05f, stats.damageIntervalSeconds)
-                : type == WeaponType.Gun ? lifetime + 1f : 0.25f;
+                : type == WeaponType.Gun || type == WeaponType.MachineGun ? lifetime + 1f
+                : type == WeaponType.Excalibur ? Mathf.Max(0.05f, stats.damageIntervalSeconds) : 0.25f;
             if (hitTimers.TryGetValue(health, out var next) && Time.time < next) return false;
             hitTimers[health] = Time.time + interval;
             return true;
@@ -191,7 +239,7 @@ namespace AreaSurvivors
 
         void PaintAttackTrail()
         {
-            if (type != WeaponType.BoomerangSword && type != WeaponType.AuraSword) return;
+            if (type != WeaponType.BoomerangSword && type != WeaponType.Banana && type != WeaponType.AuraSword && type != WeaponType.Excalibur) return;
             if (grid == null) grid = FindObjectOfType<TileGrid>();
             if (grid == null) return;
             float cellSize = Mathf.Max(0.01f, grid.cellSize);
@@ -216,11 +264,13 @@ namespace AreaSurvivors
 
         void ApplyVisualScale()
         {
-            if (type == WeaponType.Gun) return;
-            float baseScale = type == WeaponType.Gun ? 0.32f : 0.42f;
+            if (type == WeaponType.Gun || type == WeaponType.MachineGun) return;
+            float baseScale = 0.42f;
             if (type == WeaponType.AuraSword) baseScale = Mathf.Clamp(stats.range * 0.35f, 0.5f, 1.6f);
+            if (type == WeaponType.Excalibur) baseScale = Mathf.Max(0.05f, stats.range);
             if (type == WeaponType.BoomerangSword) baseScale = Mathf.Clamp(stats.range * 0.42f, 0.36f, 1.2f);
-            if (type == WeaponType.ThunderBall) baseScale = 0.42f;
+            if (type == WeaponType.Banana) baseScale = Mathf.Max(0.05f, stats.range);
+            if (type == WeaponType.ThunderBall || type == WeaponType.ThunderStorm) baseScale = 0.42f;
             transform.localScale = Vector3.one * baseScale;
         }
 

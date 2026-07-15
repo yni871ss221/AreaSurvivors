@@ -21,7 +21,7 @@ namespace AreaSurvivors.Editor
         const string ResourcesPath = Root + "/Resources";
         const string TilePalette = Root + "/TilePalette";
         const float TileCellWidth = 0.7f;
-        const float TileCellHeight = 0.5f;
+        const float TileCellHeight = 0.7f;
         const float BuildingHealthBarWidth = 0.7f;
         const float BuildingHealthBarPitch = -35f;
 
@@ -336,32 +336,39 @@ namespace AreaSurvivors.Editor
             var go = Actor("Player", knightSprite, Color.white, new Vector2(0.34f, 0.18f), new Vector2(0f, -0.27f), 0.035f);
             var health = go.AddComponent<Health>();
             health.maxHp = 40;
-            var animator = go.AddComponent<DirectionalSpriteAnimator>();
             go.AddComponent<PlayerStats>();
             go.AddComponent<AutoRegeneration>();
             var player = go.AddComponent<PlayerController>();
-            player.directionalAnimator = animator;
             player.knightSprite = knightSprite;
             player.archerSprite = archerSprite;
             player.mageSprite = mageSprite;
-            player.knightDownFrames = LoadWalkFramesOrStatic("Knight", "Down", knightSprite);
-            player.knightLeftFrames = LoadWalkFramesOrStatic("Knight", "Left", knightSprite);
-            player.knightRightFrames = LoadWalkFramesOrStatic("Knight", "Right", knightSprite);
-            player.knightUpFrames = LoadWalkFramesOrStatic("Knight", "Up", knightSprite);
-            player.archerDownFrames = LoadWalkFramesOrStatic("Archer", "Down", archerSprite);
-            player.archerLeftFrames = LoadWalkFramesOrStatic("Archer", "Left", archerSprite);
-            player.archerRightFrames = LoadWalkFramesOrStatic("Archer", "Right", archerSprite);
-            player.archerUpFrames = LoadWalkFramesOrStatic("Archer", "Up", archerSprite);
-            player.mageDownFrames = LoadWalkFramesOrStatic("Mage", "Down", mageSprite);
-            player.mageLeftFrames = LoadWalkFramesOrStatic("Mage", "Left", mageSprite);
-            player.mageRightFrames = LoadWalkFramesOrStatic("Mage", "Right", mageSprite);
-            player.mageUpFrames = LoadWalkFramesOrStatic("Mage", "Up", mageSprite);
+            player.knightAnimatorController = LoadPlayerAnimatorController("Knight");
+            player.archerAnimatorController = LoadPlayerAnimatorController("Archer");
+            player.mageAnimatorController = LoadPlayerAnimatorController("Mage");
+
+            var paperVisual = go.GetComponentInChildren<PaperMeshVisual>(true);
+            if (paperVisual == null) throw new System.InvalidOperationException("Player PaperMeshVisual is missing during bootstrap.");
+            var unityAnimator = paperVisual.gameObject.AddComponent<Animator>();
+            var animatorDriver = go.AddComponent<DirectionalAnimatorDriver>();
+            animatorDriver.Configure(unityAnimator, player.knightAnimatorController);
+            player.directionalAnimatorDriver = animatorDriver;
             var weapon = go.AddComponent<WeaponController>();
             player.weapon = weapon;
             player.hpBar = AddWorldHpBar(go.transform, new Vector3(0, -0.44f, 0));
             weapon.arrowPrefab = arrowPrefab;
             weapon.fireballPrefab = fireballPrefab;
             return go;
+        }
+
+        static RuntimeAnimatorController LoadPlayerAnimatorController(string characterName)
+        {
+            string path = DirectionalCharacterAnimatorMigration.OverrideControllerPath(characterName);
+            var controller = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(path);
+            if (controller == null)
+            {
+                throw new System.InvalidOperationException("Player Animator Controller is missing: " + path);
+            }
+            return controller;
         }
 
         static GameObject CreateBallista(GameObject arrowPrefab)

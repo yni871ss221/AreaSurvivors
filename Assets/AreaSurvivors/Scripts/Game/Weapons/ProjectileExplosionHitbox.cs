@@ -77,7 +77,7 @@ namespace AreaSurvivors
         void DamageOverlaps()
         {
             if (hitbox == null) return;
-            if (paintsTerritory) PaintPlayerTerritory(origin, Mathf.CeilToInt(hitbox.radius));
+            if (paintsTerritory) PaintPlayerTerritory(origin, hitbox.radius);
             Physics2D.SyncTransforms();
             hits.Clear();
             damaged.Clear();
@@ -112,10 +112,15 @@ namespace AreaSurvivors
             receiver.Apply(direction, knockback, knockbackDuration);
         }
 
-        static void PaintPlayerTerritory(Vector3 position, int radius)
+        static void PaintPlayerTerritory(Vector3 position, float radiusWorld)
         {
             var grid = GameManager.Instance != null ? GameManager.Instance.grid : null;
-            if (grid != null) grid.Paint(position, TileOwner.Player, Mathf.Max(1, radius));
+            if (grid == null) return;
+
+            Vector2 cellSize = grid.WorldCellSize();
+            float radiusX = Mathf.Max(0.1f, radiusWorld / Mathf.Max(0.01f, cellSize.x));
+            float radiusY = Mathf.Max(0.1f, radiusWorld / Mathf.Max(0.01f, cellSize.y));
+            grid.PaintEllipseOverlappingCells(position, TileOwner.Player, radiusX, radiusY);
         }
     }
 }

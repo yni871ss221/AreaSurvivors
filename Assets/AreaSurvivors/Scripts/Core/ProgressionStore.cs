@@ -21,6 +21,7 @@ namespace AreaSurvivors
                     cached = string.IsNullOrEmpty(json) ? new SaveData() : JsonUtility.FromJson<SaveData>(json);
                     if (cached.upgrades == null) cached.upgrades = new List<UpgradeLevel>();
                     if (cached.relics == null) cached.relics = new List<RelicRecord>();
+                    if (cached.discoveredWeaponEvolutions == null) cached.discoveredWeaponEvolutions = new List<WeaponEvolutionRecord>();
                     if (cached.stageDifficulties == null) cached.stageDifficulties = new List<StageDifficultyRecord>();
                     if (cached.stageBuildings == null) cached.stageBuildings = new List<StageBuildingSet>();
                     if (cached.highestUnlockedStage < 1) cached.highestUnlockedStage = 1;
@@ -92,6 +93,56 @@ namespace AreaSurvivors
             if (Data.relics == null) Data.relics = new List<RelicRecord>();
             Data.relics.Clear();
             Save();
+        }
+
+        public static bool HasDiscoveredEvolution(WeaponType type)
+        {
+            if (!WeaponCatalog.IsEvolution(type)) return false;
+            if (Data.discoveredWeaponEvolutions == null) Data.discoveredWeaponEvolutions = new List<WeaponEvolutionRecord>();
+            foreach (var evolution in Data.discoveredWeaponEvolutions)
+            {
+                if (evolution != null && evolution.type == type) return true;
+            }
+
+            return false;
+        }
+
+        public static bool MarkEvolutionDiscovered(WeaponType type)
+        {
+            if (!WeaponCatalog.IsEvolution(type) || HasDiscoveredEvolution(type)) return false;
+            if (Data.discoveredWeaponEvolutions == null) Data.discoveredWeaponEvolutions = new List<WeaponEvolutionRecord>();
+            Data.discoveredWeaponEvolutions.Add(new WeaponEvolutionRecord { type = type });
+            Save();
+            return true;
+        }
+
+        public static void ResetWeaponEvolutionsForTesting()
+        {
+            if (Data.discoveredWeaponEvolutions == null) Data.discoveredWeaponEvolutions = new List<WeaponEvolutionRecord>();
+            Data.discoveredWeaponEvolutions.Clear();
+            Save();
+        }
+
+        public static int OwnedRelicCount()
+        {
+            if (Data.relics == null) return 0;
+            var owned = new HashSet<RelicType>();
+            foreach (var relic in Data.relics)
+            {
+                if (relic != null && relic.type != RelicType.None) owned.Add(relic.type);
+            }
+            return owned.Count;
+        }
+
+        public static int DiscoveredEvolutionCount()
+        {
+            if (Data.discoveredWeaponEvolutions == null) return 0;
+            var discovered = new HashSet<WeaponType>();
+            foreach (var record in Data.discoveredWeaponEvolutions)
+            {
+                if (record != null && WeaponCatalog.IsEvolution(record.type)) discovered.Add(record.type);
+            }
+            return discovered.Count;
         }
 
         public static int GetLevel(UpgradeType type)

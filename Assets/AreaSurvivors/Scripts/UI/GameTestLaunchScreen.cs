@@ -50,6 +50,7 @@ namespace AreaSurvivors
                 var capturedType = weaponType;
                 BindButton(WeaponTestButtonName(capturedType), () => StartWeaponTest(capturedType));
             }
+            RefreshWeaponTestButtonLabels();
             foreach (var relic in RelicCatalog.All)
             {
                 var capturedType = relic.type;
@@ -59,6 +60,7 @@ namespace AreaSurvivors
             }
             BindButton("Add Test Tokens Button", AddTestTokens);
             BindButton("Reset Upgrades Button", ResetUpgradesForTesting);
+            BindButton("Reset Weapon Evolutions Button", ResetWeaponEvolutionsForTesting);
             BindButton("Reset Stage Clear State Button", ResetStageClearStateForTesting);
             BindButton("Reset All Relics Button", ResetRelicsForTesting);
             BindButton("Lobby Button", navigator.LoadLobby);
@@ -127,6 +129,16 @@ namespace AreaSurvivors
             navigator.LoadGame();
         }
 
+        void RefreshWeaponTestButtonLabels()
+        {
+            foreach (var weaponType in WeaponCatalog.TestableWeapons)
+            {
+                var button = FindChild(WeaponTestButtonName(weaponType));
+                var label = button != null ? button.GetComponentInChildren<Text>(true) : null;
+                if (label != null) label.text = WeaponCatalog.DisplayName(weaponType);
+            }
+        }
+
         void AddTestTokens()
         {
             ProgressionStore.AddTokensForTesting(99999);
@@ -137,6 +149,12 @@ namespace AreaSurvivors
         {
             ProgressionStore.ResetUpgradesForTesting();
             RefreshStatus("強化状態を初期化しました");
+        }
+
+        void ResetWeaponEvolutionsForTesting()
+        {
+            ProgressionStore.ResetWeaponEvolutionsForTesting();
+            RefreshStatus("武器進化確認済み状態を初期化しました");
         }
 
         void ResetStageClearStateForTesting()

@@ -1,3 +1,4 @@
+using System.IO;
 using UnityEditor;
 using UnityEngine;
 
@@ -25,7 +26,10 @@ namespace AreaSurvivors.EditorTools
             if (string.IsNullOrEmpty(normalized)) return null;
 
             var direct = $"{Root}/{normalized}.png";
-            if (AssetDatabase.LoadAssetAtPath<Texture2D>(direct) != null || AssetImporter.GetAtPath(direct) != null)
+            var projectRoot = Directory.GetParent(Application.dataPath)?.FullName;
+            var directOnDisk = !string.IsNullOrEmpty(projectRoot) ? Path.Combine(projectRoot, direct) : string.Empty;
+            if ((!string.IsNullOrEmpty(directOnDisk) && File.Exists(directOnDisk)) ||
+                AssetDatabase.LoadAssetAtPath<Texture2D>(direct) != null || AssetImporter.GetAtPath(direct) != null)
             {
                 return direct;
             }

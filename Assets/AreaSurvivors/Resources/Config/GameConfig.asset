@@ -15,12 +15,16 @@ MonoBehaviour:
   playerMoveSpeed: 2.1
   playerMaxHp: 40
   playerReviveSeconds: 6
+  playerReviveInvincibleSeconds: 2
   enemyTerritorySlow: 0.35
   paintRadius: 1
   playerVisualScale: 1
   moveSpeedPerUpgradeLevel: 0.18
   paintRadiusLevelsPerBonus: 2
   maxHpPerUpgradeLevel: 5
+  playerLevelMaxHpBonus: 10
+  playerLevelMoveSpeedBonus: 0.1
+  playerLevelDefenseBonus: 0.5
   reviveSecondsReductionPerUpgradeLevel: 0.7
   minReviveSeconds: 1
   runMoveSpeedMultiplier: 1.08
@@ -98,6 +102,23 @@ MonoBehaviour:
   slashDamageBonus: 2
   slashRange: 1.6
   slashOffset: 1.05
+  swordRushBaseAttackPower: 16
+  swordRushBaseRange: 3.2
+  swordRushStrikeCount: 5
+  swordRushStrikeIntervalSeconds: 0.09
+  bananaBaseRange: 1.4
+  bananaBaseProjectileCountBonus: 3
+  excaliburTravelSpeedCellsPerSecond: 5
+  excaliburDamageIntervalSeconds: 0.2
+  arrowShowerStrikeIntervalSeconds: 0.25
+  evolvedGroundStrikeRadius: 0.7
+  evolvedGroundStrikeTargetRadiusCells: 15
+  machineGunShotIntervalSeconds: 0.2
+  machineGunBaseAttackCountBonus: 10
+  fireMissileBaseCooldownMultiplier: 0.5
+  frostStormTargetCount: 5
+  thunderStormOrbitCount: 3
+  goddessBlessingHealAmount: 5
   arrowRangeCells: 10
   arrowRangeCellsPerLevel: 1
   fireballExplosionRadius: 1.1
@@ -1552,6 +1573,9 @@ MonoBehaviour:
   baseKnockback: 1
   knockbackForceUnit: 2.2
   knockbackDuration: 0.16
+  advancedNormalEnemyKnockbackWeight: 2
+  eliteEnemyKnockbackWeight: 2
+  bossEnemyKnockbackWeight: 10
   baseDefense: 0
   baseXpGainMultiplier: 1
   baseAutoRegen: 0
@@ -1598,7 +1622,35 @@ MonoBehaviour:
   maxAliveEnemies: 160
   bossTimeSeconds: 300
   bossAnnouncement: "\u30AA\u30FC\u30AF\u30AD\u30F3\u30B0\u51FA\u73FE\uFF01"
+  bossSpecialAttackCooldownSeconds: 5
+  bossSpecialAttackRaiseSeconds: 0.5
+  bossSpecialAttackSlamSeconds: 0.35
+  bossSpecialAttackRecoverSeconds: 0.15
+  bossShockwaveRangeCells: 10
+  bossShockwaveSegmentCount: 5
+  bossShockwaveStepIntervalSeconds: 0.12
+  bossShockwaveDisplaySeconds: 1
+  bossShockwaveSizeCells: {x: 2, y: 2}
+  bossShockwaveDamageMultiplier: 1
+  goblinLordDarkOrbSpeed: 2.4
+  goblinLordDarkOrbLifetimeSeconds: 8
+  goblinLordDarkOrbDamageRadius: 1.25
+  goblinLordDarkOrbDamageIntervalSeconds: 0.45
   goblinLordDarkOrbDamageMultiplier: 0.25
+  goblinLordDarkOrbVisualScale: 1
+  lichSummonRadius: 4
+  lichSummonCircleDurationSeconds: 2.2
+  lichSummonSkeletonCount: 10
+  lichSummonSkeletonKnightCount: 10
+  dragonBreathMouthClosedSeconds: 0.55
+  dragonBreathMouthOpenSeconds: 0.32
+  dragonBreathProjectileSpeed: 4.2
+  dragonBreathRangeCells: 15
+  dragonBreathHitboxSizeCells: {x: 3, y: 3}
+  dragonBreathExplosionRadiusCells: 3
+  dragonBreathDamageMultiplier: 0.5
+  dragonBreathProjectileVisualScale: 1
+  dragonBreathExplosionDurationSeconds: 0.28
   enemyDefinitions:
   - kind: 0
     displayName: "\u30A4\u30CE\u30B7\u30B7"

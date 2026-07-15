@@ -413,6 +413,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   sourceSprite: {fileID: 21300000, guid: a1735007848e5854f8054ea9455e8ee5, type: 3}
+  shapeSpriteOverride: {fileID: 0}
+  useEllipseShape: 0
+  ellipseSegments: 64
+  ellipseTextureCrop: 0
+  useSourceTexture: 1
   tint: {r: 1, g: 1, b: 1, a: 1}
   sortingOrder: 22002
   anchorBottomCenter: 1
@@ -590,7 +595,7 @@ BoxCollider2D:
   m_IsTrigger: 0
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: 0, y: 0.8}
+  m_Offset: {x: 0, y: 1.1}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0, y: 0}
@@ -601,7 +606,7 @@ BoxCollider2D:
     adaptiveTiling: 0
   m_AutoTiling: 0
   serializedVersion: 2
-  m_Size: {x: 2.1, y: 1.4}
+  m_Size: {x: 2.1, y: 2}
   m_EdgeRadius: 0.04
 --- !u!61 &2404903605604409650
 BoxCollider2D:
@@ -635,7 +640,7 @@ BoxCollider2D:
   m_IsTrigger: 1
   m_UsedByEffector: 0
   m_UsedByComposite: 0
-  m_Offset: {x: 0, y: 0.75}
+  m_Offset: {x: 0, y: 1.05}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0, y: 0}
@@ -646,7 +651,7 @@ BoxCollider2D:
     adaptiveTiling: 0
   m_AutoTiling: 0
   serializedVersion: 2
-  m_Size: {x: 2.1, y: 1.5}
+  m_Size: {x: 2.1, y: 2.1}
   m_EdgeRadius: 0
 --- !u!114 &9008713236725097109
 MonoBehaviour:
@@ -663,6 +668,7 @@ MonoBehaviour:
   maxHp: 10
   currentHp: 10
   defense: 0
+  invincible: 0
 --- !u!114 &4044960443150660304
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -694,6 +700,7 @@ MonoBehaviour:
   baseOrder: 1000
   orderOffset: 0
   sortPivotOffsetY: 0
+  updateFrameInterval: 1
   renderers:
   - {fileID: 4665944091287709626}
   - {fileID: 0}
@@ -732,6 +739,26 @@ MonoBehaviour:
   cannonballSprite: {fileID: 21300000, guid: e368e2c6b2424ad8950fa2077e9458a0, type: 3}
   explosionSprite: {fileID: 21300000, guid: cdbe110e60164bdfaf916542e9e5bc3e, type: 3}
   muzzleOffset: {x: 0, y: 0, z: 0}
+  attackBounce: {fileID: 0}
+--- !u!114 &919000000000000003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4438274097458221408}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 16c60b2630c38ab41b7cb76a3448ecff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  visualTargets:
+  - {fileID: 4278886699151312299}
+  - {fileID: 4649332538353569673}
+  duration: 0.3
+  amplitude: 0.16
+  verticalStretch: 0.18
+  horizontalSquash: 0.08
 --- !u!1 &5086337058636372451
 GameObject:
   m_ObjectHideFlags: 0
@@ -846,6 +873,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   sourceSprite: {fileID: 21300000, guid: 685ddbf05c42cbb41834e819bb91bd9a, type: 3}
+  shapeSpriteOverride: {fileID: 0}
+  useEllipseShape: 0
+  ellipseSegments: 64
+  ellipseTextureCrop: 0
+  useSourceTexture: 1
   tint: {r: 1, g: 1, b: 1, a: 1}
   sortingOrder: 22030
   anchorBottomCenter: 0
@@ -994,6 +1026,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   sourceSprite: {fileID: 21300000, guid: decc27b120ff1094380b26e6ef66fa96, type: 3}
+  shapeSpriteOverride: {fileID: 0}
+  useEllipseShape: 0
+  ellipseSegments: 64
+  ellipseTextureCrop: 0
+  useSourceTexture: 1
   tint: {r: 1, g: 1, b: 1, a: 1}
   sortingOrder: 1003
   anchorBottomCenter: 1
@@ -1060,22 +1097,3 @@ Transform:
   - {fileID: 2200599913408644794}
   m_Father: {fileID: 4765409154412782307}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &919000000000000003
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4438274097458221408}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 16c60b2630c38ab41b7cb76a3448ecff, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  visualTargets:
-  - {fileID: 4278886699151312299}
-  - {fileID: 4649332538353569673}
-  duration: 0.3
-  amplitude: 0.16
-  verticalStretch: 0.18
-  horizontalSquash: 0.08

@@ -117,11 +117,6 @@ namespace AreaSurvivors
             EnsureGridObjectVisual();
             var trigger = default(BoxCollider2D);
             var blocker = blockingCollider as BoxCollider2D;
-            foreach (var circle in GetComponents<CircleCollider2D>())
-            {
-                if (circle != null && circle.isTrigger) Destroy(circle);
-            }
-
             foreach (var box in GetComponents<BoxCollider2D>())
             {
                 if (box.isTrigger && trigger == null) trigger = box;

@@ -1,21 +1,70 @@
 # Token Tool Rules
 
+- Windows環境では `pwsh` の存在を前提にしない。`rtk` からPowerShellスクリプトを呼ぶ場合は、存在確認済みの `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe` を固定入口として使う。`rtk pwsh` が `program not found` になった場合は対象スクリプトへ未到達の実体名解決失敗として扱い、同じ呼び方を再試行しない。
+- `safe-read.ps1` の正式なファイル引数は `-Path` であり、`-File` は受け付けない。契約を推測せずWrapperのparam定義または本書の記載に従う。
+- `safe-read.ps1 -Pattern`は正規表現契約。`-LiteralPattern`は値を取らないswitchなので、`kills++`、`value??`等のコード文字列は`safe-read.ps1 -Path <file> -Pattern "kills++" -LiteralPattern`の順で渡す。`-LiteralPattern "kills++"`は禁止。未エスケープの`++/**/??`は広範囲一致を防ぐため`guard_code: 36`で入口拒否する。
+- `safe-read`はregexを行照合前に構文検証し、未閉じ`(`等を`guard_code: 37`で拒否する。メソッド呼出し文字列をそのまま探す場合は`-Pattern "EnsureWeaponLevels(" -LiteralPattern`を使う。
+- PowerShell自体の`-File`へ`.cs`、`.unity`、`.prefab`等の対象ファイルを直接渡さない。`-File`の直後は実行する`.ps1` Wrapper、読み取り対象はそのWrapperの`-Path`へ渡す。
+- Wrapper自身の`param(...)`を読むPreflightは、必ず`safe-read-batch.ps1 -Path <対象Wrapper.ps1> -Ranges "1-80" -PrintOutput`として実行する。対象Wrapper自体へ`-Ranges`や`-PrintOutput`等の読み取り引数を渡さない。
+- Windows PowerShell 5.1からnative `rg` を呼ぶ検索は `Safe-Command.ps1` がConsole入出力と `$OutputEncoding` をUTF-8へ固定する。日本語一致行が文字化けした場合は検索結果を証拠として使わず、native出力の復号境界を自己テストで直してから再開する。
+- BOMなしUTF-8の `.ps1` に日本語リテラルを直接埋め込まない。Windows PowerShell 5.1向けの限定自己テストではUnicodeコードポイントから文字列を組み立て、ANSI誤解釈によるParserErrorを防ぐ。
 - 日常の高出力候補コマンドは `Tools/TokenUsage/guarded-command.ps1`、`safe-status.ps1`、`safe-diff.ps1`、`safe-search.ps1`、`safe-read.ps1`、`safe-unity.ps1` を入口にする。
 - 小規模変更では既知の中核ファイル2〜3個から読み、初手で `Assets/AreaSurvivors` 全体へ広域検索しない。
 - 軽微な追調整では、同一対象への `unicli exec Component.SetProperty`、`GameObject.SetParent`、`Scene.Save` を細切れに反復しない。対象ID、変更プロパティ、最終値を先にまとめ、可能な限り1回の一括Scene編集または単一の限定Runnerで反映し、保存も最後の1回だけにする。
 - 作業規模にかかわらず、ユーザーが長時間検証を明示していない作業ではCompile最大2回、Play Mode最大2回をコマンド予算として作業開始時に確保する。予算を使い切ってから原因調査を始めるのではなく、最初の想定外結果で調査へ切り替える。
 - 同じ目的のUniCLI、PowerShell、Eval、Scene操作を引数だけ変えて2回失敗した場合、3回目を手打ちしない。既存Wrapperの有無を確認し、なければ `Tools/TokenUsage` の限定Wrapper、Editor Runner、Reporter、Validatorへ部品化する。
 - 部品化するコマンドは、入力パラメータ、前提状態、実行対象、期待結果、失敗時の診断出力を固定し、成功条件を機械判定できる形にする。単に長い手打ちコマンドをスクリプトへ移すだけでは不十分とする。
+- コマンド入口を追加・変更した後は `Tools/TokenUsage/command-tools-self-test.ps1` を実行し、構文、Eval引用符拒否、Asset path traversal拒否、Editor Runner事前条件、名前付き引数転送をUnityへ接続せず検証する。
+- 新規Wrapperの自己テストと初回実行を並列にしない。自己テスト成功を初回実行の必須ゲートとし、失敗したWrapperを同時に実環境へ流さない。
+- UniCLI経由のPlay Mode操作は `safe-unity.ps1 -Action PlayEnter|PlayExit|PlayStatus` に限定する。この入口は全コマンドへ強制タイムアウトを設定し、`PlayExit` 後20秒以内のUniCLI再実行を終了遷移中として `guard_code: 23` で拒否する。タイムアウト時は実行用プロセスを停止し、記録上の終了コード124を返す。
+- UniCLI更新後または`guard_code: 45`発生後は、接続を再試行する前に`Tools/TokenUsage/validate-unicli-worker-guard.ps1`を実行する。埋め込みUniCLIのAssetImportWorker除外、直接依存、PID書き込み前ガードが欠けている場合はUnity操作を再開しない。
+- `safe-unity`のPID事前確認で、`server.pid`のPIDが実際にはメインEditorでも、sandbox内の`Get-Process.MainWindowHandle`が0に見える場合がある。Worker判定に必要なcommand line取得が権限拒否された場合は`guard_code: 45`へ誤分類せず`guard_code: 26`で停止し、同じ`safe-unity`コマンドを権限昇格付きで1回だけ再実行する。権限外の`unity-process-report.ps1 -IncludeCommandLine`でメインEditor PID、window title、AssetImportWorker PIDを分離確認してから再開し、`server.pid`を手動で書き換えない。
+- `safe-unity.ps1 -Action ConsoleErrors|ConsoleWarnings` の取得件数引数は `-MaxCount`。`safe-read`等の`-First`と混同しない。正式契約はWrapperのparam定義と自己テストで固定する。
+- `PlayExit` は検証シーケンス最後のUnityコマンドとする。終了要求はUnityの遷移完了を待たず成功を返すため、直後の `Editor.Status`、Console取得、Scene取得は禁止し、必要なログや表示状態は終了前に取得する。
 - エスケープやShell差異で失敗したコマンドを同じ会話内で再構成し続けない。PowerShellの文字列処理、Unity Eval、画像処理、Scene移行は用途別Wrapperへ分離し、検証済みの呼び出し形式だけを再利用する。
+- `powershell -Command "..."`内へ`$_`、`$()`、変数展開を含むスクリプト片を埋め込まない。外側Shellで展開・欠落するため、既存Wrapperの`-File`入口か、必要なら検証付き専用Wrapperを作成する。
+- 想定外の失敗、タイムアウト、無応答が出た場合は `command-failure-playbook.md` を読み、別方式へ切り替える前に失敗境界を確定してWrapper/Validatorへ反映する。
+- 引用符または改行を含むC#を `safe-unity.ps1 -Action Eval` へ渡してはいけない。入口が `guard_code: 25` で拒否する。新規Editor Runnerは `invoke-unity-editor-runner.ps1 -Phase RegisterAndRun` を使い、Import→Compile→Menu完全一致確認→Executeの順序を固定する。
+- Play Mode中のEvalは禁止する。`safe-unity` はEval前に `PlayMode.Status` を確認し、Play中なら `guard_code: 27`、状態確認不能なら `guard_code: 28` で拒否する。Play検証のUI操作や状態変更は事前コンパイル済みの限定フックまたは通常ゲーム入力を使う。
+- Unity外から追加または変更したRuntime/Editor C#に対してCompileだけを実行しない。`safe-unity -Action Compile`は現在のAssemblyを検証するだけでAssetDatabase Importや再Compile要求を行わない。変更した全C#を明示Importするか、`invoke-unity-editor-runner.ps1 -Phase RegisterAndRun -DependencyScriptPaths ...`でImport→Compile→Menu実行を固定する。Runner削除後は `-Phase RefreshAfterRemoval` でRefresh→Compileを1回ずつ行う。
+- 一時Editor Runnerが新規Runtime/Validatorスクリプトへ依存する場合は、`invoke-unity-editor-runner.ps1 -DependencyScriptPaths "Assets/.../A.cs;Assets/.../B.cs"` へ全依存を列挙する。Runner本体だけをImportしてCompileせず、依存スクリプトをすべて明示ImportしてからCompileする。
+- `invoke-unity-editor-runner.ps1`を会話側から実行する時は`-Concise`を付ける。成功した各Unityサブコマンドの長いpayloadは表示せず段階名だけを返し、失敗時だけ末尾40行とSafe-Commandのcapture情報を証拠として返す。長時間Runnerを`functions.exec`で待つ場合も出力上限を小さく固定し、cell IDが返ったら外側の`functions.wait(cell_id)`だけで回収する。`functions.exec`内の`tools.wait`や同じRunnerの再発行は禁止する。
+- `functions.exec`内の`tools.exec_command`結果は`exit_code`と`session_id`を必ず同時に出力または保存する。30秒yieldを超えるRunnerは`exit_code`未定義・`session_id`ありで返るため、同じsessionを`tools.write_stdin`で回収する。session_idを表示せず失った場合はRunnerを再発行せず、`token-report-summary.ps1 -Recent <N> -Json`の`capture_path`・`timed_out`・`exit_code`で停止段階を確定する。
+- Editor RunnerのAssetImport後Compileは、固定cooldown経過だけでAssembly更新完了とみなさない。Runnerから`CompileWaitSeconds`を渡し、`verify-unity-script-compilation.ps1`の単一プロセス内でScriptAssemblies／Bee artifactが最新になるまで指定timeout内だけpollする。外側からCompileコマンドを再発行して待機を代替しない。
+- `verify-unity-script-compilation.ps1` は、`ScriptAssemblies`のmtimeが最新ソースより古くても即失敗にしない。最新ソース更新後のBee artifactが存在し、そのSHA-256が配布先DLLと一致する場合は、Unityが同一内容のDLL時刻を保持した正常Compileとして扱う。Hash不一致またはBee artifactも古い場合だけstaleとする。
+- `safe-unity` のcaptureに `Access to the path is denied` がある場合はUnity無応答と扱わない。named pipeへのサンドボックス拒否を `guard_code: 26` として分類し、別方式へ変えず同じsafe-unityコマンドを外側の権限昇格付きで1回だけ再実行する。
 - 想定外の結果を受けた調査コマンドは読み取り専用を優先する。状態を変更するEval、Scene再ロード、Play Mode再開始は原因調査ではなく検証回数として数える。
 - 直前の作業で取得済みのScene階層、instance ID、Sprite参照、表示経路は、Scene再読込やコンパイルで無効化されていない限り再検索しない。
 - 軽微なUI変更のスクリーンショットは代表状態1枚を上限目安とする。通常状態と特殊状態の両方が変更対象の場合だけ各1枚とし、同一状態の再撮影を避ける。
 - `safe-search.ps1 -PrintOutput` は原則 `-First 20` 以下。広域検索は `-FilesOnly` または `-HitSummary` を先に使う。
-- `safe-read.ps1` は `-Pattern` / `-Context` または `-StartLine` / `-EndLine` を優先し、長い `Get-Content` を避ける。
+- `safe-search.ps1`の検索起点は`-Path <既存パス>`で指定する。`-Root`は未定義であり、`focused-search.ps1`や他ツールの引数名から推測して渡さない。
+- `safe-search.ps1 -Pattern/-Query`は正規表現である。括弧などのメタ文字を文字として探す場合はエスケープし、不正な正規表現は`guard_code: 43`で`rg`実行前に拒否する。
+- `.codex`のような広い外部ルートを検索する場合、`safe-search.ps1`はアクセス制限された`.sandbox-secrets/**`を除外する。制限ディレクトリ自体を検索起点に指定しない。
+- `.codex`ルート直下には複数のアクセス制限・稼働中データ領域があるため、`safe-search.ps1 -Path <...>/.codex`は禁止し`guard_code: 44`で拒否する。検索対象が分かっている`.codex/skills`等のサブディレクトリだけを指定する。
+- `safe-read.ps1` は `-Pattern` / `-Context` または `-StartLine` / `-EndLine` を優先し、長い `Get-Content` を避ける。`-PrintOutput`は推定80行以下かつ`functions.exec` 1回につき1件に限定し、複数読み取り結果を合算しない。
+- `safe-read.ps1 -Pattern ... -PrintOutput`の推定行数は`MaxMatches × (Context × 2 + 4)`で事前計算する。80行以下になる組み合わせを最初から指定し、Guard後に同種の引数微調整を反復しない。複数範囲が必要なら`safe-read-batch.ps1 -Ranges "start-end;start-end"`へ固定する。
+- `safe-read-batch.ps1`は`-AllowMany`なしの単一範囲が80行を超える場合、同じWrapper内で80行ずつへ自動分割する。Guard後に`1-80;81-...`を手作業で再構成せず、元の範囲を1回だけ渡す。
+- 長いスレッドでfilesystem-backed `SKILL.md`を読む場合も、生の`Get-Content -Raw`や単一tool出力へ全文を展開せず、`safe-read-batch.ps1`へ単一範囲を渡して80行単位で回収する。複数のSkill・ルール・実装ファイルを同じ`functions.exec`へ集約せず、1ファイルずつ直列に読む。
+- Editor.log等の末尾証拠は`safe-read.ps1 -Path <file> -Last <N> [-PrintOutput]`を使い、直接`Get-Content -Tail`を手打ちしない。`-Last`は`-Pattern`／`-StartLine`／`-EndLine`と併用せず、通常は80行以下にする。
+- RTK経由で同一のPowerShell読み取りWrapper（特に`safe-read-batch.ps1`）を`Promise.all`等で並列起動しない。`powershell -File`境界と対象`-Path`の対応を保つため、1プロセスずつ直列実行する。複数範囲は1回の`safe-read-batch -Ranges`へまとめ、複数ファイルは順番に読む。
 - Scene/Prefab内検索は `Tools/TokenUsage/safe-unity-search.ps1 -Query <対象名>` またはUnity Reporterを使い、YAML全文を読まない。
+- `safe-unity-search.ps1`の正式引数は`-Query`と任意の`-PrintOutput`だけである。検索範囲は固定Reporterが管理するため、`safe-search.ps1`の`-Path`を転用しない。このWrapperはUnity接続とEditor Menu Reporter実行を伴うため、Unity/Menu実行禁止の委譲タスクでは使わない。
+- `safe-unity-search.ps1` の検索語ファイルとReporterは共有資源のため、Wrapper内の名前付きMutexで直列化する。返却レポートの `Query:` が要求語と完全一致しない場合は利用せず、`guard_code: 30` として原因調査へ戻る。
+- `safe-unity-search.ps1` はPlay Mode中にScene Reporterを実行しない。事前Statusで `isPlaying: True` の場合は `guard_code: 32` で拒否し、Menu受付成功とReporter完了を混同しない。
+- UniCLI `Menu.Execute` の`executed: true`はMenu受付成功のみを意味し、Menu本体・Scene保存・Reporter生成の成功証拠にはしない。Migrationは変更前Preflightを必須とし、実行後は専用Validatorまたは末尾でだけ生成する完了markerを確認する。
+- `safe-search.ps1` は `-Pattern` と `-Query` の両方を受け付ける。`safe-unity-search.ps1` は `Temp/AreaSurvivors/scene-prefab-search-query.txt` で検索語をReporterへ渡し、引用符付きEvalやEditorPrefs設定Evalを使わない。
+- `focused-search.ps1` の正式入口は `-Pattern <語> -Path <既存パス> [-TopFiles N] [-Context N] [-PrintOutput]`。`-Query` / `-FilesOnly` は `safe-search.ps1` 専用であり、`focused-search.ps1` へ渡さない。
+- `focused-search.ps1` は既定で `*.cs` のみを検索する。非C#を対象にする場合は `-Extension` を明示する。ただし `.unity` / `.prefab` / `.asset` は原則として `safe-unity-search.ps1` とReporterを優先する。
+- `scoped-diff-check.ps1`へ複数パスを渡す時は、`-Path "path/a.cs;path/b.cs"`のように引用符付きセミコロン区切りを使う。`rtk`から`powershell -File`へ渡すカンマ区切りは配列にならず1文字列へ結合されるため、入口Guardが拒否する。
+- `scoped-diff-check.ps1`の正式引数は `-Path` と任意の `-PrintOutput` だけである。`-Mode`や`-SummaryOnly`を推測で渡さない。このWrapperは常に`git diff --check`専用とし、差分概要は専用safe diff入口を使う。
+- 差分検査Wrapperの正式ファイル名は`Tools/TokenUsage/scoped-diff-check.ps1`であり、`scoped-diff.ps1`等へ短縮・推測しない。初回利用時はこの正式用例または実在パスを確認する。
+- 画像生成結果を複数コピーする場合、`powershell -Command`内へ配列・二重引用符を埋め込まない。`copy-generated-image-batch.ps1 -SourceDirectory <generated_images dir> -ManifestPath <manifest> -DestinationDirectory Assets/AreaSurvivors/Sprites/External`を使い、最初に`-ValidateOnly`で全入力を検証する。
+- `powershell -File` から複数の `-Path` をカンマ結合した1文字列で渡さない。1つのディレクトリへ絞るか、1ファイル1呼び出しにする。Wrapperは存在しないPathを `rg` 実行前に拒否する。
+- 引用符や `|` を含む正規表現を生の `rg` コマンド文字列へ埋め込まない。単純な `-Pattern` を `safe-search.ps1` / `focused-search.ps1` へ渡し、複雑な条件は対象ファイルを絞って複数回に分ける。
 - Unity Reporter実行は `run-unity-report.ps1 -Report <name>` を使い、長い `unicli exec Eval --code ...` を毎回手打ちしない。
 - Reporter候補や実行名の確認は `reporter-candidates.ps1` を使い、既存Reporterの有無を先に確認する。
 - `git diff` は対象ファイル指定、必要なら `--name-only`、`--stat`、`safe-diff.ps1` を使う。
+- 未コミットのScene/Prefab差分が多数ある作業ツリーで広域 `git diff --check` を実行しない。今回所有する1ファイルずつ `Tools/TokenUsage/scoped-diff-check.ps1 -Path <file>` を使い、既存のユーザー差分に含まれる末尾空白と今回の問題を混同しない。
 - TokenReportsの原因分析は `token-report-summary.ps1 -Recent <件数>` または `-SinceLastStart` を使う。
 - 作業開始時は `start-task-token-check.ps1 -Task "<依頼内容>" -UiPercent <開始%> [-BudgetTokens <推定枠tokens>]` を優先し、ルール選択と開始マーカーを同時に記録する。既に読むルールが明確な場合だけ `start-token-check.ps1 -UiPercent <開始%> -Note <作業名>` を直接使う。
 - 作業終了時は `end-token-check.ps1 -CurrentPercent <現在%>` を使う。Heavyベンチは明示時だけ実行する。
@@ -23,7 +72,10 @@
 - 会話、長い回答、画像添付、直接 `exec_command` の出力、推論が重そうな設計判断など、TokenReportsに自動記録されない消費は `record-untracked-usage.ps1 -Category <種別> -EstimatedTokens <概算> -Note <理由>` または `-ImagePath <画像>` で手動記録する。
 - 日別確認は `token-report-summary.ps1 -Path TokenReports/YYYY-MM-DD.jsonl -Top <件数>` を使う。`-Days` 集計と混同しない。
 - 直接 `exec_command` で高出力コマンドを実行しない。`Get-Content`、広域 `rg`、`git diff`、`unicli commands` は `safe-*` / `Run-WithTokenReport.ps1` / 対象コマンドの `--help` に寄せ、TokenReportsへ残す。
+- Unity/API資料をWeb検索する場合は、1回につき単一クエリまたは既知ページ1件だけを`response_length: short`で取得する。検索結果ページを開く時は返却された参照IDを使い、出力切れ後にURLを直接組み立てて`open`しない。
 - `unicli commands` は原則禁止。必要な場合は対象コマンド名を把握してから `unicli exec <Command> --help` のみにする。
+- Unityプロセスの識別では、入れ子PowerShellの `-Command` へWMI/CIM filter文字列を手打ちしない。`Tools/TokenUsage/unity-process-report.ps1` を使い、ProcessId、MainWindowHandle、MainWindowTitle、CommandLineを固定形式で確認する。
+- UniCLIが永久busyでPlayExitを受理できない場合に限り、`unity-process-report.ps1`で本体PIDとAreaSurvivorsタイトルを一意確認してから、`unity-window-control.ps1 -Action Capture|StopPlay`を使う。対象検証なしのSendKeysや別ウィンドウへのCtrl+P送信は禁止する。
 - プロジェクトの重いファイルや未参照候補は `project-weight-report.ps1` で候補だけを見る。削除判断は別作業にする。
 - Asset Reference Reporterの結果から `review-candidate` だけを見る時は `filter-asset-reference-report.ps1 -Top <件数>` を使い、全文を読み返さない。
 - アセット整理の標準手順は `run-unity-report.ps1 -Report asset-references` → `filter-asset-reference-report.ps1 -Top <件数>` → 必要時だけ `-ExportPath` で判定メモ出力、の順にする。

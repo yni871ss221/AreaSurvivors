@@ -198,10 +198,6 @@ namespace AreaSurvivors
         {
             EnsureGridObjectVisual();
             var box = default(BoxCollider2D);
-            foreach (var circle in GetComponents<CircleCollider2D>())
-            {
-                if (circle != null) Destroy(circle);
-            }
             foreach (var candidate in GetComponents<BoxCollider2D>())
             {
                 if (!candidate.isTrigger)

@@ -167,7 +167,28 @@ def process_effect_tile(tile: Image.Image) -> Image.Image:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Slice generated advanced weapon icon sheet into transparent game sprites.")
     parser.add_argument("--source", type=Path, default=DEFAULT_SOURCE)
+    parser.add_argument("--single-source", type=Path)
+    parser.add_argument("--output", type=Path)
+    parser.add_argument("--effect", action="store_true")
+    parser.add_argument("--max-size", type=int, default=128)
     args = parser.parse_args()
+
+    if args.single_source is not None:
+        if args.output is None:
+            raise ValueError("--output is required with --single-source")
+        single_source = args.single_source if args.single_source.is_absolute() else ROOT / args.single_source
+        output_path = args.output if args.output.is_absolute() else ROOT / args.output
+        if not single_source.exists():
+            raise FileNotFoundError(single_source)
+        image = Image.open(single_source).convert("RGBA")
+        transparent = remove_edge_background(image)
+        cropped = crop_alpha(transparent)
+        padded = pad_aspect(cropped) if args.effect else pad_square(cropped)
+        processed = resize_for_game(padded, max(1, args.max_size))
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        processed.save(output_path)
+        print(output_path.relative_to(ROOT) if output_path.is_relative_to(ROOT) else output_path)
+        return
 
     source_path = args.source
     if not source_path.is_absolute():

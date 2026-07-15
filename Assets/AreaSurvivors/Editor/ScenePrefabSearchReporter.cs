@@ -13,6 +13,7 @@ namespace AreaSurvivors.Editor
         const string GameScenePath = "Assets/AreaSurvivors/Scenes/05_Game.unity";
         const string PrefabRoot = "Assets/AreaSurvivors/Prefabs";
         const string SearchQueryKey = "AreaSurvivors.Report.SearchQuery";
+        const string SearchQueryFilePath = "Temp/AreaSurvivors/scene-prefab-search-query.txt";
         const int MaxRows = 80;
 
         [MenuItem("Area Survivors/Reports/Scene Prefab Search")]
@@ -34,6 +35,12 @@ namespace AreaSurvivors.Editor
         {
             get
             {
+                if (File.Exists(SearchQueryFilePath))
+                {
+                    var fileQuery = File.ReadAllText(SearchQueryFilePath).Trim();
+                    if (!string.IsNullOrWhiteSpace(fileQuery)) return fileQuery;
+                }
+
                 var query = EditorPrefs.GetString(SearchQueryKey, "Build");
                 return string.IsNullOrWhiteSpace(query) ? "Build" : query.Trim();
             }
