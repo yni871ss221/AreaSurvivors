@@ -7,7 +7,7 @@ namespace AreaSurvivors
     [DefaultExecutionOrder(2000)]
     public sealed class EnemyHitFlash : MonoBehaviour
     {
-        const float FlashSeconds = 0.22f;
+        public const float FlashSeconds = 0.22f;
         static readonly Color FlashColor = new Color(1f, 1f, 1f, 1f);
 
         PaperMeshVisual sourceVisual;

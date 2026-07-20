@@ -33,7 +33,16 @@ namespace AreaSurvivors
         public string LocalizedDisplayName => WeaponCatalog.DisplayName(weaponType);
         public string LocalizedFeatureDescription => LocalizationService.LocalizeSource(featureDescription);
         public string LocalizedInitialStatsText => LocalizationService.LocalizeSource(initialStatsText);
-        public string LocalizedSpecialEffectDescription => LocalizationService.LocalizeSource(specialEffectDescription);
+        public string SpecialEffectDescriptionSource
+        {
+            get
+            {
+                string catalogSource = WeaponCatalog.AreaControlSpecialEffectDescriptionSource(weaponType);
+                return string.IsNullOrEmpty(catalogSource) ? specialEffectDescription : catalogSource;
+            }
+        }
+
+        public string LocalizedSpecialEffectDescription => LocalizationService.LocalizeSource(SpecialEffectDescriptionSource);
 
         public bool IsUnlocked
         {

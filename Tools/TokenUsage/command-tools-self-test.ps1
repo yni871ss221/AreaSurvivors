@@ -20,6 +20,7 @@ $scripts = @(
     "normalize-vault-note-eof.ps1",
     "temp-file-presence-report.ps1",
     "copy-generated-image-batch.ps1",
+    "invoke-menu-validator.ps1",
     "safe-unity-search.ps1",
     "Invoke-AreaUnitySearch.ps1",
     "unity-process-report.ps1",
@@ -38,6 +39,46 @@ foreach ($scriptName in $scripts) {
         $messages = ($errors | ForEach-Object { $_.Message }) -join "; "
         throw "PowerShell parse failed for ${scriptName}: $messages"
     }
+}
+
+$safeReadBatchCommand = Get-Command (Join-Path $PSScriptRoot "safe-read-batch.ps1")
+foreach ($requiredParameter in @("Path", "Ranges")) {
+    if (-not $safeReadBatchCommand.Parameters.ContainsKey($requiredParameter)) {
+        throw "safe-read-batch.ps1 formal contract is missing -$requiredParameter."
+    }
+}
+foreach ($invalidRememberedParameter in @("Requests", "File")) {
+    if ($safeReadBatchCommand.Parameters.ContainsKey($invalidRememberedParameter)) {
+        throw "safe-read-batch.ps1 must keep one formal contract; unexpected parameter: -$invalidRememberedParameter"
+    }
+}
+
+$safeSearchCommand = Get-Command (Join-Path $PSScriptRoot "safe-search.ps1")
+foreach ($requiredParameter in @("Pattern", "Path", "First")) {
+    if (-not $safeSearchCommand.Parameters.ContainsKey($requiredParameter)) {
+        throw "safe-search.ps1 formal contract is missing -$requiredParameter."
+    }
+}
+if ($safeSearchCommand.Parameters.ContainsKey("Context")) {
+    throw "safe-search.ps1 must not accept -Context. Use focused-search.ps1 when surrounding lines are required."
+}
+
+$menuValidatorPath = Join-Path $PSScriptRoot "invoke-menu-validator.ps1"
+$menuValidatorCommand = Get-Command $menuValidatorPath
+foreach ($requiredParameter in @("MenuPath", "SuccessMarkerPath", "MarkerWaitSeconds")) {
+    if (-not $menuValidatorCommand.Parameters.ContainsKey($requiredParameter)) {
+        throw "invoke-menu-validator.ps1 formal contract is missing -$requiredParameter."
+    }
+}
+$menuValidatorRejected = $false
+try {
+    & $menuValidatorPath -MenuPath "Self Test" -SuccessMarkerPath "../outside.marker"
+}
+catch {
+    $menuValidatorRejected = $_.Exception.Message -match "SuccessMarkerPath must remain inside the project"
+}
+if (-not $menuValidatorRejected) {
+    throw "invoke-menu-validator.ps1 must reject an out-of-project marker path before invoking Unity."
 }
 
 $areaSafeUnityText = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot "Invoke-AreaSafeUnity.ps1"))

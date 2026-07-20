@@ -191,6 +191,34 @@ namespace AreaSurvivors
             }
         }
 
+        public static string AreaControlSpecialEffectDescriptionSource(WeaponType type)
+        {
+            switch (BaseWeaponOf(type))
+            {
+                case WeaponType.Slash:
+                    return "エリア占有率が50%以上の時、ノックバック２倍";
+                case WeaponType.Arrow:
+                    return "エリア占有率が50%以上の時、射程２倍";
+                case WeaponType.Fireball:
+                    return "エリア占有率が50%以上の時、爆発範囲２倍";
+                case WeaponType.Shield:
+                    return "エリア占有率が50%以上の時、回転速度２倍";
+                case WeaponType.Flag:
+                case WeaponType.AuraSword:
+                case WeaponType.ArrowRain:
+                case WeaponType.Frost:
+                    return "エリア占有率が50%以上の時、エリア取得範囲に応じて攻撃範囲拡大";
+                case WeaponType.BoomerangSword:
+                    return "エリア占有率が70%以上の時、剣本数２倍";
+                case WeaponType.Gun:
+                    return "エリア占有率が70%以上の時、攻撃力２倍";
+                case WeaponType.ThunderBall:
+                    return "エリア占有率が70%以上の時、攻撃範囲２倍";
+                default:
+                    return string.Empty;
+            }
+        }
+
         public static string EvolutionUndiscoveredHintSource()
         {
             return "条件を満たすと進化することができます。";

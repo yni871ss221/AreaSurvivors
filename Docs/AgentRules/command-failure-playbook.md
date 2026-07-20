@@ -122,6 +122,12 @@
 - 対応: 指定timeout内の単一鮮度待機後もstaleならCompileを再発行せず、権限付き`safe-read -Last 80`でUnity `Editor.log`末尾の`ExitCode`／`Tundra build failed`／CSエラーを確認する。今回のUnity 2022.3では`TextureImporter.spriteAlignment`が存在せず、`TextureImporterSettings`経由へ修正する必要があった。
 - 禁止: Console Errorが0件という理由だけでC#エラーなしと断定すること、stale検証を3回目へ進めること。
 
+### Console.GetLogのError結果が空でもtotalCountが1以上になる
+
+- 原因: UniCLIの`Console.GetLog`は`totalCount`へ全Console種別の総数を返し、`logs`と`displayedCount`だけを`--logType`で絞り込む。Validator成功の通常Logだけがある場合も、Error取得は`logs: []`、`displayedCount: 0`、`totalCount: 1`になる。
+- 対応: 指定種別の有無は`logs`と`displayedCount`で判定する。内訳が必要な場合は同じ時点の`ConsoleLogs`を最大件数付きで1回だけ取得し、`totalCount`の内容を確定する。
+- 禁止: `totalCount`をError件数として扱うこと、または空のError結果だけを理由にCompile鮮度失敗を無視すること。
+
 ### 外部編集したC#をImportせずsafe-unity Compileへ渡してstaleになる
 
 - 原因: `safe-unity -Action Compile`を再Compile要求と誤認した。このActionは現行Assembly/Bee artifactの鮮度検証だけを行い、AssetDatabase Importを実行しない。Unity外で変更したRuntime/Editor C#が未Importなら、C#エラーの有無に関係なく旧Assemblyのまま`guard_code: 41`になる。
@@ -200,6 +206,12 @@
 - 原因: 行範囲が両端を含むことを見落とし、`40-120`を80行ではなく81行として指定した。
 - 対応: `guard_code: 39`が返す`suggested_end_line`へ限定するか、元の範囲を変更せず`safe-read-batch.ps1 -Ranges '<start>-<end>'`へ1回だけ渡して自動分割する。
 - 禁止: Guard後に終了行を119、118と手打ちで調整すること、`-AllowHighOutput`で単純な境界ミスを回避すること。
+
+### safe-readが出力なし・TokenReports記録なしでexit code 1になる
+
+- 原因境界: 対象Pathが実在し、同じ範囲を`safe-read-batch.ps1`経由で読むと成功し、失敗時のTokenReports記録もない場合、対象ファイルや`safe-read`処理内ではなくRTKから直接Wrapperを起動するtransport境界で停止している。
+- 対応: 対象Pathを`Test-Path`で非エラー確認し、同じ直接コマンドを再送せず、`safe-read-batch.ps1 -Path <file> -Ranges '<start>-<end>'`へ1範囲だけ渡す。batch経由のcaptureと終了コード0を限定自己テストとして保存する。
+- 禁止: 空出力を対象ファイル欠損や内容エラーと推測すること、同じ`safe-read`直接呼び出しを反復すること、未記録の失敗を成功扱いすること。
 
 ### 複数ファイルapply_patchのhunk境界が壊れる
 
@@ -358,10 +370,18 @@
 - 対応: 名前付きMutexで検索全体を直列化し、実行前のreport署名を保存する。実行後に新規または更新されたreportだけを候補とし、先頭の `Query:` が要求語と完全一致することを必須にする。不一致は `guard_code: 30` で停止する。
 - Play Mode中はMenu受付が成功してもReporterファイルが生成されない場合がある。検索語を書き込む前に `PlayMode.Status` を確認し、Play中は `guard_code: 32` で拒否する。Edit ModeでもReporter書込みはMenu応答より遅れる可能性があるため、検索語ファイルを保持したまま最大10秒だけ一致reportを待つ。
 
+### safe-readが内部のアクセス拒否を終了コード0として返す
+
+- 原因: `Safe-Command.ps1`へ渡す複合PowerShell式で`Get-Content`のアクセス拒否が非終端エラーとなり、後続の空ループが正常終了して終了コード0を上書きした。
+- 対応: `safe-read.ps1`が生成するすべての`Get-Content`式の先頭で`$ErrorActionPreference = 'Stop'`を設定し、読み取り不能を即時失敗として伝播する。
+- 禁止: capture内の`PermissionDenied`を無視して終了コードだけで読み取り成功と判定すること。
+
 ### Menu.Executeが`executed: true`でもMenu本体が例外終了する
 
 - 原因: UniCLIのMenu応答は`EditorApplication.ExecuteMenuItem`の受付結果であり、Menuメソッド内部の例外や後続Scene保存の完了を表さない。途中例外でもコマンド終了コード0・`executed: true`になり得る。
 - 対応: Migration/Reporterは対象Sceneを変更する前に全検索対象・複製元・保存先をPreflightし、成功行または完了markerを処理末尾でだけ出す。呼び出し側は専用Validator、完了marker、Console Errorのいずれかで副作用完了を確認する。
+- 未読込Sceneを`EditorSceneManager.OpenScene`で開くValidatorは、marker削除やScene操作より前に`EditorApplication.isPlayingOrWillChangePlaymode`を確認し、Play Mode中は入口で明示的に拒否する。ユーザーのPlay Modeを検証都合で停止したり、同じMenuを再実行したりしない。
+- Editor Runnerから`Library/AreaSafeUnity`へmarkerを書く場合は、Unityプロセスの作業ディレクトリを仮定しない。`Application.dataPath`の親からプロジェクト絶対パスを組み立て、呼び出し側が確認するパスと完全一致させる。
 - 禁止: `executed: true`だけでMigration成功と報告すること、途中まで変更してから不足参照を発見すること、例外後に同じMenuを再実行すること。
 
 ### Prefab移行前に旧MonoBehaviourを削除してMissing Script化する

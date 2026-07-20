@@ -49,6 +49,8 @@ namespace AreaSurvivors
         bool enemyYSortScheduleInitialized;
         bool dying;
         bool actionLocked;
+        bool stageTransitionDefeatQueued;
+        bool suppressDamageFeedback;
         Vector2 facingDirection = Vector2.down;
         Color desiredOutlineColor = Color.black;
         const int BossSortingOffsetPerCell = 35;
@@ -64,6 +66,7 @@ namespace AreaSurvivors
         const int NormalEnemyYSortFrameInterval = 4;
         const int EliteEnemyYSortFrameInterval = 2;
         const int BossEnemyYSortFrameInterval = 1;
+        public const float NormalDeathDurationSeconds = 0.48f;
 
         public static bool ProbeDisableContactCheck { get; set; }
         public static bool ProbeDisableMoveMultiplier { get; set; }
@@ -135,6 +138,35 @@ namespace AreaSurvivors
             actionLocked = locked;
             if (direction.sqrMagnitude > 0.001f) facingDirection = direction.normalized;
             if (locked && body != null) body.velocity = Vector2.zero;
+        }
+
+        public bool BeginStageTransitionDefeat(float hitDelaySeconds)
+        {
+            if (boss || dying || stageTransitionDefeatQueued || health == null || health.IsDead) return false;
+            stageTransitionDefeatQueued = true;
+            SetActionLocked(true, FacingDirection);
+            PlayHitFlash();
+            StartCoroutine(StageTransitionDefeatRoutine(Mathf.Max(0f, hitDelaySeconds)));
+            return true;
+        }
+
+        IEnumerator StageTransitionDefeatRoutine(float hitDelaySeconds)
+        {
+            float elapsed = 0f;
+            while (elapsed < hitDelaySeconds)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            if (dying || health == null || health.IsDead) yield break;
+            suppressDamageFeedback = true;
+            int defenseAllowance = Mathf.CeilToInt(Mathf.Max(0f, health.defense));
+            int lethalDamage = health.currentHp > int.MaxValue - defenseAllowance
+                ? int.MaxValue
+                : Mathf.Max(1, health.currentHp + defenseAllowance);
+            health.Damage(lethalDamage, transform.position);
+            suppressDamageFeedback = false;
         }
 
         void ApplyDefinition(EnemyDefinition definition)
@@ -479,14 +511,17 @@ namespace AreaSurvivors
 
         void OnDamaged(Health damagedHealth, int amount)
         {
+            if (suppressDamageFeedback) return;
             if (amount > 0) AudioManager.PlaySfx(SfxTrack.EnemyHit);
-            if (amount > 0)
-            {
-                if (hitFlash == null) hitFlash = GetComponent<EnemyHitFlash>();
-                if (hitFlash == null) hitFlash = gameObject.AddComponent<EnemyHitFlash>();
-                hitFlash.Play(visual);
-            }
+            if (amount > 0) PlayHitFlash();
             DamagePopup.Show(damagePopupPrefab, damagedHealth.LastDamagePoint + Vector3.up * 0.18f, amount, Color.white);
+        }
+
+        void PlayHitFlash()
+        {
+            if (hitFlash == null) hitFlash = GetComponent<EnemyHitFlash>();
+            if (hitFlash == null) hitFlash = gameObject.AddComponent<EnemyHitFlash>();
+            hitFlash.Play(visual);
         }
 
         void OnDied(Health _)
@@ -514,7 +549,7 @@ namespace AreaSurvivors
             float direction = transform.position.x < 0f ? -1f : 1f;
             var billboard = visual != null ? visual.GetComponent<PaperBillboard>() : null;
             float elapsed = 0f;
-            float duration = boss ? 2.3f : 0.48f;
+            float duration = boss ? 2.3f : NormalDeathDurationSeconds;
             while (elapsed < duration)
             {
                 elapsed += Time.timeScale > 0f ? Time.deltaTime : Time.unscaledDeltaTime;

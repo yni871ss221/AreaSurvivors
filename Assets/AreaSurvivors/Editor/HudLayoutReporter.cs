@@ -221,6 +221,11 @@ namespace AreaSurvivors.Editor
             AppendOptionalNamedChild(report, hud, panelName + "/Explosion Row/Value");
             AppendOptionalNamedChild(report, hud, panelName + "/Range Row/Icon");
             AppendOptionalNamedChild(report, hud, panelName + "/Range Row/Value");
+            AppendNamedChild(report, hud, panelName + "/Pause Condition Details");
+            AppendNamedChild(report, hud, panelName + "/Pause Condition Details/Special Effect Label");
+            AppendNamedChild(report, hud, panelName + "/Pause Condition Details/Special Effect Text");
+            AppendNamedChild(report, hud, panelName + "/Pause Condition Details/Evolution Condition Label");
+            AppendNamedChild(report, hud, panelName + "/Pause Condition Details/Evolution Condition Text");
         }
 
         static void AppendOptionalNamedChild(StringBuilder report, Transform root, string path)

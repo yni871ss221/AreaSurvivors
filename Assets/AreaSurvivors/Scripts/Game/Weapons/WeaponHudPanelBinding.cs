@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -15,6 +16,7 @@ namespace AreaSurvivors
         const string WeaponInfoRootName = "Weapon Info";
         const string WeaponPanelGroupName = "Weapon Panel Group";
         static readonly Color SpecialActiveColor = new Color(1f, 0.24f, 0.18f, 1f);
+        const string ConditionDetailsName = "Pause Condition Details";
 
         public bool HasMissingReferences { get; private set; }
 
@@ -159,6 +161,8 @@ namespace AreaSurvivors
                     ConfigureAdvancedSlot(slot, weapon, type, specialActive);
                     break;
             }
+
+            slot.ConfigureConditions(weapon, type, specialActive);
         }
 
         static void ConfigureAdvancedSlot(WeaponSlotBinding slot, WeaponController weapon, WeaponType type, bool specialActive)
@@ -340,6 +344,12 @@ namespace AreaSurvivors
             readonly Dictionary<WeaponType, GameObject> evolutionIcons = new Dictionary<WeaponType, GameObject>();
             readonly WeaponAttributeIconSet attributeIconSet;
             readonly List<RowBinding> rows = new List<RowBinding>();
+            readonly GameObject conditionDetails;
+            readonly Text specialEffectLabel;
+            readonly Text specialEffectText;
+            readonly Text evolutionConditionLabel;
+            readonly Text evolutionConditionText;
+            readonly Color normalSpecialEffectColor;
             string lastIconResource;
             WeaponAttributeType lastAttributeType = WeaponAttributeType.None;
             bool hasHeaderState;
@@ -362,6 +372,12 @@ namespace AreaSurvivors
                 AddEvolutionIcon(WeaponType.DualShield, panel.Find("Dual Shield Icon")?.gameObject);
                 AddEvolutionIcon(WeaponType.GoddessBlessing, panel.Find("Goddess Blessing Icon")?.gameObject);
                 attributeIconSet = panel.Find("Weapon Type Icons")?.GetComponent<WeaponAttributeIconSet>();
+                conditionDetails = panel.Find(ConditionDetailsName)?.gameObject;
+                specialEffectLabel = panel.Find(ConditionDetailsName + "/Special Effect Label")?.GetComponent<Text>();
+                specialEffectText = panel.Find(ConditionDetailsName + "/Special Effect Text")?.GetComponent<Text>();
+                evolutionConditionLabel = panel.Find(ConditionDetailsName + "/Evolution Condition Label")?.GetComponent<Text>();
+                evolutionConditionText = panel.Find(ConditionDetailsName + "/Evolution Condition Text")?.GetComponent<Text>();
+                normalSpecialEffectColor = specialEffectText != null ? specialEffectText.color : Color.white;
 
                 for (int i = 0; i < panel.childCount; i++)
                 {
@@ -391,11 +407,76 @@ namespace AreaSurvivors
 
                 if (!visible)
                 {
+                    SetActive(conditionDetails, false);
                     foreach (var row in rows)
                     {
                         row.SetVisible(false);
                     }
                 }
+            }
+
+            public void ConfigureConditions(WeaponController weapon, WeaponType displayType, bool specialActive)
+            {
+                if (conditionDetails == null || weapon == null) return;
+                SetActive(conditionDetails, true);
+
+                if (specialEffectLabel != null)
+                {
+                    specialEffectLabel.text = LocalizationService.LocalizeSource("特殊効果");
+                }
+
+                string specialSource = WeaponCatalog.AreaControlSpecialEffectDescriptionSource(displayType);
+                bool showSpecial = !string.IsNullOrEmpty(specialSource);
+                SetActive(specialEffectLabel != null ? specialEffectLabel.gameObject : null, showSpecial);
+                SetActive(specialEffectText != null ? specialEffectText.gameObject : null, showSpecial);
+                if (specialEffectText != null && showSpecial)
+                {
+                    specialEffectText.text = LocalizationService.LocalizeSource(specialSource);
+                    specialEffectText.color = specialActive ? SpecialActiveColor : normalSpecialEffectColor;
+                    specialEffectText.fontStyle = specialActive ? FontStyle.Bold : FontStyle.Normal;
+                }
+
+                bool evolved = WeaponCatalog.IsEvolution(displayType);
+                var evolutionType = WeaponCatalog.EvolutionOf(WeaponCatalog.BaseWeaponOf(displayType));
+                var requirements = WeaponCatalog.EvolutionRequirementSources(evolutionType);
+                bool showEvolution = !evolved && requirements.Length > 0;
+                SetActive(evolutionConditionLabel != null ? evolutionConditionLabel.gameObject : null, showEvolution);
+                SetActive(evolutionConditionText != null ? evolutionConditionText.gameObject : null, showEvolution);
+                if (!showEvolution) return;
+
+                if (evolutionConditionLabel != null)
+                {
+                    evolutionConditionLabel.text = LocalizationService.LocalizeSource("進化条件");
+                }
+
+                if (evolutionConditionText != null)
+                {
+                    evolutionConditionText.supportRichText = true;
+                    evolutionConditionText.text = BuildEvolutionRequirements(weapon, displayType, requirements);
+                }
+            }
+
+            static string BuildEvolutionRequirements(WeaponController weapon, WeaponType type, IReadOnlyList<string> requirements)
+            {
+                var text = new StringBuilder(128);
+                var baseType = WeaponCatalog.BaseWeaponOf(type);
+                for (int i = 0; i < requirements.Count; i++)
+                {
+                    if (i > 0) text.Append('\n');
+                    string requirement = LocalizationService.LocalizeSource(requirements[i]);
+                    if (weapon.IsEvolutionRequirementMet(baseType, i))
+                    {
+                        text.Append("<color=#FF3D2E><b>");
+                        text.Append(requirement);
+                        text.Append("</b></color>");
+                    }
+                    else
+                    {
+                        text.Append(requirement);
+                    }
+                }
+
+                return text.ToString();
             }
 
             public void ConfigureHeader(string label, string iconResource, WeaponAttributeType attributeType, WeaponType evolutionType = WeaponType.Slash)

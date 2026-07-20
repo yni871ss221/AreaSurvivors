@@ -11,6 +11,7 @@ namespace AreaSurvivors.Editor
     {
         const string EditorRoot = "Assets/AreaSurvivors/Editor";
         const string SelfFileName = "GameHudLayoutMutationGuard.cs";
+        const string SuccessMarkerPath = "TokenReports/Validation/hud-layout-mutation-guard.success";
 
         static readonly string[] GuardedFileNameParts =
         {
@@ -28,14 +29,28 @@ namespace AreaSurvivors.Editor
         [MenuItem("Area Survivors/Validate/HUD Layout Mutation Guard")]
         public static void ValidateFromMenu()
         {
+            DeleteSuccessMarker();
             var violations = FindViolations();
             if (violations.Count == 0)
             {
+                WriteSuccessMarker();
                 Debug.Log("HUD Layout Mutation Guard passed. No forbidden HUD layout mutations were found in Editor scripts.");
                 return;
             }
 
             Debug.LogError(BuildReport(violations));
+        }
+
+        static void DeleteSuccessMarker()
+        {
+            if (File.Exists(SuccessMarkerPath)) File.Delete(SuccessMarkerPath);
+        }
+
+        static void WriteSuccessMarker()
+        {
+            var directory = Path.GetDirectoryName(SuccessMarkerPath);
+            if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
+            File.WriteAllText(SuccessMarkerPath, System.DateTime.UtcNow.ToString("O"));
         }
 
         public static List<string> FindViolations()

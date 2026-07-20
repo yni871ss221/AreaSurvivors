@@ -63,13 +63,20 @@ namespace AreaSurvivors
         public static int ReviveDestroyedBuildings(TileGrid grid, float healthRatio)
         {
             int revived = 0;
+            var revivedStates = new List<BuildingPersistentState>();
             var states = FindObjectsOfType<BuildingPersistentState>(true);
             for (int i = 0; i < states.Length; i++)
             {
-                if (states[i] != null && states[i].TryRevive(grid, healthRatio)) revived++;
+                if (states[i] == null || !states[i].TryRevive(grid, healthRatio)) continue;
+                revived++;
+                revivedStates.Add(states[i]);
             }
 
-            if (revived > 0) ProgressionStore.Save();
+            if (revived > 0)
+            {
+                revivedStates[0].BeginRevivePlayerCollisionGrace(revivedStates);
+                ProgressionStore.Save();
+            }
             return revived;
         }
 
@@ -141,7 +148,6 @@ namespace AreaSurvivors
 
             data.destroyed = false;
             ApplyDestroyedVisual(false);
-            BeginRevivePlayerCollisionGrace();
 
             var health = GetComponent<Health>();
             if (health != null)
@@ -152,68 +158,75 @@ namespace AreaSurvivors
             return true;
         }
 
-        void BeginRevivePlayerCollisionGrace()
+        void BeginRevivePlayerCollisionGrace(IReadOnlyList<BuildingPersistentState> revivedStates)
         {
-            RestoreRevivePlayerCollisions();
+            for (int stateIndex = 0; stateIndex < revivedStates.Count; stateIndex++)
+            {
+                var state = revivedStates[stateIndex];
+                if (state != null) state.RestoreRevivePlayerCollisions();
+            }
 
             var player = GameManager.Instance != null ? GameManager.Instance.Player : FindObjectOfType<PlayerController>();
             if (player == null) return;
 
-            var buildingColliders = GetComponentsInChildren<Collider2D>(true);
             var playerColliders = player.GetComponentsInChildren<Collider2D>(true);
             Physics2D.SyncTransforms();
 
-            for (int buildingIndex = 0; buildingIndex < buildingColliders.Length; buildingIndex++)
+            for (int stateIndex = 0; stateIndex < revivedStates.Count; stateIndex++)
             {
-                var buildingCollider = buildingColliders[buildingIndex];
-                if (buildingCollider == null || buildingCollider.isTrigger || !buildingCollider.enabled) continue;
+                var state = revivedStates[stateIndex];
+                if (state == null) continue;
+                var buildingColliders = state.GetComponentsInChildren<Collider2D>(true);
 
-                for (int playerIndex = 0; playerIndex < playerColliders.Length; playerIndex++)
+                for (int buildingIndex = 0; buildingIndex < buildingColliders.Length; buildingIndex++)
                 {
-                    var playerCollider = playerColliders[playerIndex];
-                    if (playerCollider == null || playerCollider.isTrigger) continue;
+                    var buildingCollider = buildingColliders[buildingIndex];
+                    if (buildingCollider == null || buildingCollider.isTrigger || !buildingCollider.enabled) continue;
 
-                    Physics2D.IgnoreCollision(buildingCollider, playerCollider, true);
-                    if (playerCollider.enabled && IsCollisionPairClear(buildingCollider, playerCollider))
+                    for (int playerIndex = 0; playerIndex < playerColliders.Length; playerIndex++)
                     {
-                        Physics2D.IgnoreCollision(buildingCollider, playerCollider, false);
-                        continue;
-                    }
+                        var playerCollider = playerColliders[playerIndex];
+                        if (playerCollider == null || playerCollider.isTrigger) continue;
 
-                    reviveIgnoredCollisions.Add(new IgnoredCollisionPair(buildingCollider, playerCollider));
+                        Physics2D.IgnoreCollision(buildingCollider, playerCollider, true);
+                        reviveIgnoredCollisions.Add(new IgnoredCollisionPair(buildingCollider, playerCollider));
+                    }
                 }
             }
 
-            if (reviveIgnoredCollisions.Count > 0)
+            if (reviveIgnoredCollisions.Count == 0) return;
+            if (AreAllRevivePlayerCollisionsClear())
             {
-                reviveCollisionRoutine = StartCoroutine(RestoreRevivePlayerCollisionsWhenClear());
+                RestoreRevivePlayerCollisions();
+                return;
             }
+
+            reviveCollisionRoutine = StartCoroutine(RestoreRevivePlayerCollisionsWhenClear());
         }
 
         IEnumerator RestoreRevivePlayerCollisionsWhenClear()
         {
-            while (reviveIgnoredCollisions.Count > 0)
+            while (!AreAllRevivePlayerCollisionsClear())
             {
-                for (int i = reviveIgnoredCollisions.Count - 1; i >= 0; i--)
-                {
-                    var pair = reviveIgnoredCollisions[i];
-                    if (pair.buildingCollider == null || pair.playerCollider == null)
-                    {
-                        reviveIgnoredCollisions.RemoveAt(i);
-                        continue;
-                    }
-
-                    if (!pair.buildingCollider.enabled || !pair.playerCollider.enabled) continue;
-                    if (!IsCollisionPairClear(pair.buildingCollider, pair.playerCollider)) continue;
-
-                    Physics2D.IgnoreCollision(pair.buildingCollider, pair.playerCollider, false);
-                    reviveIgnoredCollisions.RemoveAt(i);
-                }
-
                 yield return null;
             }
 
             reviveCollisionRoutine = null;
+            RestoreRevivePlayerCollisions();
+        }
+
+        bool AreAllRevivePlayerCollisionsClear()
+        {
+            for (int i = 0; i < reviveIgnoredCollisions.Count; i++)
+            {
+                var pair = reviveIgnoredCollisions[i];
+                if (pair.buildingCollider == null || pair.playerCollider == null) continue;
+                if (!pair.buildingCollider.enabled) continue;
+                if (!pair.playerCollider.enabled) return false;
+                if (!IsCollisionPairClear(pair.buildingCollider, pair.playerCollider)) return false;
+            }
+
+            return true;
         }
 
         static bool IsCollisionPairClear(Collider2D buildingCollider, Collider2D playerCollider)

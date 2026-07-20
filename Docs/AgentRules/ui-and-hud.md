@@ -16,6 +16,7 @@
 - HUD、スキルツリー、ロビー、建造メニューなど、静的に存在するUI/アイコン/画像は必ずScene上に配置し、`Source Image` もScene上の serialized reference を正とする。
 - 武器、レリック、建造物など種別ごとに異なるアイコン付きUIを複製追加するMigrationでは、名前やラベルだけでなく種別と期待Spriteの対応表から各`Image.sprite`を明示設定する。完了判定はオブジェクトの存在確認だけにせず、専用Validatorで全種別の期待Sprite一致まで検証する。
 - 実行時コードではScene/Prefab参照済みUIの値更新、表示/非表示、色変更だけを行う。Sprite差し替え、RectTransform補正、UIオブジェクト生成、アイコン生成をしてはいけない。
+- Runtimeで表示切替やフェードへ使うScene配置済みUIは、対象Component参照だけでなく親階層の`activeInHierarchy`、親`Canvas`の存在・有効状態、`Graphic`、`CanvasGroup.alpha`までValidatorで確認する。親Canvasを意図的に非アクティブ保存している場合は、既存Canvasを演出中だけ有効化して元の状態へ戻す経路を実装し、子Componentが存在するだけで表示可能と判定しない。
 - `GameManager` / `GameHudController` / `UpgradeScreen` などで `CreatePanel`、`CreateText`、`Ensure*`、`new GameObject`、`AddComponent` を使って新規HUD/UIを生成してはいけない。
 - ゲーム実行中のオブジェクト配置は禁止。静的オブジェクトはSceneへ直接配置し、動的オブジェクトは必ずPrefab化してPrefab参照から生成する。
 - SceneやPrefab上の `RectTransform`、Sprite、Collider、Scale、RotationをRuntimeで固定値へ戻さない。

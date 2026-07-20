@@ -1,15 +1,26 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 
 namespace AreaSurvivors
 {
     public static class ProgressionStore
     {
-        const string SaveKey = "AreaSurvivors.Save.v1";
-        const int ImplementedStageCount = 4;
+        const string LegacySaveKey = "AreaSurvivors.Save.v1";
+        public const int ImplementedStageCount = 4;
+        public const string CloudSaveFileName = "progression-save-v1.json";
+        public const string CloudSaveBackupFileName = "progression-save-v1.backup.json";
+        public const string CloudSaveTempFileName = "progression-save-v1.tmp";
         public const int MinStageDifficulty = 1;
         public const int MaxStageDifficulty = 5;
         static SaveData cached;
+
+        public static event Action Saved;
+
+        public static string CloudSavePath => Path.Combine(Application.persistentDataPath, CloudSaveFileName);
+        public static string CloudSaveBackupPath => Path.Combine(Application.persistentDataPath, CloudSaveBackupFileName);
+        public static string CloudSaveTempPath => Path.Combine(Application.persistentDataPath, CloudSaveTempFileName);
 
         public static SaveData Data
         {
@@ -17,19 +28,100 @@ namespace AreaSurvivors
             {
                 if (cached == null)
                 {
-                    var json = PlayerPrefs.GetString(SaveKey, string.Empty);
-                    cached = string.IsNullOrEmpty(json) ? new SaveData() : JsonUtility.FromJson<SaveData>(json);
-                    if (cached.upgrades == null) cached.upgrades = new List<UpgradeLevel>();
-                    if (cached.relics == null) cached.relics = new List<RelicRecord>();
-                    if (cached.discoveredWeaponEvolutions == null) cached.discoveredWeaponEvolutions = new List<WeaponEvolutionRecord>();
-                    if (cached.stageDifficulties == null) cached.stageDifficulties = new List<StageDifficultyRecord>();
-                    if (cached.stageBuildings == null) cached.stageBuildings = new List<StageBuildingSet>();
-                    if (cached.highestUnlockedStage < 1) cached.highestUnlockedStage = 1;
-                    if (cached.selectedStage < 1) cached.selectedStage = 1;
+                    cached = LoadData();
                 }
 
                 return cached;
             }
+        }
+
+        static SaveData LoadData()
+        {
+            if (ProgressionFileStorage.TryRead(CloudSavePath, out SaveData cloudData, out string cloudError))
+            {
+                return Normalize(cloudData);
+            }
+            if (!string.IsNullOrEmpty(cloudError))
+            {
+                Debug.LogWarning("Progression cloud save could not be read: " + cloudError);
+            }
+
+            if (ProgressionFileStorage.TryRead(CloudSaveBackupPath, out SaveData backupData, out string backupError))
+            {
+                Debug.LogWarning("Progression cloud save was recovered from the local backup.");
+                return Normalize(backupData);
+            }
+            if (!string.IsNullOrEmpty(backupError))
+            {
+                Debug.LogWarning("Progression cloud save backup could not be read: " + backupError);
+            }
+
+            string legacyJson = PlayerPrefs.GetString(LegacySaveKey, string.Empty);
+            if (!string.IsNullOrEmpty(legacyJson))
+            {
+                try
+                {
+                    SaveData legacyData = JsonUtility.FromJson<SaveData>(legacyJson);
+                    if (legacyData == null)
+                    {
+                        throw new System.InvalidOperationException("Legacy progression JSON did not contain save data.");
+                    }
+                    legacyData = Normalize(legacyData);
+                    if (TryWriteCloudSave(legacyData))
+                    {
+                        PlayerPrefs.DeleteKey(LegacySaveKey);
+                        PlayerPrefs.Save();
+                    }
+                    return legacyData;
+                }
+                catch (System.Exception exception)
+                {
+                    Debug.LogWarning("Legacy progression save could not be migrated: " + exception.Message);
+                }
+            }
+
+            return Normalize(new SaveData());
+        }
+
+        static SaveData Normalize(SaveData data)
+        {
+            if (data == null) data = new SaveData();
+            if (data.upgrades == null) data.upgrades = new List<UpgradeLevel>();
+            if (data.relics == null) data.relics = new List<RelicRecord>();
+            if (data.discoveredWeaponEvolutions == null) data.discoveredWeaponEvolutions = new List<WeaponEvolutionRecord>();
+            if (data.stageDifficulties == null) data.stageDifficulties = new List<StageDifficultyRecord>();
+            if (data.stageBuildings == null) data.stageBuildings = new List<StageBuildingSet>();
+            if (data.highestUnlockedStage < 1) data.highestUnlockedStage = 1;
+            if (data.selectedStage < 1) data.selectedStage = 1;
+            foreach (var record in data.stageDifficulties)
+            {
+                if (record == null) continue;
+                record.stage = Mathf.Clamp(record.stage, 1, ImplementedStageCount);
+                record.difficulty = Mathf.Clamp(record.difficulty, MinStageDifficulty, MaxStageDifficulty);
+                record.maxUnlockedDifficulty = Mathf.Clamp(record.maxUnlockedDifficulty, MinStageDifficulty, MaxStageDifficulty);
+                int inferredMinimum = data.highestClearedStage >= record.stage ? MinStageDifficulty : 0;
+                record.highestClearedDifficulty = Mathf.Clamp(
+                    Mathf.Max(record.highestClearedDifficulty, inferredMinimum),
+                    0,
+                    MaxStageDifficulty);
+            }
+            return data;
+        }
+
+        static bool TryWriteCloudSave(SaveData data)
+        {
+            if (ProgressionFileStorage.TryWrite(
+                    CloudSavePath,
+                    CloudSaveBackupPath,
+                    CloudSaveTempPath,
+                    data,
+                    out string error))
+            {
+                return true;
+            }
+
+            Debug.LogError("Progression cloud save could not be written: " + error);
+            return false;
         }
 
         public static bool HasRelic(RelicType type)
@@ -419,14 +511,18 @@ namespace AreaSurvivors
             return stage >= 1 && Data.highestClearedStage >= stage;
         }
 
-        public static bool MarkStageCleared(int stage)
+        public static bool MarkStageCleared(int stage, int clearedDifficulty = MinStageDifficulty)
         {
             if (stage < 1) return false;
+            clearedDifficulty = Mathf.Clamp(clearedDifficulty, MinStageDifficulty, MaxStageDifficulty);
             int nextUnlockedStage = Mathf.Min(stage + 1, ImplementedStageCount);
             bool unlockedNewStage = Data.highestUnlockedStage < nextUnlockedStage;
             Data.highestClearedStage = Mathf.Max(Data.highestClearedStage, stage);
             Data.highestUnlockedStage = Mathf.Max(Data.highestUnlockedStage, nextUnlockedStage);
             var difficultyRecord = EnsureStageDifficultyRecord(stage);
+            difficultyRecord.highestClearedDifficulty = Mathf.Max(
+                difficultyRecord.highestClearedDifficulty,
+                clearedDifficulty);
             difficultyRecord.maxUnlockedDifficulty = Mathf.Max(difficultyRecord.maxUnlockedDifficulty, 2);
             Save();
             return unlockedNewStage;
@@ -440,6 +536,9 @@ namespace AreaSurvivors
                 Data.highestClearedStage = Mathf.Max(Data.highestClearedStage, stage);
                 Data.highestUnlockedStage = Mathf.Max(Data.highestUnlockedStage, Mathf.Min(stage + 1, ImplementedStageCount));
                 var difficultyRecord = EnsureStageDifficultyRecord(stage);
+                difficultyRecord.highestClearedDifficulty = Mathf.Max(
+                    difficultyRecord.highestClearedDifficulty,
+                    MinStageDifficulty);
                 difficultyRecord.maxUnlockedDifficulty = Mathf.Max(difficultyRecord.maxUnlockedDifficulty, 2);
             }
             else
@@ -464,6 +563,15 @@ namespace AreaSurvivors
             var record = FindStageDifficultyRecord(stage);
             int maxUnlocked = GetStageMaxUnlockedDifficulty(stage);
             return Mathf.Clamp(record != null ? record.difficulty : MinStageDifficulty, MinStageDifficulty, maxUnlocked);
+        }
+
+        public static int GetStageHighestClearedDifficulty(int stage)
+        {
+            stage = Mathf.Clamp(stage, 1, ImplementedStageCount);
+            var record = FindStageDifficultyRecord(stage);
+            int inferredMinimum = IsStageCleared(stage) ? MinStageDifficulty : 0;
+            int recorded = record != null ? record.highestClearedDifficulty : 0;
+            return Mathf.Clamp(Mathf.Max(recorded, inferredMinimum), 0, MaxStageDifficulty);
         }
 
         public static int GetStageMaxUnlockedDifficulty(int stage)
@@ -518,7 +626,8 @@ namespace AreaSurvivors
             {
                 stage = stage,
                 difficulty = MinStageDifficulty,
-                maxUnlockedDifficulty = IsStageCleared(stage) ? 2 : MinStageDifficulty
+                maxUnlockedDifficulty = IsStageCleared(stage) ? 2 : MinStageDifficulty,
+                highestClearedDifficulty = IsStageCleared(stage) ? MinStageDifficulty : 0
             };
             Data.stageDifficulties.Add(record);
             return record;
@@ -604,14 +713,21 @@ namespace AreaSurvivors
         public static void ResetPlayData()
         {
             cached = new SaveData();
-            PlayerPrefs.DeleteKey(SaveKey);
+            if (!ProgressionFileStorage.TryDelete(
+                    out string error,
+                    CloudSavePath,
+                    CloudSaveBackupPath,
+                    CloudSaveTempPath))
+            {
+                Debug.LogError("Progression cloud save could not be reset: " + error);
+            }
+            PlayerPrefs.DeleteKey(LegacySaveKey);
             PlayerPrefs.Save();
         }
 
         public static void Save()
         {
-            PlayerPrefs.SetString(SaveKey, JsonUtility.ToJson(Data));
-            PlayerPrefs.Save();
+            if (TryWriteCloudSave(Data)) Saved?.Invoke();
         }
 
         static void SetLevel(UpgradeType type, int level)

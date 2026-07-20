@@ -40,10 +40,12 @@ AreaSurvivors リポジトリ全体に適用する低トークン運用の入口
 - Runtime Componentのserialized field、型、旧Animation Componentを削除する前に、対象Runtimeフォルダだけでなく`Assets/AreaSurvivors/Editor`のBootstrap、Setup、Migrator、Validatorからの直接参照を限定検索する。削除対象を設定・生成しているEditor経路は同じCompileバッチで新構成へ更新し、Missing memberをCompile後に発見しない。
 - 旧MonoBehaviourをPrefabから除去する移行では、原則として型と`.meta`が解決可能な状態でPrefab移行を先に完了してから旧Scriptを削除する。既にMissing Script化している場合は、Prefab全階層で欠損Componentを除去し、残数0、`SaveAsPrefabAsset`の非null戻り値、専用Validator成功markerを確認するまで移行完了と扱わない。
 - `Menu.Execute`やEditor Menu Wrapperの終了コード0はMenu受付成功にすぎない。Migration/Validatorは処理末尾だけで成功markerを作成し、呼び出し側はmarkerの新規生成を必須確認する。終了コード、`executed: true`、Console成功文のいずれか単独で成功判定しない。
+- Menu経由Validatorは `Tools/TokenUsage/invoke-menu-validator.ps1 -MenuPath <menu> -SuccessMarkerPath <project-relative-marker>` を使い、要求受付ではなく当該実行後のmarker新規生成で成功判定する。`safe-unity.ps1 -Action Menu` を単独で実行した場合は、同一のmarker確認なしに完了扱いにしてはならない。
 - 権限確認やUnity連携がタイムアウトした場合は、モデル推論や実装不良と混同しない。Unity状態を確認して同じ操作を最大1回だけ再試行し、成功後に検証範囲を追加で広げない。
 - `functions.exec`が`Script running with cell ID ...`を返した場合、同じコマンドの継続取得は必ず`functions.wait(cell_id)`を使う。`collaboration.wait_agent`はエージェントmailbox待ち専用であり、command cellの完了待ちには絶対に使わない。cell結果を回収する前に同じコマンドを再発行しない。
 - `functions.exec`内で`tools.exec_command`を呼ぶ時は、戻り値の`exit_code`だけでなく`session_id`も必ず出力または保存する。`exit_code`が未定義で`session_id`がある場合は同じsessionを`tools.write_stdin`で回収し、session_idを失った場合は同じコマンドを再発行せずTokenReportsの`capture_path`・`timed_out`・終了コードから失敗段階を確定する。
 - 長時間のEditor Runnerは`invoke-unity-editor-runner.ps1 -Concise`を使い、会話へ成功payloadを展開しない。`functions.wait`は外側の専用ツールであり、`functions.exec`内の`tools.wait`として呼ばない。cell結果がcontext超過またはcell消失で回収不能なら同じRunnerを再発行せず、TokenReportsとSafe-Command captureから終了状態を確定する。
+- Unityプロジェクト直下の`Temp/`はEditorによって実行中に削除され得るため、ダウンロードした外部Runtime、長時間処理の中間物、動画プレビュー、最終成果物を保存しない。外部RuntimeはUnity管理外の明示キャッシュ、最終成果物は`Docs/`などの安定した保存先を使う。
 - Play Modeの開始、終了、状態確認は `Tools/TokenUsage/safe-unity.ps1 -Action PlayEnter|PlayExit|PlayStatus` だけを使い、`unicli exec PlayMode.*` や終了直後の `Editor.Status` を直接実行しない。`PlayExit` 成功後はその検証シーケンスのUnity操作を終了し、追加確認が不可欠な場合だけクールダウン後に `PlayStatus` を使う。
 - 作業種別が曖昧な場合は `Tools/TokenUsage/rule-router.ps1 -Task "<依頼内容>"` で読む詳細ルールと中核ファイルを絞る。
 - 初手で `Assets/AreaSurvivors` 全体へ広域 `rg` をかけない。`safe-search.ps1 -FilesOnly`、`-HitSummary`、`focused-search.ps1` を先に使う。

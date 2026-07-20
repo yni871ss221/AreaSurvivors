@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -13,10 +14,19 @@ namespace AreaSurvivors.EditorTools
         const string ScenePath = "Assets/AreaSurvivors/Scenes/08_GameTestLauncher.unity";
         const float BottomPadding = 32f;
 
+        static string SuccessMarkerPath => Path.Combine(
+            Path.GetDirectoryName(Application.dataPath),
+            "Library",
+            "AreaSafeUnity",
+            "game-test-launcher-scroll-validator.success");
+
         [MenuItem("Area Survivors/Validate/Game Test Launcher Scroll Layout")]
         public static void ValidateMenu()
         {
+            if (File.Exists(SuccessMarkerPath)) File.Delete(SuccessMarkerPath);
             if (!Validate(true)) throw new InvalidOperationException("Game Test Launcher scroll layout validation failed.");
+            Directory.CreateDirectory(Path.GetDirectoryName(SuccessMarkerPath));
+            File.WriteAllText(SuccessMarkerPath, DateTime.UtcNow.ToString("O"));
         }
 
         public static bool Validate(bool logSuccess)
@@ -37,6 +47,27 @@ namespace AreaSurvivors.EditorTools
                 {
                     Debug.LogError("Game Test Launcher scroll validator: one or more Scene-authored weapon buttons are missing.");
                     return false;
+                }
+                if (weaponButtons.Any(button => !button.gameObject.activeSelf))
+                {
+                    Debug.LogError("Game Test Launcher scroll validator: one or more Scene-authored weapon buttons are inactive.");
+                    errors++;
+                }
+
+                for (int i = 0; i < weaponButtons.Length; i++)
+                {
+                    var left = weaponButtons[i].transform as RectTransform;
+                    for (int j = i + 1; j < weaponButtons.Length; j++)
+                    {
+                        var right = weaponButtons[j].transform as RectTransform;
+                        if (left.parent != right.parent) continue;
+                        if (Mathf.Abs(left.anchoredPosition.y - right.anchoredPosition.y) > 0.5f) continue;
+
+                        Debug.LogError("Game Test Launcher scroll validator: weapon button rows overlap. left="
+                            + weaponButtons[i].name + ", right=" + weaponButtons[j].name
+                            + ", anchoredY=" + left.anchoredPosition.y.ToString("0.##") + ".");
+                        errors++;
+                    }
                 }
 
                 var scrollRoots = scene.GetRootGameObjects()

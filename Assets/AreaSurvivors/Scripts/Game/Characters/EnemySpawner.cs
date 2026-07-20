@@ -393,13 +393,18 @@ namespace AreaSurvivors
 
         public void StopAndClearEnemies(EnemyController except = null)
         {
-            running = false;
-            StopAllCoroutines();
+            StopSpawning();
             foreach (var enemy in FindObjectsOfType<EnemyController>())
             {
                 if (enemy != null && enemy != except) Destroy(enemy.gameObject);
             }
             activeEnemies.Clear();
+        }
+
+        public void StopSpawning()
+        {
+            running = false;
+            StopAllCoroutines();
         }
 
         SpawnPhase[] SpawnPhasesForCurrentStage()

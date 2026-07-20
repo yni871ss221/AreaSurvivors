@@ -108,8 +108,13 @@ MonoBehaviour:
   swordRushStrikeIntervalSeconds: 0.09
   bananaBaseRange: 1.4
   bananaBaseProjectileCountBonus: 3
-  excaliburTravelSpeedCellsPerSecond: 5
+  excaliburTravelSpeedCellsPerSecond: 10
   excaliburDamageIntervalSeconds: 0.2
+  excaliburCooldownSeconds: 5
+  excaliburBaseArcDegrees: 30
+  excaliburMaxArcDegrees: 150
+  excaliburInitialRadiusCells: 0.25
+  excaliburBandWidthCells: 3
   arrowShowerStrikeIntervalSeconds: 0.25
   evolvedGroundStrikeRadius: 0.7
   evolvedGroundStrikeTargetRadiusCells: 15

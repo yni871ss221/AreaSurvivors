@@ -180,8 +180,13 @@ namespace AreaSurvivors
         [Min(0f)] public float swordRushStrikeIntervalSeconds = 0.09f;
         [Min(0f)] public float bananaBaseRange = 1.4f;
         [Min(0)] public int bananaBaseProjectileCountBonus = 3;
-        [Min(0.1f)] public float excaliburTravelSpeedCellsPerSecond = 5f;
+        [Min(0.1f)] public float excaliburTravelSpeedCellsPerSecond = 10f;
         [Min(0.05f)] public float excaliburDamageIntervalSeconds = 0.2f;
+        [Min(0.05f)] public float excaliburCooldownSeconds = 5f;
+        [Range(1f, 120f)] public float excaliburBaseArcDegrees = 30f;
+        [Range(30f, 170f)] public float excaliburMaxArcDegrees = 150f;
+        [Range(0.05f, 1f)] public float excaliburInitialRadiusCells = 0.25f;
+        [Min(0.05f)] public float excaliburBandWidthCells = 3f;
         [Min(0.05f)] public float arrowShowerStrikeIntervalSeconds = 0.25f;
         [Min(0.05f)] public float evolvedGroundStrikeRadius = 0.7f;
         [Min(0.1f)] public float evolvedGroundStrikeTargetRadiusCells = 15f;
@@ -283,6 +288,12 @@ namespace AreaSurvivors
         public float bossShockwaveDisplaySeconds = 1f;
         public Vector2 bossShockwaveSizeCells = new Vector2(2f, 2f);
         public int bossShockwaveDamageMultiplier = 1;
+        [Range(0f, 1f)] public float stageTransitionFlashPeakAlpha = 0.92f;
+        [Min(0.01f)] public float stageTransitionFlashInSeconds = 0.05f;
+        [Min(0f)] public float stageTransitionFlashHoldSeconds = 0.06f;
+        [Min(0.01f)] public float stageTransitionFlashOutSeconds = 0.2f;
+        [Min(0f)] public float stageTransitionEnemyHitDelaySeconds = 0.24f;
+        [Min(0.5f)] public float stageTransitionEnemyDefeatTimeoutSeconds = 1.2f;
         public float goblinLordDarkOrbSpeed = 2.4f;
         public float goblinLordDarkOrbLifetimeSeconds = 8f;
         public float goblinLordDarkOrbDamageRadius = 1.25f;

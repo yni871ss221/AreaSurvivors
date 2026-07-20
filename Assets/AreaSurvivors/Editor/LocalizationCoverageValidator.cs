@@ -8,9 +8,18 @@ using UnityEngine.UI;
 
 public static class LocalizationCoverageValidator
 {
+    const string SuccessMarkerPath = "TokenReports/Validation/localization-coverage-validator.success";
+
     [MenuItem("Area Survivors/Validate/Localization Coverage")]
     public static void Validate()
     {
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            throw new System.InvalidOperationException(
+                "Localization Coverage validation requires Edit Mode because it opens production Scenes.");
+        }
+
+        DeleteSuccessMarker();
         for (int i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
         {
             if (UnityEngine.SceneManagement.SceneManager.GetSceneAt(i).isDirty)
@@ -61,7 +70,20 @@ public static class LocalizationCoverageValidator
             throw new System.InvalidOperationException($"Localization coverage failed with {errors.Count} untranslated values.");
         }
 
+        WriteSuccessMarker();
         Debug.Log("Localization coverage passed for all production Scenes, UI Prefabs, skill descriptions, and weapon descriptions.");
+    }
+
+    static void DeleteSuccessMarker()
+    {
+        if (File.Exists(SuccessMarkerPath)) File.Delete(SuccessMarkerPath);
+    }
+
+    static void WriteSuccessMarker()
+    {
+        string directory = Path.GetDirectoryName(SuccessMarkerPath);
+        if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
+        File.WriteAllText(SuccessMarkerPath, System.DateTime.UtcNow.ToString("O"));
     }
 
     static void ValidateCatalogs(List<string> errors)
@@ -104,7 +126,7 @@ public static class LocalizationCoverageValidator
             ValidateValue(assetPath, entry.transform, "Weapon name", entry.displayName, errors);
             ValidateValue(assetPath, entry.transform, "Weapon feature", entry.featureDescription, errors);
             ValidateValue(assetPath, entry.transform, "Weapon stats", entry.initialStatsText, errors);
-            ValidateValue(assetPath, entry.transform, "Weapon special", entry.specialEffectDescription, errors);
+            ValidateValue(assetPath, entry.transform, "Weapon special", entry.SpecialEffectDescriptionSource, errors);
         }
     }
 

@@ -2,6 +2,9 @@
 
 - Windows環境では `pwsh` の存在を前提にしない。`rtk` からPowerShellスクリプトを呼ぶ場合は、存在確認済みの `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe` を固定入口として使う。`rtk pwsh` が `program not found` になった場合は対象スクリプトへ未到達の実体名解決失敗として扱い、同じ呼び方を再試行しない。
 - `safe-read.ps1` の正式なファイル引数は `-Path` であり、`-File` は受け付けない。契約を推測せずWrapperのparam定義または本書の記載に従う。
+- `functions.exec` から `tools.exec_command` へ渡す `cmd` に、PowerShell の変数宣言・参照を含む `powershell -Command "...$variable..."` を直接埋め込まない。この経路では `$` が実行前に失われ、`$path = ...` が `= ...` となる。読み取りは既存の `safe-read.ps1 -Path` または `safe-read-batch.ps1 -Path <file> -Ranges "start-end;start-end"` 入口へ固定する。`safe-read-batch.ps1` に `-Requests` や `-File` は存在しないため、既存Wrapperで表現できない処理だけを限定 `.ps1` Wrapperとして追加する。
+- `safe-read.ps1 -PrintOutput` は実行前に見込み出力を80行以下へ固定する。範囲読み取りは80行ずつ、Pattern検索は `-MaxMatches` を明示し、guard_code 39を「出力量を削らずに試す」ための再試行理由にしてはならない。
+- `safe-read-batch.ps1 -Ranges` の複数範囲はセミコロン区切りの単一文字列であり、Windows PowerShellへ渡すときは必ず `-Ranges "1-80;161-240"` のように引用する。引用なしの `;` はShellのコマンド区切りとなるため、Wrapperへ到達しない。
 - `safe-read.ps1 -Pattern`は正規表現契約。`-LiteralPattern`は値を取らないswitchなので、`kills++`、`value??`等のコード文字列は`safe-read.ps1 -Path <file> -Pattern "kills++" -LiteralPattern`の順で渡す。`-LiteralPattern "kills++"`は禁止。未エスケープの`++/**/??`は広範囲一致を防ぐため`guard_code: 36`で入口拒否する。
 - `safe-read`はregexを行照合前に構文検証し、未閉じ`(`等を`guard_code: 37`で拒否する。メソッド呼出し文字列をそのまま探す場合は`-Pattern "EnsureWeaponLevels(" -LiteralPattern`を使う。
 - PowerShell自体の`-File`へ`.cs`、`.unity`、`.prefab`等の対象ファイルを直接渡さない。`-File`の直後は実行する`.ps1` Wrapper、読み取り対象はそのWrapperの`-Path`へ渡す。
@@ -14,6 +17,7 @@
 - 作業規模にかかわらず、ユーザーが長時間検証を明示していない作業ではCompile最大2回、Play Mode最大2回をコマンド予算として作業開始時に確保する。予算を使い切ってから原因調査を始めるのではなく、最初の想定外結果で調査へ切り替える。
 - 同じ目的のUniCLI、PowerShell、Eval、Scene操作を引数だけ変えて2回失敗した場合、3回目を手打ちしない。既存Wrapperの有無を確認し、なければ `Tools/TokenUsage` の限定Wrapper、Editor Runner、Reporter、Validatorへ部品化する。
 - 部品化するコマンドは、入力パラメータ、前提状態、実行対象、期待結果、失敗時の診断出力を固定し、成功条件を機械判定できる形にする。単に長い手打ちコマンドをスクリプトへ移すだけでは不十分とする。
+- Codex Skillの検証は`Tools/TokenUsage/invoke-skill-validator.ps1 -SkillPath <skill-directory>`へ固定する。Windows既定CP932の`quick_validate.py`読取失敗と、PyYAMLを持たない同梱Pythonへの切替を避けるため、Wrapperが`PYTHONUTF8=1`とシステムPythonの`yaml` importを事前検証する。初回は`-SelfTest`を先に実行する。
 - コマンド入口を追加・変更した後は `Tools/TokenUsage/command-tools-self-test.ps1` を実行し、構文、Eval引用符拒否、Asset path traversal拒否、Editor Runner事前条件、名前付き引数転送をUnityへ接続せず検証する。
 - 新規Wrapperの自己テストと初回実行を並列にしない。自己テスト成功を初回実行の必須ゲートとし、失敗したWrapperを同時に実環境へ流さない。
 - UniCLI経由のPlay Mode操作は `safe-unity.ps1 -Action PlayEnter|PlayExit|PlayStatus` に限定する。この入口は全コマンドへ強制タイムアウトを設定し、`PlayExit` 後20秒以内のUniCLI再実行を終了遷移中として `guard_code: 23` で拒否する。タイムアウト時は実行用プロセスを停止し、記録上の終了コード124を返す。
@@ -38,6 +42,7 @@
 - 軽微なUI変更のスクリーンショットは代表状態1枚を上限目安とする。通常状態と特殊状態の両方が変更対象の場合だけ各1枚とし、同一状態の再撮影を避ける。
 - `safe-search.ps1 -PrintOutput` は原則 `-First 20` 以下。広域検索は `-FilesOnly` または `-HitSummary` を先に使う。
 - `safe-search.ps1`の検索起点は`-Path <既存パス>`で指定する。`-Root`は未定義であり、`focused-search.ps1`や他ツールの引数名から推測して渡さない。
+- `safe-search.ps1`は周辺行を返す`-Context`を受け付けない。周辺行が必要な検索は、対象を既知の1パスに絞ったうえで`focused-search.ps1 -Pattern <語> -Path <既存パス> -Context <行数>`を使う。`safe-search`へ`-Context`を推測して渡し、ParameterBindingException後に別の引数を試すことを禁止する。
 - `safe-search.ps1 -Pattern/-Query`は正規表現である。括弧などのメタ文字を文字として探す場合はエスケープし、不正な正規表現は`guard_code: 43`で`rg`実行前に拒否する。
 - `.codex`のような広い外部ルートを検索する場合、`safe-search.ps1`はアクセス制限された`.sandbox-secrets/**`を除外する。制限ディレクトリ自体を検索起点に指定しない。
 - `.codex`ルート直下には複数のアクセス制限・稼働中データ領域があるため、`safe-search.ps1 -Path <...>/.codex`は禁止し`guard_code: 44`で拒否する。検索対象が分かっている`.codex/skills`等のサブディレクトリだけを指定する。

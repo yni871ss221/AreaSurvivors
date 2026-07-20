@@ -22,6 +22,7 @@ namespace AreaSurvivors
         public const float ShieldKnockbackUpgradeAmount = 1f;
         public const float ShieldRotationSpeedUpgradeAmount = 20f;
         public const int EvolutionTestUpgradeCount = 2;
+        public const float ExcaliburBaseRangeMultiplier = 1f;
         GameConfig config;
         PlayerController player;
         TileGrid grid;
@@ -445,7 +446,19 @@ namespace AreaSurvivors
         {
             sourceType = EvolutionSourceType(sourceType);
             if (WeaponCatalog.EvolutionOf(sourceType) == sourceType || IsEvolved(sourceType)) return false;
-            if (!IsWeaponUnlocked(sourceType) || GetRunWeaponDisplayLevel(sourceType) < GameConfig.MaxWeaponLevel) return false;
+            if (!IsWeaponUnlocked(sourceType)) return false;
+            return IsEvolutionRequirementMet(sourceType, 0) && IsEvolutionRequirementMet(sourceType, 1);
+        }
+
+        public bool IsEvolutionRequirementMet(WeaponType sourceType, int requirementIndex)
+        {
+            sourceType = EvolutionSourceType(sourceType);
+            if (requirementIndex == 0)
+            {
+                return GetRunWeaponDisplayLevel(sourceType) >= GameConfig.MaxWeaponLevel;
+            }
+
+            if (requirementIndex != 1) return false;
             var manager = GameManager.Instance;
             switch (sourceType)
             {
@@ -494,7 +507,13 @@ namespace AreaSurvivors
                 case WeaponType.Arrow: return EffectiveArrowStats;
                 case WeaponType.Fireball: return EffectiveFireballStats;
                 case WeaponType.Shield: return EffectiveShieldStats;
-                default: return ApplyAdvancedSpecialEffect(type, GetWeaponStatsFor(type));
+                default:
+                    var effective = ApplyAdvancedSpecialEffect(type, GetWeaponStatsFor(type));
+                    if (type == WeaponType.AuraSword && GetDisplayWeaponType(type) == WeaponType.Excalibur && config != null)
+                    {
+                        effective.cooldownSeconds = Mathf.Max(0.05f, config.excaliburCooldownSeconds);
+                    }
+                    return effective;
             }
         }
 
@@ -1102,7 +1121,7 @@ namespace AreaSurvivors
                     stats.projectileCount += Mathf.Max(0, config.bananaBaseProjectileCountBonus);
                     break;
                 case WeaponType.AuraSword:
-                    stats.range += baseStats.range;
+                    stats.range += baseStats.range * (ExcaliburBaseRangeMultiplier - 1f);
                     stats.distance += baseStats.distance;
                     stats.damageIntervalSeconds = Mathf.Max(0.05f, config.excaliburDamageIntervalSeconds);
                     break;

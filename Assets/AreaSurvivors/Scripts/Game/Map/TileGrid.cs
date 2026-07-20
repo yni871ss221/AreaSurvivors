@@ -694,6 +694,75 @@ namespace AreaSurvivors
             PaintEllipse(world, owner, radiusX, radiusY, true);
         }
 
+        public void PaintSector(
+            Vector3 worldOrigin,
+            Vector2 forward,
+            float lengthWorld,
+            float halfAngleDegrees,
+            TileOwner owner)
+        {
+            PaintSector(worldOrigin, forward, lengthWorld, 0f, halfAngleDegrees, owner);
+        }
+
+        public void PaintSector(
+            Vector3 worldOrigin,
+            Vector2 forward,
+            float lengthWorld,
+            float innerRadiusWorld,
+            float halfAngleDegrees,
+            TileOwner owner)
+        {
+            int cx, cy;
+            if (!TryWorldToGrid(worldOrigin, out cx, out cy)) return;
+
+            forward = forward.sqrMagnitude > 0.0001f ? forward.normalized : Vector2.right;
+            lengthWorld = Mathf.Max(0.01f, lengthWorld);
+            innerRadiusWorld = Mathf.Clamp(innerRadiusWorld, 0f, lengthWorld);
+            halfAngleDegrees = Mathf.Clamp(halfAngleDegrees, 0.5f, 85f);
+            Vector2 worldCellSize = WorldCellSize();
+            int boundsX = Mathf.CeilToInt(lengthWorld / Mathf.Max(0.01f, worldCellSize.x)) + 1;
+            int boundsY = Mathf.CeilToInt(lengthWorld / Mathf.Max(0.01f, worldCellSize.y)) + 1;
+            float target = ControlFromOwner(owner);
+
+            for (int y = cy - boundsY; y <= cy + boundsY; y++)
+            {
+                for (int x = cx - boundsX; x <= cx + boundsX; x++)
+                {
+                    if (x < 0 || y < 0 || x >= width || y >= height) continue;
+                    Vector2 offset = (Vector2)(GridToWorld(x, y) - worldOrigin);
+                    if (!IsPointInsideAnnularSector(offset, forward, lengthWorld, innerRadiusWorld, halfAngleDegrees)) continue;
+                    SetPaintTarget(x, y, target, false);
+                }
+            }
+        }
+
+        public static bool IsPointInsideSector(
+            Vector2 offset,
+            Vector2 forward,
+            float length,
+            float halfAngleDegrees)
+        {
+            length = Mathf.Max(0.01f, length);
+            if (offset.sqrMagnitude <= 0.0001f) return true;
+            if (offset.sqrMagnitude > length * length) return false;
+            forward = forward.sqrMagnitude > 0.0001f ? forward.normalized : Vector2.right;
+            if (Vector2.Dot(offset, forward) <= 0f) return false;
+            return Vector2.Angle(forward, offset) <= Mathf.Clamp(halfAngleDegrees, 0.5f, 85f);
+        }
+
+        public static bool IsPointInsideAnnularSector(
+            Vector2 offset,
+            Vector2 forward,
+            float outerRadius,
+            float innerRadius,
+            float halfAngleDegrees)
+        {
+            outerRadius = Mathf.Max(0.01f, outerRadius);
+            innerRadius = Mathf.Clamp(innerRadius, 0f, outerRadius);
+            if (offset.sqrMagnitude < innerRadius * innerRadius) return false;
+            return IsPointInsideSector(offset, forward, outerRadius, halfAngleDegrees);
+        }
+
         public void PaintEllipseOverlappingCells(Vector3 world, TileOwner owner, float radiusX, float radiusY)
         {
             PaintEllipseOverlappingCells(world, owner, radiusX, radiusY, false);

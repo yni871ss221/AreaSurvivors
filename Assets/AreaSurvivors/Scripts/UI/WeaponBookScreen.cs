@@ -89,7 +89,7 @@ namespace AreaSurvivors
             SetText(detailTitleText, entry.LocalizedDisplayName);
             SetText(featureText, string.IsNullOrEmpty(entry.featureDescription) ? "-" : entry.LocalizedFeatureDescription);
             SetText(statsText, LocalizationService.LocalizeSource(InitialStatsText(entry)));
-            SetText(specialEffectText, string.IsNullOrEmpty(entry.specialEffectDescription)
+            SetText(specialEffectText, string.IsNullOrEmpty(entry.SpecialEffectDescriptionSource)
                 ? LocalizationService.Text("特殊効果は今後追加予定です。", "Special effects will be added in a future update.")
                 : entry.LocalizedSpecialEffectDescription);
             SetText(messageText, string.Empty);

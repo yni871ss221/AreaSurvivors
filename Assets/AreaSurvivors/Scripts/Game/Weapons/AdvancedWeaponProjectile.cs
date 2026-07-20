@@ -24,6 +24,13 @@ namespace AreaSurvivors
         float orbitAngleDegrees;
         float orbitRadius;
         float orbitSpeedDegrees = 180f;
+        Vector2 launchOrigin;
+        ExcaliburSectorVisual excaliburSectorVisual;
+        float excaliburArcDegrees;
+        float excaliburInitialLength;
+        float excaliburCurrentLength;
+        float excaliburBandWidth;
+        float excaliburRevealFraction;
         bool consumed;
 
         public void Configure(WeaponType weaponType, Vector2 launchDirection, WeaponStatBlock weaponStats, GameConfig gameConfig)
@@ -34,6 +41,7 @@ namespace AreaSurvivors
             grid = FindObjectOfType<TileGrid>();
             thunderBallVerticalRadiusMultiplier = 1f;
             direction = launchDirection.sqrMagnitude > 0.01f ? launchDirection.normalized : Vector2.down;
+            launchOrigin = transform.position;
             spawnTime = Time.time;
             float speed = Mathf.Max(0.1f, stats.projectileSpeed);
             float distance = Mathf.Max(stats.distance, stats.range);
@@ -94,6 +102,12 @@ namespace AreaSurvivors
                 return;
             }
 
+            if (type == WeaponType.Excalibur)
+            {
+                TickExcalibur();
+                return;
+            }
+
             var moveDirection = direction;
             transform.position += (Vector3)(moveDirection * Mathf.Max(0.1f, stats.projectileSpeed) * Time.deltaTime);
             PaintAttackTrail();
@@ -142,6 +156,22 @@ namespace AreaSurvivors
 
             spinDegrees += 1800f * Time.deltaTime;
             ApplyRoll(spinDegrees);
+        }
+
+        void TickExcalibur()
+        {
+            float elapsed = Mathf.Max(0f, Time.time - spawnTime);
+            excaliburCurrentLength = CalculateExcaliburLength(
+                elapsed,
+                stats.projectileSpeed,
+                excaliburInitialLength,
+                stats.distance);
+            excaliburRevealFraction = CalculateExcaliburRevealFraction(
+                elapsed,
+                stats.projectileSpeed,
+                excaliburBandWidth);
+            UpdateExcaliburShape();
+            PaintAttackTrail();
         }
 
         void TickThunderBall()
@@ -242,8 +272,25 @@ namespace AreaSurvivors
             if (type != WeaponType.BoomerangSword && type != WeaponType.Banana && type != WeaponType.AuraSword && type != WeaponType.Excalibur) return;
             if (grid == null) grid = FindObjectOfType<TileGrid>();
             if (grid == null) return;
+            if (type == WeaponType.Excalibur)
+            {
+                float fullInnerRadius = ExcaliburSectorVisual.CalculateInnerRadius(excaliburCurrentLength, excaliburBandWidth);
+                float visibleInnerRadius = ExcaliburSectorVisual.CalculateVisibleInnerRadius(
+                    fullInnerRadius,
+                    excaliburCurrentLength,
+                    excaliburRevealFraction);
+                grid.PaintSector(
+                    launchOrigin,
+                    direction,
+                    excaliburCurrentLength,
+                    visibleInnerRadius,
+                    excaliburArcDegrees * 0.5f,
+                    TileOwner.Player);
+                return;
+            }
             float cellSize = Mathf.Max(0.01f, grid.cellSize);
-            int radiusCells = Mathf.Max(1, Mathf.CeilToInt(stats.range / cellSize * 0.5f));
+            float radiusWorld = Mathf.Max(0.05f, stats.range * 0.5f);
+            int radiusCells = Mathf.Max(1, Mathf.CeilToInt(radiusWorld / cellSize));
             grid.Paint(transform.position, TileOwner.Player, radiusCells);
         }
 
@@ -265,13 +312,79 @@ namespace AreaSurvivors
         void ApplyVisualScale()
         {
             if (type == WeaponType.Gun || type == WeaponType.MachineGun) return;
+            if (type == WeaponType.Excalibur)
+            {
+                InitializeExcaliburGrowth();
+                UpdateExcaliburShape();
+                return;
+            }
             float baseScale = 0.42f;
             if (type == WeaponType.AuraSword) baseScale = Mathf.Clamp(stats.range * 0.35f, 0.5f, 1.6f);
-            if (type == WeaponType.Excalibur) baseScale = Mathf.Max(0.05f, stats.range);
             if (type == WeaponType.BoomerangSword) baseScale = Mathf.Clamp(stats.range * 0.42f, 0.36f, 1.2f);
             if (type == WeaponType.Banana) baseScale = Mathf.Max(0.05f, stats.range);
             if (type == WeaponType.ThunderBall || type == WeaponType.ThunderStorm) baseScale = 0.42f;
             transform.localScale = Vector3.one * baseScale;
+        }
+
+        void InitializeExcaliburGrowth()
+        {
+            float baseArcDegrees = config != null ? config.excaliburBaseArcDegrees : 30f;
+            float maxArcDegrees = config != null ? config.excaliburMaxArcDegrees : 150f;
+            float baseRange = stats.range;
+            if (config != null)
+            {
+                baseRange = Mathf.Max(0.05f, config.GetWeaponStats(WeaponType.AuraSword, 1).range);
+            }
+            excaliburArcDegrees = CalculateExcaliburArcDegrees(stats.range, baseRange, baseArcDegrees, maxArcDegrees);
+            excaliburInitialLength = TileGrid.DefaultCellSize *
+                (config != null ? Mathf.Max(0.05f, config.excaliburInitialRadiusCells) : 0.25f);
+            float bandWidthCellsPerAttack = config != null ? config.excaliburBandWidthCells : 3f;
+            excaliburBandWidth = CalculateExcaliburBandWidth(bandWidthCellsPerAttack, stats.projectileCount);
+            // The first visible sector stays close to the player.  Its small launch length is
+            // intentionally independent from the finished strike thickness, so the reveal,
+            // forward movement, and widening begin on the same frame instead of waiting for a
+            // full-width sector to finish revealing at a fixed position.
+            excaliburInitialLength = Mathf.Min(
+                Mathf.Max(0.05f, stats.distance),
+                excaliburInitialLength);
+            excaliburCurrentLength = excaliburInitialLength;
+            excaliburRevealFraction = 0f;
+            excaliburSectorVisual = GetComponent<ExcaliburSectorVisual>();
+            transform.localScale = Vector3.one;
+        }
+
+        void UpdateExcaliburShape()
+        {
+            if (excaliburSectorVisual == null) return;
+            excaliburSectorVisual.Configure(
+                excaliburCurrentLength,
+                excaliburArcDegrees,
+                excaliburBandWidth,
+                excaliburRevealFraction);
+        }
+
+        public static float CalculateExcaliburArcDegrees(float currentRange, float baseRange, float baseArcDegrees, float maxArcDegrees)
+        {
+            float rangeRatio = Mathf.Max(0.05f, currentRange) / Mathf.Max(0.05f, baseRange);
+            return Mathf.Clamp(baseArcDegrees * rangeRatio, 1f, maxArcDegrees);
+        }
+
+        public static float CalculateExcaliburLength(float elapsedSeconds, float speed, float initialLength, float maxLength)
+        {
+            float grownLength = Mathf.Max(0.05f, initialLength) +
+                Mathf.Max(0f, elapsedSeconds) * Mathf.Max(0.1f, speed);
+            return Mathf.Min(Mathf.Max(0.05f, maxLength), Mathf.Max(Mathf.Max(0.05f, initialLength), grownLength));
+        }
+
+        public static float CalculateExcaliburBandWidth(float cellsPerAttack, int attackCount)
+        {
+            return TileGrid.DefaultCellSize * Mathf.Max(0.05f, cellsPerAttack) * Mathf.Max(1, attackCount);
+        }
+
+        public static float CalculateExcaliburRevealFraction(float elapsedSeconds, float speed, float bandWidth)
+        {
+            float revealSeconds = Mathf.Max(0.01f, Mathf.Max(0.05f, bandWidth) / Mathf.Max(0.1f, speed));
+            return Mathf.Clamp01(Mathf.Max(0f, elapsedSeconds) / revealSeconds);
         }
 
         void ApplyDirectionRoll(Vector2 visualDirection)

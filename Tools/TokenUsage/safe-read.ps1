@@ -90,7 +90,7 @@ function Quote-PowerShellValue {
 $fileArg = Quote-PowerShellValue $Path
 
 if ($Last -gt 0) {
-    $command = "Get-Content -LiteralPath $fileArg -Encoding UTF8 -Tail $Last"
+    $command = "`$ErrorActionPreference = 'Stop'; Get-Content -LiteralPath $fileArg -Encoding UTF8 -Tail $Last"
     $argsForSafe = @{ Command = $command }
     if ($PrintOutput) { $argsForSafe.PrintOutput = $true }
     & "$PSScriptRoot\Safe-Command.ps1" @argsForSafe
@@ -101,6 +101,7 @@ if (-not [string]::IsNullOrWhiteSpace($Pattern)) {
     $effectivePattern = if ($LiteralPattern) { [regex]::Escape($Pattern) } else { $Pattern }
     $patternArg = Quote-PowerShellValue $effectivePattern
     $command = @"
+`$ErrorActionPreference = 'Stop'
 `$lines = Get-Content -LiteralPath $fileArg -Encoding UTF8
 `$pattern = $patternArg
 `$matchLines = @()
@@ -136,7 +137,7 @@ if ($StartLine -gt 0 -or $EndLine -gt 0) {
         $count = 80
     }
     $skip = $start - 1
-    $command = "Get-Content -LiteralPath $fileArg -Encoding UTF8 | Select-Object -Skip $skip -First $count"
+    $command = "`$ErrorActionPreference = 'Stop'; Get-Content -LiteralPath $fileArg -Encoding UTF8 | Select-Object -Skip $skip -First $count"
     $argsForSafe = @{ Command = $command }
     if ($PrintOutput) { $argsForSafe.PrintOutput = $true }
     & "$PSScriptRoot\Safe-Command.ps1" @argsForSafe

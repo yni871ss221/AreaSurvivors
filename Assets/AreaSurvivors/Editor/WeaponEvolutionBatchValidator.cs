@@ -22,6 +22,12 @@ namespace AreaSurvivors.EditorTools
         const string FireMissileCooldownMarkerRelativePath = "Library/AreaSafeUnity/fire-missile-cooldown-validator.ok";
         const string FireMissileHomingMarkerRelativePath = "Library/AreaSafeUnity/fire-missile-homing-validator.ok";
 
+        static string SuccessMarkerPath => Path.Combine(
+            Path.GetDirectoryName(Application.dataPath),
+            "Library",
+            "AreaSafeUnity",
+            "weapon-evolution-batch-validator.success");
+
         static readonly Color LockedIconColor = new Color(0f, 0f, 0f, 0.78f);
 
         sealed class Spec
@@ -113,7 +119,10 @@ namespace AreaSurvivors.EditorTools
         [MenuItem("Area Survivors/Validate/Weapon Evolution Batch")]
         public static void ValidateMenu()
         {
+            if (File.Exists(SuccessMarkerPath)) File.Delete(SuccessMarkerPath);
             if (!ValidateAll(true)) throw new InvalidOperationException("Weapon evolution batch validation failed.");
+            Directory.CreateDirectory(Path.GetDirectoryName(SuccessMarkerPath));
+            File.WriteAllText(SuccessMarkerPath, DateTime.UtcNow.ToString("O"));
         }
 
         public static bool ValidateAll(bool logSuccess)
@@ -131,13 +140,18 @@ namespace AreaSurvivors.EditorTools
             foreach (var spec in NewSpecs)
             {
                 icons[spec.type] = ValidateSprite(SpriteRoot + spec.assetName + "Icon.png", 100f, 96, 96, ref errors);
-                int effectHeight = spec.type == WeaponType.MachineGun
+                // Excalibur uses the full-thickness sector texture.  The Mesh defines the combat
+                // silhouette, while this 576x192 texture supplies its surface detail.
+                int effectWidth = spec.type == WeaponType.Excalibur ? 576 : spec.effectSize;
+                int effectHeight = spec.type == WeaponType.Excalibur
+                    ? 192
+                    : spec.type == WeaponType.MachineGun
                     ? 40
                     : spec.type == WeaponType.FrostStorm
                         ? 166
                         : spec.effectSize;
                 var effect = ValidateSprite(SpriteRoot + spec.effectAssetName + ".png", spec.effectPixelsPerUnit,
-                    spec.effectSize, effectHeight, ref errors);
+                    effectWidth, effectHeight, ref errors);
                 string prefabPath = PrefabRoot + spec.prefabName;
                 var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
                 var expectedPrefabSprite = spec.type == WeaponType.GoldenBow
@@ -146,11 +160,22 @@ namespace AreaSurvivors.EditorTools
                         ? AssetDatabase.LoadAssetAtPath<Sprite>(SpriteRoot + "ArrowShowerImpactFrame01.png")
                         : effect;
                 prefabs[spec.type] = prefab;
-                if (prefab == null || !HasRequiredComponent(prefab, spec.requiredComponent) || !HasPrefabSprite(prefab, expectedPrefabSprite) ||
+                bool hasExpectedVisual = spec.type == WeaponType.Excalibur
+                    ? HasExcaliburSectorVisual(prefab, effect != null ? effect.texture : null)
+                    : HasPrefabSprite(prefab, expectedPrefabSprite);
+                if (prefab == null || !HasRequiredComponent(prefab, spec.requiredComponent) || !hasExpectedVisual ||
                     (spec.type == WeaponType.ArrowShower && prefab.GetComponent<ArrowRainAreaVisual>() == null))
                 {
                     Error("Evolution prefab component or static sprite is invalid: " + prefabPath, ref errors);
                 }
+            }
+            var excaliburVisual = prefabs[WeaponType.Excalibur] != null
+                ? prefabs[WeaponType.Excalibur].transform.Find("Sector Visual")
+                : null;
+            if (excaliburVisual == null || !HasZeroPitch(excaliburVisual) ||
+                Mathf.Abs(Mathf.DeltaAngle(excaliburVisual.localEulerAngles.z, 0f)) > 0.1f)
+            {
+                Error("Excalibur sector visual must face local +X with zero rotation.", ref errors);
             }
             if (icons.Any(pair => pair.Value == null)) Error("One or more evolution HUD icons are missing.", ref errors);
 
@@ -540,13 +565,47 @@ namespace AreaSurvivors.EditorTools
             var config = AssetDatabase.LoadAssetAtPath<GameConfig>("Assets/AreaSurvivors/Resources/Config/GameConfig.asset");
             if (config == null || config.swordRushBaseAttackPower != 16 || !Mathf.Approximately(config.swordRushBaseRange, 3.2f) ||
                 config.swordRushStrikeCount != 5 || !Mathf.Approximately(config.bananaBaseRange, 1.4f) || config.bananaBaseProjectileCountBonus != 3 ||
-                !Mathf.Approximately(config.excaliburTravelSpeedCellsPerSecond, 5f) || !Mathf.Approximately(config.excaliburDamageIntervalSeconds, 0.2f) ||
+                !Mathf.Approximately(WeaponController.ExcaliburBaseRangeMultiplier, 1f) ||
+                !Mathf.Approximately(config.excaliburTravelSpeedCellsPerSecond, 10f) || !Mathf.Approximately(config.excaliburDamageIntervalSeconds, 0.2f) ||
+                !Mathf.Approximately(config.excaliburCooldownSeconds, 5f) || !Mathf.Approximately(config.excaliburBandWidthCells, 3f) ||
+                !Mathf.Approximately(config.excaliburBaseArcDegrees, 30f) || !Mathf.Approximately(config.excaliburMaxArcDegrees, 150f) ||
+                !Mathf.Approximately(config.excaliburInitialRadiusCells, 0.25f) ||
                 !Mathf.Approximately(config.arrowShowerStrikeIntervalSeconds, 0.25f) || !Mathf.Approximately(config.evolvedGroundStrikeRadius, 0.7f) ||
                 !Mathf.Approximately(config.machineGunShotIntervalSeconds, 0.2f) || config.machineGunBaseAttackCountBonus != 10 ||
                 !Mathf.Approximately(config.fireMissileBaseCooldownMultiplier, 0.5f) ||
                 config.frostStormTargetCount != 5 || config.thunderStormOrbitCount != 3 || config.goddessBlessingHealAmount != 5)
             {
                 Error("GameConfig weapon evolution base values are invalid.", ref errors);
+            }
+            if (config == null) return;
+
+            float auraBaseRange = config.GetWeaponStats(WeaponType.AuraSword, 1).range;
+            float baseArc = AdvancedWeaponProjectile.CalculateExcaliburArcDegrees(
+                auraBaseRange, auraBaseRange, config.excaliburBaseArcDegrees, config.excaliburMaxArcDegrees);
+            float doubledRangeArc = AdvancedWeaponProjectile.CalculateExcaliburArcDegrees(
+                auraBaseRange * 2f, auraBaseRange, config.excaliburBaseArcDegrees, config.excaliburMaxArcDegrees);
+            float initialLength = TileGrid.DefaultCellSize * config.excaliburInitialRadiusCells;
+            float nearLength = AdvancedWeaponProjectile.CalculateExcaliburLength(0f, 5f, initialLength, 10f);
+            float farLength = AdvancedWeaponProjectile.CalculateExcaliburLength(1f, 5f, initialLength, 10f);
+            float oneStrikeBandWidth = AdvancedWeaponProjectile.CalculateExcaliburBandWidth(config.excaliburBandWidthCells, 1);
+            float tripleStrikeBandWidth = AdvancedWeaponProjectile.CalculateExcaliburBandWidth(config.excaliburBandWidthCells, 3);
+            float excaliburInnerRadius = ExcaliburSectorVisual.CalculateInnerRadius(5f, 3f);
+            Vector2 insideOffset = new Vector2(Mathf.Cos(14f * Mathf.Deg2Rad), Mathf.Sin(14f * Mathf.Deg2Rad)) * 4f;
+            Vector2 outsideOffset = new Vector2(Mathf.Cos(16f * Mathf.Deg2Rad), Mathf.Sin(16f * Mathf.Deg2Rad)) * 4f;
+            Vector2 annularInsideOffset = Vector2.right * 4f;
+            Vector2 annularHoleOffset = Vector2.right;
+            if (!Mathf.Approximately(baseArc, 30f) || !Mathf.Approximately(doubledRangeArc, 60f) || farLength <= nearLength ||
+                !Mathf.Approximately(oneStrikeBandWidth, TileGrid.DefaultCellSize * 3f) ||
+                !Mathf.Approximately(tripleStrikeBandWidth, oneStrikeBandWidth * 3f) || !Mathf.Approximately(excaliburInnerRadius, 2f) ||
+                !TileGrid.IsPointInsideSector(insideOffset, Vector2.right, 5f, baseArc * 0.5f) ||
+                TileGrid.IsPointInsideSector(outsideOffset, Vector2.right, 5f, baseArc * 0.5f))
+            {
+                Error("Excalibur sector must grow forward, start at 30 degrees, widen with range, and sample one slash texture band.", ref errors);
+            }
+            if (!TileGrid.IsPointInsideAnnularSector(annularInsideOffset, Vector2.right, 5f, excaliburInnerRadius, baseArc * 0.5f) ||
+                TileGrid.IsPointInsideAnnularSector(annularHoleOffset, Vector2.right, 5f, excaliburInnerRadius, baseArc * 0.5f))
+            {
+                Error("Excalibur visual, collider, and paint range must use the same annular sector.", ref errors);
             }
         }
 
@@ -574,6 +633,21 @@ namespace AreaSurvivors.EditorTools
                 if (property != null && property.objectReferenceValue == expected) return true;
             }
             return prefab.GetComponentsInChildren<SpriteRenderer>(true).Any(renderer => renderer.sprite == expected);
+        }
+
+        static bool HasExcaliburSectorVisual(GameObject prefab, Texture2D expectedTexture)
+        {
+            if (prefab == null || expectedTexture == null) return false;
+            var visual = prefab.GetComponent<ExcaliburSectorVisual>();
+            var polygon = prefab.GetComponent<PolygonCollider2D>();
+            if (visual == null || polygon == null || !polygon.isTrigger || prefab.GetComponent<CircleCollider2D>() != null) return false;
+            if (prefab.GetComponentsInChildren<PaperMeshVisual>(true).Length != 0) return false;
+            if (visual.SectorMeshFilter == null || visual.SectorRenderer == null || visual.SectorCollider != polygon || visual.EffectMaterial == null) return false;
+            var material = visual.EffectMaterial;
+            return material.mainTexture == expectedTexture &&
+                Mathf.Approximately(material.color.a, 0.55f) &&
+                Vector2.Distance(material.mainTextureScale, Vector2.one) < 0.001f &&
+                Vector2.Distance(material.mainTextureOffset, Vector2.zero) < 0.001f;
         }
 
         static Sprite GetPrefabSprite(GameObject prefab)

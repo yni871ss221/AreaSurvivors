@@ -170,6 +170,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   visualScaleRoot: {fileID: 1998055558602521645}
+  healPopupPrefab: {fileID: 0}
+  healPopupOffset: {x: 0, y: 0.58, z: 0}
 --- !u!114 &3681098203734679133
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -91,7 +91,11 @@ namespace AreaSurvivors
             }
 
             var stats = weapon.GetEffectiveWeaponStatsFor(type);
-            cooldownTimers[type] = Mathf.Max(0.05f, stats.cooldownSeconds);
+            var displayType = weapon.GetDisplayWeaponType(type);
+            float cooldown = displayType == WeaponType.Excalibur && config != null
+                ? config.excaliburCooldownSeconds
+                : stats.cooldownSeconds;
+            cooldownTimers[type] = Mathf.Max(0.05f, cooldown);
             Launch(type, stats);
         }
 
@@ -361,6 +365,12 @@ namespace AreaSurvivors
                 DestroyThunderStormOrbits();
                 thunderStormOrbits.Clear();
                 for (int i = 0; i < orbitCount; i++) SpawnOrbitProjectile(displayType, stats, i, orbitCount);
+                yield break;
+            }
+
+            if (displayType == WeaponType.Excalibur)
+            {
+                SpawnProjectile(displayType, stats, DirectionForProjectile(displayType), true);
                 yield break;
             }
 

@@ -510,6 +510,7 @@ namespace AreaSurvivors
         public void RegisterKill()
         {
             kills++;
+            SteamAchievementRuntime.ReportTotalKills(ProgressionStore.Data.totalKills + kills);
             if (kills % 100 == 0) CombatModifiersChanged?.Invoke();
             AwardKillTokens();
         }
@@ -1435,7 +1436,7 @@ namespace AreaSurvivors
             bool firstClear = IsFirstBossDefeatForCurrentStage(boss);
             int defeatedDifficulty = ProgressionStore.GetStageDifficulty(currentStage);
             int bossTokenReward = boss != null ? Mathf.Max(0, boss.tokenValue) : 0;
-            bool unlockedNextStage = ProgressionStore.MarkStageCleared(currentStage);
+            bool unlockedNextStage = ProgressionStore.MarkStageCleared(currentStage, defeatedDifficulty);
             UnlockNextDifficultyForBossClear(currentStage, defeatedDifficulty);
             RecordBossClear(boss, firstClear, unlockedNextStage, unlockedNextStage ? currentStage + 1 : 0);
             ReviveBuildingsOnBossDefeat();
@@ -1534,12 +1535,59 @@ namespace AreaSurvivors
         IEnumerator StageTransitionRoutine(EnemyController boss, int nextStage)
         {
             gameEnding = true;
-            spawner?.StopAndClearEnemies(boss);
+            spawner?.StopSpawning();
+            yield return DefeatRemainingEnemiesForStageTransition(boss);
             ShowAnnouncement("ROUND " + nextStage);
             yield return new WaitForSeconds(1.2f);
             if (boss != null) Destroy(boss.gameObject);
             gameEnding = false;
             BeginStage(nextStage, 0f, true);
+        }
+
+        IEnumerator DefeatRemainingEnemiesForStageTransition(EnemyController boss)
+        {
+            var remainingEnemies = new List<EnemyController>();
+            foreach (var enemy in FindObjectsOfType<EnemyController>())
+            {
+                if (enemy == null || enemy == boss || enemy.boss) continue;
+                enemy.SetActionLocked(true, enemy.FacingDirection);
+                remainingEnemies.Add(enemy);
+            }
+
+            if (screenFade != null)
+            {
+                yield return screenFade.FlashWhite(
+                    config != null ? config.stageTransitionFlashPeakAlpha : 0.92f,
+                    config != null ? config.stageTransitionFlashInSeconds : 0.05f,
+                    config != null ? config.stageTransitionFlashHoldSeconds : 0.06f,
+                    config != null ? config.stageTransitionFlashOutSeconds : 0.2f);
+            }
+
+            float hitDelaySeconds = config != null ? config.stageTransitionEnemyHitDelaySeconds : 0.24f;
+            foreach (var enemy in remainingEnemies)
+            {
+                if (enemy != null) enemy.BeginStageTransitionDefeat(hitDelaySeconds);
+            }
+
+            float timeoutSeconds = config != null ? config.stageTransitionEnemyDefeatTimeoutSeconds : 1.2f;
+            float elapsedSeconds = 0f;
+            while (elapsedSeconds < timeoutSeconds)
+            {
+                bool anyRemaining = false;
+                foreach (var enemy in remainingEnemies)
+                {
+                    if (enemy == null) continue;
+                    anyRemaining = true;
+                    break;
+                }
+
+                if (!anyRemaining) yield break;
+                elapsedSeconds += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            Debug.LogError("Stage transition enemy defeat timed out. Remaining enemies will be cleared without rewards.");
+            spawner?.StopAndClearEnemies(boss);
         }
 
         public void ShowAnnouncement(string message)

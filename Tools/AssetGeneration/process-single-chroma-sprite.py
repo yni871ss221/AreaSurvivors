@@ -26,6 +26,11 @@ def parse_args() -> argparse.Namespace:
 
 
 def remove_chroma(args: argparse.Namespace, destination: Path, edge_contract: bool) -> None:
+    # The fringe retry writes to the same temporary matte path. The helper
+    # intentionally refuses accidental overwrites, so clear only this
+    # script-owned temporary output before invoking it again.
+    if destination.exists():
+        destination.unlink()
     command = [
         str(args.python),
         str(args.helper),

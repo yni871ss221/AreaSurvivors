@@ -18,6 +18,7 @@
 - プレイヤーの方向別歩行はAnimatorを正とする。キャラクター選択に伴うController選択は許可するが、選択後の方向・歩行フレームをRuntimeコードからSprite差し替えしてはならない。敵の方向別歩行は大量表示時の更新負荷と既存分散更新を比較し、共通Controller・共有Clipで同等以下の負荷を静的設計または限定計測で確認できた単位から段階移行する。
 - `PaperMeshVisual`を維持するキャラクターAnimatorは、Clipからserialized field `sourceSprite`だけをPPtr Curveで変更し、`OnDidApplyAnimationProperties()`でMeshを反映する。Runtimeから`PaperMeshVisual.sprite`を歩行フレームごとに差し替えず、位置、Scale、Collider、YSort、遮蔽表示、アウトラインを移行時に変更しない。
 - 画像を切り替えない建造物バウンス、単発着弾Spriteの拡大フェード、敵被弾時の白Overlay、PixelBurst、Projectileの移動・ホーミング・周回、範囲Mesh、Collider、ダメージ時刻はRuntime制御を維持する。フレーム画像を持つ爆発と混同して一括移行しない。
+- `[ExecuteAlways]` の範囲Meshは、`Awake`、`OnValidate`、`CheckConsistency`中に`MeshFilter.sharedMesh`を設定・差し替えしない。形状変更はdirty flagへ記録して次の`Update`等の許可されたタイミングで反映し、`OnMeshFilterChanged`の`SendMessage cannot be called`警告を防ぐ。
 - Animator移行後は旧Runtimeフレーム切り替えComponentとコードを削除する。Prefabに無効Componentとして残すこと、Runtime fallbackでSprite配列へ戻すことを禁止し、専用ValidatorでAnimator/Controller/Clip参照、Rotation X/Y=0、旧Component不在を確認する。
 - 旧Animation MonoBehaviourのScript/`.meta`削除はPrefab移行完了後に行う。先に削除済みでMissing Scriptになった場合は、移行対象Prefabの全Transformへ`RemoveMonoBehavioursWithMissingScript`を適用し、全階層の欠損数0をassertする。Prefab保存は`SaveAsPrefabAsset`の戻り値を検査し、保存失敗をConsole Errorだけに残して処理継続しない。
 - `PaperMeshVisual`から`SpriteRenderer`へ同一GameObject上で移行する場合は、旧Sprite・色・Sorting Orderを先に読み取り、`PaperMeshVisual`、`PaperBillboard`、`MeshFilter`、`MeshRenderer`を除去してから`SpriteRenderer`を追加する。Mesh系Componentが残った状態でSpriteRendererを追加しない。
