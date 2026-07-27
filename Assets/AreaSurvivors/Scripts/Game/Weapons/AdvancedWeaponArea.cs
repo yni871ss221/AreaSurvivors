@@ -11,6 +11,8 @@ namespace AreaSurvivors
         [SerializeField] GameObject healPopupPrefab;
         [SerializeField] Vector3 healPopupOffset = new Vector3(0f, 0.58f, 0f);
         readonly Dictionary<Health, float> hitTimers = new Dictionary<Health, float>();
+        readonly HashSet<EnemyController> scannedEnemies = new HashSet<EnemyController>();
+        Collider2D[] overlapBuffer = new Collider2D[128];
         Transform followTarget;
         float radius;
         float verticalRadiusMultiplier = 1f;
@@ -27,8 +29,11 @@ namespace AreaSurvivors
         int allyHealAmount;
         float nextHealAt;
         float activateAt;
+        float nextEnemyScanAt;
         bool activated;
         bool configured;
+        const float SlowRefreshIntervalSeconds = 0.2f;
+        const int MaximumOverlapBufferSize = 4096;
 
         public void Configure(
             Transform target,
@@ -75,6 +80,7 @@ namespace AreaSurvivors
             sourceWeaponType = weaponType;
             activateAt = Time.time + Mathf.Max(0f, activationDelaySeconds);
             activated = activationDelaySeconds <= 0f;
+            if (!configured) nextEnemyScanAt = Time.time;
             int previousHealAmount = allyHealAmount;
             allyHealAmount = Mathf.Max(0, healAmount);
             if (!configured || (previousHealAmount <= 0 && allyHealAmount > 0)) nextHealAt = Time.time;
@@ -126,7 +132,11 @@ namespace AreaSurvivors
                 nextSfxAt = Time.time + sfxInterval;
             }
 
-            DamageEnemiesInRadius();
+            if (Time.time >= nextEnemyScanAt)
+            {
+                nextEnemyScanAt = Time.time + CalculateEnemyScanInterval(damageInterval, slowAmount);
+                DamageEnemiesInRadius();
+            }
             HealAlliesInRadius();
         }
 
@@ -139,7 +149,7 @@ namespace AreaSurvivors
             HealIfInside(playerHealth);
             var towerHealth = manager != null && manager.Tower != null ? manager.Tower.GetComponent<Health>() : null;
             HealIfInside(towerHealth);
-            var buildings = FindObjectsOfType<BuildingPersistentState>();
+            var buildings = FindObjectsOfType<BuildingRevivalState>();
             for (int i = 0; i < buildings.Length; i++)
             {
                 if (buildings[i] == null) continue;
@@ -164,21 +174,46 @@ namespace AreaSurvivors
         void DamageEnemiesInRadius()
         {
             float searchRadius = Mathf.Max(radius, radius * verticalRadiusMultiplier);
-            var colliders = Physics2D.OverlapCircleAll(transform.position, searchRadius);
-            for (int i = 0; i < colliders.Length; i++)
+            int colliderCount = QueryOverlapCircle(searchRadius);
+            CombatPerformanceDiagnostics.RecordAreaOverlapQuery(colliderCount);
+            scannedEnemies.Clear();
+            for (int i = 0; i < colliderCount; i++)
             {
-                var enemy = colliders[i] != null ? colliders[i].GetComponentInParent<EnemyController>() : null;
+                var collider = overlapBuffer[i];
+                var enemy = collider != null ? collider.GetComponentInParent<EnemyController>() : null;
                 if (enemy == null) continue;
-                if (!ContainsPoint(colliders[i].ClosestPoint(transform.position))) continue;
+                if (!ContainsPoint(collider.ClosestPoint(transform.position))) continue;
+                if (!scannedEnemies.Add(enemy)) continue;
                 if (slowAmount > 0f) EnemySlowEffect.Apply(enemy.gameObject, slowAmount, 0.25f);
                 var health = enemy.GetComponent<Health>();
                 if (health == null || health.IsDead) continue;
                 if (!CanHit(health)) continue;
                 if (damage <= 0) continue;
+                CombatPerformanceDiagnostics.RecordAreaDamageAttempt();
                 int creditedDamage = health.DamageAmount(damage);
-                health.Damage(damage, enemy.transform.position);
+                int dealt = health.Damage(damage, enemy.transform.position);
+                if (dealt > 0) CombatPerformanceDiagnostics.RecordAreaDamageHit();
                 GameManager.Instance?.RegisterWeaponDamage(sourceWeaponType, creditedDamage);
             }
+        }
+
+        int QueryOverlapCircle(float searchRadius)
+        {
+            while (true)
+            {
+                int count = Physics2D.OverlapCircleNonAlloc(transform.position, searchRadius, overlapBuffer);
+                if (count < overlapBuffer.Length || overlapBuffer.Length >= MaximumOverlapBufferSize) return count;
+                int nextSize = Mathf.Min(MaximumOverlapBufferSize, overlapBuffer.Length * 2);
+                overlapBuffer = new Collider2D[nextSize];
+            }
+        }
+
+        public static float CalculateEnemyScanInterval(float intervalSeconds, float slow)
+        {
+            float damageScanInterval = Mathf.Max(0.05f, intervalSeconds);
+            return slow > 0f
+                ? Mathf.Min(damageScanInterval, SlowRefreshIntervalSeconds)
+                : damageScanInterval;
         }
 
         void PaintTerritoryIfNeeded()

@@ -13,9 +13,9 @@ if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
     throw "safe-read-batch path must be an existing file (guard_code: 33): $Path"
 }
 
-$rangeItems = @($Ranges.Split(';') | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" })
+$rangeItems = @($Ranges -split '[;,]' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" })
 if ($rangeItems.Count -lt 1 -or $rangeItems.Count -gt 8) {
-    throw "safe-read-batch requires 1 to 8 semicolon-separated ranges (guard_code: 38)."
+    throw "safe-read-batch requires 1 to 8 semicolon- or comma-separated ranges (guard_code: 38)."
 }
 
 $safeReadPath = Join-Path $PSScriptRoot "safe-read.ps1"
@@ -32,7 +32,14 @@ foreach ($rangeItem in $rangeItems) {
 
     $chunkStart = $startLine
     while ($chunkStart -le $endLine) {
-        $chunkEnd = if ($AllowMany) { $endLine } else { [Math]::Min($endLine, $chunkStart + 79) }
+        # Interactive output remains bounded even if callers mistakenly combine
+        # -AllowMany with -PrintOutput. Remove -PrintOutput to request one large
+        # capture-only range intentionally.
+        $chunkEnd = if ($AllowMany -and -not $PrintOutput) {
+            $endLine
+        } else {
+            [Math]::Min($endLine, $chunkStart + 79)
+        }
         Write-Output "safe_read_batch_range: $chunkStart-$chunkEnd"
         $arguments = @{
             Path = $Path
@@ -40,7 +47,7 @@ foreach ($rangeItem in $rangeItems) {
             EndLine = $chunkEnd
         }
         if ($PrintOutput) { $arguments.PrintOutput = $true }
-        if ($AllowMany) { $arguments.AllowMany = $true }
+        if ($AllowMany -and -not $PrintOutput) { $arguments.AllowMany = $true }
         & $safeReadPath @arguments
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         $chunkStart = $chunkEnd + 1

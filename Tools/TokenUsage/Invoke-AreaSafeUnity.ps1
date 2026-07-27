@@ -35,6 +35,16 @@ function Assert-SafeAssetPath {
     return $normalized
 }
 
+function Assert-ImportableAssetFilePath {
+    param([Parameter(Mandatory = $true)][string]$Value)
+    $normalized = Assert-SafeAssetPath $Value
+    $absolutePath = Join-Path (Get-Location).Path ($normalized.Replace('/', [System.IO.Path]::DirectorySeparatorChar))
+    if (-not (Test-Path -LiteralPath $absolutePath -PathType Leaf)) {
+        throw "guard_code: 47; AssetImport requires one existing asset file. Directory imports return success without recursively importing changed scripts. Use one AssetImport call per changed file or use AssetRefresh when a full refresh is intended. path=$normalized"
+    }
+    return $normalized
+}
+
 function Assert-SafeScreenshotPath {
     param([Parameter(Mandatory = $true)][string]$Value)
     $normalized = $Value.Replace("\", "/")
@@ -181,7 +191,7 @@ switch ($Action) {
     }
     "AssetImport" {
         if ([string]::IsNullOrWhiteSpace($AssetPath)) { throw "AssetImport requires -AssetPath." }
-        $normalizedAssetPath = Assert-SafeAssetPath $AssetPath
+        $normalizedAssetPath = Assert-ImportableAssetFilePath $AssetPath
         $command = "rtk unicli exec AssetDatabase.Import --path $(Quote-Value $normalizedAssetPath) --forceUpdate true"
     }
     "AssetRefresh" {
@@ -242,11 +252,24 @@ if ($AllowHighOutput) { $argsForSafe.AllowHighOutput = $true }
 
 if ($Action -eq "MenuExists") {
     if ($safeExitCode -eq 0) {
-        $menuPattern = '"path"\s*:\s*"' + [regex]::Escape($MenuPath) + '"'
-        if ($captured -notmatch $menuPattern) {
+        $menuRegistered = $false
+        try {
+            $menuList = $captured | ConvertFrom-Json
+            foreach ($item in @($menuList.items)) {
+                if ([string]::Equals([string]$item.path, $MenuPath, [System.StringComparison]::Ordinal)) {
+                    $menuRegistered = $true
+                    break
+                }
+            }
+        } catch {
+            [Console]::Error.WriteLine("guard_code: 24; Unity menu list response was not valid JSON: $($_.Exception.Message)")
+            $safeExitCode = 24
+        }
+
+        if ($safeExitCode -eq 0 -and -not $menuRegistered) {
             [Console]::Error.WriteLine("guard_code: 24; exact Unity menu item was not registered: $MenuPath. Stop here and inspect AssetDatabase import/compile output; do not fall back to Eval.")
             $safeExitCode = 24
-        } else {
+        } elseif ($safeExitCode -eq 0) {
             Write-Output ("menu_registered: {0}" -f $MenuPath)
             Write-Output ("capture_path: {0}" -f $safeRecord.capture_path)
         }

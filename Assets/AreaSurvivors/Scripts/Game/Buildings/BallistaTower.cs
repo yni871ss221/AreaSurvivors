@@ -163,7 +163,7 @@ namespace AreaSurvivors
         {
             var target = GetComponent<BuildingUpgradeTarget>();
             if (target == null) target = gameObject.AddComponent<BuildingUpgradeTarget>();
-            target.Configure(BuildingUpgradeKind.Ballista, 20, 50, "BallistaUpgrade", 100, 5);
+            target.Configure(BuildingUpgradeKind.Ballista, "BallistaUpgrade", 200, 5);
         }
 
         void ApplyConfiguredSpriteToVisuals()
@@ -304,7 +304,7 @@ namespace AreaSurvivors
             if (breaking) return;
             breaking = true;
             var cell = hasRegisteredCell ? registeredCell : grid != null ? grid.WorldToCell(transform.position) : OriginCell;
-            if (BuildingPersistentState.TryMarkDestroyed(gameObject, grid, cell)) return;
+            if (BuildingRevivalState.TryHandleDestroyed(gameObject, grid, cell)) return;
             if (grid != null)
             {
                 grid.ClearObject(cell);
@@ -350,12 +350,12 @@ namespace AreaSurvivors
         void TryShoot()
         {
             if (arrowPrefab == null) return;
-            var enemies = FindObjectsOfType<EnemyController>();
+            var enemies = EnemyController.ActiveEnemies;
             EnemyController nearest = null;
             float best = attackRange * attackRange;
             foreach (var enemy in enemies)
             {
-                float distance = (enemy.transform.position - transform.position).sqrMagnitude;
+                float distance = (enemy.AttackTargetPosition - transform.position).sqrMagnitude;
                 if (distance < best)
                 {
                     best = distance;
@@ -364,7 +364,7 @@ namespace AreaSurvivors
             }
 
             if (nearest == null) return;
-            var direction = (Vector2)(nearest.transform.position - transform.position);
+            var direction = (Vector2)(nearest.AttackTargetPosition - transform.position);
             var go = Instantiate(arrowPrefab, transform.position + (Vector3)(direction.normalized * 0.35f), Quaternion.identity);
             float speed = config != null ? config.projectileSpeed * 1.15f : 10f;
             var projectile = go.GetComponent<Projectile>();

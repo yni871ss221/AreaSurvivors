@@ -12,12 +12,32 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1de54e140f75de4418cc2a53ffedbf69, type: 3}
   m_Name: GameConfig
   m_EditorClassIdentifier: 
-  playerMoveSpeed: 2.1
-  playerMaxHp: 40
-  playerReviveSeconds: 6
+  knightBaseStats:
+    maxHp: 40
+    moveSpeed: 2.1
+    paintRadius: 1
+    reviveSeconds: 6
+    defense: 3
+    xpGainMultiplier: 1.1
+    autoRegen: 0
+  archerBaseStats:
+    maxHp: 30
+    moveSpeed: 2.4
+    paintRadius: 1
+    reviveSeconds: 6
+    defense: 1
+    xpGainMultiplier: 1
+    autoRegen: 0
+  mageBaseStats:
+    maxHp: 20
+    moveSpeed: 1.8
+    paintRadius: 2
+    reviveSeconds: 6
+    defense: 0
+    xpGainMultiplier: 1.3
+    autoRegen: 1
   playerReviveInvincibleSeconds: 2
   enemyTerritorySlow: 0.35
-  paintRadius: 1
   playerVisualScale: 1
   moveSpeedPerUpgradeLevel: 0.18
   paintRadiusLevelsPerBonus: 2
@@ -25,6 +45,11 @@ MonoBehaviour:
   playerLevelMaxHpBonus: 10
   playerLevelMoveSpeedBonus: 0.1
   playerLevelDefenseBonus: 0.5
+  xpRequirementGrowthStart: 1.35
+  xpRequirementGrowthEnd: 1.1
+  xpRequirementGrowthStartLevel: 2
+  xpRequirementGrowthEndLevel: 39
+  xpRequirementFlatBonus: 3
   reviveSecondsReductionPerUpgradeLevel: 0.7
   minReviveSeconds: 1
   runMoveSpeedMultiplier: 1.08
@@ -43,12 +68,12 @@ MonoBehaviour:
   cameraMinimumPosition: {x: -25, y: -25}
   cameraMaximumPosition: {x: 25, y: 25}
   cameraBoundsPadding: 0.25
-  towerMaxHp: 160
-  towerMaxHpPerUpgradeLevel: 12
+  towerMaxHp: 200
+  towerMaxHpPerUpgradeLevel: 30
   ballistaRange: 9.5
   ballistaCooldown: 1.15
   ballistaDamage: 5
-  ballistaMaxHp: 90
+  ballistaMaxHp: 150
   towerCannonRange: 10
   towerCannonCooldown: 3
   towerCannonDamage: 8
@@ -57,52 +82,49 @@ MonoBehaviour:
   towerCannonProjectileLifetime: 4.2
   towerCannonProjectileVisualScale: 0.32
   towerCannonKnockback: 2.2
-  towerUpgradeWoodCost: 300
-  towerUpgradeStoneCost: 300
   upgradedTowerMaxHp: 900
   upgradedTowerRegenBonus: 3
   upgradedTowerCannonDamageBonus: 10
   upgradedTowerCannonExplosionRadiusMultiplier: 2
   upgradedTowerImmediatePaintRadiusCells: 15
-  woodenWallMaxHp: 70
-  watchTowerMaxHp: 100
+  woodenWallMaxHp: 100
+  watchTowerMaxHp: 150
   watchTowerAutoPaintIntervalSeconds: 2
   watchTowerAutoPaintRadiusCells: 10
   watchTowerDamage: 1
   upgradedWatchTowerDamageBonus: 3
-  startingBallistaStock: 4
-  startingWallStock: 4
-  startingWood: 100
-  startingStone: 100
-  startingWoodPerUpgradeLevel: 25
-  startingStonePerUpgradeLevel: 25
-  woodenWallWoodCost: 10
-  woodenWallStoneCost: 0
-  ballistaWoodCost: 50
-  ballistaStoneCost: 30
-  watchTowerWoodCost: 50
-  watchTowerStoneCost: 50
-  harvestIntervalSeconds: 1
-  harvestAmountPerTick: 2
-  harvestAmount1Cell: 100
-  harvestAmount2Cell: 200
-  harvestAmount4Cell: 400
-  harvestAmount8Cell: 800
-  roundEndWoodReward: 10
-  roundEndStoneReward: 10
-  roundEndWoodRewardPerUpgradeLevel: 10
-  roundEndStoneRewardPerUpgradeLevel: 10
   baseAttackPower: 6
   slashCooldown: 1.05
   arrowCooldown: 0.75
   fireballCooldown: 1.45
   minAttackCooldownMultiplier: 0.45
   runAttackPowerBonus: 2
+  runReducedAttackPowerBonus: 1
   runAttackCooldownMultiplier: 0.92
+  runAreaRangeBonus: 0.2
+  runMediumRangeBonus: 0.375
+  runProjectileRangeBonus: 0.75
+  runWeaponKnockbackBonus: 0.5
+  runExplosionRadiusBonus: 0.375
+  runProjectileCountBonus: 1
+  runShieldRotationSpeedBonus: 20
+  runSlowBonus: 0.05
+  runArrowRainDurationBonus: 0.4
+  runThunderBallDurationBonus: 0.5
   slashDamageBonus: 2
   slashRange: 1.6
   slashOffset: 1.05
   swordRushBaseAttackPower: 16
+  goldenBowBaseAttackPower: 16
+  fireMissileBaseAttackPower: 16
+  dualShieldBaseAttackPower: 12
+  goddessBlessingBaseAttackPower: 12
+  bananaBaseAttackPower: 12
+  excaliburBaseAttackPower: 12
+  arrowShowerBaseAttackPower: 10
+  machineGunBaseAttackPower: 80
+  frostStormBaseAttackPower: 5
+  thunderStormBaseAttackPower: 10
   swordRushBaseRange: 3.2
   swordRushStrikeCount: 5
   swordRushStrikeIntervalSeconds: 0.09
@@ -120,7 +142,10 @@ MonoBehaviour:
   evolvedGroundStrikeTargetRadiusCells: 15
   machineGunShotIntervalSeconds: 0.2
   machineGunBaseAttackCountBonus: 10
-  fireMissileBaseCooldownMultiplier: 0.5
+  fireMissileBaseCooldownSeconds: 0.5
+  fireMissileProjectileSpeedMultiplier: 0.75
+  fireMissileLaunchArcDegrees: 180
+  fireMissileHomingTurnSpeedDegrees: 180
   frostStormTargetCount: 5
   thunderStormOrbitCount: 3
   goddessBlessingHealAmount: 5
@@ -134,6 +159,10 @@ MonoBehaviour:
   shieldHitCooldownSeconds: 0.35
   weaponSpecialEffectControlThreshold: 0.5
   weaponSpecialEffectMultiplier: 2
+  areaControlRangeScaleStartRatio: 0.5
+  areaControlRangeScaleFullRatio: 1
+  areaControlRangeScaleMaxMultiplier: 2
+  areaControlRangeEvaluationIntervalSeconds: 1
   slashWeaponLevels:
   - level: 1
     attackPower: 6
@@ -1184,7 +1213,7 @@ MonoBehaviour:
     distance: 7
   gunWeaponLevels:
   - level: 1
-    attackPower: 20
+    attackPower: 50
     cooldownSeconds: 3
     projectileSpeed: 17.25
     range: 10.5
@@ -1197,7 +1226,7 @@ MonoBehaviour:
     damageIntervalSeconds: 0.5
     distance: 10.5
   - level: 2
-    attackPower: 22
+    attackPower: 52
     cooldownSeconds: 2.85
     projectileSpeed: 17.25
     range: 10.849999
@@ -1210,7 +1239,7 @@ MonoBehaviour:
     damageIntervalSeconds: 0.5
     distance: 10.849999
   - level: 3
-    attackPower: 24
+    attackPower: 54
     cooldownSeconds: 2.6999998
     projectileSpeed: 17.25
     range: 11.2
@@ -1223,7 +1252,7 @@ MonoBehaviour:
     damageIntervalSeconds: 0.5
     distance: 11.2
   - level: 4
-    attackPower: 26
+    attackPower: 56
     cooldownSeconds: 2.5500002
     projectileSpeed: 17.25
     range: 11.55
@@ -1236,7 +1265,7 @@ MonoBehaviour:
     damageIntervalSeconds: 0.5
     distance: 11.55
   - level: 5
-    attackPower: 28
+    attackPower: 58
     cooldownSeconds: 2.4
     projectileSpeed: 17.25
     range: 11.9
@@ -1249,7 +1278,7 @@ MonoBehaviour:
     damageIntervalSeconds: 0.5
     distance: 11.9
   - level: 6
-    attackPower: 30
+    attackPower: 60
     cooldownSeconds: 2.25
     projectileSpeed: 17.25
     range: 12.25
@@ -1262,7 +1291,7 @@ MonoBehaviour:
     damageIntervalSeconds: 0.5
     distance: 12.25
   - level: 7
-    attackPower: 32
+    attackPower: 62
     cooldownSeconds: 2.1
     projectileSpeed: 17.25
     range: 12.599999
@@ -1275,7 +1304,7 @@ MonoBehaviour:
     damageIntervalSeconds: 0.5
     distance: 12.599999
   - level: 8
-    attackPower: 34
+    attackPower: 64
     cooldownSeconds: 1.9499999
     projectileSpeed: 17.25
     range: 12.95
@@ -1288,7 +1317,7 @@ MonoBehaviour:
     damageIntervalSeconds: 0.5
     distance: 12.95
   - level: 9
-    attackPower: 36
+    attackPower: 66
     cooldownSeconds: 1.8000001
     projectileSpeed: 17.25
     range: 13.3
@@ -1301,7 +1330,7 @@ MonoBehaviour:
     damageIntervalSeconds: 0.5
     distance: 13.3
   - level: 10
-    attackPower: 38
+    attackPower: 68
     cooldownSeconds: 1.6500001
     projectileSpeed: 17.25
     range: 13.65
@@ -1581,23 +1610,15 @@ MonoBehaviour:
   advancedNormalEnemyKnockbackWeight: 2
   eliteEnemyKnockbackWeight: 2
   bossEnemyKnockbackWeight: 10
-  baseDefense: 0
-  baseXpGainMultiplier: 1
-  baseAutoRegen: 0
+  bossEnemyCollisionMass: 1000000
   autoRegenIntervalSeconds: 2
-  baseWorkSpeedMultiplier: 1
-  baseResourceGainBonus: 0
   defensePerUpgradeLevel: 1
   xpGainMultiplierPerUpgradeLevel: 0.1
   autoRegenPerUpgradeLevel: 1
-  workSpeedMultiplierPerUpgradeLevel: 0.1
-  resourceGainPerUpgradeLevel: 1
   runKnockbackBonus: 1
   runDefenseBonus: 1
   runXpGainMultiplierBonus: 0.1
   runAutoRegenBonus: 1
-  runWorkSpeedMultiplierBonus: 0.1
-  runResourceGainBonus: 1
   ballistaRangePerUpgradeLevel: 0.75
   ballistaDamagePerUpgradeLevel: 2
   wallMaxHpPerSkill: 20
@@ -1609,12 +1630,13 @@ MonoBehaviour:
   roundEndTokenReward: 3
   roundEndTokenRewardPerUpgradeLevel: 1
   eliteTimedSpawnCountPerUpgradeLevel: 1
-  autoBuildSpeedPerUpgradeLevel: 0.1
   baseRoundTimeLimitSeconds: 60
   projectileSpeed: 11.5
   projectileLifetime: 4.2
   projectileVisualScale: 1.35
   enemyBaseSpeed: 0.9
+  enemyMoveSpeedBonusPerStage: 0.2
+  normalEnemyPlayerAggroRangeCells: 5
   enemyVisualScale: 1
   enemyBaseHp: 14
   enemyDamage: 3
@@ -1637,11 +1659,17 @@ MonoBehaviour:
   bossShockwaveDisplaySeconds: 1
   bossShockwaveSizeCells: {x: 2, y: 2}
   bossShockwaveDamageMultiplier: 1
+  stageTransitionFlashPeakAlpha: 0.92
+  stageTransitionFlashInSeconds: 0.05
+  stageTransitionFlashHoldSeconds: 0.06
+  stageTransitionFlashOutSeconds: 0.2
+  stageTransitionEnemyHitDelaySeconds: 0.24
+  stageTransitionEnemyDefeatTimeoutSeconds: 1.2
   goblinLordDarkOrbSpeed: 2.4
   goblinLordDarkOrbLifetimeSeconds: 8
   goblinLordDarkOrbDamageRadius: 1.25
   goblinLordDarkOrbDamageIntervalSeconds: 0.45
-  goblinLordDarkOrbDamageMultiplier: 0.25
+  goblinLordDarkOrbDamageMultiplier: 0.5
   goblinLordDarkOrbVisualScale: 1
   lichSummonRadius: 4
   lichSummonCircleDurationSeconds: 2.2
@@ -1653,7 +1681,7 @@ MonoBehaviour:
   dragonBreathRangeCells: 15
   dragonBreathHitboxSizeCells: {x: 3, y: 3}
   dragonBreathExplosionRadiusCells: 3
-  dragonBreathDamageMultiplier: 0.5
+  dragonBreathDamageMultiplier: 0.75
   dragonBreathProjectileVisualScale: 1
   dragonBreathExplosionDurationSeconds: 0.28
   enemyDefinitions:
@@ -1662,7 +1690,7 @@ MonoBehaviour:
     spriteKey: EnemyBoar
     animationSpeedMultiplier: 1
     hpMultiplier: 1
-    damageMultiplier: 1
+    damageMultiplier: 2
     speedMultiplier: 1
     cellSize: 1
     xpValue: 1
@@ -1676,10 +1704,10 @@ MonoBehaviour:
     spriteKey: EnemyBoar
     animationSpeedMultiplier: 1
     hpMultiplier: 5
-    damageMultiplier: 2
+    damageMultiplier: 4
     speedMultiplier: 0.95
     cellSize: 1.5
-    xpValue: 6
+    xpValue: 5
     tokenValue: 1
     elite: 1
     boss: 0
@@ -1690,10 +1718,10 @@ MonoBehaviour:
     spriteKey: EnemyOrc
     animationSpeedMultiplier: 0.5
     hpMultiplier: 2
-    damageMultiplier: 2
+    damageMultiplier: 3
     speedMultiplier: 0.82
     cellSize: 2
-    xpValue: 3
+    xpValue: 2
     tokenValue: 0
     elite: 0
     boss: 0
@@ -1704,10 +1732,10 @@ MonoBehaviour:
     spriteKey: EnemyOrc
     animationSpeedMultiplier: 0.5
     hpMultiplier: 10
-    damageMultiplier: 4
+    damageMultiplier: 6
     speedMultiplier: 0.76
     cellSize: 2.5
-    xpValue: 12
+    xpValue: 10
     tokenValue: 1
     elite: 1
     boss: 0
@@ -1717,11 +1745,11 @@ MonoBehaviour:
     displayName: "\u30AA\u30FC\u30AF\u30AD\u30F3\u30B0"
     spriteKey: EnemyOrcKing
     animationSpeedMultiplier: 0.5
-    hpMultiplier: 40
+    hpMultiplier: 80
     damageMultiplier: 8
-    speedMultiplier: 0.62
+    speedMultiplier: 0.31
     cellSize: 4
-    xpValue: 50
+    xpValue: 80
     tokenValue: 3
     elite: 0
     boss: 1
@@ -1731,11 +1759,11 @@ MonoBehaviour:
     displayName: "\u30B4\u30D6\u30EA\u30F3"
     spriteKey: EnemyGoblin
     animationSpeedMultiplier: 0.35
-    hpMultiplier: 2
-    damageMultiplier: 2
+    hpMultiplier: 4
+    damageMultiplier: 4
     speedMultiplier: 1
     cellSize: 1
-    xpValue: 2
+    xpValue: 4
     tokenValue: 0
     elite: 0
     boss: 0
@@ -1745,76 +1773,6 @@ MonoBehaviour:
     displayName: "\u30A8\u30EA\u30FC\u30C8\u30B4\u30D6\u30EA\u30F3"
     spriteKey: EnemyGoblin
     animationSpeedMultiplier: 0.35
-    hpMultiplier: 10
-    damageMultiplier: 4
-    speedMultiplier: 0.95
-    cellSize: 1.5
-    xpValue: 10
-    tokenValue: 1
-    elite: 1
-    boss: 0
-    outlineColor: {r: 1, g: 0.86, b: 0.12, a: 1}
-    outlineThickness: 0.055
-  - kind: 7
-    displayName: "\u30AA\u30FC\u30AC"
-    spriteKey: EnemyOgre
-    animationSpeedMultiplier: 0.35
-    hpMultiplier: 4
-    damageMultiplier: 4
-    speedMultiplier: 0.82
-    cellSize: 2
-    xpValue: 6
-    tokenValue: 0
-    elite: 0
-    boss: 0
-    outlineColor: {r: 0, g: 0, b: 0, a: 1}
-    outlineThickness: 0.02
-  - kind: 8
-    displayName: "\u30A8\u30EA\u30FC\u30C8\u30AA\u30FC\u30AC"
-    spriteKey: EnemyOgre
-    animationSpeedMultiplier: 0.35
-    hpMultiplier: 20
-    damageMultiplier: 8
-    speedMultiplier: 0.76
-    cellSize: 2.5
-    xpValue: 24
-    tokenValue: 1
-    elite: 1
-    boss: 0
-    outlineColor: {r: 1, g: 0.86, b: 0.12, a: 1}
-    outlineThickness: 0.055
-  - kind: 9
-    displayName: "\u30B4\u30D6\u30EA\u30F3\u30ED\u30FC\u30C9"
-    spriteKey: EnemyGoblinLord
-    animationSpeedMultiplier: 0.35
-    hpMultiplier: 160
-    damageMultiplier: 16
-    speedMultiplier: 0.62
-    cellSize: 4
-    xpValue: 100
-    tokenValue: 5
-    elite: 0
-    boss: 1
-    outlineColor: {r: 1, g: 0.08, b: 0.04, a: 1}
-    outlineThickness: 0.075
-  - kind: 10
-    displayName: "\u30B9\u30B1\u30EB\u30C8\u30F3"
-    spriteKey: EnemySkeleton
-    animationSpeedMultiplier: 0.45
-    hpMultiplier: 4
-    damageMultiplier: 4
-    speedMultiplier: 1.02
-    cellSize: 1
-    xpValue: 4
-    tokenValue: 0
-    elite: 0
-    boss: 0
-    outlineColor: {r: 0, g: 0, b: 0, a: 1}
-    outlineThickness: 0.018
-  - kind: 11
-    displayName: "\u30A8\u30EA\u30FC\u30C8\u30B9\u30B1\u30EB\u30C8\u30F3"
-    spriteKey: EnemySkeleton
-    animationSpeedMultiplier: 0.45
     hpMultiplier: 20
     damageMultiplier: 8
     speedMultiplier: 0.95
@@ -1825,15 +1783,85 @@ MonoBehaviour:
     boss: 0
     outlineColor: {r: 1, g: 0.86, b: 0.12, a: 1}
     outlineThickness: 0.055
+  - kind: 7
+    displayName: "\u30AA\u30FC\u30AC"
+    spriteKey: EnemyOgre
+    animationSpeedMultiplier: 0.35
+    hpMultiplier: 8
+    damageMultiplier: 5
+    speedMultiplier: 0.82
+    cellSize: 2
+    xpValue: 8
+    tokenValue: 0
+    elite: 0
+    boss: 0
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    outlineThickness: 0.02
+  - kind: 8
+    displayName: "\u30A8\u30EA\u30FC\u30C8\u30AA\u30FC\u30AC"
+    spriteKey: EnemyOgre
+    animationSpeedMultiplier: 0.35
+    hpMultiplier: 40
+    damageMultiplier: 10
+    speedMultiplier: 0.76
+    cellSize: 2.5
+    xpValue: 40
+    tokenValue: 1
+    elite: 1
+    boss: 0
+    outlineColor: {r: 1, g: 0.86, b: 0.12, a: 1}
+    outlineThickness: 0.055
+  - kind: 9
+    displayName: "\u30B4\u30D6\u30EA\u30F3\u30ED\u30FC\u30C9"
+    spriteKey: EnemyGoblinLord
+    animationSpeedMultiplier: 0.35
+    hpMultiplier: 320
+    damageMultiplier: 16
+    speedMultiplier: 0.31
+    cellSize: 4
+    xpValue: 320
+    tokenValue: 5
+    elite: 0
+    boss: 1
+    outlineColor: {r: 1, g: 0.08, b: 0.04, a: 1}
+    outlineThickness: 0.075
+  - kind: 10
+    displayName: "\u30B9\u30B1\u30EB\u30C8\u30F3"
+    spriteKey: EnemySkeleton
+    animationSpeedMultiplier: 0.45
+    hpMultiplier: 12
+    damageMultiplier: 7
+    speedMultiplier: 1.02
+    cellSize: 1
+    xpValue: 12
+    tokenValue: 0
+    elite: 0
+    boss: 0
+    outlineColor: {r: 0, g: 0, b: 0, a: 1}
+    outlineThickness: 0.018
+  - kind: 11
+    displayName: "\u30A8\u30EA\u30FC\u30C8\u30B9\u30B1\u30EB\u30C8\u30F3"
+    spriteKey: EnemySkeleton
+    animationSpeedMultiplier: 0.45
+    hpMultiplier: 60
+    damageMultiplier: 14
+    speedMultiplier: 0.95
+    cellSize: 1.5
+    xpValue: 60
+    tokenValue: 1
+    elite: 1
+    boss: 0
+    outlineColor: {r: 1, g: 0.86, b: 0.12, a: 1}
+    outlineThickness: 0.055
   - kind: 12
     displayName: "\u30B9\u30B1\u30EB\u30C8\u30F3\u30CA\u30A4\u30C8"
     spriteKey: EnemySkeletonKnight
     animationSpeedMultiplier: 0.45
-    hpMultiplier: 8
+    hpMultiplier: 18
     damageMultiplier: 8
     speedMultiplier: 0.8
     cellSize: 2
-    xpValue: 12
+    xpValue: 18
     tokenValue: 0
     elite: 0
     boss: 0
@@ -1843,11 +1871,11 @@ MonoBehaviour:
     displayName: "\u30A8\u30EA\u30FC\u30C8\u30B9\u30B1\u30EB\u30C8\u30F3\u30CA\u30A4\u30C8"
     spriteKey: EnemySkeletonKnight
     animationSpeedMultiplier: 0.45
-    hpMultiplier: 40
+    hpMultiplier: 90
     damageMultiplier: 16
     speedMultiplier: 0.74
     cellSize: 2.5
-    xpValue: 48
+    xpValue: 90
     tokenValue: 1
     elite: 1
     boss: 0
@@ -1857,11 +1885,11 @@ MonoBehaviour:
     displayName: "\u30EA\u30C3\u30C1"
     spriteKey: EnemyLich
     animationSpeedMultiplier: 0.45
-    hpMultiplier: 240
+    hpMultiplier: 640
     damageMultiplier: 24
-    speedMultiplier: 0.58
+    speedMultiplier: 0.31
     cellSize: 4
-    xpValue: 150
+    xpValue: 640
     tokenValue: 7
     elite: 0
     boss: 1
@@ -1871,11 +1899,11 @@ MonoBehaviour:
     displayName: "\u30EA\u30B6\u30FC\u30C9"
     spriteKey: EnemyLizard
     animationSpeedMultiplier: 0.45
-    hpMultiplier: 8
-    damageMultiplier: 8
+    hpMultiplier: 27
+    damageMultiplier: 8.666667
     speedMultiplier: 1
     cellSize: 1
-    xpValue: 8
+    xpValue: 27
     tokenValue: 0
     elite: 0
     boss: 0
@@ -1885,11 +1913,11 @@ MonoBehaviour:
     displayName: "\u30A8\u30EA\u30FC\u30C8\u30EA\u30B6\u30FC\u30C9"
     spriteKey: EnemyLizard
     animationSpeedMultiplier: 0.45
-    hpMultiplier: 40
-    damageMultiplier: 16
+    hpMultiplier: 135
+    damageMultiplier: 17.333334
     speedMultiplier: 0.94
     cellSize: 1.5
-    xpValue: 40
+    xpValue: 135
     tokenValue: 1
     elite: 1
     boss: 0
@@ -1899,11 +1927,11 @@ MonoBehaviour:
     displayName: "\u30EA\u30B6\u30FC\u30C9\u30DE\u30F3"
     spriteKey: EnemyLizardman
     animationSpeedMultiplier: 0.45
-    hpMultiplier: 16
-    damageMultiplier: 16
+    hpMultiplier: 40.5
+    damageMultiplier: 10.666667
     speedMultiplier: 0.78
     cellSize: 2
-    xpValue: 24
+    xpValue: 41
     tokenValue: 0
     elite: 0
     boss: 0
@@ -1913,11 +1941,11 @@ MonoBehaviour:
     displayName: "\u30A8\u30EA\u30FC\u30C8\u30EA\u30B6\u30FC\u30C9\u30DE\u30F3"
     spriteKey: EnemyLizardman
     animationSpeedMultiplier: 0.45
-    hpMultiplier: 80
-    damageMultiplier: 32
+    hpMultiplier: 202.5
+    damageMultiplier: 21.333334
     speedMultiplier: 0.72
     cellSize: 2.5
-    xpValue: 96
+    xpValue: 203
     tokenValue: 1
     elite: 1
     boss: 0
@@ -1927,11 +1955,11 @@ MonoBehaviour:
     displayName: "\u30C9\u30E9\u30B4\u30F3"
     spriteKey: EnemyDragon
     animationSpeedMultiplier: 0.45
-    hpMultiplier: 720
-    damageMultiplier: 48
-    speedMultiplier: 0.56
+    hpMultiplier: 1280
+    damageMultiplier: 32
+    speedMultiplier: 0.31
     cellSize: 4
-    xpValue: 250
+    xpValue: 1280
     tokenValue: 10
     elite: 0
     boss: 1

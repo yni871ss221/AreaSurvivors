@@ -53,14 +53,20 @@ namespace AreaSurvivors
 
             Vector2 hitboxSize = ResolveHitboxSize(TileGrid.DefaultCellSize);
             var colliders = Physics2D.OverlapBoxAll(transform.position, hitboxSize, 0f);
+            CombatPerformanceDiagnostics.RecordAreaOverlapQuery(colliders.Length);
             var damaged = new HashSet<Health>();
             for (int i = 0; i < colliders.Length; i++)
             {
                 var enemy = colliders[i] != null ? colliders[i].GetComponentInParent<EnemyController>() : null;
                 var health = enemy != null ? enemy.GetComponent<Health>() : null;
                 if (health == null || health.IsDead || !damaged.Add(health)) continue;
+                CombatPerformanceDiagnostics.RecordAreaDamageAttempt();
                 int dealt = health.Damage(damage, transform.position);
-                if (dealt > 0) GameManager.Instance?.RegisterWeaponDamage(sourceWeaponType, dealt);
+                if (dealt > 0)
+                {
+                    CombatPerformanceDiagnostics.RecordAreaDamageHit();
+                    GameManager.Instance?.RegisterWeaponDamage(sourceWeaponType, dealt);
+                }
             }
         }
     }

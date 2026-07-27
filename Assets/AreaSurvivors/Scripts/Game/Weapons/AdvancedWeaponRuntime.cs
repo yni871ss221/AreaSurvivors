@@ -231,14 +231,13 @@ namespace AreaSurvivors
             var grid = FindObjectOfType<TileGrid>();
             if (grid != null) cellWidth = Mathf.Max(0.01f, grid.WorldCellSize().x);
             float radiusCells = config != null ? Mathf.Max(0.1f, config.evolvedGroundStrikeTargetRadiusCells) : 15f;
-            var enemies = FindObjectsOfType<EnemyController>();
-            for (int i = 0; i < enemies.Length; i++)
+            var enemies = EnemyController.ActiveEnemies;
+            CombatPerformanceDiagnostics.RecordGroundTargetScan(enemies.Count);
+            for (int i = 0; i < enemies.Count; i++)
             {
                 var enemy = enemies[i];
-                if (enemy == null) continue;
-                var health = enemy.GetComponent<Health>();
-                if (health == null || health.IsDead) continue;
-                if (!IsWithinGroundStrikeTargetRadius(origin, enemy.transform.position, cellWidth, radiusCells)) continue;
+                if (enemy == null || !enemy.IsAlive) continue;
+                if (!IsWithinGroundStrikeTargetRadius(origin, enemy.AttackTargetPosition, cellWidth, radiusCells)) continue;
                 result.Add(enemy);
             }
             return result;
@@ -253,10 +252,11 @@ namespace AreaSurvivors
         void SpawnGroundStrike(WeaponType displayType, WeaponStatBlock stats, EnemyController target)
         {
             if (target == null) return;
-            Vector3 position = target.transform.position;
+            Vector3 position = target.AttackTargetPosition;
             var prefab = displayType == WeaponType.ArrowShower ? arrowShowerStrikePrefab : frostStormSpikePrefab;
             var instance = prefab != null ? Instantiate(prefab) : null;
             if (instance == null) return;
+            CombatPerformanceDiagnostics.RecordGroundStrikeSpawn();
             instance.name = WeaponCatalog.DisplayName(displayType) + " Strike";
             var area = instance.GetComponent<AdvancedWeaponArea>();
             if (area == null)
@@ -360,12 +360,10 @@ namespace AreaSurvivors
             if (displayType == WeaponType.ThunderStorm)
             {
                 int orbitCount = config != null ? Mathf.Max(1, config.thunderStormOrbitCount) : 3;
-                int launchedCount = Mathf.Max(1, count - orbitCount);
-                for (int i = 0; i < launchedCount; i++) SpawnProjectile(displayType, stats, DirectionForProjectile(displayType), i == 0);
+                count = Mathf.Max(1, count - orbitCount);
                 DestroyThunderStormOrbits();
                 thunderStormOrbits.Clear();
                 for (int i = 0; i < orbitCount; i++) SpawnOrbitProjectile(displayType, stats, i, orbitCount);
-                yield break;
             }
 
             if (displayType == WeaponType.Excalibur)
@@ -374,15 +372,30 @@ namespace AreaSurvivors
                 yield break;
             }
 
-            float interval = displayType == WeaponType.MachineGun && config != null
-                ? Mathf.Max(0.05f, config.machineGunShotIntervalSeconds)
-                : 0.5f;
+            float interval = BurstProjectileIntervalSeconds(displayType, config);
             for (int i = 0; i < count; i++)
             {
-                SpawnProjectile(displayType, stats, DirectionForProjectile(displayType), true);
+                SpawnProjectile(
+                    displayType,
+                    stats,
+                    DirectionForProjectile(displayType),
+                    ShouldPlayBurstProjectileSfx(displayType, i));
                 if (i < count - 1) yield return new WaitForSeconds(interval);
             }
 
+        }
+
+        public static float BurstProjectileIntervalSeconds(WeaponType displayType, GameConfig gameConfig)
+        {
+            return displayType == WeaponType.MachineGun && gameConfig != null
+                ? Mathf.Max(0.05f, gameConfig.machineGunShotIntervalSeconds)
+                : 0.5f;
+        }
+
+        public static bool ShouldPlayBurstProjectileSfx(WeaponType displayType, int projectileIndex)
+        {
+            bool singleCastSfx = displayType == WeaponType.ThunderBall || displayType == WeaponType.ThunderStorm;
+            return !singleCastSfx || projectileIndex == 0;
         }
 
         void DestroyThunderStormOrbits()

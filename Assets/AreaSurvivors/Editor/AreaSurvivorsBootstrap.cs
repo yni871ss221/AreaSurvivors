@@ -2,9 +2,11 @@ using System.Collections.Generic;
 using System.IO;
 using AreaSurvivors;
 using AreaSurvivors.EditorTools;
+using AreaSurvivors.Testing;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.SceneManagement;
 using UnityEngine.Tilemaps;
 using UnityEngine.UI;
@@ -20,6 +22,7 @@ namespace AreaSurvivors.Editor
         const string GeneratedSprites = Root + "/Sprites/Generated";
         const string ResourcesPath = Root + "/Resources";
         const string TilePalette = Root + "/TilePalette";
+        const string TilePaletteRepairMarker = "Library/AreaSafeUnity/tile-palette-repair.success";
         const float TileCellWidth = 0.7f;
         const float TileCellHeight = 0.7f;
         const float BuildingHealthBarWidth = 0.7f;
@@ -45,6 +48,24 @@ namespace AreaSurvivors.Editor
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log("Area Survivors initial project generated.");
+        }
+
+        [MenuItem("Area Survivors/Migrate/Repair Tile Palette References")]
+        public static void RepairTilePaletteReferences()
+        {
+            if (File.Exists(TilePaletteRepairMarker))
+                File.Delete(TilePaletteRepairMarker);
+
+            EnsureFolders();
+            CreateTilePalette();
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+
+            var markerDirectory = Path.GetDirectoryName(TilePaletteRepairMarker);
+            if (!string.IsNullOrEmpty(markerDirectory))
+                Directory.CreateDirectory(markerDirectory);
+            File.WriteAllText(TilePaletteRepairMarker, System.DateTime.UtcNow.ToString("O"));
+            Debug.Log("Area Survivors tile palette references repaired.");
         }
 
         [MenuItem("Area Survivors/Config/Apply Weapon Level Defaults")]
@@ -165,10 +186,9 @@ namespace AreaSurvivors.Editor
             config.cameraDefaultZoom = 0.5f;
             config.cameraZoomScrollSpeed = 0.16f;
             config.cameraPlayerWeight = 0.55f;
-            config.playerMoveSpeed = 2.1f;
-            config.playerMaxHp = 40;
-            config.playerReviveSeconds = 6f;
-            config.paintRadius = 1;
+            config.knightBaseStats = CharacterBaseStatsDefinition.Create(40, 2.1f, 1, 6f, 3, 1.1f, 0);
+            config.archerBaseStats = CharacterBaseStatsDefinition.Create(30, 2.4f, 1, 6f, 1, 1f, 0);
+            config.mageBaseStats = CharacterBaseStatsDefinition.Create(20, 1.8f, 2, 6f, 0, 1.3f, 1);
             config.playerVisualScale = 1f;
             config.moveSpeedPerUpgradeLevel = 0.18f;
             config.paintRadiusLevelsPerBonus = 2;
@@ -180,8 +200,6 @@ namespace AreaSurvivors.Editor
             config.runMaxHpBonus = 8;
             config.towerMaxHp = 160;
             config.towerMaxHpPerUpgradeLevel = 12;
-            config.towerUpgradeWoodCost = 300;
-            config.towerUpgradeStoneCost = 300;
             config.upgradedTowerMaxHp = 900;
             config.upgradedTowerRegenBonus = 3;
             config.upgradedTowerCannonDamageBonus = 10;
@@ -205,23 +223,14 @@ namespace AreaSurvivors.Editor
             config.baseKnockback = 1f;
             config.knockbackForceUnit = 2.2f;
             config.knockbackDuration = 0.16f;
-            config.baseDefense = 0;
-            config.baseXpGainMultiplier = 1f;
-            config.baseAutoRegen = 0;
             config.autoRegenIntervalSeconds = 2f;
-            config.baseWorkSpeedMultiplier = 1f;
-            config.baseResourceGainBonus = 0;
             config.defensePerUpgradeLevel = 1;
             config.xpGainMultiplierPerUpgradeLevel = 0.1f;
             config.autoRegenPerUpgradeLevel = 1;
-            config.workSpeedMultiplierPerUpgradeLevel = 0.1f;
-            config.resourceGainPerUpgradeLevel = 1;
             config.runKnockbackBonus = 1;
             config.runDefenseBonus = 1;
             config.runXpGainMultiplierBonus = 0.1f;
             config.runAutoRegenBonus = 1;
-            config.runWorkSpeedMultiplierBonus = 0.1f;
-            config.runResourceGainBonus = 1;
             config.projectileSpeed = 11.5f;
             config.projectileLifetime = 4.2f;
             config.projectileVisualScale = 1.35f;
@@ -237,15 +246,13 @@ namespace AreaSurvivors.Editor
             config.bossTimeSeconds = 300f;
             config.bossAnnouncement = "\u30aa\u30fc\u30af\u30ad\u30f3\u30b0\u51fa\u73fe\uff01";
             config.EnsureEnemySpawnDefaults();
-            config.startingBallistaStock = 4;
-            config.startingWallStock = 4;
             EditorUtility.SetDirty(config);
         }
 
         static void CreateTilePalette()
         {
             ImportGeneratedSprites();
-            foreach (var name in new[] { "Ground", "Paint", "Tower", "Ballista", "WoodenWall" })
+            foreach (var name in new[] { "Ground", "Paint", "Tower", "Ballista", "WatchTower", "WoodenWall" })
             {
                 CreateTileAsset(name);
             }
@@ -254,7 +261,7 @@ namespace AreaSurvivors.Editor
             var grid = palette.AddComponent<Grid>();
             grid.cellSize = new Vector3(TileCellWidth, TileCellHeight, 0f);
             var tilemap = CreateTilemap(palette.transform, "Palette Tiles", 0);
-            var tiles = new[] { "Ground", "Paint", "Tower", "Ballista", "WoodenWall" };
+            var tiles = new[] { "Ground", "Paint", "Tower", "Ballista", "WatchTower", "WoodenWall" };
             for (int i = 0; i < tiles.Length; i++)
             {
                 tilemap.SetTile(new Vector3Int(i, 0, 0), LoadTile(tiles[i]));
@@ -301,6 +308,8 @@ namespace AreaSurvivors.Editor
         static PrefabSet CreatePrefabs(GameConfig config)
         {
             ImportGeneratedSprites();
+            var hitFlashMaterial = CombatFeedbackPerformanceMigration.EnsureEnemyHitFlashMaterial();
+            var damagePopupMaterial = CombatFeedbackPerformanceMigration.EnsureDamagePopupOutlineMaterial();
             var arrow = SavePrefab(CreateProjectile("Arrow", LoadSprite("Arrow"), new Color(0.85f, 0.72f, 0.35f), config), Prefabs + "/Weapons/Arrow.prefab");
             var playerArrowSprite = LoadSprite("PlayerArrow") ?? LoadSprite("Arrow");
             var playerArrow = SavePrefab(CreateProjectile("PlayerArrow", playerArrowSprite, new Color(0.85f, 0.72f, 0.35f), config, 1f, 1f, false), Prefabs + "/Weapons/PlayerArrow.prefab");
@@ -313,10 +322,11 @@ namespace AreaSurvivors.Editor
                 fireball = fireball,
                 ballista = ballista,
                 woodenWall = woodenWall,
+                watchTower = AssetDatabase.LoadAssetAtPath<GameObject>(Prefabs + "/Buildings/WatchTower.prefab"),
                 player = SavePrefab(CreatePlayer(playerArrow, fireball), Prefabs + "/Characters/Player.prefab").GetComponent<PlayerController>(),
-                enemy = SavePrefab(CreateEnemy(), Prefabs + "/Characters/Enemy.prefab"),
+                enemy = SavePrefab(CreateEnemy(hitFlashMaterial), Prefabs + "/Characters/Enemy.prefab"),
                 xpOrb = SavePrefab(CreateXpOrb(), Prefabs + "/Pickups/ExperienceOrb.prefab"),
-                damagePopup = SavePrefab(CreateDamagePopup(), Prefabs + "/UI/DamagePopup.prefab")
+                damagePopup = SavePrefab(CreateDamagePopup(damagePopupMaterial), Prefabs + "/UI/DamagePopup.prefab")
             };
             return set;
         }
@@ -479,7 +489,7 @@ namespace AreaSurvivors.Editor
             }
         }
 
-        static GameObject CreateEnemy()
+        static GameObject CreateEnemy(Material hitFlashMaterial)
         {
             var enemySprite = LoadCharacterSprite("EnemyBoar");
             var go = Actor("Enemy", enemySprite, Color.white, new Vector2(0.46f, 0.22f), new Vector2(0f, -0.22f), 0.04f);
@@ -489,6 +499,17 @@ namespace AreaSurvivors.Editor
                 var outline = enemyVisual.gameObject.AddComponent<RuntimeSpriteOutline>();
                 outline.outlineColor = Color.black;
                 outline.thickness = 0.018f;
+
+                var flashObject = new GameObject("Enemy Hit Flash");
+                flashObject.transform.SetParent(enemyVisual.transform, false);
+                var flashFilter = flashObject.AddComponent<MeshFilter>();
+                var flashRenderer = flashObject.AddComponent<MeshRenderer>();
+                flashRenderer.sharedMaterial = hitFlashMaterial;
+                flashRenderer.shadowCastingMode = ShadowCastingMode.Off;
+                flashRenderer.receiveShadows = false;
+                flashRenderer.enabled = false;
+                var flash = go.AddComponent<EnemyHitFlash>();
+                flash.ConfigurePrefabReferences(enemyVisual, flashFilter, flashRenderer, hitFlashMaterial);
             }
             go.AddComponent<Health>();
             var animator = go.AddComponent<DirectionalSpriteAnimator>();
@@ -700,7 +721,7 @@ namespace AreaSurvivors.Editor
             return go;
         }
 
-        static GameObject CreateDamagePopup()
+        static GameObject CreateDamagePopup(Material outlineMaterial)
         {
             var go = new GameObject("DamagePopup");
             go.AddComponent<PaperBillboard>();
@@ -710,8 +731,13 @@ namespace AreaSurvivors.Editor
             outline.faceColor = Color.white;
             outline.outlineColor = Color.black;
             outline.outlinePixels = 2f;
+            outline.sharedOutlineMaterial = outlineMaterial;
+            var renderer = text.GetComponent<MeshRenderer>();
+            renderer.sharedMaterial = outlineMaterial;
+            text.gameObject.AddComponent<PreserveSortingOrder>();
             var popup = go.AddComponent<DamagePopup>();
             popup.text = text;
+            popup.textOutline = outline;
             return go;
         }
 
@@ -768,8 +794,6 @@ namespace AreaSurvivors.Editor
             var groundTilemap = CreateTilemap(environment.transform, "Ground Tilemap", -20);
             var paintTilemap = CreateTilemap(environment.transform, "Paint Tilemap", -19);
             var objectTilemap = CreateTilemap(environment.transform, "Object Tilemap", 1000);
-            var buildPreviewTilemap = CreateTilemap(environment.transform, "Build Preview Tilemap", 950);
-            buildPreviewTilemap.color = new Color(1f, 1f, 1f, 0.72f);
             objectTilemap.tileAnchor = new Vector3(0.5f, 0f, 0f);
             objectTilemap.GetComponent<TilemapRenderer>().enabled = false;
             var grid = environment.AddComponent<TileGrid>();
@@ -795,31 +819,30 @@ namespace AreaSurvivors.Editor
             tower.transform.position = CellToWorld(grid, Vector2Int.zero);
 
             var manager = new GameObject("Game Manager").AddComponent<GameManager>();
-            var buildPlacement = manager.gameObject.AddComponent<BuildPlacementController>();
+            manager.gameObject.AddComponent<RuntimePerformanceSentinel>();
+            var fixedBuildingLayout = manager.gameObject.AddComponent<FixedBuildingLayoutService>();
             manager.config = config;
             manager.grid = grid;
             manager.playerPrefab = prefabs.player;
             manager.sceneTower = tower;
             manager.spawner = spawner;
-            manager.buildPlacement = buildPlacement;
-            buildPlacement.grid = grid;
-            buildPlacement.buildPreviewTilemap = buildPreviewTilemap;
-            buildPlacement.buildPreviewTile = LoadTile("Paint");
-            BuildHud(manager, buildPlacement);
-            ConfigureBuildPlacement(buildPlacement, prefabs);
+            manager.fixedBuildingLayout = fixedBuildingLayout;
+            BuildHud(manager);
+            ConfigureFixedBuildingLayout(fixedBuildingLayout, prefabs);
 
             EditorSceneManager.SaveScene(scene, $"{Scenes}/{SceneNames.Game}.unity");
         }
 
-        static void ConfigureBuildPlacement(BuildPlacementController buildPlacement, PrefabSet prefabs)
+        static void ConfigureFixedBuildingLayout(FixedBuildingLayoutService fixedBuildingLayout, PrefabSet prefabs)
         {
-            if (buildPlacement == null) return;
-            buildPlacement.ballistaPrefab = prefabs.ballista;
-            buildPlacement.woodenWallPrefab = prefabs.woodenWall;
-            buildPlacement.ballistaPreviewSprite = LoadGeneratedSprite("Ballista") ?? LoadSprite("Ballista");
-            buildPlacement.woodenWallPreviewSprite = LoadGeneratedSprite("WoodenWall") ?? LoadSprite("WoodenWall");
-            buildPlacement.ballistaTile = LoadTile("Ballista");
-            buildPlacement.woodenWallTile = LoadTile("WoodenWall");
+            if (fixedBuildingLayout == null) return;
+            fixedBuildingLayout.ballistaPrefab = prefabs.ballista;
+            fixedBuildingLayout.woodenWallPrefab = prefabs.woodenWall;
+            fixedBuildingLayout.watchTowerPrefab = prefabs.watchTower;
+            fixedBuildingLayout.woodenWallSprite = LoadGeneratedSprite("WoodenWall") ?? LoadSprite("WoodenWall");
+            fixedBuildingLayout.ballistaTile = LoadTile("Ballista");
+            fixedBuildingLayout.woodenWallTile = LoadTile("WoodenWall");
+            fixedBuildingLayout.watchTowerTile = LoadTile("WatchTower");
         }
 
         static Vector3 CellToWorld(TileGrid grid, Vector2Int cell)
@@ -832,7 +855,7 @@ namespace AreaSurvivors.Editor
             return CellToWorld(grid, Vector2Int.zero) + new Vector3(cell.x * TileCellWidth, cell.y * TileCellHeight, 0f);
         }
 
-        static void BuildHud(GameManager manager, BuildPlacementController buildPlacement)
+        static void BuildHud(GameManager manager)
         {
             var canvas = new GameObject("HUD").AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -849,7 +872,7 @@ namespace AreaSurvivors.Editor
             manager.timerText = HudText(canvas.transform, "00:00", 22, new Vector2(-86, 304), new Vector2(140, 30));
             manager.killText = HudText(canvas.transform, "\u6483\u7834 0", 22, new Vector2(92, 304), new Vector2(160, 30));
             manager.levelText = HudText(canvas.transform, "Lv 1", 20, new Vector2(-548, 334), new Vector2(92, 26));
-            CreateEditableHudWidgets(canvas.transform, buildPlacement);
+            CreateEditableHudWidgets(canvas.transform);
 
             var panel = new GameObject("Level Up Panel");
             panel.transform.SetParent(canvas.transform, false);
@@ -867,12 +890,9 @@ namespace AreaSurvivors.Editor
             manager.levelUpPanel = panel;
         }
 
-        static void CreateEditableHudWidgets(Transform canvas, BuildPlacementController buildPlacement)
+        static void CreateEditableHudWidgets(Transform canvas)
         {
-            DestroyChild(canvas, "Build Backplate");
-            DestroyChild(canvas, "Construction Menu");
             DestroyChild(canvas, "Tower Status");
-            DestroyLegacyBuildStatusText(canvas);
 
             var tower = HudPanel(canvas, "Tower Status", new Vector2(-14, -12), new Vector2(110, 314), Vector2.one, Vector2.one, new Color(0.035f, 0.05f, 0.045f, 0.72f));
             var towerImage = new GameObject("Tower Image").AddComponent<Image>();
@@ -930,19 +950,6 @@ namespace AreaSurvivors.Editor
         {
             var child = parent.Find(name);
             if (child != null) Object.DestroyImmediate(child.gameObject);
-        }
-
-        static void DestroyLegacyBuildStatusText(Transform canvas)
-        {
-            var labels = canvas.GetComponentsInChildren<Text>(true);
-            foreach (var label in labels)
-            {
-                if (label == null || label.name == "Build Status") continue;
-                if (label.text.Contains("Ballista") || label.text.Contains("\u30d0\u30ea\u30b9\u30bf"))
-                {
-                    Object.DestroyImmediate(label.gameObject);
-                }
-            }
         }
 
         static Text HudText(Transform parent, string text, int size, Vector2 pos, Vector2 rect)
@@ -1263,6 +1270,7 @@ namespace AreaSurvivors.Editor
             public GameObject fireball;
             public GameObject ballista;
             public GameObject woodenWall;
+            public GameObject watchTower;
             public GameObject damagePopup;
         }
 

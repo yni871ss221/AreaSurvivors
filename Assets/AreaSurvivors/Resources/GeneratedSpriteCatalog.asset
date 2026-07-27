@@ -127,8 +127,6 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: decc27b120ff1094380b26e6ef66fa96, type: 3}
   - name: Buildings/TowerUpgrade
     sprite: {fileID: 21300000, guid: a1735007848e5854f8054ea9455e8ee5, type: 3}
-  - name: Buildings/UpgradeBuildingIcon
-    sprite: {fileID: 21300000, guid: 6b4dbe6630ca4fa8ab3858e933635458, type: 3}
   - name: Buildings/WatchTower
     sprite: {fileID: 21300000, guid: 21a8096036d361640b76d30c33cdc590, type: 3}
   - name: Buildings/WatchTowerDestroyed
@@ -487,6 +485,8 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: c30b42b61ee8c1d4bb2c7458f342ed24, type: 3}
   - name: SkillIcons/SkillPlayerFireball
     sprite: {fileID: 21300000, guid: 850a1e70472e44e4bab45795b7037f15, type: 3}
+  - name: SkillIcons/SkillReroll
+    sprite: {fileID: 21300000, guid: 51ec2033ada7bd24793e7ce2e3311adc, type: 3}
   - name: SkillIcons/SkillToken
     sprite: {fileID: 21300000, guid: d4cbe63674b84eec897668665aafc5be, type: 3}
   - name: SkillIcons/SkillTowerHp
@@ -541,18 +541,12 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: dccbc00e801de2c4a8199a48349cbe09, type: 3}
   - name: StatIcons/StatRegen
     sprite: {fileID: 21300000, guid: 0282ca2212fdafb43b3d7b3c3b40f36f, type: 3}
-  - name: StatIcons/StatResource
-    sprite: {fileID: 21300000, guid: 01feb7c9fb18ae342ab660ed86ee48a6, type: 3}
   - name: StatIcons/StatRevive
     sprite: {fileID: 21300000, guid: a26240cfb3add204a8c2d950ad271e64, type: 3}
   - name: StatIcons/StatWeaponLevel
     sprite: {fileID: 21300000, guid: 5d81ec63b0e5afa459ff9792d9f9a746, type: 3}
-  - name: StatIcons/StatWork
-    sprite: {fileID: 21300000, guid: 15ae96a8b3cae77458af3f73a75afe61, type: 3}
   - name: StatIcons/StatXp
     sprite: {fileID: 21300000, guid: 102eb5c9d96f64943ab8ed6bdb670f0c, type: 3}
-  - name: StoneIcon
-    sprite: {fileID: 21300000, guid: cdbc8c9ec3b25894a972176d3be268f8, type: 3}
   - name: ThunderBall
     sprite: {fileID: 21300000, guid: 21fb944cb3d009448af6147fdad00323, type: 3}
   - name: Tile
@@ -569,6 +563,8 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 738b2318fd179954ebbdbaf0c11f87f9, type: 3}
   - name: TreasureChestOpen
     sprite: {fileID: 21300000, guid: c0592ac743a69144c9e59c16d89d7677, type: 3}
+  - name: UI/EndingCredits/EndingCreditsBackground
+    sprite: {fileID: 21300000, guid: 1f33a91fd7b1b0947a89ee581e47e36a, type: 3}
   - name: UI/FuroPizzaStudioLogo
     sprite: {fileID: 21300000, guid: bfae4b3db63c4def9e0e9e67b78fe63f, type: 3}
   - name: UI/GameClearBackground
@@ -597,8 +593,6 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 5d982b2122b64cde878c441cce4e14ab, type: 3}
   - name: UI/SkullIcon
     sprite: {fileID: 21300000, guid: 870356cd8343469aab6fd56ce2920ea5, type: 3}
-  - name: UI/StoneIcon
-    sprite: {fileID: 21300000, guid: cdbc8c9ec3b25894a972176d3be268f8, type: 3}
   - name: UI/TitleBackground
     sprite: {fileID: 21300000, guid: 7f32c1fadbf72094dad97faa1a60c543, type: 3}
   - name: UI/TitleReturnIcon
@@ -615,10 +609,6 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 18fd46d753513aa4e887d06c197c9884, type: 3}
   - name: UI/WeaponTypeRanged
     sprite: {fileID: 21300000, guid: d82662bad096ae445889a00e9d163574, type: 3}
-  - name: UI/WoodIcon
-    sprite: {fileID: 21300000, guid: 19845df25c834f04bb999aecaafd7a89, type: 3}
-  - name: UpgradeBuildingIcon
-    sprite: {fileID: 21300000, guid: 6b4dbe6630ca4fa8ab3858e933635458, type: 3}
   - name: Walk/Archer/Down_0
     sprite: {fileID: 21300000, guid: 92d7952a5d12d314a940c006a3bcc703, type: 3}
   - name: Walk/Archer/Down_1
@@ -1131,8 +1121,6 @@ MonoBehaviour:
     sprite: {fileID: 21300000, guid: 542488fc37a35e4479c1ccd9a08b17c4, type: 3}
   - name: Weapons/ThunderStormIcon
     sprite: {fileID: 21300000, guid: 2d5e56f2a19648147ae8cc9d7d0c3ace, type: 3}
-  - name: WoodIcon
-    sprite: {fileID: 21300000, guid: 19845df25c834f04bb999aecaafd7a89, type: 3}
   - name: WoodenWall
     sprite: {fileID: 21300000, guid: c1c65f9d327a46ab882dc0e037fe24b9, type: 3}
   - name: WoodenWallDestroyed

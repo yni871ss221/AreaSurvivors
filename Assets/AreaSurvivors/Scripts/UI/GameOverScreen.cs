@@ -27,11 +27,15 @@ namespace AreaSurvivors
         public Text stageUnlockHeaderText;
         public Text stageUnlockMessageText;
         public Text missionCompleteText;
+        public Text completionMessageText;
         public StageUnlockBossIconBinding[] stageUnlockBossIcons;
         public Button stageUnlockOkButton;
         public Button lobbyButton;
         public SceneNavigator navigator;
         public GameOverIntroAnimator introAnimator;
+        public EndingCreditsSequence endingCredits;
+
+        bool creditsPlaying;
 
         [Serializable]
         public sealed class StageUnlockBossIconBinding
@@ -265,8 +269,39 @@ namespace AreaSurvivors
                 lobbyButton.onClick.AddListener(navigator.LoadLobby);
             }
 
+            bool shouldPlayEndingCredits = ShouldPlayEndingCredits(
+                result,
+                ProgressionStore.HasViewedEndingCredits,
+                endingCredits != null);
+            if (shouldPlayEndingCredits && ProgressionStore.TryMarkEndingCreditsViewed())
+            {
+                creditsPlaying = true;
+                if (root != null) root.SetActive(false);
+                endingCredits.Play(() => ShowResults(result.gameClear, hasStageUnlockPopup, missionCompletePopup));
+                return;
+            }
+
+            ShowResults(result.gameClear, hasStageUnlockPopup, missionCompletePopup);
+        }
+
+        public static bool ShouldPlayEndingCredits(
+            RunResult result,
+            bool endingCreditsViewed,
+            bool endingCreditsAvailable)
+        {
+            return result != null
+                && result.gameClear
+                && result.clearedStage >= 4
+                && result.allStagesDifficultyFiveCleared
+                && !endingCreditsViewed
+                && endingCreditsAvailable;
+        }
+
+        void ShowResults(bool gameClear, bool hasStageUnlockPopup, bool missionCompletePopup)
+        {
+            creditsPlaying = false;
             if (root != null) root.SetActive(true);
-            if (introAnimator != null) introAnimator.Play(result.gameClear, hasStageUnlockPopup, missionCompletePopup);
+            if (introAnimator != null) introAnimator.Play(gameClear, hasStageUnlockPopup, missionCompletePopup);
         }
 
         void ConfigureBackground(bool gameClear)
@@ -277,6 +312,8 @@ namespace AreaSurvivors
 
         void Update()
         {
+            if (creditsPlaying) return;
+
             if (stageUnlockPopupRoot != null && stageUnlockPopupRoot.activeInHierarchy)
             {
                 var popupCandidates = new Selectable[] { stageUnlockOkButton, lobbyButton };
@@ -294,6 +331,7 @@ namespace AreaSurvivors
         bool ConfigureStageUnlockPopup(RunResult result, out bool missionComplete)
         {
             missionComplete = result != null && result.gameClear && result.clearedStage >= 4;
+            bool allDifficultyFiveComplete = missionComplete && result.allStagesDifficultyFiveCleared;
             int unlockedStage = result != null ? result.unlockedStage : 0;
             bool stageUnlocked = result != null && result.gameClear && unlockedStage >= 2 && unlockedStage <= 4;
             bool active = missionComplete || stageUnlocked;
@@ -313,7 +351,19 @@ namespace AreaSurvivors
             if (missionCompleteText != null)
             {
                 missionCompleteText.gameObject.SetActive(missionComplete);
-                SetText(missionCompleteText, missionComplete ? "MISSION COMPLETE" : string.Empty);
+                SetText(missionCompleteText, missionComplete
+                    ? allDifficultyFiveComplete ? "MISSION COMPLETE" : "Congratulations"
+                    : string.Empty);
+            }
+
+            if (completionMessageText != null)
+            {
+                completionMessageText.gameObject.SetActive(missionComplete);
+                SetText(completionMessageText, !missionComplete
+                    ? string.Empty
+                    : allDifficultyFiveComplete
+                        ? "見事塔を守り抜きました！\nThank you for playing!"
+                        : "すべてのボスを討伐しました！\n難易度5でのクリアを目指しましょう");
             }
 
             if (stageUnlockBossIcons != null)

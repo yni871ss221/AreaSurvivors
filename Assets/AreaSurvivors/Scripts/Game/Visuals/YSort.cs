@@ -39,11 +39,20 @@ namespace AreaSurvivors
             int order = WorldObjectSortingOffset + baseOrder + Mathf.RoundToInt(-(transform.position.y + sortPivotOffsetY) * 100f) + orderOffset;
             foreach (var renderer in renderers)
             {
-                if (renderer == null || renderer.GetComponent<PreserveSortingOrder>() != null) continue;
+                if (renderer == null ||
+                    renderer.GetComponent<PreserveSortingOrder>() != null ||
+                    IsRuntimeOutlineRenderer(renderer)) continue;
                 renderer.sortingOrder = order;
                 var visual = renderer.GetComponent<PaperMeshVisual>();
                 if (visual != null) visual.order = order;
             }
+        }
+
+        static bool IsRuntimeOutlineRenderer(Renderer renderer)
+        {
+            if (renderer == null || renderer.gameObject.name != "Runtime Outline") return false;
+            Transform parent = renderer.transform.parent;
+            return parent != null && parent.GetComponent<RuntimeSpriteOutline>() != null;
         }
 
         public void SetUpdateFrameInterval(int frameInterval)

@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -23,6 +24,8 @@ namespace AreaSurvivors
         public Sprite mageSprite;
         public bool IsReviving { get; private set; }
         public bool IsInvincible { get; private set; }
+        public bool IsBuildingRecoveryActive { get; private set; }
+        public float CurrentMoveSpeed => Mathf.Max(0f, moveSpeed);
 
         Rigidbody2D body;
         Health health;
@@ -35,6 +38,13 @@ namespace AreaSurvivors
         float moveSpeed;
         int paintRadius;
         Coroutine invincibilityRoutine;
+        readonly List<AttractablePickup> activePickupAttractions =
+            new List<AttractablePickup>(64);
+        readonly HashSet<AttractablePickup> activePickupAttractionSet =
+            new HashSet<AttractablePickup>();
+        float pickupScanRemainingSeconds;
+        Vector3 previousPickupScanPosition;
+        bool hasPreviousPickupScanPosition;
 
         void Awake()
         {
@@ -59,7 +69,7 @@ namespace AreaSurvivors
             config = gameConfig;
             grid = tileGrid;
             characterType = type;
-            stats.Initialize(config);
+            stats.Initialize(config, type);
             SetInvincible(false);
             transform.localScale = Vector3.one * Mathf.Max(0.1f, config.playerVisualScale);
             if (gridVisual != null) gridVisual.ConfigureCharacter(1f);
@@ -108,6 +118,7 @@ namespace AreaSurvivors
 
         void Update()
         {
+            ProcessPickupAttractions();
             if (hpBar != null)
             {
                 hpBar.value = health.Normalized;
@@ -123,17 +134,78 @@ namespace AreaSurvivors
             float territory = IsInvincible
                 ? 1f
                 : grid.GetMoveMultiplier(movementSample, TileOwner.Player, Mathf.Clamp01(enemyTerritoryMultiplier));
+            if (IsBuildingRecoveryActive &&
+                grid.ContainsCell(grid.WorldToCell(movementSample)) &&
+                grid.IsBlockedForMovement(grid.WorldToCell(movementSample), TileOwner.Player))
+            {
+                territory = 1f;
+            }
             body.velocity = input * moveSpeed * territory;
             if (directionalAnimatorDriver != null) directionalAnimatorDriver.Tick(facing, input.sqrMagnitude > 0.01f);
             grid.Paint(movementSample, TileOwner.Player, paintRadius);
         }
 
-        Vector3 MovementSamplePosition()
+        internal void RegisterPickupAttraction(AttractablePickup pickup)
+        {
+            if (pickup == null || !activePickupAttractionSet.Add(pickup)) return;
+            activePickupAttractions.Add(pickup);
+        }
+
+        void ProcessPickupAttractions()
+        {
+            Vector3 currentPosition = transform.position;
+            if (!hasPreviousPickupScanPosition)
+            {
+                previousPickupScanPosition = currentPosition;
+                hasPreviousPickupScanPosition = true;
+                pickupScanRemainingSeconds = 0f;
+            }
+
+            pickupScanRemainingSeconds -= Time.deltaTime;
+            if (pickupScanRemainingSeconds <= 0f)
+            {
+                PickupAttractionRegistry.BeginNearbyAttraction(
+                    this,
+                    previousPickupScanPosition,
+                    currentPosition);
+                previousPickupScanPosition = currentPosition;
+                pickupScanRemainingSeconds = PickupAttractionRegistry.ScanIntervalSeconds;
+            }
+
+            CombatPerformanceDiagnostics.RecordPickupMovementTicks(
+                activePickupAttractions.Count);
+            for (int i = activePickupAttractions.Count - 1; i >= 0; i--)
+            {
+                var pickup = activePickupAttractions[i];
+                bool remainsActive =
+                    pickup != null &&
+                    pickup.TickAttraction(
+                        this,
+                        Time.deltaTime,
+                        Time.unscaledDeltaTime);
+                if (remainsActive) continue;
+
+                if (!ReferenceEquals(pickup, null))
+                {
+                    activePickupAttractionSet.Remove(pickup);
+                }
+                int lastIndex = activePickupAttractions.Count - 1;
+                activePickupAttractions[i] = activePickupAttractions[lastIndex];
+                activePickupAttractions.RemoveAt(lastIndex);
+            }
+        }
+
+        public Vector3 MovementSamplePosition()
         {
             if (footprint != null) return footprint.SamplePosition;
             if (hitCollider == null || !hitCollider.enabled) return transform.position;
             var center = hitCollider.bounds.center;
             return new Vector3(center.x, center.y, transform.position.z);
+        }
+
+        public void SetBuildingRecoveryActive(bool active)
+        {
+            IsBuildingRecoveryActive = active;
         }
 
         public Vector2 Facing => facing;

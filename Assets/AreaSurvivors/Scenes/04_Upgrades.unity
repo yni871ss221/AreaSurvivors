@@ -523,8 +523,8 @@ MonoBehaviour:
   prerequisites: 3f000000
   linkRoutes: []
   implemented: 1
-  title: "\u521D\u671F\u30B9\u30E9\u30C3\u30B7\u30E5\u524A\u9664"
-  description: "\u30B2\u30FC\u30E0\u958B\u59CB\u6642\u306B\u30B9\u30E9\u30C3\u30B7\u30E5\u3092\u6301\u305F\u305A\u3001\u6B66\u5668\u67A0\u30921\u3064\u7A7A\u3051\u305F\u72B6\u614B\u306B\u3057\u307E\u3059\u3002"
+  title: "\u30EA\u30ED\u30FC\u30EB\u56DE\u6570\u8FFD\u52A0"
+  description: "\u30B2\u30FC\u30E0\u958B\u59CB\u6642\u306E\u30EA\u30ED\u30FC\u30EB\u56DE\u6570\u304C1\u56DE\u5897\u3048\u307E\u3059\u3002"
   button: {fileID: 89506434}
   background: {fileID: 89506435}
   icon: {fileID: 1821889328}
@@ -11983,7 +11983,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: aa6fc7de36424134088e0e1a20939a2b, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 2b0cb0275ef349b45b46c5b29dc66cc8, type: 3}
   m_Type: 0
   m_PreserveAspect: 1
   m_FillCenter: 1
@@ -14357,7 +14357,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 8d8773900d4798b4fad3419fa28e6384, type: 3}
+  m_Sprite: {fileID: 21300000, guid: dbb0336b5d5063a4da627fb81e05adfc, type: 3}
   m_Type: 0
   m_PreserveAspect: 1
   m_FillCenter: 1
@@ -16083,8 +16083,8 @@ MonoBehaviour:
   prerequisites: 02000000
   linkRoutes: []
   implemented: 1
-  title: "\u30D5\u30A1\u30A4\u30A2\u30DC\u30FC\u30EB\u30A2\u30F3\u30ED\u30C3\u30AF"
-  description: "\u30EC\u30D9\u30EB\u30A2\u30C3\u30D7\u6642\u306E\u5019\u88DC\u306B\u30D5\u30A1\u30A4\u30A2\u30DC\u30FC\u30EB\u304C\u767B\u5834\u3059\u308B\u3088\u3046\u306B\u306A\u308A\u307E\u3059\u3002"
+  title: "\u30E1\u30A4\u30B8\u30A2\u30F3\u30ED\u30C3\u30AF"
+  description: "\u30E1\u30A4\u30B8\u3068\u30D5\u30A1\u30A4\u30A2\u30DC\u30FC\u30EB\u3092\u30A2\u30F3\u30ED\u30C3\u30AF\u3057\u307E\u3059\u3002"
   button: {fileID: 1844441689}
   background: {fileID: 1844441690}
   icon: {fileID: 905148910}
@@ -22587,8 +22587,8 @@ MonoBehaviour:
   prerequisites: 08000000
   linkRoutes: []
   implemented: 1
-  title: "\u5F13\u30A2\u30F3\u30ED\u30C3\u30AF"
-  description: "\u30EC\u30D9\u30EB\u30A2\u30C3\u30D7\u6642\u306E\u5019\u88DC\u306B\u5F13\u304C\u767B\u5834\u3059\u308B\u3088\u3046\u306B\u306A\u308A\u307E\u3059\u3002"
+  title: "\u30A2\u30FC\u30C1\u30E3\u30FC\u30A2\u30F3\u30ED\u30C3\u30AF"
+  description: "\u30A2\u30FC\u30C1\u30E3\u30FC\u3068\u5F13\u3092\u30A2\u30F3\u30ED\u30C3\u30AF\u3057\u307E\u3059\u3002"
   button: {fileID: 1313750138}
   background: {fileID: 1313750139}
   icon: {fileID: 1161243508}
@@ -23705,7 +23705,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: 563df66031c12d94c9ef9b8469fe7f32, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 51ec2033ada7bd24793e7ce2e3311adc, type: 3}
   m_Type: 0
   m_PreserveAspect: 1
   m_FillCenter: 1

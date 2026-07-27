@@ -21,7 +21,6 @@ namespace AreaSurvivors.Testing
         public GameplayTestScenario scenario;
         public GameConfig config;
         public TileGrid grid;
-        public NaturalLandmarkSpawner landmarkSpawner;
         public GameObject enemyPrefab;
         public GameObject xpOrbPrefab;
         public GameObject damagePopupPrefab;
@@ -81,10 +80,27 @@ namespace AreaSurvivors.Testing
 
             centerCell = grid.GridToCell(grid.width / 2, grid.height / 2);
             CreateTarget(centerCell);
-            SpawnLandmarks(centerCell);
             SpawnPrefabs(centerCell);
             SpawnEnemies(centerCell);
             FocusCamera(centerCell);
+            if (scenario.runPerformanceProbeMatrix &&
+                scenario.performanceProbeMatrixModes != null &&
+                scenario.performanceProbeMatrixModes.Length > 0)
+            {
+                RuntimePerformanceProbeMatrix.Begin(
+                    scenario.name,
+                    scenario.performanceProbeMatrixModes,
+                    scenario.performanceProbeDurationSeconds,
+                    scenario.performanceProbeWarmupSeconds,
+                    scenario.performanceProbeTransitionSeconds);
+            }
+            else if (scenario.runPerformanceProbe)
+            {
+                RuntimePerformanceProbe.Begin(
+                    scenario.performanceProbeMode,
+                    scenario.performanceProbeDurationSeconds,
+                    scenario.performanceProbeWarmupSeconds);
+            }
 
             Debug.Log($"[GameplayTest] START {scenario.name}: objects={SpawnedObjectCount}, observations={observations.Count}");
         }
@@ -268,10 +284,6 @@ namespace AreaSurvivors.Testing
                     return EvaluateObjectHealth(assertion, true, out failure);
                 case GameplayTestAssertionType.ObjectHealthAtMost:
                     return EvaluateObjectHealth(assertion, false, out failure);
-                case GameplayTestAssertionType.WoodAtLeast:
-                    return EvaluateResourceCount("Wood", FindGameManager()?.Wood, assertion.expectedCount, out failure);
-                case GameplayTestAssertionType.StoneAtLeast:
-                    return EvaluateResourceCount("Stone", FindGameManager()?.Stone, assertion.expectedCount, out failure);
                 case GameplayTestAssertionType.TokensAtLeast:
                     return EvaluateResourceCount("Tokens", FindGameManager()?.RunTokens, assertion.expectedCount, out failure);
                 case GameplayTestAssertionType.ConfigFloatApproximately:
@@ -440,21 +452,6 @@ namespace AreaSurvivors.Testing
             target = targetObject.transform;
         }
 
-        void SpawnLandmarks(Vector3Int center)
-        {
-            if (landmarkSpawner == null || scenario.landmarks == null) return;
-            foreach (var placement in scenario.landmarks)
-            {
-                if (placement == null) continue;
-                for (int i = 0; i < Mathf.Max(1, placement.count); i++)
-                {
-                    var offset = placement.cellOffset + placement.spacing * i;
-                    if (landmarkSpawner.CreateTestLandmark(grid, placement.landmarkName, OffsetCell(center, offset))) SpawnedObjectCount++;
-                    else Debug.LogWarning($"[GameplayTest] Landmark could not be placed: {placement.landmarkName} at {offset}");
-                }
-            }
-        }
-
         void SpawnPrefabs(Vector3Int center)
         {
             foreach (var placement in scenario.prefabs ?? Array.Empty<GameplayTestScenario.PrefabPlacement>())
@@ -539,9 +536,15 @@ namespace AreaSurvivors.Testing
         {
             if (scenario == null) return;
             SetEnabled(FindObjectsOfType<GameManager>(true), scenario.systems.enableGameManager);
-            SetEnabled(FindObjectsOfType<EnemySpawner>(true), scenario.systems.enableEnemySpawner);
-            SetEnabled(FindObjectsOfType<NaturalLandmarkSpawner>(true), scenario.systems.enableNaturalLandmarkSpawner);
-            SetEnabled(FindObjectsOfType<BuildPlacementController>(true), scenario.systems.enableBuildPlacement);
+            var enemySpawners = FindObjectsOfType<EnemySpawner>(true);
+            SetEnabled(enemySpawners, scenario.systems.enableEnemySpawner);
+            if (!scenario.systems.enableEnemySpawner)
+            {
+                foreach (var enemySpawner in enemySpawners)
+                {
+                    if (enemySpawner != null) enemySpawner.StopSpawning();
+                }
+            }
             SetActive(FindObjectsOfType<PlayerController>(true), scenario.systems.enableScenePlayer);
             SetActive(FindObjectsOfType<TowerController>(true), scenario.systems.enableSceneTower);
         }
@@ -553,10 +556,6 @@ namespace AreaSurvivors.Testing
                 foreach (var enemy in FindObjectsOfType<EnemyController>(true)) Destroy(enemy.gameObject);
             }
 
-            if (scenario.systems.clearExistingNaturalLandmarks)
-            {
-                foreach (var obstacle in FindObjectsOfType<Obstacle>(true)) Destroy(obstacle.gameObject);
-            }
         }
 
         Vector3 CellOffsetToWorld(Vector3Int center, Vector2Int offset)

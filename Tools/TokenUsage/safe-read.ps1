@@ -1,7 +1,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$Path,
     [int]$First = 80,
-    [int]$Last = 0,
+    [Alias("Tail")][int]$Last = 0,
     [int]$StartLine = 0,
     [int]$EndLine = 0,
     [string]$Pattern = "",
@@ -17,6 +17,11 @@ $maxInteractiveOutputLines = 80
 
 if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) {
     throw "safe-read path must be an existing file before reading (guard_code: 33): $Path"
+}
+
+if (-not [string]::IsNullOrWhiteSpace($Pattern) -and
+    $Pattern -match '(?i)\s-Context\s+\d+.*\s-MaxMatches\s+\d+.*\s-PrintOutput\b') {
+    throw "safe-read pattern appears to contain swallowed wrapper arguments (guard_code: 45). Use a simple identifier or a known line range instead of shell-escaped quoted expressions."
 }
 
 if (-not $LiteralPattern -and -not [string]::IsNullOrWhiteSpace($Pattern) -and $Pattern -match '(?<!\\)(\+\+|\*\*|\?\?)') {
@@ -49,19 +54,28 @@ if ($PrintOutput -and -not $AllowHighOutput) {
     }
 
     if ($estimatedPrintedLines -gt $maxInteractiveOutputLines) {
-        $suggestion = ""
         if (-not [string]::IsNullOrWhiteSpace($Pattern)) {
+            $maximumInteractiveContext = [Math]::Max(0, [Math]::Floor(($maxInteractiveOutputLines - 4) / 2))
+            if ($Context -gt $maximumInteractiveContext) {
+                Write-Warning "safe-read auto-clamps -Context from $Context to $maximumInteractiveContext for bounded -PrintOutput."
+                $Context = $maximumInteractiveContext
+            }
             $linesPerMatch = ($Context * 2) + 4
             $suggestedMaxMatches = [Math]::Max(1, [Math]::Floor($maxInteractiveOutputLines / $linesPerMatch))
-            $suggestion = " suggested_max_matches=$suggestedMaxMatches"
+            if ($MaxMatches -gt $suggestedMaxMatches) {
+                Write-Warning "safe-read auto-clamps -MaxMatches from $MaxMatches to $suggestedMaxMatches for bounded -PrintOutput."
+                $MaxMatches = $suggestedMaxMatches
+            }
+            $estimatedPrintedLines = $MaxMatches * $linesPerMatch
         } elseif ($StartLine -gt 0 -or $EndLine -gt 0) {
             $suggestedStartLine = [Math]::Max(1, $StartLine)
             $suggestedEndLine = $suggestedStartLine + $maxInteractiveOutputLines - 1
-            $suggestion = " suggested_end_line=$suggestedEndLine use_safe_read_batch=1"
+            throw "safe-read refuses more than $maxInteractiveOutputLines estimated output lines with -PrintOutput (guard_code: 39). Use safe-read-batch with the original range for automatic 80-line chunks. estimated_lines=$estimatedPrintedLines suggested_end_line=$suggestedEndLine use_safe_read_batch=1"
         } elseif ($StartLine -le 0 -and $EndLine -le 0 -and $Last -le 0) {
-            $suggestion = " suggested_first=$maxInteractiveOutputLines"
+            throw "safe-read refuses more than $maxInteractiveOutputLines estimated output lines with -PrintOutput (guard_code: 39). Lower -First or omit -PrintOutput. estimated_lines=$estimatedPrintedLines suggested_first=$maxInteractiveOutputLines"
+        } else {
+            throw "safe-read refuses more than $maxInteractiveOutputLines estimated output lines with -PrintOutput (guard_code: 39). Lower -Last or omit -PrintOutput. estimated_lines=$estimatedPrintedLines"
         }
-        throw "safe-read refuses more than $maxInteractiveOutputLines estimated output lines with -PrintOutput (guard_code: 39). Narrow the range/matches/context, run reads sequentially, or add -AllowHighOutput only when the single-call output budget has been reserved. estimated_lines=$estimatedPrintedLines$suggestion"
     }
 }
 

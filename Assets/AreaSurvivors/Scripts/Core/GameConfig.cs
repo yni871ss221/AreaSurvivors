@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace AreaSurvivors
 {
@@ -66,18 +67,50 @@ namespace AreaSurvivors
         public float distance;
     }
 
+    [System.Serializable]
+    public sealed class CharacterBaseStatsDefinition
+    {
+        public int maxHp = 40;
+        public float moveSpeed = 2.1f;
+        public int paintRadius = 1;
+        public float reviveSeconds = 6f;
+        public int defense;
+        public float xpGainMultiplier = 1f;
+        public int autoRegen;
+
+        public static CharacterBaseStatsDefinition Create(
+            int maxHp,
+            float moveSpeed,
+            int paintRadius,
+            float reviveSeconds,
+            int defense,
+            float xpGainMultiplier,
+            int autoRegen)
+        {
+            return new CharacterBaseStatsDefinition
+            {
+                maxHp = maxHp,
+                moveSpeed = moveSpeed,
+                paintRadius = paintRadius,
+                reviveSeconds = reviveSeconds,
+                defense = defense,
+                xpGainMultiplier = xpGainMultiplier,
+                autoRegen = autoRegen
+            };
+        }
+    }
+
     [CreateAssetMenu(menuName = "Area Survivors/Game Config")]
     public sealed class GameConfig : ScriptableObject
     {
         public const int MaxWeaponLevel = 10;
 
         [Header("Player")]
-        public float playerMoveSpeed = 2.1f;
-        public int playerMaxHp = 40;
-        public float playerReviveSeconds = 6f;
+        public CharacterBaseStatsDefinition knightBaseStats = CharacterBaseStatsDefinition.Create(40, 2.1f, 1, 6f, 3, 1.1f, 0);
+        public CharacterBaseStatsDefinition archerBaseStats = CharacterBaseStatsDefinition.Create(30, 2.4f, 1, 6f, 1, 1f, 0);
+        public CharacterBaseStatsDefinition mageBaseStats = CharacterBaseStatsDefinition.Create(20, 1.8f, 2, 6f, 0, 1.3f, 1);
         public float playerReviveInvincibleSeconds = 2f;
         public float enemyTerritorySlow = 0.35f;
-        public int paintRadius = 1;
         public float playerVisualScale = 1f;
         public float moveSpeedPerUpgradeLevel = 0.18f;
         public int paintRadiusLevelsPerBonus = 2;
@@ -85,6 +118,11 @@ namespace AreaSurvivors
         public int playerLevelMaxHpBonus = 10;
         public float playerLevelMoveSpeedBonus = 0.1f;
         public float playerLevelDefenseBonus = 0.5f;
+        [Min(1f)] public float xpRequirementGrowthStart = 1.35f;
+        [Min(1f)] public float xpRequirementGrowthEnd = 1.1f;
+        [Min(2)] public int xpRequirementGrowthStartLevel = 2;
+        [Min(3)] public int xpRequirementGrowthEndLevel = 39;
+        [Min(0f)] public float xpRequirementFlatBonus = 3f;
         public float reviveSecondsReductionPerUpgradeLevel = 0.7f;
         public float minReviveSeconds = 1f;
         public float runMoveSpeedMultiplier = 1.08f;
@@ -110,12 +148,12 @@ namespace AreaSurvivors
         public float cameraBoundsPadding = 0.25f;
 
         [Header("Tower")]
-        public int towerMaxHp = 160;
-        public int towerMaxHpPerUpgradeLevel = 12;
+        public int towerMaxHp = 200;
+        public int towerMaxHpPerUpgradeLevel = 30;
         public float ballistaRange = 9.5f;
         public float ballistaCooldown = 1.15f;
         public int ballistaDamage = 5;
-        public int ballistaMaxHp = 90;
+        public int ballistaMaxHp = 150;
         public float towerCannonRange = 10f;
         public float towerCannonCooldown = 3f;
         public int towerCannonDamage = 8;
@@ -124,57 +162,53 @@ namespace AreaSurvivors
         public float towerCannonProjectileLifetime = 4.2f;
         public float towerCannonProjectileVisualScale = 0.32f;
         public float towerCannonKnockback = 2.2f;
-        public int towerUpgradeWoodCost = 300;
-        public int towerUpgradeStoneCost = 300;
         public int upgradedTowerMaxHp = 900;
         public int upgradedTowerRegenBonus = 3;
         public int upgradedTowerCannonDamageBonus = 10;
         public float upgradedTowerCannonExplosionRadiusMultiplier = 2f;
         public int upgradedTowerImmediatePaintRadiusCells = 15;
-        public int woodenWallMaxHp = 70;
-        public int watchTowerMaxHp = 100;
+        public int woodenWallMaxHp = 100;
+        public int watchTowerMaxHp = 150;
         public float watchTowerAutoPaintIntervalSeconds = 2f;
         public int watchTowerAutoPaintRadiusCells = 10;
         public int watchTowerDamage = 1;
         public int upgradedWatchTowerDamageBonus = 3;
-        public int startingBallistaStock = 4;
-        public int startingWallStock = 4;
-
-        [Header("Resources")]
-        public int startingWood = 100;
-        public int startingStone = 100;
-        public int startingWoodPerUpgradeLevel = 25;
-        public int startingStonePerUpgradeLevel = 25;
-        public int woodenWallWoodCost = 10;
-        public int woodenWallStoneCost = 0;
-        public int ballistaWoodCost = 50;
-        public int ballistaStoneCost = 30;
-        public int watchTowerWoodCost = 50;
-        public int watchTowerStoneCost = 50;
-        public float harvestIntervalSeconds = 1f;
-        public int harvestAmountPerTick = 2;
-        public int harvestAmount1Cell = 100;
-        public int harvestAmount2Cell = 200;
-        public int harvestAmount4Cell = 400;
-        public int harvestAmount8Cell = 800;
-        public int roundEndWoodReward = 10;
-        public int roundEndStoneReward = 10;
-        public int roundEndWoodRewardPerUpgradeLevel = 10;
-        public int roundEndStoneRewardPerUpgradeLevel = 10;
-
         [Header("Combat")]
         public int baseAttackPower = 6;
         public float slashCooldown = 1.05f;
         public float arrowCooldown = 0.75f;
         public float fireballCooldown = 1.45f;
         public float minAttackCooldownMultiplier = 0.45f;
+        [Header("Run Weapon Upgrades")]
+        [Min(1)]
         public int runAttackPowerBonus = 2;
+        [Min(1)] public int runReducedAttackPowerBonus = 1;
         public float runAttackCooldownMultiplier = 0.92f;
+        [Min(0f)] public float runAreaRangeBonus = 0.2f;
+        [Min(0f)] public float runMediumRangeBonus = 0.375f;
+        [Min(0f)] public float runProjectileRangeBonus = 0.75f;
+        [Min(0f)] public float runWeaponKnockbackBonus = 0.5f;
+        [Min(0f)] public float runExplosionRadiusBonus = 0.375f;
+        [Min(1)] public int runProjectileCountBonus = 1;
+        [Min(0f)] public float runShieldRotationSpeedBonus = 20f;
+        [Range(0f, 1f)] public float runSlowBonus = 0.05f;
+        [Min(0f)] public float runArrowRainDurationBonus = 0.4f;
+        [Min(0f)] public float runThunderBallDurationBonus = 0.5f;
         public int slashDamageBonus = 2;
         public float slashRange = 1.6f;
         public float slashOffset = 1.05f;
         [Header("Weapon Evolution")]
         [Min(0)] public int swordRushBaseAttackPower = 16;
+        [Min(0)] public int goldenBowBaseAttackPower = 16;
+        [Min(0)] public int fireMissileBaseAttackPower = 16;
+        [Min(0)] public int dualShieldBaseAttackPower = 12;
+        [Min(0)] public int goddessBlessingBaseAttackPower = 12;
+        [Min(0)] public int bananaBaseAttackPower = 12;
+        [Min(0)] public int excaliburBaseAttackPower = 12;
+        [Min(0)] public int arrowShowerBaseAttackPower = 10;
+        [Min(0)] public int machineGunBaseAttackPower = 80;
+        [Min(0)] public int frostStormBaseAttackPower = 5;
+        [Min(0)] public int thunderStormBaseAttackPower = 10;
         [Min(0f)] public float swordRushBaseRange = 3.2f;
         [Min(1)] public int swordRushStrikeCount = 5;
         [Min(0f)] public float swordRushStrikeIntervalSeconds = 0.09f;
@@ -192,7 +226,9 @@ namespace AreaSurvivors
         [Min(0.1f)] public float evolvedGroundStrikeTargetRadiusCells = 15f;
         [Min(0.05f)] public float machineGunShotIntervalSeconds = 0.2f;
         [Min(0)] public int machineGunBaseAttackCountBonus = 10;
-        [Range(0.05f, 2f)] public float fireMissileBaseCooldownMultiplier = 0.5f;
+        [Min(0.05f)] public float fireMissileBaseCooldownSeconds = 0.5f;
+        [Range(0.05f, 1f)] public float fireMissileProjectileSpeedMultiplier = 0.75f;
+        [Range(0f, 360f)] public float fireMissileLaunchArcDegrees = 180f;
         [Min(1f)] public float fireMissileHomingTurnSpeedDegrees = 180f;
         [Min(0)] public int frostStormTargetCount = 5;
         [Min(0)] public int thunderStormOrbitCount = 3;
@@ -209,6 +245,15 @@ namespace AreaSurvivors
         public float weaponSpecialEffectControlThreshold = 0.5f;
         [Min(1f)]
         public float weaponSpecialEffectMultiplier = 2f;
+        [Header("Area Control Range Scaling")]
+        [Range(0f, 1f)]
+        public float areaControlRangeScaleStartRatio = 0.5f;
+        [Range(0f, 1f)]
+        public float areaControlRangeScaleFullRatio = 1f;
+        [Min(1f)]
+        public float areaControlRangeScaleMaxMultiplier = 2f;
+        [Min(0.1f)]
+        public float areaControlRangeEvaluationIntervalSeconds = 1f;
         [Header("Weapon Levels")]
         public WeaponLevelDefinition[] slashWeaponLevels;
         public WeaponLevelDefinition[] arrowWeaponLevels;
@@ -228,23 +273,15 @@ namespace AreaSurvivors
         public float advancedNormalEnemyKnockbackWeight = 2f;
         public float eliteEnemyKnockbackWeight = 2f;
         public float bossEnemyKnockbackWeight = 10f;
-        public int baseDefense = 0;
-        public float baseXpGainMultiplier = 1f;
-        public int baseAutoRegen = 0;
+        [Min(1f)] public float bossEnemyCollisionMass = 1000000f;
         public float autoRegenIntervalSeconds = 2f;
-        public float baseWorkSpeedMultiplier = 1f;
-        public int baseResourceGainBonus = 0;
         public int defensePerUpgradeLevel = 1;
         public float xpGainMultiplierPerUpgradeLevel = 0.1f;
         public int autoRegenPerUpgradeLevel = 1;
-        public float workSpeedMultiplierPerUpgradeLevel = 0.1f;
-        public int resourceGainPerUpgradeLevel = 1;
         public int runKnockbackBonus = 1;
         public int runDefenseBonus = 1;
         public float runXpGainMultiplierBonus = 0.1f;
         public int runAutoRegenBonus = 1;
-        public float runWorkSpeedMultiplierBonus = 0.1f;
-        public int runResourceGainBonus = 1;
         [Header("Permanent Skill Effects")]
         public float ballistaRangePerUpgradeLevel = 0.75f;
         public int ballistaDamagePerUpgradeLevel = 2;
@@ -257,14 +294,34 @@ namespace AreaSurvivors
         public int roundEndTokenReward = 3;
         public int roundEndTokenRewardPerUpgradeLevel = 1;
         public int eliteTimedSpawnCountPerUpgradeLevel = 1;
-        public float autoBuildSpeedPerUpgradeLevel = 0.1f;
         public float baseRoundTimeLimitSeconds = 60f;
         public float projectileSpeed = 11.5f;
+
+        public CharacterBaseStatsDefinition GetCharacterBaseStats(CharacterType type)
+        {
+            CharacterBaseStatsDefinition selected;
+            switch (type)
+            {
+                case CharacterType.Archer:
+                    selected = archerBaseStats;
+                    break;
+                case CharacterType.Mage:
+                    selected = mageBaseStats;
+                    break;
+                default:
+                    selected = knightBaseStats;
+                    break;
+            }
+
+            return selected ?? knightBaseStats ?? CharacterBaseStatsDefinition.Create(40, 2.1f, 1, 6f, 3, 1.1f, 0);
+        }
         public float projectileLifetime = 4.2f;
         public float projectileVisualScale = 1.35f;
 
         [Header("Enemies")]
         public float enemyBaseSpeed = 0.9f;
+        [Min(0f)] public float enemyMoveSpeedBonusPerStage = 0.2f;
+        [Min(0f)] public float normalEnemyPlayerAggroRangeCells = 5f;
         public float enemyVisualScale = 1f;
         public int enemyBaseHp = 14;
         public int enemyDamage = 3;
@@ -299,7 +356,7 @@ namespace AreaSurvivors
         public float goblinLordDarkOrbDamageRadius = 1.25f;
         public float goblinLordDarkOrbDamageIntervalSeconds = 0.45f;
         [Range(0.1f, 2f)]
-        public float goblinLordDarkOrbDamageMultiplier = 0.25f;
+        public float goblinLordDarkOrbDamageMultiplier = 0.5f;
         public float goblinLordDarkOrbVisualScale = 1f;
         public float lichSummonRadius = 4f;
         public float lichSummonCircleDurationSeconds = 2.2f;
@@ -312,7 +369,7 @@ namespace AreaSurvivors
         public Vector2 dragonBreathHitboxSizeCells = new Vector2(3f, 3f);
         public float dragonBreathExplosionRadiusCells = 3f;
         [Range(0.1f, 2f)]
-        public float dragonBreathDamageMultiplier = 0.5f;
+        public float dragonBreathDamageMultiplier = 0.75f;
         public float dragonBreathProjectileVisualScale = 1f;
         public float dragonBreathExplosionDurationSeconds = 0.28f;
         public EnemyDefinition[] enemyDefinitions;
@@ -435,6 +492,21 @@ namespace AreaSurvivors
                 damageIntervalSeconds = Mathf.Max(0.05f, definition.damageIntervalSeconds),
                 distance = Mathf.Max(0f, definition.distance)
             };
+        }
+
+        public int GetRunAttackPowerBonus(WeaponType type)
+        {
+            type = WeaponCatalog.BaseWeaponOf(type);
+            switch (type)
+            {
+                case WeaponType.Shield:
+                case WeaponType.Flag:
+                case WeaponType.AuraSword:
+                case WeaponType.ThunderBall:
+                    return Mathf.Max(1, runReducedAttackPowerBonus);
+                default:
+                    return Mathf.Max(1, runAttackPowerBonus);
+            }
         }
 
         WeaponLevelDefinition[] WeaponLevelsFor(WeaponType type)
@@ -583,7 +655,7 @@ namespace AreaSurvivors
                     definition.damageIntervalSeconds = 0.35f;
                     break;
                 case WeaponType.Gun:
-                    definition.attackPower = 20 + bonusLevel * 2;
+                    definition.attackPower = 50 + bonusLevel * 2;
                     definition.projectileCount = 1 + bonusLevel / 4;
                     definition.range = (15f + bonusLevel * 0.5f) * TileGrid.DefaultCellSize;
                     definition.distance = definition.range;
@@ -763,7 +835,7 @@ namespace AreaSurvivors
                     displayName = "イノシシ",
                     spriteKey = "EnemyBoar",
                     hpMultiplier = 1f,
-                    damageMultiplier = 1f,
+                    damageMultiplier = 2f,
                     speedMultiplier = 1f,
                     cellSize = 1f,
                     xpValue = Mathf.Max(1, xpPerEnemy),
@@ -777,10 +849,10 @@ namespace AreaSurvivors
                     displayName = "エリートイノシシ",
                     spriteKey = "EnemyBoar",
                     hpMultiplier = 5f,
-                    damageMultiplier = 2f,
+                    damageMultiplier = 4f,
                     speedMultiplier = 0.95f,
                     cellSize = 1.5f,
-                    xpValue = Mathf.Max(5, xpPerEnemy * 6),
+                    xpValue = Mathf.Max(5, xpPerEnemy * 5),
                     tokenValue = 1,
                     elite = true,
                     outlineColor = new Color(1f, 0.86f, 0.12f, 1f),
@@ -793,10 +865,10 @@ namespace AreaSurvivors
                     spriteKey = "EnemyOrc",
                     animationSpeedMultiplier = 0.5f,
                     hpMultiplier = 2f,
-                    damageMultiplier = 2f,
+                    damageMultiplier = 3f,
                     speedMultiplier = 0.82f,
                     cellSize = 2f,
-                    xpValue = Mathf.Max(3, xpPerEnemy * 3),
+                    xpValue = Mathf.Max(2, xpPerEnemy * 2),
                     tokenValue = 0,
                     outlineColor = Color.black,
                     outlineThickness = 0.02f
@@ -808,10 +880,10 @@ namespace AreaSurvivors
                     spriteKey = "EnemyOrc",
                     animationSpeedMultiplier = 0.5f,
                     hpMultiplier = 10f,
-                    damageMultiplier = 4f,
+                    damageMultiplier = 6f,
                     speedMultiplier = 0.76f,
                     cellSize = 2.5f,
-                    xpValue = Mathf.Max(12, xpPerEnemy * 12),
+                    xpValue = Mathf.Max(10, xpPerEnemy * 10),
                     tokenValue = 1,
                     elite = true,
                     outlineColor = new Color(1f, 0.86f, 0.12f, 1f),
@@ -823,11 +895,11 @@ namespace AreaSurvivors
                     displayName = "オークキング",
                     spriteKey = "EnemyOrcKing",
                     animationSpeedMultiplier = 0.5f,
-                    hpMultiplier = 40f,
+                    hpMultiplier = 80f,
                     damageMultiplier = 8f,
-                    speedMultiplier = 0.62f,
+                    speedMultiplier = 0.31f,
                     cellSize = 4f,
-                    xpValue = 50,
+                    xpValue = 80,
                     tokenValue = 3,
                     boss = true,
                     outlineColor = new Color(1f, 0.08f, 0.04f, 1f),
@@ -839,11 +911,11 @@ namespace AreaSurvivors
                     displayName = "ゴブリン",
                     spriteKey = "EnemyGoblin",
                     animationSpeedMultiplier = 0.35f,
-                    hpMultiplier = 2f,
-                    damageMultiplier = 2f,
+                    hpMultiplier = 4f,
+                    damageMultiplier = 4f,
                     speedMultiplier = 1f,
                     cellSize = 1f,
-                    xpValue = Mathf.Max(2, xpPerEnemy * 2),
+                    xpValue = Mathf.Max(4, xpPerEnemy * 4),
                     tokenValue = 0,
                     outlineColor = Color.black,
                     outlineThickness = 0.018f
@@ -854,84 +926,6 @@ namespace AreaSurvivors
                     displayName = "エリートゴブリン",
                     spriteKey = "EnemyGoblin",
                     animationSpeedMultiplier = 0.35f,
-                    hpMultiplier = 10f,
-                    damageMultiplier = 4f,
-                    speedMultiplier = 0.95f,
-                    cellSize = 1.5f,
-                    xpValue = Mathf.Max(10, xpPerEnemy * 10),
-                    tokenValue = 1,
-                    elite = true,
-                    outlineColor = new Color(1f, 0.86f, 0.12f, 1f),
-                    outlineThickness = 0.055f
-                },
-                new EnemyDefinition
-                {
-                    kind = EnemyKind.Ogre,
-                    displayName = "オーガ",
-                    spriteKey = "EnemyOgre",
-                    animationSpeedMultiplier = 0.35f,
-                    hpMultiplier = 4f,
-                    damageMultiplier = 4f,
-                    speedMultiplier = 0.82f,
-                    cellSize = 2f,
-                    xpValue = Mathf.Max(6, xpPerEnemy * 6),
-                    tokenValue = 0,
-                    outlineColor = Color.black,
-                    outlineThickness = 0.02f
-                },
-                new EnemyDefinition
-                {
-                    kind = EnemyKind.EliteOgre,
-                    displayName = "エリートオーガ",
-                    spriteKey = "EnemyOgre",
-                    animationSpeedMultiplier = 0.35f,
-                    hpMultiplier = 20f,
-                    damageMultiplier = 8f,
-                    speedMultiplier = 0.76f,
-                    cellSize = 2.5f,
-                    xpValue = Mathf.Max(24, xpPerEnemy * 24),
-                    tokenValue = 1,
-                    elite = true,
-                    outlineColor = new Color(1f, 0.86f, 0.12f, 1f),
-                    outlineThickness = 0.055f
-                },
-                new EnemyDefinition
-                {
-                    kind = EnemyKind.GoblinLord,
-                    displayName = "ゴブリンロード",
-                    spriteKey = "EnemyGoblinLord",
-                    animationSpeedMultiplier = 0.35f,
-                    hpMultiplier = 160f,
-                    damageMultiplier = 16f,
-                    speedMultiplier = 0.62f,
-                    cellSize = 4f,
-                    xpValue = 100,
-                    tokenValue = 5,
-                    boss = true,
-                    outlineColor = new Color(1f, 0.08f, 0.04f, 1f),
-                    outlineThickness = 0.075f
-                },
-                new EnemyDefinition
-                {
-                    kind = EnemyKind.Skeleton,
-                    displayName = "スケルトン",
-                    spriteKey = "EnemySkeleton",
-                    animationSpeedMultiplier = 0.45f,
-                    hpMultiplier = 4f,
-                    damageMultiplier = 4f,
-                    speedMultiplier = 1.02f,
-                    cellSize = 1f,
-                    xpValue = Mathf.Max(4, xpPerEnemy * 4),
-                    tokenValue = 0,
-                    outlineColor = Color.black,
-                    outlineThickness = 0.018f
-                },
-                new EnemyDefinition
-                {
-                    kind = EnemyKind.EliteSkeleton,
-                    displayName = "エリートスケルトン",
-                    spriteKey = "EnemySkeleton",
-                    animationSpeedMultiplier = 0.45f,
                     hpMultiplier = 20f,
                     damageMultiplier = 8f,
                     speedMultiplier = 0.95f,
@@ -944,15 +938,93 @@ namespace AreaSurvivors
                 },
                 new EnemyDefinition
                 {
+                    kind = EnemyKind.Ogre,
+                    displayName = "オーガ",
+                    spriteKey = "EnemyOgre",
+                    animationSpeedMultiplier = 0.35f,
+                    hpMultiplier = 8f,
+                    damageMultiplier = 5f,
+                    speedMultiplier = 0.82f,
+                    cellSize = 2f,
+                    xpValue = Mathf.Max(8, xpPerEnemy * 8),
+                    tokenValue = 0,
+                    outlineColor = Color.black,
+                    outlineThickness = 0.02f
+                },
+                new EnemyDefinition
+                {
+                    kind = EnemyKind.EliteOgre,
+                    displayName = "エリートオーガ",
+                    spriteKey = "EnemyOgre",
+                    animationSpeedMultiplier = 0.35f,
+                    hpMultiplier = 40f,
+                    damageMultiplier = 10f,
+                    speedMultiplier = 0.76f,
+                    cellSize = 2.5f,
+                    xpValue = Mathf.Max(40, xpPerEnemy * 40),
+                    tokenValue = 1,
+                    elite = true,
+                    outlineColor = new Color(1f, 0.86f, 0.12f, 1f),
+                    outlineThickness = 0.055f
+                },
+                new EnemyDefinition
+                {
+                    kind = EnemyKind.GoblinLord,
+                    displayName = "ゴブリンロード",
+                    spriteKey = "EnemyGoblinLord",
+                    animationSpeedMultiplier = 0.35f,
+                    hpMultiplier = 320f,
+                    damageMultiplier = 16f,
+                    speedMultiplier = 0.31f,
+                    cellSize = 4f,
+                    xpValue = 320,
+                    tokenValue = 5,
+                    boss = true,
+                    outlineColor = new Color(1f, 0.08f, 0.04f, 1f),
+                    outlineThickness = 0.075f
+                },
+                new EnemyDefinition
+                {
+                    kind = EnemyKind.Skeleton,
+                    displayName = "スケルトン",
+                    spriteKey = "EnemySkeleton",
+                    animationSpeedMultiplier = 0.45f,
+                    hpMultiplier = 12f,
+                    damageMultiplier = 7f,
+                    speedMultiplier = 1.02f,
+                    cellSize = 1f,
+                    xpValue = Mathf.Max(12, xpPerEnemy * 12),
+                    tokenValue = 0,
+                    outlineColor = Color.black,
+                    outlineThickness = 0.018f
+                },
+                new EnemyDefinition
+                {
+                    kind = EnemyKind.EliteSkeleton,
+                    displayName = "エリートスケルトン",
+                    spriteKey = "EnemySkeleton",
+                    animationSpeedMultiplier = 0.45f,
+                    hpMultiplier = 60f,
+                    damageMultiplier = 14f,
+                    speedMultiplier = 0.95f,
+                    cellSize = 1.5f,
+                    xpValue = Mathf.Max(60, xpPerEnemy * 60),
+                    tokenValue = 1,
+                    elite = true,
+                    outlineColor = new Color(1f, 0.86f, 0.12f, 1f),
+                    outlineThickness = 0.055f
+                },
+                new EnemyDefinition
+                {
                     kind = EnemyKind.SkeletonKnight,
                     displayName = "スケルトンナイト",
                     spriteKey = "EnemySkeletonKnight",
                     animationSpeedMultiplier = 0.45f,
-                    hpMultiplier = 8f,
+                    hpMultiplier = 18f,
                     damageMultiplier = 8f,
                     speedMultiplier = 0.8f,
                     cellSize = 2f,
-                    xpValue = Mathf.Max(12, xpPerEnemy * 12),
+                    xpValue = Mathf.Max(18, xpPerEnemy * 18),
                     tokenValue = 0,
                     outlineColor = Color.black,
                     outlineThickness = 0.02f
@@ -963,11 +1035,11 @@ namespace AreaSurvivors
                     displayName = "エリートスケルトンナイト",
                     spriteKey = "EnemySkeletonKnight",
                     animationSpeedMultiplier = 0.45f,
-                    hpMultiplier = 40f,
+                    hpMultiplier = 90f,
                     damageMultiplier = 16f,
                     speedMultiplier = 0.74f,
                     cellSize = 2.5f,
-                    xpValue = Mathf.Max(48, xpPerEnemy * 48),
+                    xpValue = Mathf.Max(90, xpPerEnemy * 90),
                     tokenValue = 1,
                     elite = true,
                     outlineColor = new Color(1f, 0.86f, 0.12f, 1f),
@@ -979,11 +1051,11 @@ namespace AreaSurvivors
                     displayName = "リッチ",
                     spriteKey = "EnemyLich",
                     animationSpeedMultiplier = 0.45f,
-                    hpMultiplier = 240f,
+                    hpMultiplier = 640f,
                     damageMultiplier = 24f,
-                    speedMultiplier = 0.58f,
+                    speedMultiplier = 0.31f,
                     cellSize = 4f,
-                    xpValue = 150,
+                    xpValue = 640,
                     tokenValue = 7,
                     boss = true,
                     outlineColor = new Color(1f, 0.08f, 0.04f, 1f),
@@ -995,11 +1067,11 @@ namespace AreaSurvivors
                     displayName = "リザード",
                     spriteKey = "EnemyLizard",
                     animationSpeedMultiplier = 0.45f,
-                    hpMultiplier = 8f,
-                    damageMultiplier = 8f,
+                    hpMultiplier = 27f,
+                    damageMultiplier = 26f / 3f,
                     speedMultiplier = 1f,
                     cellSize = 1f,
-                    xpValue = Mathf.Max(8, xpPerEnemy * 8),
+                    xpValue = Mathf.Max(27, xpPerEnemy * 27),
                     tokenValue = 0,
                     outlineColor = Color.black,
                     outlineThickness = 0.018f
@@ -1010,11 +1082,11 @@ namespace AreaSurvivors
                     displayName = "エリートリザード",
                     spriteKey = "EnemyLizard",
                     animationSpeedMultiplier = 0.45f,
-                    hpMultiplier = 40f,
-                    damageMultiplier = 16f,
+                    hpMultiplier = 135f,
+                    damageMultiplier = 52f / 3f,
                     speedMultiplier = 0.94f,
                     cellSize = 1.5f,
-                    xpValue = Mathf.Max(40, xpPerEnemy * 40),
+                    xpValue = Mathf.Max(135, xpPerEnemy * 135),
                     tokenValue = 1,
                     elite = true,
                     outlineColor = new Color(1f, 0.86f, 0.12f, 1f),
@@ -1026,11 +1098,11 @@ namespace AreaSurvivors
                     displayName = "リザードマン",
                     spriteKey = "EnemyLizardman",
                     animationSpeedMultiplier = 0.45f,
-                    hpMultiplier = 16f,
-                    damageMultiplier = 16f,
+                    hpMultiplier = 40.5f,
+                    damageMultiplier = 32f / 3f,
                     speedMultiplier = 0.78f,
                     cellSize = 2f,
-                    xpValue = Mathf.Max(24, xpPerEnemy * 24),
+                    xpValue = Mathf.Max(41, xpPerEnemy * 41),
                     tokenValue = 0,
                     outlineColor = Color.black,
                     outlineThickness = 0.02f
@@ -1041,11 +1113,11 @@ namespace AreaSurvivors
                     displayName = "エリートリザードマン",
                     spriteKey = "EnemyLizardman",
                     animationSpeedMultiplier = 0.45f,
-                    hpMultiplier = 80f,
-                    damageMultiplier = 32f,
+                    hpMultiplier = 202.5f,
+                    damageMultiplier = 64f / 3f,
                     speedMultiplier = 0.72f,
                     cellSize = 2.5f,
-                    xpValue = Mathf.Max(96, xpPerEnemy * 96),
+                    xpValue = Mathf.Max(203, xpPerEnemy * 203),
                     tokenValue = 1,
                     elite = true,
                     outlineColor = new Color(1f, 0.86f, 0.12f, 1f),
@@ -1057,11 +1129,11 @@ namespace AreaSurvivors
                     displayName = "ドラゴン",
                     spriteKey = "EnemyDragon",
                     animationSpeedMultiplier = 0.45f,
-                    hpMultiplier = 720f,
-                    damageMultiplier = 48f,
-                    speedMultiplier = 0.56f,
+                    hpMultiplier = 1280f,
+                    damageMultiplier = 32f,
+                    speedMultiplier = 0.31f,
                     cellSize = 4f,
-                    xpValue = 250,
+                    xpValue = 1280,
                     tokenValue = 10,
                     boss = true,
                     outlineColor = new Color(1f, 0.08f, 0.04f, 1f),

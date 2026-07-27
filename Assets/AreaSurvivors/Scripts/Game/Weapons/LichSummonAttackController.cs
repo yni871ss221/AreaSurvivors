@@ -173,8 +173,46 @@ namespace AreaSurvivors
         {
             var enemySpawner = Spawner;
             if (enemySpawner == null) return;
-            SummonEnemyBatch(EnemyKind.Skeleton, SkeletonCount);
-            SummonEnemyBatch(EnemyKind.SkeletonKnight, SkeletonKnightCount);
+
+            int skeletonCount = SkeletonCount;
+            int skeletonKnightCount = SkeletonKnightCount;
+            int requestedCount = skeletonCount + skeletonKnightCount;
+            int availableCount = Mathf.Min(
+                requestedCount,
+                enemySpawner.RemainingAliveEnemyCapacity);
+            if (availableCount <= 0)
+            {
+                CombatPerformanceDiagnostics.RecordSummonedEnemyCapBlocked(
+                    requestedCount);
+                return;
+            }
+
+            int allowedSkeletons = Mathf.Min(
+                skeletonCount,
+                Mathf.CeilToInt(
+                    availableCount *
+                    (skeletonCount / Mathf.Max(1f, requestedCount))));
+            int allowedSkeletonKnights = Mathf.Min(
+                skeletonKnightCount,
+                availableCount - allowedSkeletons);
+            int remainingSlots =
+                availableCount - allowedSkeletons - allowedSkeletonKnights;
+            if (remainingSlots > 0)
+            {
+                int additionalSkeletons = Mathf.Min(
+                    skeletonCount - allowedSkeletons,
+                    remainingSlots);
+                allowedSkeletons += additionalSkeletons;
+                remainingSlots -= additionalSkeletons;
+                allowedSkeletonKnights += Mathf.Min(
+                    skeletonKnightCount - allowedSkeletonKnights,
+                    remainingSlots);
+            }
+
+            CombatPerformanceDiagnostics.RecordSummonedEnemyCapBlocked(
+                requestedCount - allowedSkeletons - allowedSkeletonKnights);
+            SummonEnemyBatch(EnemyKind.Skeleton, allowedSkeletons);
+            SummonEnemyBatch(EnemyKind.SkeletonKnight, allowedSkeletonKnights);
         }
 
         void SummonEnemyBatch(EnemyKind kind, int count)
@@ -184,7 +222,12 @@ namespace AreaSurvivors
             int safeCount = Mathf.Max(0, count);
             for (int i = 0; i < safeCount; i++)
             {
-                enemySpawner.SpawnSummonedEnemy(kind, RandomPointInSummonArea(i, safeCount));
+                if (enemySpawner.SpawnSummonedEnemy(
+                        kind,
+                        RandomPointInSummonArea(i, safeCount)) == null)
+                {
+                    break;
+                }
             }
         }
 

@@ -132,6 +132,7 @@ namespace AreaSurvivors
             var filter = new ContactFilter2D();
             filter.NoFilter();
             hitbox.OverlapCollider(filter, hits);
+            CombatPerformanceDiagnostics.RecordAreaOverlapQuery(hits.Count);
             for (int i = 0; i < hits.Count; i++)
             {
                 var enemy = hits[i] != null ? hits[i].GetComponent<EnemyController>() : null;
@@ -139,7 +140,12 @@ namespace AreaSurvivors
                 damaged.Add(enemy);
                 var health = enemy.GetComponent<Health>();
                 int creditedDamage = health != null && !health.IsDead ? health.DamageAmount(damage) : 0;
-                if (health != null) health.Damage(damage, hits[i].ClosestPoint(origin));
+                if (health != null)
+                {
+                    CombatPerformanceDiagnostics.RecordAreaDamageAttempt();
+                    int dealt = health.Damage(damage, hits[i].ClosestPoint(origin));
+                    if (dealt > 0) CombatPerformanceDiagnostics.RecordAreaDamageHit();
+                }
                 PaintPlayerTerritory(enemy.transform.position, SlashPaintRadius);
                 ApplyKnockback(enemy);
                 GameManager.Instance?.RegisterWeaponDamage(WeaponType.Slash, creditedDamage);

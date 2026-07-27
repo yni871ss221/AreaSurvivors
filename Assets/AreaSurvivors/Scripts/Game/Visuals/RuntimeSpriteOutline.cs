@@ -20,7 +20,18 @@ namespace AreaSurvivors
         MeshFilter outlineFilter;
         MeshRenderer outlineRenderer;
         Material outlineMaterial;
+        Mesh lastSourceMesh;
+        Material lastSourceMaterial;
+        Texture lastTexture;
+        Color lastColor;
+        float lastEffectiveThickness;
+        bool lastSourceEnabled;
+        int lastSortingLayerId;
+        int lastSortingOrder;
+        bool syncInitialized;
         static readonly Dictionary<OutlineMeshCacheKey, OutlineMeshData> OutlineMeshCache = new Dictionary<OutlineMeshCacheKey, OutlineMeshData>();
+
+        public MeshRenderer OutlineRenderer => outlineRenderer;
 
         sealed class OutlineMeshData
         {
@@ -67,6 +78,7 @@ namespace AreaSurvivors
         void OnEnable()
         {
             EnsureOutline();
+            syncInitialized = false;
             SyncOutline();
         }
 
@@ -139,17 +151,28 @@ namespace AreaSurvivors
 
             outlineRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             outlineRenderer.receiveShadows = false;
+            var outlineTransform = outlineRenderer.transform;
+            outlineTransform.localPosition = Vector3.zero;
+            outlineTransform.localRotation = Quaternion.identity;
+            outlineTransform.localScale = Vector3.one;
+            outlineRenderer.sharedMaterial = outlineMaterial;
             RemoveLegacyOutlineCopies();
         }
 
         void SyncOutline()
         {
-            if (sourceFilter == null || sourceRenderer == null || outlineRenderer == null) return;
+            if (sourceFilter == null || sourceRenderer == null || outlineRenderer == null)
+            {
+                EnsureOutline();
+                if (sourceFilter == null || sourceRenderer == null || outlineRenderer == null) return;
+            }
 
             var sourceMaterial = sourceRenderer.sharedMaterial;
-            if (sourceMaterial == null || sourceFilter.sharedMesh == null)
+            var sourceMesh = sourceFilter.sharedMesh;
+            if (sourceMaterial == null || sourceMesh == null)
             {
                 SetVisible(false);
+                syncInitialized = false;
                 return;
             }
 
@@ -160,20 +183,54 @@ namespace AreaSurvivors
                 color.a *= Mathf.Lerp(0.35f, 1f, Mathf.PingPong(Time.time * Mathf.Max(0.1f, blinkSpeed), 1f));
             }
 
-            var outlineData = EnsureOutlineMesh(sourceFilter.sharedMesh);
-            outlineMaterial.mainTexture = sourceMaterial.mainTexture;
-            outlineMaterial.color = color;
-            ApplySpriteRectProperties(outlineData);
+            float effectiveThickness = EffectiveThickness;
+            Texture texture = sourceMaterial.mainTexture;
+            bool visible = sourceRenderer.enabled && color.a > 0.001f && effectiveThickness > 0.001f;
+            int desiredSortingOrder = sourceRenderer.sortingOrder - 1;
+            bool changed =
+                !syncInitialized ||
+                blink ||
+                lastSourceMesh != sourceMesh ||
+                lastSourceMaterial != sourceMaterial ||
+                lastTexture != texture ||
+                lastColor != color ||
+                !Mathf.Approximately(lastEffectiveThickness, effectiveThickness) ||
+                lastSourceEnabled != sourceRenderer.enabled ||
+                lastSortingLayerId != sourceRenderer.sortingLayerID ||
+                lastSortingOrder != sourceRenderer.sortingOrder ||
+                outlineRenderer.sharedMaterial != outlineMaterial ||
+                outlineRenderer.sortingLayerID != sourceRenderer.sortingLayerID ||
+                outlineRenderer.sortingOrder != desiredSortingOrder ||
+                outlineRenderer.enabled != visible;
+            if (!changed) return;
 
-            bool visible = sourceRenderer.enabled && color.a > 0.001f && EffectiveThickness > 0.001f;
-            var outlineTransform = outlineRenderer.transform;
-            outlineTransform.localPosition = Vector3.zero;
-            outlineTransform.localRotation = Quaternion.identity;
-            outlineTransform.localScale = Vector3.one;
-            outlineRenderer.sharedMaterial = outlineMaterial;
+            var outlineData = EnsureOutlineMesh(sourceMesh, effectiveThickness);
+            outlineMaterial.mainTexture = texture;
+            outlineMaterial.color = color;
+            if (outlineData != null)
+            {
+                outlineMaterial.SetVector("_SpriteRect", outlineData.spriteRect);
+                outlineMaterial.SetVector("_OutlineUv", outlineData.outlineUv);
+            }
+            outlineMaterial.SetFloat("_AlphaThreshold", 0.05f);
+
+            if (outlineRenderer.sharedMaterial != outlineMaterial)
+            {
+                outlineRenderer.sharedMaterial = outlineMaterial;
+            }
             outlineRenderer.sortingLayerID = sourceRenderer.sortingLayerID;
-            outlineRenderer.sortingOrder = sourceRenderer.sortingOrder - 1;
+            outlineRenderer.sortingOrder = desiredSortingOrder;
             outlineRenderer.enabled = visible;
+
+            lastSourceMesh = sourceMesh;
+            lastSourceMaterial = sourceMaterial;
+            lastTexture = texture;
+            lastColor = color;
+            lastEffectiveThickness = effectiveThickness;
+            lastSourceEnabled = sourceRenderer.enabled;
+            lastSortingLayerId = sourceRenderer.sortingLayerID;
+            lastSortingOrder = sourceRenderer.sortingOrder;
+            syncInitialized = true;
         }
 
         void SetVisible(bool visible)
@@ -181,14 +238,13 @@ namespace AreaSurvivors
             if (outlineRenderer != null) outlineRenderer.enabled = visible;
         }
 
-        OutlineMeshData EnsureOutlineMesh(Mesh sourceMesh)
+        OutlineMeshData EnsureOutlineMesh(Mesh sourceMesh, float effectiveThickness)
         {
             if (sourceMesh == null) return null;
-            float effectiveThickness = EffectiveThickness;
             var key = new OutlineMeshCacheKey(sourceMesh, effectiveThickness);
             if (OutlineMeshCache.TryGetValue(key, out var cached) && cached != null)
             {
-                outlineFilter.sharedMesh = cached.mesh;
+                if (outlineFilter.sharedMesh != cached.mesh) outlineFilter.sharedMesh = cached.mesh;
                 return cached;
             }
 
@@ -246,14 +302,6 @@ namespace AreaSurvivors
             OutlineMeshCache[key] = data;
             outlineFilter.sharedMesh = data.mesh;
             return data;
-        }
-
-        void ApplySpriteRectProperties(OutlineMeshData data)
-        {
-            if (data == null) return;
-            outlineMaterial.SetVector("_SpriteRect", data.spriteRect);
-            outlineMaterial.SetVector("_OutlineUv", data.outlineUv);
-            outlineMaterial.SetFloat("_AlphaThreshold", 0.05f);
         }
 
         void RemoveLegacyOutlineCopies()

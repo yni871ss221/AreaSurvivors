@@ -16,12 +16,9 @@ MonoBehaviour:
     buildGrid: 1
     enableGameManager: 0
     enableEnemySpawner: 0
-    enableNaturalLandmarkSpawner: 0
-    enableBuildPlacement: 0
     enableScenePlayer: 0
     enableSceneTower: 0
     clearExistingEnemies: 1
-    clearExistingNaturalLandmarks: 1
   configOverrides: []
   targetCellOffset: {x: 0, y: -12}
   enemies:
@@ -39,7 +36,6 @@ MonoBehaviour:
     monitorForStall: 0
     requireReachTarget: 0
     suppressStuckRecovery: 0
-  landmarks: []
   prefabs: []
   scheduledActions: []
   useFixedRandomSeed: 1

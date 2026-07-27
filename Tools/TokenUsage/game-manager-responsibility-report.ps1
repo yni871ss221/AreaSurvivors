@@ -2,8 +2,15 @@ param([switch]$Json)
 
 $ErrorActionPreference = "Stop"
 
-$path = "Assets/AreaSurvivors/Scripts/Game/GameManager.cs"
-if (-not (Test-Path -LiteralPath $path)) { throw "GameManager.cs not found: $path" }
+$gameScriptsRoot = "Assets/AreaSurvivors/Scripts/Game"
+$candidates = @(
+    Get-ChildItem -LiteralPath $gameScriptsRoot -Recurse -File -Filter "GameManager.cs" -ErrorAction Stop
+)
+if ($candidates.Count -ne 1) {
+    $candidatePaths = @($candidates | ForEach-Object { $_.FullName })
+    throw "Expected exactly one GameManager.cs below ${gameScriptsRoot}; found $($candidates.Count): $($candidatePaths -join ', ')"
+}
+$path = (Resolve-Path -LiteralPath $candidates[0].FullName -Relative).TrimStart(".", "\", "/")
 
 $lines = Get-Content -LiteralPath $path -Encoding UTF8
 $methods = @()
@@ -40,12 +47,17 @@ $result = [pscustomobject]@{
     method_count = $methods.Count
     responsibility_summary = $summary
     first_methods = @($methods | Select-Object -First 30)
+    all_methods = @($methods)
+    extracted_components = @(
+        "GameHudController: gameplay HUD lifecycle, player/tower/stage panels"
+        "TokenRuntimeService: RunTokens and token-source accounting"
+        "RuntimeResourceDiagnostics: profiler recorders and scene-transition snapshots"
+    )
     split_candidates = @(
-        "BuildModeHudBinder: BuildConstructionMenu, build slots, build mode buttons",
-        "ResourceRuntimeService: Wood/Stone/Tokens and persistent sync",
         "RunStageController: stage timer, boss, round transitions",
-        "PlayerHudController: player stats and weapon panel",
-        "TowerHudController: tower status and damage popups"
+        "FixedBuildingLayoutService: fixed building slot definitions and stage restoration layout",
+        "LevelUpController: XP progression, choice generation, reroll/skip and level-up panel",
+        "GameHudController follow-up: split player/tower panels only if independent maintenance is needed"
     )
 }
 
@@ -58,6 +70,9 @@ Write-Output ("GameManager responsibility report: {0} lines, {1} method-like ent
 Write-Output ""
 Write-Output "Responsibility summary:"
 $summary | Sort-Object Hits -Descending | Format-Table -AutoSize
+Write-Output ""
+Write-Output "Extracted components:"
+foreach ($component in $result.extracted_components) { Write-Output ("- {0}" -f $component) }
 Write-Output ""
 Write-Output "Split candidates:"
 foreach ($candidate in $result.split_candidates) { Write-Output ("- {0}" -f $candidate) }

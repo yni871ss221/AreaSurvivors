@@ -19,11 +19,18 @@ namespace AreaSurvivors
 
         Mesh generatedMesh;
         bool shapeDirty;
+        bool runtimeCombatColliderEnabled = true;
 
         public MeshFilter SectorMeshFilter => sectorMeshFilter;
         public MeshRenderer SectorRenderer => sectorRenderer;
         public PolygonCollider2D SectorCollider => sectorCollider;
         public Material EffectMaterial => effectMaterial;
+
+        public void SetRuntimeCombatColliderEnabled(bool enabled)
+        {
+            runtimeCombatColliderEnabled = enabled;
+            if (sectorCollider != null) sectorCollider.enabled = enabled;
+        }
 
         public void Initialize(
             MeshFilter meshFilter,
@@ -50,11 +57,29 @@ namespace AreaSurvivors
 
         public void Configure(float length, float arcDegrees, float bandWidth, float revealFraction)
         {
-            previewLength = Mathf.Max(0.01f, length);
-            previewArcDegrees = Mathf.Clamp(arcDegrees, 1f, 170f);
-            previewBandWidth = Mathf.Max(0.05f, bandWidth);
-            previewRevealFraction = Mathf.Clamp01(revealFraction);
+            ConfigureIfChanged(length, arcDegrees, bandWidth, revealFraction);
+        }
+
+        public bool ConfigureIfChanged(float length, float arcDegrees, float bandWidth, float revealFraction)
+        {
+            float nextLength = Mathf.Max(0.01f, length);
+            float nextArcDegrees = Mathf.Clamp(arcDegrees, 1f, 170f);
+            float nextBandWidth = Mathf.Max(0.05f, bandWidth);
+            float nextRevealFraction = Mathf.Clamp01(revealFraction);
+            bool changed =
+                shapeDirty ||
+                !Mathf.Approximately(previewLength, nextLength) ||
+                !Mathf.Approximately(previewArcDegrees, nextArcDegrees) ||
+                !Mathf.Approximately(previewBandWidth, nextBandWidth) ||
+                !Mathf.Approximately(previewRevealFraction, nextRevealFraction);
+            if (!changed) return false;
+
+            previewLength = nextLength;
+            previewArcDegrees = nextArcDegrees;
+            previewBandWidth = nextBandWidth;
+            previewRevealFraction = nextRevealFraction;
             ApplyShape();
+            return true;
         }
 
         void Awake()
@@ -95,12 +120,30 @@ namespace AreaSurvivors
             EnsureMesh();
             float fullInnerRadius = CalculateInnerRadius(previewLength, previewBandWidth);
             float visibleInnerRadius = CalculateVisibleInnerRadius(fullInnerRadius, previewLength, previewRevealFraction);
+            int angularCount = angleSegments + 1;
+            int vertexCount = angularCount * 2;
+            int triangleIndexCount = angleSegments * 6;
+            int colliderPointCount = runtimeCombatColliderEnabled
+                ? visibleInnerRadius <= 0.001f
+                    ? angleSegments + 2
+                    : angularCount * 2
+                : 0;
+            int estimatedManagedBytes =
+                vertexCount * 12 +
+                vertexCount * 8 +
+                triangleIndexCount * 4 +
+                colliderPointCount * 8;
+            CombatPerformanceDiagnostics.RecordExcaliburShapeRebuild(estimatedManagedBytes);
             BuildSectorMesh(visibleInnerRadius, previewLength, previewArcDegrees, previewRevealFraction);
-            BuildSectorCollider(visibleInnerRadius, previewLength, previewArcDegrees);
+            if (runtimeCombatColliderEnabled)
+            {
+                BuildSectorCollider(visibleInnerRadius, previewLength, previewArcDegrees);
+            }
 
             sectorRenderer.sharedMaterial = effectMaterial;
             sectorRenderer.sortingOrder = sortingOrder;
             sectorCollider.isTrigger = true;
+            sectorCollider.enabled = runtimeCombatColliderEnabled;
         }
 
         void EnsureMesh()

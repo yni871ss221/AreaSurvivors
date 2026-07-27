@@ -9,7 +9,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2021867262119476061}
-  - component: {fileID: 4221891385687341636}
   - component: {fileID: 1565574681522998694}
   m_Layer: 0
   m_Name: ExperienceOrb
@@ -34,41 +33,6 @@ Transform:
   - {fileID: 6525780835004722781}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!58 &4221891385687341636
-CircleCollider2D:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 358557247739713815}
-  m_Enabled: 1
-  m_Density: 1
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_ForceSendLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ForceReceiveLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_ContactCaptureLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_CallbackLayers:
-    serializedVersion: 2
-    m_Bits: 4294967295
-  m_IsTrigger: 1
-  m_UsedByEffector: 0
-  m_UsedByComposite: 0
-  m_Offset: {x: 0, y: 0}
-  serializedVersion: 2
-  m_Radius: 0.28
 --- !u!114 &1565574681522998694
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -192,6 +156,7 @@ MonoBehaviour:
   sortingOrder: 15
   anchorBottomCenter: 0
   verticalFill: 1
+  flipHorizontal: 0
 --- !u!114 &1972174312749643750
 MonoBehaviour:
   m_ObjectHideFlags: 0

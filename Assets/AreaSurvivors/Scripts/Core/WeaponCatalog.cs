@@ -90,7 +90,7 @@ namespace AreaSurvivors
                 case WeaponType.Gun: return "Gun";
                 case WeaponType.Frost: return "Frost";
                 case WeaponType.ThunderBall: return "ThunderBall";
-                case WeaponType.SwordRush: return "SwordRushIcon";
+                case WeaponType.SwordRush: return "Weapons/SwordRushIcon";
                 case WeaponType.Banana: return "Weapons/BananaIcon";
                 case WeaponType.Excalibur: return "Weapons/ExcaliburIcon";
                 case WeaponType.GoldenBow: return "Weapons/GoldenBowIcon";
@@ -163,7 +163,7 @@ namespace AreaSurvivors
                 case WeaponType.GoldenBow: return "攻撃力が大幅に上昇した金色の矢が、射程内の敵を貫通する。";
                 case WeaponType.ArrowShower: return "攻撃時間中、画面内の敵へ範囲ダメージを持つ矢を降らせる。";
                 case WeaponType.MachineGun: return "進行方向へ0.2秒間隔で大量の銃弾を連射する。";
-                case WeaponType.FireMissile: return "射程内の敵を追尾する炎の玉を放つ。";
+                case WeaponType.FireMissile: return "進行方向の前方180度へ炎の玉を放ち、射程内に敵がいれば追尾する。";
                 case WeaponType.FrostStorm: return "画面内の敵5体へ氷のトゲを出現させ、周囲を凍結する。";
                 case WeaponType.ThunderStorm: return "雷球を放ちながら、3つの雷球をプレイヤーの周囲に回転させる。";
                 case WeaponType.DualShield: return "紫色のシールドが倍の数と速度、広い軌道で回転する。";
@@ -207,7 +207,7 @@ namespace AreaSurvivors
                 case WeaponType.AuraSword:
                 case WeaponType.ArrowRain:
                 case WeaponType.Frost:
-                    return "エリア占有率が50%以上の時、エリア取得範囲に応じて攻撃範囲拡大";
+                    return "エリア占有率50%までは攻撃範囲1倍、50%を超えると増加し100%で2倍";
                 case WeaponType.BoomerangSword:
                     return "エリア占有率が70%以上の時、剣本数２倍";
                 case WeaponType.Gun:
@@ -247,8 +247,8 @@ namespace AreaSurvivors
         {
             switch (type)
             {
-                case WeaponType.Arrow: return UpgradeType.UnlockArrow;
-                case WeaponType.Fireball: return UpgradeType.UnlockFireball;
+                case WeaponType.Arrow: return UpgradeType.UnlockArcher;
+                case WeaponType.Fireball: return UpgradeType.UnlockMage;
                 case WeaponType.Shield: return UpgradeType.UnlockShield;
                 case WeaponType.ArrowRain: return UpgradeType.UnlockArrowRain;
                 case WeaponType.Gun: return UpgradeType.UnlockGun;

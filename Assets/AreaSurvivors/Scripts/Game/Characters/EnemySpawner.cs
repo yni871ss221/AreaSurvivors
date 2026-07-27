@@ -6,6 +6,8 @@ namespace AreaSurvivors
 {
     public sealed class EnemySpawner : MonoBehaviour
     {
+        public const int PerformanceSafeAbsoluteMaxAliveEnemies = 200;
+
         sealed class SpawnPhase
         {
             public float startSeconds;
@@ -29,6 +31,7 @@ namespace AreaSurvivors
         public GameConfig config;
         public TileGrid grid;
         public Transform target;
+        public Transform playerTarget;
         public GameObject xpOrbPrefab;
         public GameObject damagePopupPrefab;
         public float radius = 34f;
@@ -54,6 +57,8 @@ namespace AreaSurvivors
         int lastDirectionSector = -1;
         Vector3Int currentSpawnCell;
         bool hasCurrentSpawnCell;
+        bool hasBossSpawnDirection;
+        float bossSpawnDirectionDegrees;
         bool hasNextBossTestSpawnDirection;
         Vector2 nextBossTestSpawnDirection;
         bool running;
@@ -71,11 +76,20 @@ namespace AreaSurvivors
             BeginStage(gameConfig, tileGrid, chaseTarget, stage, displayElapsedOffset, 0f);
         }
 
-        public void BeginStage(GameConfig gameConfig, TileGrid tileGrid, Transform chaseTarget, int stage, float displayElapsedOffset, float startStageElapsedSeconds)
+        public void BeginStage(
+            GameConfig gameConfig,
+            TileGrid tileGrid,
+            Transform chaseTarget,
+            int stage,
+            float displayElapsedOffset,
+            float startStageElapsedSeconds,
+            Transform playerChaseTarget = null)
         {
+            StopSpawning();
             config = gameConfig;
             grid = tileGrid;
             target = chaseTarget;
+            playerTarget = playerChaseTarget;
             config.EnsureEnemySpawnDefaults();
             radius = Mathf.Max(10f, config.enemySpawnRadius);
             currentStage = Mathf.Max(1, stage);
@@ -85,12 +99,20 @@ namespace AreaSurvivors
             elapsed = elapsedOffset + stageElapsed;
             directionTimer = 0f;
             directionChangeIndex = 0;
+            hasBossSpawnDirection = false;
+            bossSpawnDirectionDegrees = 0f;
             timedSpawned = new bool[TimedSpawnsForCurrentStage().Length];
             MarkPastTimedSpawnsAsHandled();
             currentBossAnnouncement = BossAnnouncementForStage(currentStage);
             ChooseNextDirection();
+            if (!isActiveAndEnabled) return;
             running = true;
             StartCoroutine(SpawnLoop());
+        }
+
+        void OnDisable()
+        {
+            StopSpawning();
         }
 
         public void SetNextBossTestSpawnSide(BossTestSpawnSide side)
@@ -154,8 +176,14 @@ namespace AreaSurvivors
                 if (timedSpawned[i]) continue;
                 var timed = timedSpawns[i];
                 if (timed == null || stageElapsed < timed.timeSeconds) continue;
+                bool forceBossSpawn = IsBossTimedSpawn(timed);
+                int spawned = SpawnBatch(
+                    timed.enemyKind,
+                    TimedSpawnCount(timed),
+                    forceBossSpawn);
+                if (spawned <= 0 && !forceBossSpawn) continue;
+
                 timedSpawned[i] = true;
-                SpawnBatch(timed.enemyKind, TimedSpawnCount(timed), true);
                 if (timed.announce && !string.IsNullOrEmpty(timed.announcement))
                 {
                     GameManager.Instance?.ShowAnnouncement(timed.announcement);
@@ -175,12 +203,13 @@ namespace AreaSurvivors
             return result;
         }
 
-        void SpawnBatch(EnemyKind kind, int count, bool force = false)
+        int SpawnBatch(EnemyKind kind, int count, bool force = false)
         {
-            if (enemyPrefab == null || target == null) return;
-            int capacity = force ? count : Mathf.Max(0, MaxAliveEnemiesForDifficulty() - activeEnemies.Count);
+            if (enemyPrefab == null || target == null) return 0;
+            int capacity = force ? count : RemainingAliveEnemyCapacity;
             int spawnCount = Mathf.Min(count, capacity);
             for (int i = 0; i < spawnCount; i++) SpawnOne(kind);
+            return spawnCount;
         }
 
         void SpawnOne(EnemyKind kind)
@@ -199,15 +228,29 @@ namespace AreaSurvivors
 
             enemy.xpOrbPrefab = xpOrbPrefab;
             enemy.damagePopupPrefab = damagePopupPrefab;
-            int hp = Mathf.Max(1, Mathf.RoundToInt(config.enemyBaseHp * Mathf.Max(0.01f, definition.hpMultiplier)));
-            enemy.Configure(config, grid, target, definition, hp, definition.speedMultiplier);
+            int hp = EnemyHp(definition);
+            enemy.Configure(config, grid, target, definition, hp, SpeedScaleForCurrentStage(definition), playerTarget);
             activeEnemies.Add(enemy);
-            if (definition.boss) GameManager.Instance?.BossSpawned(enemy);
+            if (definition.boss)
+            {
+                var directionFromTarget = (Vector2)(spawnPosition - target.position);
+                bossSpawnDirectionDegrees = directionFromTarget.sqrMagnitude > 0.001f
+                    ? Mathf.Atan2(directionFromTarget.y, directionFromTarget.x) * Mathf.Rad2Deg
+                    : directionDegrees;
+                hasBossSpawnDirection = true;
+                GameManager.Instance?.BossSpawned(enemy);
+            }
         }
 
         public EnemyController SpawnSummonedEnemy(EnemyKind kind, Vector3 worldPosition)
         {
+            CombatPerformanceDiagnostics.RecordSummonedEnemySpawnAttempt();
             if (enemyPrefab == null || config == null || grid == null || target == null) return null;
+            if (RemainingAliveEnemyCapacity <= 0)
+            {
+                CombatPerformanceDiagnostics.RecordSummonedEnemyCapBlocked();
+                return null;
+            }
             var definition = config.GetEnemyDefinition(kind);
             if (definition == null) return null;
             var spawnPosition = ClampSpawnInsideGrid(worldPosition, definition.cellSize);
@@ -223,9 +266,32 @@ namespace AreaSurvivors
             enemy.xpOrbPrefab = xpOrbPrefab;
             enemy.damagePopupPrefab = damagePopupPrefab;
             int hp = EnemyHp(definition);
-            enemy.Configure(config, grid, target, definition, hp, definition.speedMultiplier);
+            enemy.Configure(config, grid, target, definition, hp, SpeedScaleForCurrentStage(definition), playerTarget);
             activeEnemies.Add(enemy);
+            CombatPerformanceDiagnostics.RecordSummonedEnemySpawned();
             return enemy;
+        }
+
+        public int RemainingAliveEnemyCapacity =>
+            CalculateRemainingEnemyCapacity(
+                config != null ? config.maxAliveEnemies : 1,
+                currentStageDifficulty,
+                EnemyController.ActiveEnemies.Count);
+        public int CurrentStageDifficulty => currentStageDifficulty;
+        public int CurrentMaxAliveEnemies =>
+            CalculateMaxAliveEnemies(
+                config != null ? config.maxAliveEnemies : 1,
+                currentStageDifficulty);
+
+        float SpeedScaleForCurrentStage(EnemyDefinition definition)
+        {
+            float definitionScale = definition != null ? Mathf.Max(0.05f, definition.speedMultiplier) : 1f;
+            if (definition != null && definition.boss) return definitionScale;
+            if (config == null) return definitionScale;
+
+            float baseSpeed = Mathf.Max(0.05f, config.enemyBaseSpeed);
+            float stageBonus = Mathf.Max(0, currentStage - 1) * Mathf.Max(0f, config.enemyMoveSpeedBonusPerStage);
+            return definitionScale + stageBonus / baseSpeed;
         }
 
         int TimedSpawnCount(TimedEnemySpawn timed)
@@ -247,21 +313,39 @@ namespace AreaSurvivors
             return Mathf.Max(1, count) * Mathf.Clamp(currentStageDifficulty, ProgressionStore.MinStageDifficulty, ProgressionStore.MaxStageDifficulty);
         }
 
-        int MaxAliveEnemiesForDifficulty()
+        public static int CalculateMaxAliveEnemies(int baseMaximum, int difficulty)
         {
-            int difficulty = Mathf.Clamp(currentStageDifficulty, ProgressionStore.MinStageDifficulty, ProgressionStore.MaxStageDifficulty);
-            return Mathf.Max(1, config.maxAliveEnemies) * difficulty;
+            int safeDifficulty = Mathf.Clamp(
+                difficulty,
+                ProgressionStore.MinStageDifficulty,
+                ProgressionStore.MaxStageDifficulty);
+            return Mathf.Min(
+                PerformanceSafeAbsoluteMaxAliveEnemies,
+                Mathf.Max(1, baseMaximum) * safeDifficulty);
+        }
+
+        public static int CalculateRemainingEnemyCapacity(
+            int baseMaximum,
+            int difficulty,
+            int activeEnemyCount)
+        {
+            return Mathf.Max(
+                0,
+                CalculateMaxAliveEnemies(baseMaximum, difficulty) -
+                Mathf.Max(0, activeEnemyCount));
         }
 
         int EnemyHp(EnemyDefinition definition)
         {
-            int hp = Mathf.Max(1, Mathf.RoundToInt(config.enemyBaseHp * Mathf.Max(0.01f, definition.hpMultiplier)));
-            if (definition != null && definition.boss)
-            {
-                hp *= Mathf.Clamp(currentStageDifficulty, ProgressionStore.MinStageDifficulty, ProgressionStore.MaxStageDifficulty);
-            }
+            return CalculateEnemyHp(
+                config != null ? config.enemyBaseHp : 1,
+                definition);
+        }
 
-            return hp;
+        public static int CalculateEnemyHp(int baseHp, EnemyDefinition definition)
+        {
+            float hpMultiplier = definition != null ? Mathf.Max(0.01f, definition.hpMultiplier) : 1f;
+            return Mathf.Max(1, Mathf.RoundToInt(Mathf.Max(1, baseHp) * hpMultiplier));
         }
 
         static bool IsBossTimedSpawn(TimedEnemySpawn timed)
@@ -321,6 +405,11 @@ namespace AreaSurvivors
 
         Vector3 ResolveSpawnPosition(EnemyDefinition definition)
         {
+            if (definition != null && !definition.boss && hasBossSpawnDirection)
+            {
+                return ResolveDirectionalSpawnPosition(bossSpawnDirectionDegrees, definition.cellSize);
+            }
+
             if (definition != null && definition.boss && hasNextBossTestSpawnDirection)
             {
                 hasNextBossTestSpawnDirection = false;
@@ -341,10 +430,15 @@ namespace AreaSurvivors
                 }
             }
 
+            return ResolveDirectionalSpawnPosition(directionDegrees, definition.cellSize);
+        }
+
+        Vector3 ResolveDirectionalSpawnPosition(float centerDirectionDegrees, float enemyCellSize)
+        {
             float halfArc = Mathf.Max(0.5f, config.spawnDirectionArcDegrees * 0.5f);
-            float angle = directionDegrees + Random.Range(-halfArc, halfArc);
+            float angle = centerDirectionDegrees + Random.Range(-halfArc, halfArc);
             var dir = new Vector2(Mathf.Cos(angle * Mathf.Deg2Rad), Mathf.Sin(angle * Mathf.Deg2Rad));
-            return ClampSpawnInsideGrid(target.position + (Vector3)(dir * radius), definition.cellSize);
+            return ClampSpawnInsideGrid(target.position + (Vector3)(dir * radius), enemyCellSize);
         }
 
         static Vector2 DirectionForBossTestSpawnSide(BossTestSpawnSide side)
@@ -394,7 +488,8 @@ namespace AreaSurvivors
         public void StopAndClearEnemies(EnemyController except = null)
         {
             StopSpawning();
-            foreach (var enemy in FindObjectsOfType<EnemyController>())
+            var enemies = new List<EnemyController>(EnemyController.ActiveEnemies);
+            foreach (var enemy in enemies)
             {
                 if (enemy != null && enemy != except) Destroy(enemy.gameObject);
             }

@@ -8,7 +8,10 @@ namespace AreaSurvivors
     public sealed class OpeningStorySequence : MonoBehaviour
     {
         public CanvasGroup[] sceneGroups;
+        public Image backgroundDimmer;
         public Text captionText;
+        public CanvasGroup captionGroup;
+        [TextArea] public string[] captions;
         public Button startGameButton;
         public CanvasGroup startGameButtonGroup;
         public float fadeInDuration = 0.8f;
@@ -75,7 +78,17 @@ namespace AreaSurvivors
                 }
             }
 
-            if (captionText != null) captionText.gameObject.SetActive(false);
+            if (captionText != null)
+            {
+                captionText.gameObject.SetActive(true);
+                captionText.text = string.Empty;
+            }
+            if (captionGroup != null)
+            {
+                captionGroup.alpha = 0f;
+                captionGroup.interactable = false;
+                captionGroup.blocksRaycasts = false;
+            }
             if (startGameButton != null) startGameButton.gameObject.SetActive(false);
             if (startGameButtonGroup != null)
             {
@@ -119,7 +132,7 @@ namespace AreaSurvivors
                 if (group == null) continue;
                 Vector2 direction = SlideDirections[displayedSceneIndex % SlideDirections.Length];
                 float sceneStartedAt = sequenceStartedAt + sceneDuration * displayedSceneIndex;
-                yield return PlayScene(group, direction, sceneStartedAt, sceneDuration);
+                yield return PlayScene(group, displayedSceneIndex, direction, sceneStartedAt, sceneDuration);
                 displayedSceneIndex++;
             }
 
@@ -143,10 +156,11 @@ namespace AreaSurvivors
             completed?.Invoke(skipped);
         }
 
-        IEnumerator PlayScene(CanvasGroup group, Vector2 direction, float sceneStartedAt, float sceneDuration)
+        IEnumerator PlayScene(CanvasGroup group, int captionIndex, Vector2 direction, float sceneStartedAt, float sceneDuration)
         {
             if (group == null) yield break;
 
+            bool hasCaption = PrepareCaption(captionIndex);
             var slideEffect = group.GetComponent<OpeningStorySlideEffect>();
             float totalDuration = Mathf.Max(0.001f, sceneDuration);
             float fadeIn = Mathf.Min(Mathf.Max(0f, fadeInDuration), totalDuration);
@@ -169,23 +183,44 @@ namespace AreaSurvivors
 
                 if (fadeIn > 0f && elapsed < fadeIn)
                 {
-                    group.alpha = Mathf.SmoothStep(0f, 1f, elapsed / fadeIn);
+                    SetSceneAlpha(group, hasCaption, Mathf.SmoothStep(0f, 1f, elapsed / fadeIn));
                 }
                 else if (fadeOut > 0f && elapsed > fadeIn + hold)
                 {
                     float fadeProgress = (elapsed - fadeIn - hold) / fadeOut;
-                    group.alpha = Mathf.SmoothStep(1f, 0f, fadeProgress);
+                    SetSceneAlpha(group, hasCaption, Mathf.SmoothStep(1f, 0f, fadeProgress));
                 }
                 else
                 {
-                    group.alpha = 1f;
+                    SetSceneAlpha(group, hasCaption, 1f);
                 }
 
                 yield return null;
             }
 
             group.alpha = 0f;
+            if (captionGroup != null) captionGroup.alpha = 0f;
             if (slideEffect != null) slideEffect.Offset = endOffset;
+        }
+
+        bool PrepareCaption(int index)
+        {
+            if (captionText == null || captionGroup == null) return false;
+
+            string source = captions != null && index >= 0 && index < captions.Length
+                ? captions[index]
+                : string.Empty;
+            bool hasCaption = !string.IsNullOrWhiteSpace(source);
+            captionText.gameObject.SetActive(hasCaption);
+            captionText.text = hasCaption ? LocalizationService.LocalizeSource(source) : string.Empty;
+            captionGroup.alpha = 0f;
+            return hasCaption;
+        }
+
+        void SetSceneAlpha(CanvasGroup sceneGroup, bool hasCaption, float alpha)
+        {
+            sceneGroup.alpha = alpha;
+            if (captionGroup != null) captionGroup.alpha = hasCaption ? alpha : 0f;
         }
     }
 }

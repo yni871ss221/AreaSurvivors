@@ -10,6 +10,7 @@ namespace AreaSurvivors
         public void LoadLobby() => SceneManager.LoadScene(SceneNames.Lobby);
         public void LoadUpgrades() => SceneManager.LoadScene(SceneNames.Upgrades);
         public void LoadGame() => SceneManager.LoadScene(SceneNames.Game);
+        public void LoadGameEnd() => SceneManager.LoadScene(SceneNames.GameEnd);
         public void LoadWeaponBook() => SceneManager.LoadScene(SceneNames.WeaponBook);
         public void LoadGameTestLauncher()
         {

@@ -5,24 +5,22 @@ namespace AreaSurvivors.Testing
 {
     public enum GameplayTestAssertionType
     {
-        NoMonitoredObjectStalled,
-        AllRequiredObjectsReachTarget,
-        EnemyCountAtLeast,
-        EnemyCountAtMost,
-        ObjectNameExists,
-        ObjectNameMissing,
-        ObjectHealthAtLeast,
-        ObjectHealthAtMost,
-        WoodAtLeast,
-        StoneAtLeast,
-        TokensAtLeast,
-        ConfigFloatApproximately,
-        AllMonitoredObjectsInsideGrid,
-        CameraViewportInsideGrid,
-        GameStageEquals,
-        WeaponSlashLevelAtLeast,
-        WeaponArrowLevelAtLeast,
-        WeaponFireballLevelAtLeast
+        NoMonitoredObjectStalled = 0,
+        AllRequiredObjectsReachTarget = 1,
+        EnemyCountAtLeast = 2,
+        EnemyCountAtMost = 3,
+        ObjectNameExists = 4,
+        ObjectNameMissing = 5,
+        ObjectHealthAtLeast = 6,
+        ObjectHealthAtMost = 7,
+        TokensAtLeast = 10,
+        ConfigFloatApproximately = 11,
+        AllMonitoredObjectsInsideGrid = 12,
+        CameraViewportInsideGrid = 13,
+        GameStageEquals = 14,
+        WeaponSlashLevelAtLeast = 15,
+        WeaponArrowLevelAtLeast = 16,
+        WeaponFireballLevelAtLeast = 17
     }
 
     public enum GameplayConfigValueType
@@ -54,12 +52,9 @@ namespace AreaSurvivors.Testing
             public bool buildGrid = true;
             public bool enableGameManager;
             public bool enableEnemySpawner;
-            public bool enableNaturalLandmarkSpawner;
-            public bool enableBuildPlacement;
             public bool enableScenePlayer;
             public bool enableSceneTower;
             public bool clearExistingEnemies = true;
-            public bool clearExistingNaturalLandmarks = true;
         }
 
         [Serializable]
@@ -72,16 +67,6 @@ namespace AreaSurvivors.Testing
             public Vector2Int spacing = Vector2Int.right;
             public bool monitorForStall = true;
             public bool requireReachTarget = true;
-        }
-
-        [Serializable]
-        public sealed class LandmarkPlacement
-        {
-            public string landmarkName = "Rock1";
-            public Vector2Int cellOffset = new Vector2Int(-4, 0);
-            [Min(1)]
-            public int count = 1;
-            public Vector2Int spacing = Vector2Int.right;
         }
 
         [Serializable]
@@ -139,7 +124,6 @@ namespace AreaSurvivors.Testing
         [Header("Placement")]
         public Vector2Int targetCellOffset;
         public EnemyPlacement[] enemies = Array.Empty<EnemyPlacement>();
-        public LandmarkPlacement[] landmarks = Array.Empty<LandmarkPlacement>();
         public PrefabPlacement[] prefabs = Array.Empty<PrefabPlacement>();
 
         [Header("Timeline")]
@@ -162,6 +146,21 @@ namespace AreaSurvivors.Testing
         public float stallMovementThreshold = 0.08f;
         public bool pauseOnComplete;
         public bool autoExitPlayModeOnComplete = true;
+
+        [Header("Performance")]
+        public bool runPerformanceProbe;
+        public RuntimePerformanceProbeMode performanceProbeMode = RuntimePerformanceProbeMode.Baseline;
+        public bool runPerformanceProbeMatrix;
+        public RuntimePerformanceProbeMode[] performanceProbeMatrixModes =
+            Array.Empty<RuntimePerformanceProbeMode>();
+        [Min(0f)]
+        public float performanceProbeWarmupSeconds;
+        [Min(0.5f)]
+        public float performanceProbeDurationSeconds = 6f;
+        [Min(0f)]
+        public float performanceProbeTransitionSeconds = 0.5f;
+        public bool overrideStartingWeapon;
+        public WeaponType startingWeapon = WeaponType.Slash;
 
         [Header("Assertions")]
         public Assertion[] assertions =

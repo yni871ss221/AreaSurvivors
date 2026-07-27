@@ -16,8 +16,29 @@ namespace AreaSurvivors.Editor
         const string MapPerimeterScenarioPath = TestFolder + "/Gameplay_Map_Perimeter.asset";
         const string RebootWeaponsScenarioPath = TestFolder + "/Gameplay_Reboot_Weapons.asset";
         const string StageProgressionScenarioPath = TestFolder + "/Gameplay_Stage_Progression.asset";
+        const string EnemyLoad200ScenarioPath = TestFolder + "/Gameplay_Enemy_Load_200.asset";
+        const string EnemyLoad400ScenarioPath = TestFolder + "/Gameplay_Enemy_Load_400.asset";
+        const string EnemyLoad800ScenarioPath = TestFolder + "/Gameplay_Enemy_Load_800.asset";
+        const string EnemyLoad1200ScenarioPath = TestFolder + "/Gameplay_Enemy_Load_1200.asset";
+        const string PerformanceLoadMarkerRelativePath =
+            "Library/AreaSafeUnity/performance-load-scenarios.ok";
         const string SelectedScenarioEditorPref = "AreaSurvivors.GameplayTestScenarioPath";
         static bool playModeQueued;
+        static readonly RuntimePerformanceProbeMode[] PerformanceLoadProbeModes =
+        {
+            RuntimePerformanceProbeMode.Baseline,
+            RuntimePerformanceProbeMode.DisableEnemyContactCheck,
+            RuntimePerformanceProbeMode.DisableEnemyMoveMultiplier,
+            RuntimePerformanceProbeMode.DisableEnemyPaint,
+            RuntimePerformanceProbeMode.DisableEnemyAnimation,
+            RuntimePerformanceProbeMode.DisableEnemyYSort,
+            RuntimePerformanceProbeMode.DisableOcclusion,
+            RuntimePerformanceProbeMode.DisableOutline,
+            RuntimePerformanceProbeMode.DisableEnemyEnemyCollision,
+            RuntimePerformanceProbeMode.EnablePhysicsMultithreading,
+            RuntimePerformanceProbeMode.DisableEnemyController,
+            RuntimePerformanceProbeMode.Baseline
+        };
 
         public static void BuildGameplayTestScene()
         {
@@ -29,6 +50,9 @@ namespace AreaSurvivors.Editor
             EnsureMapPerimeterScenario();
             EnsureRebootWeaponsScenario();
             EnsureStageProgressionScenario();
+            EnsureEnemyLoadScenario(EnemyLoad200ScenarioPath, 200, 20, true);
+            EnsureEnemyLoadScenario(EnemyLoad400ScenarioPath, 400, 40, true);
+            EnsureEnemyLoadScenario(EnemyLoad800ScenarioPath, 800, 80, true);
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             var bootstrapObject = new GameObject("Gameplay Test Bootstrap");
@@ -120,6 +144,60 @@ namespace AreaSurvivors.Editor
             UseScenarioAsset(EnsureStageProgressionScenario());
         }
 
+        [MenuItem("Area Survivors/Testing/Performance Load/Rebuild 200-400-800 Matrix")]
+        public static void RebuildPerformanceLoadScenarios()
+        {
+            EnsureFolder();
+            EnsureEnemyLoadScenario(EnemyLoad200ScenarioPath, 200, 20, true);
+            EnsureEnemyLoadScenario(EnemyLoad400ScenarioPath, 400, 40, true);
+            EnsureEnemyLoadScenario(EnemyLoad800ScenarioPath, 800, 80, true);
+
+            string projectRoot =
+                System.IO.Directory.GetParent(Application.dataPath)?.FullName ?? Application.dataPath;
+            string markerPath = System.IO.Path.Combine(
+                projectRoot,
+                PerformanceLoadMarkerRelativePath.Replace(
+                    '/',
+                    System.IO.Path.DirectorySeparatorChar));
+            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(markerPath));
+            System.IO.File.WriteAllText(markerPath, System.DateTime.UtcNow.ToString("O"));
+            Debug.Log(
+                "Performance load scenarios rebuilt: 200, 400, 800 enemies with deterministic A/B matrix.");
+        }
+
+        [MenuItem("Area Survivors/Testing/Performance Load/Prepare 200")]
+        public static void PrepareEnemyLoad200()
+        {
+            UseScenarioAsset(EnsureEnemyLoadScenario(EnemyLoad200ScenarioPath, 200, 20, true));
+            OpenGameplayTest();
+        }
+
+        [MenuItem("Area Survivors/Testing/Performance Load/Prepare 400")]
+        public static void PrepareEnemyLoad400()
+        {
+            UseScenarioAsset(EnsureEnemyLoadScenario(EnemyLoad400ScenarioPath, 400, 40, true));
+            OpenGameplayTest();
+        }
+
+        [MenuItem("Area Survivors/Testing/Performance Load/Prepare 800")]
+        public static void PrepareEnemyLoad800()
+        {
+            UseScenarioAsset(EnsureEnemyLoadScenario(EnemyLoad800ScenarioPath, 800, 80, true));
+            OpenGameplayTest();
+        }
+
+        [MenuItem("Area Survivors/Testing/Performance Load/Prepare Legacy 1200 Baseline")]
+        public static void PrepareEnemyLoad1200()
+        {
+            UseScenarioAsset(EnsureEnemyLoadScenario(EnemyLoad1200ScenarioPath, 1200, 0, false));
+            OpenGameplayTest();
+        }
+
+        public static RuntimePerformanceProbeMode[] GetPerformanceLoadProbeModes()
+        {
+            return (RuntimePerformanceProbeMode[])PerformanceLoadProbeModes.Clone();
+        }
+
         public static void CreateNewGameplayScenario()
         {
             EnsureFolder();
@@ -185,7 +263,6 @@ namespace AreaSurvivors.Editor
                 new GameplayTestScenario.EnemyPlacement { kind = EnemyKind.Orc, cellOffset = new Vector2Int(-12, 0) },
                 new GameplayTestScenario.EnemyPlacement { kind = EnemyKind.Orc, cellOffset = new Vector2Int(-12, 1) }
             };
-            scenario.landmarks = System.Array.Empty<GameplayTestScenario.LandmarkPlacement>();
             scenario.simulationTimeScale = 4f;
             scenario.testDurationSeconds = 12f;
             scenario.stallSeconds = 3f;
@@ -362,7 +439,6 @@ namespace AreaSurvivors.Editor
             scenario.systems.enableScenePlayer = false;
             scenario.systems.enableSceneTower = true;
             scenario.systems.clearExistingEnemies = true;
-            scenario.systems.clearExistingNaturalLandmarks = true;
             scenario.targetCellOffset = Vector2Int.zero;
             scenario.scheduledActions = new[]
             {
@@ -419,7 +495,6 @@ namespace AreaSurvivors.Editor
             scenario.systems.enableScenePlayer = false;
             scenario.systems.enableSceneTower = true;
             scenario.systems.clearExistingEnemies = true;
-            scenario.systems.clearExistingNaturalLandmarks = true;
             scenario.targetCellOffset = Vector2Int.zero;
             scenario.scheduledActions = new[]
             {
@@ -442,6 +517,105 @@ namespace AreaSurvivors.Editor
             AssetDatabase.CreateAsset(scenario, StageProgressionScenarioPath);
             AssetDatabase.SaveAssets();
             return scenario;
+        }
+
+        static GameplayTestScenario EnsureEnemyLoadScenario(
+            string path,
+            int enemyCount,
+            int clusteredEnemyCount,
+            bool usePerformanceMatrix)
+        {
+            var scenario = AssetDatabase.LoadAssetAtPath<GameplayTestScenario>(path);
+            if (scenario == null)
+            {
+                scenario = ScriptableObject.CreateInstance<GameplayTestScenario>();
+                scenario.name = System.IO.Path.GetFileNameWithoutExtension(path);
+                AssetDatabase.CreateAsset(scenario, path);
+            }
+
+            scenario.systems = new GameplayTestScenario.SystemSettings
+            {
+                buildGrid = true,
+                enableEnemySpawner = false,
+                enableGameManager = false,
+                enableScenePlayer = false,
+                enableSceneTower = false,
+                clearExistingEnemies = true
+            };
+            scenario.configOverrides = System.Array.Empty<GameplayTestScenario.ConfigOverride>();
+            scenario.targetCellOffset = Vector2Int.zero;
+            scenario.enemies = BuildEnemyLoadPlacements(enemyCount, clusteredEnemyCount);
+            scenario.prefabs = System.Array.Empty<GameplayTestScenario.PrefabPlacement>();
+            scenario.scheduledActions = System.Array.Empty<GameplayTestScenario.ScheduledAction>();
+            scenario.useFixedRandomSeed = true;
+            scenario.randomSeed = 20260727;
+            scenario.focusCameraOnSetup = true;
+            scenario.cameraFocusCellOffset = Vector2Int.zero;
+            scenario.simulationTimeScale = 1f;
+            scenario.testDurationSeconds = usePerformanceMatrix ? 110f : 30f;
+            scenario.pauseOnComplete = false;
+            scenario.autoExitPlayModeOnComplete = false;
+            scenario.runPerformanceProbe = !usePerformanceMatrix;
+            scenario.performanceProbeMode = RuntimePerformanceProbeMode.Baseline;
+            scenario.runPerformanceProbeMatrix = usePerformanceMatrix;
+            scenario.performanceProbeMatrixModes = usePerformanceMatrix
+                ? GetPerformanceLoadProbeModes()
+                : System.Array.Empty<RuntimePerformanceProbeMode>();
+            scenario.performanceProbeWarmupSeconds = usePerformanceMatrix ? 1f : 0f;
+            scenario.performanceProbeDurationSeconds = 6f;
+            scenario.performanceProbeTransitionSeconds = 0.5f;
+            scenario.overrideStartingWeapon = false;
+            scenario.assertions = new[]
+            {
+                new GameplayTestScenario.Assertion
+                {
+                    type = GameplayTestAssertionType.EnemyCountAtLeast,
+                    expectedCount = enemyCount
+                }
+            };
+            EditorUtility.SetDirty(scenario);
+            AssetDatabase.SaveAssets();
+            return scenario;
+        }
+
+        static GameplayTestScenario.EnemyPlacement[] BuildEnemyLoadPlacements(int enemyCount, int clusteredEnemyCount)
+        {
+            int total = Mathf.Max(1, enemyCount);
+            int clustered = Mathf.Clamp(clusteredEnemyCount, 0, total);
+            int distributed = total - clustered;
+            const int columns = 40;
+            int rows = Mathf.CeilToInt(distributed / (float)columns);
+            var placements = new System.Collections.Generic.List<GameplayTestScenario.EnemyPlacement>(rows + 1);
+            if (clustered > 0)
+            {
+                placements.Add(new GameplayTestScenario.EnemyPlacement
+                {
+                    kind = EnemyKind.Orc,
+                    cellOffset = new Vector2Int(0, 18),
+                    count = clustered,
+                    spacing = Vector2Int.zero,
+                    monitorForStall = false,
+                    requireReachTarget = false
+                });
+            }
+
+            int remaining = distributed;
+            for (int row = 0; row < rows && remaining > 0; row++)
+            {
+                int rowCount = Mathf.Min(columns, remaining);
+                placements.Add(new GameplayTestScenario.EnemyPlacement
+                {
+                    kind = EnemyKind.Orc,
+                    cellOffset = new Vector2Int(-columns / 2, row - rows / 2),
+                    count = rowCount,
+                    spacing = Vector2Int.right,
+                    monitorForStall = false,
+                    requireReachTarget = false
+                });
+                remaining -= rowCount;
+            }
+
+            return placements.ToArray();
         }
 
         static void EnsureFolder()

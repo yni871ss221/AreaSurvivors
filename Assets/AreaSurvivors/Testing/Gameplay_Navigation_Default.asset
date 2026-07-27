@@ -28,7 +28,6 @@ MonoBehaviour:
     monitorForStall: 1
     requireReachTarget: 1
     suppressStuckRecovery: 0
-  landmarks: []
   prefabs: []
   simulationTimeScale: 4
   testDurationSeconds: 12

@@ -25,3 +25,4 @@
 - HUD変更時は `05_Game.unity` の既存兄弟要素の `RectTransform` を確認し、現在の配置を基準にする。
 - 新規UIのフォールバック生成は禁止。必要なUIはSceneに追加してから参照をつなぐ。
 - UI配置変更は、座標表やグリッド定義をまとめて決めて一括反映し、その後Validatorまで実行してユーザーへ実機UI確認を依頼する。ユーザーがその作業で明示依頼していないPlay Mode、GUI入力、画面遷移、スクリーンショット確認をCodex側で追加しない。
+- UI変更前に、そのUIを再生するRuntime Componentのserialized referenceをSceneまで追跡し、実再生対象がScene直置き、Prefab Instance、独立Prefabのどれかを確定する。同名PrefabとScene直置きObjectが併存する場合、Prefabだけの変更・Validator成功で完了扱いにせず、実再生Sceneを変更・検証対象へ必ず含める。

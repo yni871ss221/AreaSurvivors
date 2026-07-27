@@ -540,6 +540,7 @@ MonoBehaviour:
   sortingOrder: 22030
   anchorBottomCenter: 0
   verticalFill: 1
+  flipHorizontal: 0
 --- !u!114 &1796806758760321080
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -693,6 +694,7 @@ MonoBehaviour:
   sortingOrder: 22002
   anchorBottomCenter: 1
   verticalFill: 1
+  flipHorizontal: 0
 --- !u!114 &3699339496086186482
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -953,6 +955,7 @@ MonoBehaviour:
   sortingOrder: 1002
   anchorBottomCenter: 1
   verticalFill: 1
+  flipHorizontal: 0
 --- !u!114 &3358483674183367266
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1156,6 +1159,7 @@ MonoBehaviour:
   sortingOrder: 22002
   anchorBottomCenter: 1
   verticalFill: 1
+  flipHorizontal: 0
 --- !u!114 &2004033466910973869
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1295,6 +1299,7 @@ MonoBehaviour:
   sortingOrder: 1002
   anchorBottomCenter: 1
   verticalFill: 1
+  flipHorizontal: 0
 --- !u!114 &3371096108889807578
 MonoBehaviour:
   m_ObjectHideFlags: 0

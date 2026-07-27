@@ -157,7 +157,7 @@ namespace AreaSurvivors
         {
             var target = GetComponent<BuildingUpgradeTarget>();
             if (target == null) target = gameObject.AddComponent<BuildingUpgradeTarget>();
-            target.Configure(BuildingUpgradeKind.WoodenWall, 0, 20, "WoodenWallUpgrade", 100);
+            target.Configure(BuildingUpgradeKind.WoodenWall, "WoodenWallUpgrade", 200);
         }
 
         void ApplyConfiguredSpriteToVisuals()
@@ -290,7 +290,7 @@ namespace AreaSurvivors
             if (breaking) return;
             breaking = true;
             var cell = hasRegisteredCell ? registeredCell : grid != null ? grid.WorldToCell(transform.position) : OriginCell;
-            if (BuildingPersistentState.TryMarkDestroyed(gameObject, grid, cell)) return;
+            if (BuildingRevivalState.TryHandleDestroyed(gameObject, grid, cell)) return;
             if (grid != null)
             {
                 grid.ClearObject(cell);

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -29,6 +30,9 @@ namespace AreaSurvivors
         float lastEdgePadding;
         float lastEdgeThickness;
         bool wasFocused;
+        readonly List<RaycastResult> pointerRaycastResults = new List<RaycastResult>();
+        PointerEventData pointerEventData;
+        EventSystem pointerEventSystem;
         static UiSelectionHighlight activeHighlight;
         static bool activeHighlightIsPointer;
 
@@ -181,7 +185,34 @@ namespace AreaSurvivors
             var canvas = GetComponentInParent<Canvas>();
             Camera eventCamera = null;
             if (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay) eventCamera = canvas.worldCamera;
-            return RectTransformUtility.RectangleContainsScreenPoint(rect, Input.mousePosition, eventCamera);
+            return RectTransformUtility.RectangleContainsScreenPoint(rect, Input.mousePosition, eventCamera) &&
+                IsTopmostPointerTarget();
+        }
+
+        bool IsTopmostPointerTarget()
+        {
+            var eventSystem = EventSystem.current;
+            if (eventSystem == null) return false;
+
+            if (pointerEventData == null || pointerEventSystem != eventSystem)
+            {
+                pointerEventData = new PointerEventData(eventSystem);
+                pointerEventSystem = eventSystem;
+            }
+
+            pointerEventData.Reset();
+            pointerEventData.position = Input.mousePosition;
+            pointerRaycastResults.Clear();
+            eventSystem.RaycastAll(pointerEventData, pointerRaycastResults);
+
+            for (int i = 0; i < pointerRaycastResults.Count; i++)
+            {
+                var hit = pointerRaycastResults[i].gameObject;
+                if (hit == null) continue;
+                return hit == gameObject || hit.transform.IsChildOf(transform);
+            }
+
+            return false;
         }
 
         void EnsureEdges()

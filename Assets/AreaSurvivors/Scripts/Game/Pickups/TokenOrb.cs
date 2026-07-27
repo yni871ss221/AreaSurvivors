@@ -2,12 +2,8 @@ using UnityEngine;
 
 namespace AreaSurvivors
 {
-    public sealed class TokenOrb : MonoBehaviour
+    public sealed class TokenOrb : AttractablePickup
     {
-        public int value = 1;
-        public float attractRange = 3f;
-        public float speed = 6f;
-
         public static TokenOrb Spawn(Vector3 position, int amount)
         {
             if (amount <= 0) return null;
@@ -23,30 +19,14 @@ namespace AreaSurvivors
             outline.outlineColor = Color.black;
             outline.thickness = 0.018f;
 
-            var collider = go.AddComponent<CircleCollider2D>();
-            collider.isTrigger = true;
-            collider.radius = 0.28f;
             var orb = go.AddComponent<TokenOrb>();
             orb.value = amount;
             return orb;
         }
 
-        void Update()
+        protected override void AwardReward(int amount)
         {
-            var player = GameManager.Instance == null ? null : GameManager.Instance.Player;
-            if (player == null) return;
-            float distance = Vector2.Distance(transform.position, player.transform.position);
-            if (distance < attractRange)
-            {
-                transform.position = Vector3.MoveTowards(transform.position, player.transform.position, speed * Time.deltaTime);
-            }
-        }
-
-        void OnTriggerEnter2D(Collider2D other)
-        {
-            if (other.GetComponent<PlayerController>() == null) return;
-            GameManager.Instance?.AddRunTokens(value);
-            Destroy(gameObject);
+            GameManager.Instance?.AddRunTokens(amount);
         }
 
         static Sprite LoadSprite()

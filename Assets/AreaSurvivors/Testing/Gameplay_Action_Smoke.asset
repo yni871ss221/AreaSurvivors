@@ -16,16 +16,12 @@ MonoBehaviour:
     buildGrid: 1
     enableGameManager: 0
     enableEnemySpawner: 0
-    enableNaturalLandmarkSpawner: 0
-    enableBuildPlacement: 0
     enableScenePlayer: 0
     enableSceneTower: 0
     clearExistingEnemies: 1
-    clearExistingNaturalLandmarks: 1
   configOverrides: []
   targetCellOffset: {x: 0, y: 0}
   enemies: []
-  landmarks: []
   prefabs:
   - prefab: {fileID: 358557247739713815, guid: 45bb32a0903aefe469ec609b33c2b2e4, type: 3}
     instanceName: Scheduled Action Target

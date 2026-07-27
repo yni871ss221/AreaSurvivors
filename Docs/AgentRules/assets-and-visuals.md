@@ -9,11 +9,17 @@
 - `GeneratedSpriteLoader` は、歩行アニメ、弾、マップ外画像、地面バリアントなど、Prefab/Scene参照だけでは成立しない実行時選択が必要な非UI用途へ限定する。
 - 画像差し替え時はPNGだけでなく、Prefab参照、Scene参照、TilePalette、Editor生成ツール、`GeneratedSpriteCatalog.asset`、古いSprite/Source/Prefab/Tile/Metaを確認する。
 - 新規PNGを外部処理で`Assets/`へ追加した直後は、`.meta`未生成でもディスク上の正規パスをImporterが認識できる入口を使う。`GeneratedSpriteAssetUtility`はAssetDatabase検索だけで存在判定せず、直下の実ファイルを確認して`AssetDatabase.ImportAsset`へ渡す。Importer/Validatorは`.meta`生成、Sprite型、PPU、Point、Uncompressed、透過設定を確認する。
+- Editor Migrationで既存PNGを複数枚書き換える場合、各書き込みの間にSource/Targetの`AssetDatabase.ImportAsset`を挟まない。Sourceは事前に`.meta`付きでImport済みであることをPreflightし、全PNGの`File.WriteAllBytes`完了後に変更Targetだけを一括Importする。同じEditor更新内でImport直後の別PNGを上書きすると、Windows Asset Pipelineのメモリマップにより`IOException 1224`になる。
 - built-in `image_gen` が180秒以上結果・エラー・保存先を返さない場合は想定外の長時間待機として停止し、`generated_images` に当該出力がないことを確認する。プロンプトを簡略化したbuilt-in再試行は1回までとし、再発時はblockerにする。ユーザーの明示許可なしにCLI/APIフォールバックへ切り替えない。
 - built-in `image_gen`で`referenced_image_paths`を使う場合、`num_last_images_to_include`は値が0でも同時指定せず、キー自体を省略する。会話画像方式を使う場合だけ1〜5を指定する。生成前に`Tools/AssetGeneration/imagegen-request-preflight.ps1`を通し、`guard_code: 42/43/44`を解消してから実行する。
 - 画像後処理Helperで `python` が必要な場合、PATH上の `python` / `py` を推測して呼ばない。Codex Workspace DependenciesからPython実体パスを取得し、その実体でSkill付属Helperを実行する。
+- 既存PNGの決定的な矩形合成をPowerShell inline C#の`Add-Type`／`System.Drawing`で実装しない。Windows PowerShell 5.1の参照Assembly境界でコンパイル前停止し得るため、Codex Workspace DependenciesのNode.js＋`sharp`またはSkill付属の検証済みHelperを固定入口にする。生成AIで描き直さず、入力Sourceと出力のRGBA契約をValidatorで固定する。
+- 画像生成した複数ポーズのグリッドは、見た目上等間隔でも固定セル境界で切り出さない。剣、槍、翼、マント等が隣接セルの余白へ張り出し得るため、背景透過後の連結成分から各ポーズ全体を検出し、期待数、外周接触、空フレームをValidatorで確認してから共通スケールと足元基準へ正規化する。
 - 建造物画像は背景除去、可視範囲トリミング、占有セル横幅 `セル数 * 64px` に合わせたアスペクト比維持リサイズを行う。高さはセルに無理に収めず、Prefabで下端と横幅を合わせる。
 - 破壊済み建造物画像も占有セル横幅 `セル数 * 64px` に合わせる。破壊画像をセルに収めるためにPrefab/RuntimeでScale倍率を追加しない。`Transform Scale = 1` で成立するPNG寸法とImporter設定を正とする。
 - Sprite比率や下端ずれをRuntimeのScale/Rotation/Y補正で直さない。
 - `PaperMeshVisual.OnValidate` ではMesh/Renderer変更を直接実行せず、必要ならEditorの遅延実行で反映する。
 - Unity 2022.3でSingle SpriteのCustom PivotをEditorコードから設定・検証する場合、`TextureImporter.spriteAlignment`を直接使わない。`TextureImporterSettings`を作成し、`ReadTextureSettings`→`settings.spriteAlignment`／`settings.spritePivot`→`SetTextureSettings`→`SaveAndReimport`の順で反映する。
+- Unity 2022.3でSprite Mesh TypeをEditorコードから設定する場合も、存在しない`TextureImporter.spriteMeshType`を直接使わない。`TextureImporterSettings`を作成し、`ReadTextureSettings`→`settings.spriteMeshType`→`SetTextureSettings`→`SaveAndReimport`の順で反映する。
+- Unity 2022.3でAudioClipのPreload設定をEditorコードから変更する場合、廃止APIの`AudioImporter.preloadAudioData`を使わない。`AudioImporter.defaultSampleSettings`を取得し、`settings.preloadAudioData`、`settings.loadType`、`settings.compressionFormat`等を変更して`defaultSampleSettings`へ戻してから`SaveAndReimport`する。`loadInBackground`は`AudioImporter`側へ設定する。
+- Unity 2022.3でuGUI `Text`用の組み込みFontをEditorコードから取得する場合は `Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf")` を使う。`Arial.ttf`は`ArgumentException`になるため使用せず、保存前ValidatorでFont参照が非nullであることを確認する。

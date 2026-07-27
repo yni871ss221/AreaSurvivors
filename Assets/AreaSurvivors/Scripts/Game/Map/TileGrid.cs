@@ -521,6 +521,149 @@ namespace AreaSurvivors
             return IsBlockedForMovement(cell);
         }
 
+        public bool TryGetRecoveryCandidates(
+            Vector3 originWorld,
+            List<Vector3Int> candidates,
+            out bool originIsReachable)
+        {
+            if (candidates == null) throw new ArgumentNullException(nameof(candidates));
+            candidates.Clear();
+            originIsReachable = false;
+            if (width <= 0 || height <= 0 || groundTilemap == null) return false;
+
+            bool[,] reachable = BuildCurrentRecoveryReachableMask();
+            if (TryWorldToGrid(originWorld, out int originX, out int originY))
+            {
+                originIsReachable = reachable[originX, originY];
+            }
+
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    if (reachable[x, y]) candidates.Add(GridToCell(x, y));
+                }
+            }
+
+            candidates.Sort((left, right) =>
+            {
+                float leftDistance = ((Vector2)groundTilemap.GetCellCenterWorld(left) - (Vector2)originWorld).sqrMagnitude;
+                float rightDistance = ((Vector2)groundTilemap.GetCellCenterWorld(right) - (Vector2)originWorld).sqrMagnitude;
+                int distanceOrder = leftDistance.CompareTo(rightDistance);
+                if (distanceOrder != 0) return distanceOrder;
+                int yOrder = left.y.CompareTo(right.y);
+                return yOrder != 0 ? yOrder : left.x.CompareTo(right.x);
+            });
+            return candidates.Count > 0;
+        }
+
+        public bool IsRecoveryReachable(Vector3 world)
+        {
+            if (width <= 0 ||
+                height <= 0 ||
+                groundTilemap == null ||
+                !TryWorldToGrid(world, out int x, out int y))
+            {
+                return false;
+            }
+            return BuildCurrentRecoveryReachableMask()[x, y];
+        }
+
+        bool[,] BuildCurrentRecoveryReachableMask()
+        {
+            var walkable = new bool[width, height];
+            for (int y = 0; y < height; y++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    walkable[x, y] = !IsBlockedForMovement(GridToCell(x, y), TileOwner.Player);
+                }
+            }
+            return BuildRecoveryReachableMask(walkable);
+        }
+
+        public static bool[,] BuildRecoveryReachableMask(bool[,] walkable)
+        {
+            if (walkable == null) throw new ArgumentNullException(nameof(walkable));
+            int mapWidth = walkable.GetLength(0);
+            int mapHeight = walkable.GetLength(1);
+            var reachable = new bool[mapWidth, mapHeight];
+            if (mapWidth == 0 || mapHeight == 0) return reachable;
+
+            var queue = new Queue<Vector2Int>(mapWidth * mapHeight);
+            for (int x = 0; x < mapWidth; x++)
+            {
+                EnqueueRecoveryCell(walkable, reachable, queue, x, 0);
+                if (mapHeight > 1) EnqueueRecoveryCell(walkable, reachable, queue, x, mapHeight - 1);
+            }
+            for (int y = 1; y < mapHeight - 1; y++)
+            {
+                EnqueueRecoveryCell(walkable, reachable, queue, 0, y);
+                if (mapWidth > 1) EnqueueRecoveryCell(walkable, reachable, queue, mapWidth - 1, y);
+            }
+
+            if (queue.Count > 0)
+            {
+                FloodRecoveryCells(walkable, reachable, queue, null);
+                return reachable;
+            }
+
+            var visited = new bool[mapWidth, mapHeight];
+            List<Vector2Int> largestComponent = null;
+            for (int y = 0; y < mapHeight; y++)
+            {
+                for (int x = 0; x < mapWidth; x++)
+                {
+                    if (!walkable[x, y] || visited[x, y]) continue;
+                    var component = new List<Vector2Int>();
+                    EnqueueRecoveryCell(walkable, visited, queue, x, y);
+                    FloodRecoveryCells(walkable, visited, queue, component);
+                    if (largestComponent == null || component.Count > largestComponent.Count)
+                    {
+                        largestComponent = component;
+                    }
+                }
+            }
+
+            if (largestComponent == null) return reachable;
+            for (int i = 0; i < largestComponent.Count; i++)
+            {
+                Vector2Int cell = largestComponent[i];
+                reachable[cell.x, cell.y] = true;
+            }
+            return reachable;
+        }
+
+        static void EnqueueRecoveryCell(
+            bool[,] walkable,
+            bool[,] visited,
+            Queue<Vector2Int> queue,
+            int x,
+            int y)
+        {
+            if (x < 0 || y < 0 || x >= walkable.GetLength(0) || y >= walkable.GetLength(1)) return;
+            if (!walkable[x, y] || visited[x, y]) return;
+            visited[x, y] = true;
+            queue.Enqueue(new Vector2Int(x, y));
+        }
+
+        static void FloodRecoveryCells(
+            bool[,] walkable,
+            bool[,] visited,
+            Queue<Vector2Int> queue,
+            List<Vector2Int> component)
+        {
+            while (queue.Count > 0)
+            {
+                Vector2Int cell = queue.Dequeue();
+                component?.Add(cell);
+                EnqueueRecoveryCell(walkable, visited, queue, cell.x, cell.y - 1);
+                EnqueueRecoveryCell(walkable, visited, queue, cell.x - 1, cell.y);
+                EnqueueRecoveryCell(walkable, visited, queue, cell.x + 1, cell.y);
+                EnqueueRecoveryCell(walkable, visited, queue, cell.x, cell.y + 1);
+            }
+        }
+
         public bool IsOwnedBy(Vector3Int cell, TileOwner owner)
         {
             return GetOwner(cell) == owner;

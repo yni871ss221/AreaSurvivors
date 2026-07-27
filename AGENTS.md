@@ -5,6 +5,7 @@ AreaSurvivors リポジトリ全体に適用する低トークン運用の入口
 ## Must
 
 - ユーザーへの説明、作業報告、Obsidian記録は日本語で行う。
+- 通常作業の開始時は `ctx/current.md` を読み、現在の目的、重要判断、直近の検証結果、TODO/Blockerを引き継ぐ。作業中にこれらが変わった場合は `ctx/current.md` を更新し、作業終了時は未完了事項を明記する。`ctx/archive/` の詳細履歴は必要な場合だけ読む。
 - 作業に積み残しがある場合（確認後に不要な機能を削除、確認後に水平展開、後続検証、未対応の派生修正など）は、最終回答に `TODO` として必ず明記する。積み残しを曖昧にしたまま次作業へ進まない。
 - UI/HUD/Scene上の見た目を変更した後の実機表示確認はユーザーが行う。Codexは、Scene/Prefab反映、静的Reporter/Validator、必要なCompileまでで停止し、最終報告でユーザーへUI確認を明示的に依頼する。ユーザーがその作業でPlay Mode検証を明示依頼していない限り、CodexからPlay Modeを開始せず、GUIクリック・キー入力・リロール・画面遷移・スクリーンショット取得による見た目確認も行わない。
 - UI確認のためだけにPlay Mode開始や画面操作を追加してはならない。実機確認後にユーザーから差分や不具合が報告された場合は、その報告と添付画像を正として限定修正し、再度ユーザーへ確認を依頼する。
@@ -29,8 +30,8 @@ AreaSurvivors リポジトリ全体に適用する低トークン運用の入口
 ## Low Token First
 
 - 単純なUI追加、検索、差分確認、小修正は軽量モデル・低推論で始める。設計判断、原因不明バグ、Scene/Prefab移行、戦闘仕様変更だけ高推論に上げる。
-- ユーザーがその作業で「時間をかけてもよい」「徹底検証してよい」等を明示していない限り、作業規模を問わず Unity Compile は最大2回とする。Play Mode開始は上記Mustに従ってユーザーがその作業で明示依頼した場合に限り、最大2回を上限とする。失敗した実行、再試行、確認目的の再実行も回数へ含める。
-- CompileまたはPlay Modeの3回目が必要になった時点で実装・修正を止める。直前までの結果、想定外の事象、未確定の仮説を整理し、コードを変更せず原因調査を優先する。原因を根拠付きで確定できず、ユーザーの追加許可もない状態で3回目を実行してはいけない。
+- ユーザーがその作業で「時間をかけてもよい」「徹底検証してよい」等を明示していない限り、作業規模を問わず Unity Compile は最大5回とする。Play Mode開始は上記Mustに従ってユーザーがその作業で明示依頼した場合に限り、最大2回を上限とする。失敗した実行、再試行、確認目的の再実行も回数へ含める。
+- Unity Compileの6回目またはPlay Modeの3回目が必要になった時点で実装・修正を止める。直前までの結果、想定外の事象、未確定の仮説を整理し、コードを変更せず原因調査を優先する。原因を根拠付きで確定できず、ユーザーの追加許可もない状態でUnity Compileの6回目またはPlay Modeの3回目を実行してはいけない。
 - 想定外の結果が出た後に、仮説だけでコード修正→Compile→Play Modeを反復することを禁止する。先にEditor設定、Play/Compile状態、Active Scene、Scene/Prefab参照、ライフサイクル、Console、テスト経路が本番経路と同一かを読み取り確認する。
 - 同種のコマンド失敗、引数ミス、エスケープ不良、検証不能が2回発生した場合、それ以上の手打ち再試行を禁止する。`Tools/TokenUsage` のWrapper、限定Editor Runner、Reporter、Validator、または再利用可能な検証コマンドとして部品化し、以後はその入口だけを使う。
 - そのタスクで初めて使うWrapperは、実行前に対象`*.ps1`先頭の`param(...)`または`Docs/AgentRules/token-tools.md`の正式用例を確認する。`safe-search`の`-Path`、`safe-unity-search`の`-Query`など、別Wrapperの引数名・glob・Modeを転用または推測してはならない。サブエージェントへの委譲文にもこのPreflightを含める。
@@ -48,6 +49,7 @@ AreaSurvivors リポジトリ全体に適用する低トークン運用の入口
 - Unityプロジェクト直下の`Temp/`はEditorによって実行中に削除され得るため、ダウンロードした外部Runtime、長時間処理の中間物、動画プレビュー、最終成果物を保存しない。外部RuntimeはUnity管理外の明示キャッシュ、最終成果物は`Docs/`などの安定した保存先を使う。
 - Play Modeの開始、終了、状態確認は `Tools/TokenUsage/safe-unity.ps1 -Action PlayEnter|PlayExit|PlayStatus` だけを使い、`unicli exec PlayMode.*` や終了直後の `Editor.Status` を直接実行しない。`PlayExit` 成功後はその検証シーケンスのUnity操作を終了し、追加確認が不可欠な場合だけクールダウン後に `PlayStatus` を使う。
 - 作業種別が曖昧な場合は `Tools/TokenUsage/rule-router.ps1 -Task "<依頼内容>"` で読む詳細ルールと中核ファイルを絞る。
+- C#またはPowerShellの複数ファイルをまたぐ完全一致シンボルでは、実際にGraphifyを使う直前に限り`EnsureFresh`を1回使い、2シンボル間の経路は`Path`、影響候補は`Affected`を標準の第一手にする。grep/readだけで完結する作業や、同じfresh graphを続けて読む間は`EnsureFresh`を再実行しない。`Affected`の既定表示上限（20件または推定500 token）を解除せず、全件は`full_capture_path`で必要箇所だけ読む。fresh時は再構築しないため`Update`を毎回実行しない。`Explain`はcaller/callee等の直接近傍が必要な場合だけ使い、定義場所・実装内容だけなら`focused-search`／`safe-read`を先に使う。`graphify_verification_required: true`が出た場合は提示されたfallbackを実行して確認し、`GraphifyFallbackId`を削除しない。自然文BFS Query、正確な文字列・数値検索、Unity YAML/serialized reference確認には使わず、`Docs/AgentRules/graphify-pilot.md`のroutingに従う。
 - 初手で `Assets/AreaSurvivors` 全体へ広域 `rg` をかけない。`safe-search.ps1 -FilesOnly`、`-HitSummary`、`focused-search.ps1` を先に使う。
 - 複数の明示Pathを生の `rg` / `rtk rg` へ同時に渡さない。既知の実在Pathは1回につき1つだけ検索し、候補または未知のPathは先に `safe-search.ps1 -FilesOnly` で実在確認する。既知Pathと推測Pathを同じコマンドへ混在させることを禁止する。
 - 読み取りは `safe-read.ps1 -Pattern <語> -Context <行数>` または `-StartLine` / `-EndLine` を優先する。
@@ -92,5 +94,6 @@ AreaSurvivors リポジトリ全体に適用する低トークン運用の入口
 - 攻撃、弾、爆発、敵アニメーション: `Docs/AgentRules/combat.md`
 - Map、Scene、GameplayTest、Unity検証: `Docs/AgentRules/map-and-testing.md`
 - トークン削減ツール、検索、diff、ログ確認: `Docs/AgentRules/token-tools.md`
+- コード構造探索Graphify Pilot: `Docs/AgentRules/graphify-pilot.md`
 - コマンド失敗、タイムアウト、引数破損の原因調査: `Docs/AgentRules/command-failure-playbook.md`
 - 締め作業、Obsidian、記憶運用: `Docs/AgentRules/closeout.md`

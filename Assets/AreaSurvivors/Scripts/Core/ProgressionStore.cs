@@ -7,6 +7,8 @@ namespace AreaSurvivors
 {
     public static class ProgressionStore
     {
+        public const int BaseLevelUpRerollCount = 3;
+
         const string LegacySaveKey = "AreaSurvivors.Save.v1";
         public const int ImplementedStageCount = 4;
         public const string CloudSaveFileName = "progression-save-v1.json";
@@ -66,6 +68,8 @@ namespace AreaSurvivors
                     {
                         throw new System.InvalidOperationException("Legacy progression JSON did not contain save data.");
                     }
+                    legacyData.endingCreditsViewedWasSerialized =
+                        legacyJson.IndexOf("\"endingCreditsViewed\"", StringComparison.Ordinal) >= 0;
                     legacyData = Normalize(legacyData);
                     if (TryWriteCloudSave(legacyData))
                     {
@@ -90,7 +94,6 @@ namespace AreaSurvivors
             if (data.relics == null) data.relics = new List<RelicRecord>();
             if (data.discoveredWeaponEvolutions == null) data.discoveredWeaponEvolutions = new List<WeaponEvolutionRecord>();
             if (data.stageDifficulties == null) data.stageDifficulties = new List<StageDifficultyRecord>();
-            if (data.stageBuildings == null) data.stageBuildings = new List<StageBuildingSet>();
             if (data.highestUnlockedStage < 1) data.highestUnlockedStage = 1;
             if (data.selectedStage < 1) data.selectedStage = 1;
             foreach (var record in data.stageDifficulties)
@@ -104,6 +107,13 @@ namespace AreaSurvivors
                     Mathf.Max(record.highestClearedDifficulty, inferredMinimum),
                     0,
                     MaxStageDifficulty);
+            }
+            if (!data.endingCreditsViewedWasSerialized)
+            {
+                // Saves created before the one-shot flag already showed the credits when
+                // all stages first reached difficulty 5. Preserve that history on migration.
+                data.endingCreditsViewed = AreAllStagesClearedAtMaxDifficulty(data);
+                data.endingCreditsViewedWasSerialized = true;
             }
             return data;
         }
@@ -290,8 +300,8 @@ namespace AreaSurvivors
                 case UpgradeType.Wall2Upgrade:
                 case UpgradeType.BallistaUpgrade:
                 case UpgradeType.WatchTowerUpgrade:
-                case UpgradeType.UnlockArrow:
-                case UpgradeType.UnlockFireball:
+                case UpgradeType.UnlockArcher:
+                case UpgradeType.UnlockMage:
                 case UpgradeType.UnlockShield:
                 case UpgradeType.UnlockArrowRain:
                 case UpgradeType.UnlockGun:
@@ -300,7 +310,6 @@ namespace AreaSurvivors
                 case UpgradeType.UnlockFlag:
                 case UpgradeType.UnlockBoomerangSword:
                 case UpgradeType.UnlockAuraSword:
-                case UpgradeType.RemoveStartingSlash:
                 case UpgradeType.ReviveBuildingsOnBossDefeat:
                 case UpgradeType.UnlockOpeningRelicChest:
                     return 1;
@@ -315,6 +324,7 @@ namespace AreaSurvivors
                 case UpgradeType.MoveSpeed:
                 case UpgradeType.PaintRadius:
                 case UpgradeType.MovePenaltyReduction:
+                case UpgradeType.LevelUpRerollCount:
                 case UpgradeType.WallMaxHp1:
                 case UpgradeType.WallMaxHp2:
                 case UpgradeType.WallMaxHp3:
@@ -335,12 +345,6 @@ namespace AreaSurvivors
         {
             switch (type)
             {
-                case UpgradeType.UnlockCarpenterHut:
-                case UpgradeType.UnlockAutoBuild:
-                case UpgradeType.AutoBuildSpeed:
-                case UpgradeType.UnlockWorkerHut:
-                case UpgradeType.AutoResourceInterval:
-                case UpgradeType.AutoResourceGain:
                 case UpgradeType.UnlockDefenseCharacter:
                 case UpgradeType.UnlockClassChange:
                 case UpgradeType.RoundTimeLimit:
@@ -367,6 +371,8 @@ namespace AreaSurvivors
                     return FixedLevelCost(level, 30, 35, 40, 45, 50);
                 case UpgradeType.OpeningPlayerLevel:
                     return FixedLevelCost(level, 50, 60, 70);
+                case UpgradeType.LevelUpRerollCount:
+                    return FixedLevelCost(level, 80, 90, 100, 115, 130);
             }
 
             if (level != 0) return 0;
@@ -416,8 +422,8 @@ namespace AreaSurvivors
                 case UpgradeType.EliteSpawnCount:
                 case UpgradeType.WallMaxHp2:
                 case UpgradeType.WatchTowerRange:
-                case UpgradeType.UnlockArrow:
-                case UpgradeType.UnlockFireball:
+                case UpgradeType.UnlockArcher:
+                case UpgradeType.UnlockMage:
                     return 2;
                 case UpgradeType.ReviveSpeed:
                 case UpgradeType.XpGain:
@@ -442,7 +448,7 @@ namespace AreaSurvivors
                 case UpgradeType.UnlockBoomerangSword:
                     return 5;
                 case UpgradeType.UnlockWall2:
-                case UpgradeType.RemoveStartingSlash:
+                case UpgradeType.LevelUpRerollCount:
                 case UpgradeType.UnlockOpeningRelicChest:
                 case UpgradeType.MoveSpeedAdvanced:
                 case UpgradeType.PaintRadiusAdvanced:
@@ -470,6 +476,16 @@ namespace AreaSurvivors
             Save();
         }
 
+        public static int GetInitialLevelUpRerollCount()
+        {
+            return CalculateInitialLevelUpRerollCount(GetLevel(UpgradeType.LevelUpRerollCount));
+        }
+
+        public static int CalculateInitialLevelUpRerollCount(int skillLevel)
+        {
+            return BaseLevelUpRerollCount + Mathf.Clamp(skillLevel, 0, GetMaxLevel(UpgradeType.LevelUpRerollCount));
+        }
+
         public static void AddTokens(int tokens)
         {
             Data.tokens += Mathf.Max(0, tokens);
@@ -489,6 +505,17 @@ namespace AreaSurvivors
             if (Data.openingStoryCompleted) return;
             Data.openingStoryCompleted = true;
             Save();
+        }
+
+        public static bool HasViewedEndingCredits => Data.endingCreditsViewed;
+
+        public static bool TryMarkEndingCreditsViewed()
+        {
+            if (Data.endingCreditsViewed) return false;
+            Data.endingCreditsViewed = true;
+            Data.endingCreditsViewedWasSerialized = true;
+            Save();
+            return true;
         }
 
         public static bool IsStageUnlocked(int stage)
@@ -574,6 +601,42 @@ namespace AreaSurvivors
             return Mathf.Clamp(Mathf.Max(recorded, inferredMinimum), 0, MaxStageDifficulty);
         }
 
+        public static bool AreAllStagesClearedAtMaxDifficulty()
+        {
+            return AreAllStagesClearedAtMaxDifficulty(Data);
+        }
+
+        static bool AreAllStagesClearedAtMaxDifficulty(SaveData data)
+        {
+            for (int stage = 1; stage <= ImplementedStageCount; stage++)
+            {
+                StageDifficultyRecord matchingRecord = null;
+                if (data != null && data.stageDifficulties != null)
+                {
+                    foreach (var record in data.stageDifficulties)
+                    {
+                        if (record != null && record.stage == stage)
+                        {
+                            matchingRecord = record;
+                            break;
+                        }
+                    }
+                }
+
+                int inferredMinimum = data != null && data.highestClearedStage >= stage
+                    ? MinStageDifficulty
+                    : 0;
+                int recorded = matchingRecord != null ? matchingRecord.highestClearedDifficulty : 0;
+                int highestClearedDifficulty = Mathf.Clamp(
+                    Mathf.Max(recorded, inferredMinimum),
+                    0,
+                    MaxStageDifficulty);
+                if (highestClearedDifficulty < MaxStageDifficulty) return false;
+            }
+
+            return true;
+        }
+
         public static int GetStageMaxUnlockedDifficulty(int stage)
         {
             stage = Mathf.Clamp(stage, 1, ImplementedStageCount);
@@ -638,62 +701,6 @@ namespace AreaSurvivors
             AddTokens(tokens);
         }
 
-        public static bool HasPersistentResources(int wood, int stone)
-        {
-            return Data.wood >= Mathf.Max(0, wood) && Data.stone >= Mathf.Max(0, stone);
-        }
-
-        public static bool TrySpendPersistentResources(int wood, int stone)
-        {
-            wood = Mathf.Max(0, wood);
-            stone = Mathf.Max(0, stone);
-            if (!HasPersistentResources(wood, stone)) return false;
-            Data.wood -= wood;
-            Data.stone -= stone;
-            Save();
-            return true;
-        }
-
-        public static void AddPersistentResources(int wood, int stone)
-        {
-            Data.wood += Mathf.Max(0, wood);
-            Data.stone += Mathf.Max(0, stone);
-            Save();
-        }
-
-        public static StageBuildingSet GetStageBuildings(int stage)
-        {
-            stage = Mathf.Max(1, stage);
-            if (Data.stageBuildings == null) Data.stageBuildings = new List<StageBuildingSet>();
-            foreach (var set in Data.stageBuildings)
-            {
-                if (set == null || set.stage != stage) continue;
-                if (set.buildings == null) set.buildings = new List<SavedBuildingData>();
-                return set;
-            }
-
-            var created = new StageBuildingSet { stage = stage, buildings = new List<SavedBuildingData>() };
-            Data.stageBuildings.Add(created);
-            return created;
-        }
-
-        public static void ReplaceStageBuildings(int stage, List<SavedBuildingData> buildings)
-        {
-            var set = GetStageBuildings(stage);
-            set.buildings = buildings ?? new List<SavedBuildingData>();
-            Save();
-        }
-
-        public static void ReviveStageBuildings(int stage)
-        {
-            var set = GetStageBuildings(stage);
-            foreach (var building in set.buildings)
-            {
-                if (building != null) building.destroyed = false;
-            }
-            Save();
-        }
-
         public static void ResetUpgradesForTesting()
         {
             if (Data.upgrades == null) Data.upgrades = new List<UpgradeLevel>();
@@ -706,6 +713,8 @@ namespace AreaSurvivors
             Data.highestClearedStage = 0;
             Data.highestUnlockedStage = 1;
             Data.selectedStage = 1;
+            Data.endingCreditsViewed = false;
+            Data.endingCreditsViewedWasSerialized = true;
             if (Data.stageDifficulties != null) Data.stageDifficulties.Clear();
             Save();
         }

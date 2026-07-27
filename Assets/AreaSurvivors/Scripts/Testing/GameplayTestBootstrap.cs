@@ -28,6 +28,11 @@ namespace AreaSurvivors.Testing
                 return;
             }
 
+            if (scenario.overrideStartingWeapon)
+            {
+                RunState.SetNextWeaponTest(scenario.startingWeapon);
+            }
+
             SceneManager.sceneLoaded += OnSceneLoaded;
             SceneManager.LoadSceneAsync(gameSceneName, LoadSceneMode.Additive);
         }
@@ -48,7 +53,6 @@ namespace AreaSurvivors.Testing
             runner.scenario = scenario;
             runner.config = config;
             runner.grid = FindObjectOfType<TileGrid>();
-            runner.landmarkSpawner = FindObjectOfType<NaturalLandmarkSpawner>();
             runner.enemyPrefab = enemyPrefab;
             runner.xpOrbPrefab = xpOrbPrefab;
             runner.damagePopupPrefab = damagePopupPrefab;

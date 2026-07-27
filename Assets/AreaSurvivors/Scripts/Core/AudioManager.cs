@@ -212,6 +212,7 @@ namespace AreaSurvivors
             var clip = LoadBgm(track);
             if (clip == null) return;
 
+            bgmSource.loop = track != BgmTrack.EndingCredits;
             currentBgm = track;
             if (bgmFadeRoutine != null) StopCoroutine(bgmFadeRoutine);
             bgmFadeRoutine = StartCoroutine(FadeToBgm(clip, fadeSeconds));

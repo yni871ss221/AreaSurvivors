@@ -10,7 +10,7 @@ Use -Path for the search root. This wrapper does not accept -Root.
 param(
     [Parameter(Mandatory = $true)][Alias("Query")][string]$Pattern,
     [string[]]$Path = @("Assets", "Tools", "AGENTS.md"),
-    [int]$First = 20,
+    [Alias("MaxMatches", "MaxResults", "Limit")][int]$First = 20,
     [string[]]$Extension = @(),
     [switch]$FilesOnly,
     [switch]$HitSummary,
@@ -42,6 +42,10 @@ foreach ($ext in $Extension) {
 
 if ($Pattern -match '^\*.*\*$') {
     throw "safe-search -Pattern is a regular expression, not a file glob. Use 'Evolution' or '.*Evolution.*' instead of '*Evolution*'."
+}
+
+if ($Pattern.Contains([char]34)) {
+    throw "safe-search -Pattern cannot contain a double quote at the Windows PowerShell 5.1/native rg boundary. Remove the quote and use a narrower surrounding pattern instead. (guard_code: 45)"
 }
 
 try {

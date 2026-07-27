@@ -11,6 +11,10 @@ namespace AreaSurvivors.Editor
     {
         public const string MenuPath = "Area Survivors/Validate/Player Directional Animator Migration";
         const string CompletionMarkerRelativePath = "Library/AreaSafeUnity/player-directional-animator-validator.ok";
+        const string MigrationScriptPath =
+            "Assets/AreaSurvivors/Editor/DirectionalCharacterAnimatorMigration.cs";
+        const int ArcherWalkFrameSize = 384;
+        const int ArcherLegRegionTopY = 307;
 
         [MenuItem(MenuPath)]
         public static void Validate()
@@ -38,6 +42,8 @@ namespace AreaSurvivors.Editor
 
             var playerSerialized = new SerializedObject(player);
             var expectedFrames = ResolveExpectedFrames(playerSerialized, ref errors);
+            ValidateArcherMigrationWriteOrdering(ref errors);
+            ValidateArcherVerticalFrameComposition(ref errors);
             var placeholderClips = ValidatePlaceholderClips(ref errors);
             var characterClips = ValidateCharacterClips(expectedFrames, ref errors);
             var baseController = ValidateBaseController(placeholderClips, ref errors);
@@ -49,6 +55,27 @@ namespace AreaSurvivors.Editor
             Directory.CreateDirectory(Path.GetDirectoryName(markerPath));
             File.WriteAllText(markerPath, DateTime.UtcNow.ToString("o"));
             Debug.Log("Player directional Animator validation passed: 8 states, 8 placeholder clips, 24 character clips, 3 override controllers, Prefab references saved, legacy Player animator removed.");
+        }
+
+        static void ValidateArcherMigrationWriteOrdering(ref int errors)
+        {
+            string fullPath = Path.GetFullPath(MigrationScriptPath);
+            if (!File.Exists(fullPath))
+            {
+                Error("Directional Animator migration source is missing: " + MigrationScriptPath, ref errors);
+                return;
+            }
+
+            string source = File.ReadAllText(fullPath);
+            int firstWriteIndex = source.IndexOf("File.WriteAllBytes(", StringComparison.Ordinal);
+            int lastWriteIndex = source.LastIndexOf("File.WriteAllBytes(", StringComparison.Ordinal);
+            int firstImportIndex = source.IndexOf("AssetDatabase.ImportAsset(", StringComparison.Ordinal);
+            if (firstWriteIndex < 0 || firstImportIndex < 0 || firstImportIndex < lastWriteIndex)
+            {
+                Error(
+                    "Archer migration must write every generated PNG before starting AssetDatabase.ImportAsset; interleaving can fail with Windows IO 1224.",
+                    ref errors);
+            }
         }
 
         static Dictionary<string, Dictionary<string, Sprite[]>> ResolveExpectedFrames(
@@ -122,7 +149,7 @@ namespace AreaSurvivors.Editor
                     continue;
                 }
 
-                var keys = ValidateClipContract(clip, path, ref errors);
+                var keys = ValidateClipContract(clip, path, false, ref errors);
                 if (keys == null) continue;
                 if (keys.Length != 2) Error("Placeholder clip must contain exactly 2 timing keys: " + path, ref errors);
                 foreach (var key in keys)
@@ -152,21 +179,33 @@ namespace AreaSurvivors.Editor
                         continue;
                     }
 
-                    var keys = ValidateClipContract(clip, path, ref errors);
+                    bool mageCharacter = string.Equals(characterName, "Mage", StringComparison.Ordinal);
+                    bool archerCharacter = string.Equals(characterName, "Archer", StringComparison.Ordinal);
+                    bool verticalDirection =
+                        string.Equals(state.DirectionName, "Up", StringComparison.Ordinal) ||
+                        string.Equals(state.DirectionName, "Down", StringComparison.Ordinal);
+                    bool twoPoseCharacter = mageCharacter || archerCharacter;
+                    bool archerVerticalWalk = archerCharacter && state.Moving && verticalDirection;
+                    var keys = ValidateClipContract(clip, path, twoPoseCharacter, ref errors);
                     if (keys == null) continue;
                     var frames = expectedFrames[characterName][state.DirectionName];
                     if (state.Moving)
                     {
                         if (keys.Length != 4)
                         {
-                            Error("Walk clip must contain 3 frames plus the final hold key: " + path, ref errors);
+                            Error("Walk clip must contain exactly four Sprite keys: " + path, ref errors);
                         }
                         else
                         {
                             ValidateKeySprite(keys[0], frames[0], path, 0, ref errors);
                             ValidateKeySprite(keys[1], frames[1], path, 1, ref errors);
-                            ValidateKeySprite(keys[2], frames[2], path, 2, ref errors);
-                            ValidateKeySprite(keys[3], frames[2], path, 3, ref errors);
+                            ValidateKeySprite(keys[2], twoPoseCharacter ? frames[0] : frames[2], path, 2, ref errors);
+                            ValidateKeySprite(
+                                keys[3],
+                                archerVerticalWalk ? frames[2] : twoPoseCharacter ? frames[1] : frames[2],
+                                path,
+                                3,
+                                ref errors);
                         }
                     }
                     else
@@ -177,17 +216,207 @@ namespace AreaSurvivors.Editor
                         }
                         else
                         {
-                            ValidateKeySprite(keys[0], frames[1], path, 0, ref errors);
-                            ValidateKeySprite(keys[1], frames[1], path, 1, ref errors);
+                            var idleFrame = archerCharacter ? frames[0] : frames[1];
+                            ValidateKeySprite(keys[0], idleFrame, path, 0, ref errors);
+                            ValidateKeySprite(keys[1], idleFrame, path, 1, ref errors);
                         }
                     }
+
+                    if (twoPoseCharacter)
+                        ValidateCharacterFlipCurve(clip, path, characterName, state, ref errors);
                 }
                 result.Add(characterName, clips);
             }
             return result;
         }
 
-        static ObjectReferenceKeyframe[] ValidateClipContract(AnimationClip clip, string path, ref int errors)
+        static void ValidateArcherVerticalFrameComposition(ref int errors)
+        {
+            foreach (string directionName in new[] { "Down", "Up" })
+            {
+                string neutralPath = GeneratedFramePath(directionName, 0);
+                string cleanNeutralPath = ArcherNeutralSourcePath(directionName);
+                var neutralTexture = LoadPngTexture(neutralPath, ref errors);
+                var cleanNeutralTexture = LoadPngTexture(cleanNeutralPath, ref errors);
+                if (neutralTexture == null || cleanNeutralTexture == null)
+                {
+                    if (neutralTexture != null) UnityEngine.Object.DestroyImmediate(neutralTexture);
+                    if (cleanNeutralTexture != null) UnityEngine.Object.DestroyImmediate(cleanNeutralTexture);
+                    continue;
+                }
+
+                try
+                {
+                    if (neutralTexture.width != ArcherWalkFrameSize ||
+                        neutralTexture.height != ArcherWalkFrameSize ||
+                        cleanNeutralTexture.width != ArcherWalkFrameSize ||
+                        cleanNeutralTexture.height != ArcherWalkFrameSize ||
+                        neutralTexture.width != cleanNeutralTexture.width ||
+                        neutralTexture.height != cleanNeutralTexture.height)
+                    {
+                        Error(
+                            $"Archer neutral target/source must both be 384x384: {neutralPath} / {cleanNeutralPath}",
+                            ref errors);
+                        continue;
+                    }
+
+                    var cleanNeutralPixels = cleanNeutralTexture.GetPixels32();
+                    if (!HasVisibleAndTransparentPixels(cleanNeutralPixels))
+                    {
+                        Error(
+                            "Archer clean neutral source requires visible RGBA art and transparency: " + cleanNeutralPath,
+                            ref errors);
+                        continue;
+                    }
+
+                    var neutralPixels = neutralTexture.GetPixels32();
+                    int neutralMismatchCount = 0;
+                    for (int pixelIndex = 0; pixelIndex < neutralPixels.Length; pixelIndex++)
+                    {
+                        if (!SameColor(neutralPixels[pixelIndex], cleanNeutralPixels[pixelIndex]))
+                            neutralMismatchCount++;
+                    }
+                    if (neutralMismatchCount > 0)
+                    {
+                        Error(
+                            $"Archer neutral frame must exactly match its clean source: {neutralPath}, mismatches={neutralMismatchCount}",
+                            ref errors);
+                    }
+
+                    for (int frameIndex = 1; frameIndex <= 2; frameIndex++)
+                    {
+                        string targetPath = GeneratedFramePath(directionName, frameIndex);
+                        string sourcePath = ArcherWalkSourcePath(directionName, frameIndex);
+                        var targetTexture = LoadPngTexture(targetPath, ref errors);
+                        var sourceTexture = LoadPngTexture(sourcePath, ref errors);
+                        if (targetTexture == null || sourceTexture == null)
+                        {
+                            if (targetTexture != null) UnityEngine.Object.DestroyImmediate(targetTexture);
+                            if (sourceTexture != null) UnityEngine.Object.DestroyImmediate(sourceTexture);
+                            continue;
+                        }
+
+                        try
+                        {
+                            if (targetTexture.width != ArcherWalkFrameSize ||
+                                targetTexture.height != ArcherWalkFrameSize ||
+                                sourceTexture.width != ArcherWalkFrameSize ||
+                                sourceTexture.height != ArcherWalkFrameSize ||
+                                targetTexture.width != neutralTexture.width ||
+                                targetTexture.height != neutralTexture.height ||
+                                sourceTexture.width != neutralTexture.width ||
+                                sourceTexture.height != neutralTexture.height)
+                            {
+                                Error(
+                                    $"Archer vertical walk target/source must match the 384x384 neutral frame: {targetPath} / {sourcePath}",
+                                    ref errors);
+                                continue;
+                            }
+
+                            var sourcePixels = sourceTexture.GetPixels32();
+                            if (!HasVisibleAndTransparentPixels(sourcePixels))
+                            {
+                                Error(
+                                    "Archer walk source requires visible RGBA art and transparency: " + sourcePath,
+                                    ref errors);
+                                continue;
+                            }
+
+                            var targetPixels = targetTexture.GetPixels32();
+                            int lowerRegionPixelCount =
+                                neutralTexture.width * (neutralTexture.height - ArcherLegRegionTopY);
+                            int upperMismatchCount = 0;
+                            int lowerMismatchCount = 0;
+                            for (int pixelIndex = 0; pixelIndex < targetPixels.Length; pixelIndex++)
+                            {
+                                if (pixelIndex < lowerRegionPixelCount)
+                                {
+                                    if (!SameColor(targetPixels[pixelIndex], sourcePixels[pixelIndex]))
+                                        lowerMismatchCount++;
+                                }
+                                else if (!SameColor(targetPixels[pixelIndex], neutralPixels[pixelIndex]))
+                                {
+                                    upperMismatchCount++;
+                                }
+                            }
+
+                            if (upperMismatchCount > 0 || lowerMismatchCount > 0)
+                            {
+                                Error(
+                                    $"Archer vertical walk frame composition is invalid: {targetPath}, upper neutral mismatches={upperMismatchCount}, lower source mismatches={lowerMismatchCount}",
+                                    ref errors);
+                            }
+                        }
+                        finally
+                        {
+                            UnityEngine.Object.DestroyImmediate(sourceTexture);
+                            UnityEngine.Object.DestroyImmediate(targetTexture);
+                        }
+                    }
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(cleanNeutralTexture);
+                    UnityEngine.Object.DestroyImmediate(neutralTexture);
+                }
+            }
+        }
+
+        static Texture2D LoadPngTexture(string assetPath, ref int errors)
+        {
+            string fullPath = Path.GetFullPath(assetPath);
+            if (!File.Exists(fullPath))
+            {
+                Error("Player walk PNG is missing: " + assetPath, ref errors);
+                return null;
+            }
+
+            var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            if (texture.LoadImage(File.ReadAllBytes(fullPath), false)) return texture;
+
+            UnityEngine.Object.DestroyImmediate(texture);
+            Error("Player walk PNG could not be decoded: " + assetPath, ref errors);
+            return null;
+        }
+
+        static bool HasVisibleAndTransparentPixels(Color32[] pixels)
+        {
+            bool hasVisiblePixel = false;
+            bool hasTransparentPixel = false;
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                hasVisiblePixel |= pixels[i].a > 0;
+                hasTransparentPixel |= pixels[i].a < byte.MaxValue;
+            }
+
+            return hasVisiblePixel && hasTransparentPixel;
+        }
+
+        static bool SameColor(Color32 left, Color32 right)
+        {
+            return left.r == right.r && left.g == right.g && left.b == right.b && left.a == right.a;
+        }
+
+        static string GeneratedFramePath(string directionName, int frameIndex)
+        {
+            return $"Assets/AreaSurvivors/Sprites/Generated/Walk/Archer/{directionName}_{frameIndex}.png";
+        }
+
+        static string ArcherWalkSourcePath(string directionName, int frameIndex)
+        {
+            return $"Assets/AreaSurvivors/Sprites/External/Archer{directionName}Walk{frameIndex}Source.png";
+        }
+
+        static string ArcherNeutralSourcePath(string directionName)
+        {
+            return $"Assets/AreaSurvivors/Sprites/External/Archer{directionName}NeutralCleanSource.png";
+        }
+
+        static ObjectReferenceKeyframe[] ValidateClipContract(
+            AnimationClip clip,
+            string path,
+            bool expectTwoPoseFlipCurve,
+            ref int errors)
         {
             if (Mathf.Abs(clip.frameRate - DirectionalCharacterAnimatorMigration.FramesPerSecond) > 0.001f)
                 Error("Player directional AnimationClip frame rate must be 8: " + path, ref errors);
@@ -196,8 +425,21 @@ namespace AreaSurvivors.Editor
             if (!settings.loopTime) Error("Player directional AnimationClip must loop: " + path, ref errors);
             if (AnimationUtility.GetAnimationEvents(clip).Length != 0)
                 Error("Player directional AnimationClip must not use Animation Events: " + path, ref errors);
-            if (AnimationUtility.GetCurveBindings(clip).Length != 0)
+            var floatBindings = AnimationUtility.GetCurveBindings(clip);
+            if (expectTwoPoseFlipCurve)
+            {
+                if (floatBindings.Length != 1 ||
+                    !string.IsNullOrEmpty(floatBindings[0].path) ||
+                    floatBindings[0].type != typeof(PaperMeshVisual) ||
+                    floatBindings[0].propertyName != "flipHorizontal")
+                {
+                    Error("Directional AnimationClip must contain only PaperMeshVisual.flipHorizontal: " + path, ref errors);
+                }
+            }
+            else if (floatBindings.Length != 0)
+            {
                 Error("Player directional AnimationClip must not modify float/Transform properties: " + path, ref errors);
+            }
 
             var bindings = AnimationUtility.GetObjectReferenceCurveBindings(clip);
             if (bindings.Length != 1)
@@ -212,6 +454,40 @@ namespace AreaSurvivors.Editor
                 Error("Player directional AnimationClip must target PaperMeshVisual.sourceSprite on the Animator GameObject: " + path, ref errors);
             }
             return AnimationUtility.GetObjectReferenceCurve(clip, binding);
+        }
+
+        static void ValidateCharacterFlipCurve(
+            AnimationClip clip,
+            string path,
+            string characterName,
+            DirectionalCharacterAnimatorMigration.StateSpec state,
+            ref int errors)
+        {
+            var bindings = AnimationUtility.GetCurveBindings(clip);
+            if (bindings.Length != 1) return;
+
+            var curve = AnimationUtility.GetEditorCurve(clip, bindings[0]);
+            int expectedLength = state.Moving ? 4 : 2;
+            if (curve == null || curve.length != expectedLength)
+            {
+                Error("Directional flip curve key count is invalid: " + path, ref errors);
+                return;
+            }
+
+            bool alternateFinalStep = string.Equals(characterName, "Mage", StringComparison.Ordinal) &&
+                state.Moving &&
+                (string.Equals(state.DirectionName, "Up", StringComparison.Ordinal) ||
+                 string.Equals(state.DirectionName, "Down", StringComparison.Ordinal));
+            float frameDuration = 1f / DirectionalCharacterAnimatorMigration.FramesPerSecond;
+            for (int i = 0; i < curve.length; i++)
+            {
+                float expectedValue = alternateFinalStep && i == curve.length - 1 ? 1f : 0f;
+                if (Mathf.Abs(curve.keys[i].time - frameDuration * i) > 0.001f ||
+                    Mathf.Abs(curve.keys[i].value - expectedValue) > 0.001f)
+                {
+                    Error($"Directional flip curve key {i} is invalid: {path}", ref errors);
+                }
+            }
         }
 
         static void ValidateKeySprite(

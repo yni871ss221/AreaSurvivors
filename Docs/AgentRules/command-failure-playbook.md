@@ -7,6 +7,7 @@
 - 別コマンド、別Shell、Eval、手動Editor操作へ自動的に切り替えない。まず失敗した方式の境界を調べる。
 - 状態変更を止め、実行コマンド、引数、終了コード、経過時間、capture path、Unity Console/Editor状態を保存する。
 - 同種の失敗を2回確認したら手打ち再試行を止める。3回目の前にWrapper、Validator、Reporterのいずれかへ部品化する。
+- 共有作業ツリーでLeadとサブエージェントの`apply_patch`が同時刻に走り、実在する書込可能ファイルへ`Failed to write file`が出た場合は、同時ファイル操作の停止を全担当へ確認する。Attributes/IsReadOnlyを読み取り確認し、競合解消後の同じpatch再実行は1回だけとする。
 - 原因確定、入口の防止策、限定的な自己テストが揃うまで元の機能実装を再開しない。
 
 ## 調査順序
@@ -21,12 +22,47 @@
 
 ## 既知事例
 
+### 構造Reporterが旧固定パスのまま停止する
+
+- 症状: 現行クラスは存在するのに、Reporterが`<旧パス> not found`で対象読取前に終了する。
+- 原因: Runtime等へのフォルダ再編後も、構造Reporterが移動前の単一ファイルパスを固定値で保持していた。
+- 対応: 既知の狭い親ディレクトリ以下から対象ファイル名を再帰列挙し、候補が厳密に1件の時だけ続行する。0件と複数件は候補数と実パスを含む診断で停止し、自己テストで旧固定パスの再混入を拒否する。
+- 禁止: エラーに表示された旧パスへファイルを戻すこと、候補の先頭1件を暗黙採用すること、Reporter失敗を理由に別の広域検索結果だけで構造判断を続けること。
+
+### Sort-Objectの複数キーへDescendingを個別指定してParserErrorになる
+
+- 症状: 新規PowerShell Reporterの構文自己テストが`Missing argument in parameter list`で停止する。
+- 原因: `Sort-Object Key1 -Descending, Key2 -Descending`のように、switchを各キーへカンマ区切りで付与できると誤認した。
+- 対応: 複数キーの昇降順は`@{ Expression = "Key1"; Descending = $true }`形式のproperty hashtableを列挙し、Reporter初回実行前に`command-tools-self-test.ps1`のParser検査を必須にする。
+- 禁止: カンマやswitch位置を推測変更しながらReporterを直接再実行すること、Parser検査を外して本番データで構文確認すること。
+
+### Windows PowerShell 5.1でgeneric Listを配列化すると型不一致になる
+
+- 症状: Parser検査済みのReporterが、`@($genericList)`で`Argument types do not match`を返す。
+- 原因: Windows PowerShell 5.1の動的配列化境界で`System.Collections.Generic.List[object]`を直接列挙した。
+- 対応: generic Listは`@($genericList.ToArray())`へ明示変換する。新規集計Wrapperは小さいfixtureを使う`-SelfTest`を持ち、`command-tools-self-test.ps1`から本番データ読取前に実行する。
+- 禁止: generic型を非generic `ArrayList`へ場当たり的に変更すること、実データで同じReporterを再実行して変換可否を試すこと。
+
+### アセット監査がPackage GUIDと原本コピーを不要物へ誤分類する
+
+- 症状: プロジェクト固有ルートだけのmeta辞書で多数の未解決GUIDを報告し、重複ハッシュの大半を削除候補として集計する。
+- 原因: Scene/PrefabはUnity PackageのGUIDも参照する一方、辞書が`Assets/AreaSurvivors`だけだった。また`External/*Source.png`と生成版が同一内容でも、原本保存ルールを重複分類へ反映していなかった。
+- 対応: GUID辞書は`Assets`、`Packages`、存在する`Library/PackageCache`のmetaを統合する。重複は`source-generated-preserved`、`historical-review`、`internal-review`へ分類し、削除候補量には後二者だけを含める。
+- 禁止: プロジェクト固有metaにないGUIDをMissing参照と断定すること、ハッシュ一致だけでExternal原本または生成版を削除すること。
+
 ### functions.exec内のapply_patch成功戻り値が空になる
 
 - 症状: `text(await tools.apply_patch(patch))`を実行したcellが終了コード相当の異常を出さず、出力だけ`{}`または空になる。一方で対象ファイルのsentinel行は反映済みになっている。
 - 原因: 入れ子`apply_patch`は成功時に表示用の戻り値を返さない場合があり、その`undefined`相当を`text(...)`へ直接渡すと成功表示が生成されない。Patch適用結果と会話への戻り値は別境界である。
 - 対応: `await tools.apply_patch(patch); text("patch_submitted; verify sentinels")`のように送信完了だけを明示し、成功判定は`safe-read.ps1 -LiteralPattern`で各変更対象の固有sentinelを確認してから`scoped-diff-check.ps1`で確定する。
 - 禁止: 空戻り値をPatch失敗とみなして同じPatchを再適用すること、反映確認前に別編集方式へ切り替えること。
+
+### functions.exec内のshell_command戻り値をJSON化すると空になる
+
+- 症状: `JSON.stringify(await tools.shell_command(...))` または戻り値の `.exit_code` / `.stdout` 参照が `{}` や未定義になり、実コマンドの成否と出力を会話側で確認できない。
+- 原因: 入れ子`tools.shell_command`の戻り値は表示用結果であり、列挙可能な通常オブジェクトとして扱えない場合がある。実コマンドは成功していても、JSON化境界だけで情報が失われる。
+- 対応: `const result = await tools.shell_command(...); text(result);` で戻り値をそのまま表示する。成否が欠落した既存実行は同じコマンドを再発行せず、`TokenReports/*.jsonl`の`exit_code`、`timed_out`、`capture_path`から確定する。
+- 禁止: 入れ子`tools.shell_command`の戻り値を`JSON.stringify`すること、表示欠落を実コマンド失敗とみなして同じコマンドを再実行すること。
 
 ### 複数Tempファイル削除で先頭の既消去Pathがapply_patchを止める
 
@@ -40,6 +76,14 @@
 - 原因: UniCLI v1.5.0の`UniCliServerBootstrap.EnsurePidFile()`がAssetImportWorkerでも実行され、メインEditorのPIDファイルを上書きし得る。Compile成功とUniCLI server再接続成功は別境界である。
 - 対応: `safe-unity`はCompile以外のUniCLI操作前にserver.pidのPID、Unity process、MainWindowHandleを確認し、不一致を`guard_code: 45`で接続前に拒否する。プロジェクトは`Packages/com.yucchiy.unicli-server`の埋め込みパッケージを正とし、Bootstrapの先頭で`AssetDatabase.IsAssetImportWorkerProcess()`を判定してWorkerのPID書き込みとServer起動を禁止する。更新・復旧後は`Tools/TokenUsage/validate-unicli-worker-guard.ps1`を先に通し、メインEditorでStart Serverを1回押してから失敗した同一操作だけを再開する。
 - 禁止: connection timeout後にMenu、Console、Statusを順番に試すこと、server.pidをShellで手動上書きすること、`Library/PackageCache`のBootstrapを直接改変すること、埋め込みパッケージを削除して未修正版へ戻すこと。
+
+### Domain ReloadがMemoryStream corruptionで止まりUniCLIが再開しない
+
+- 症状: CompileとAssembly Reloadは成功し、`server.pid`も応答中のメインEditor PIDを指しているが、Menu実行は5回ともconnection timeoutになる。Editor.logが`The file 'MemoryStream' is corrupted! Remove it and launch unity again!`と`[Position out of bounds!]`で止まり、UniCLIサーバー再開ログがない。
+- 原因境界: C# CompileやAssetImportWorker PID誤登録ではなく、Domain Reload後のEditor内部状態復元で停止している。ログに実ファイルパスがないため、`MemoryStream`という名前のファイルを推測して削除してはいけない。
+- 既知トリガー: Inspectorで選択中の`ScriptableObject`型へserialized fieldを追加し、Editor RunnerがRuntime/Editor依存Scriptを逐次Importすると、Csc中の追加timestamp変更で`Tundra build interrupted`が反復した後、最終Compile成功後の状態復元が`Read ... bytes but expected ... bytes`で破損し得る。
+- 対応: メインEditorのPID、MainWindowHandle、Responding、command lineを`unity-process-report.ps1 -IncludeCommandLine`で確認し、失敗した同一Unity操作だけを最大1回再試行する。同じtimeoutが続いたらUnityを通常再起動し、再起動後に元のMigration/Validatorをfresh marker付きで再開する。serialized layout変更時は対象AssetをInspector選択したまま依存Scriptを逐次Importせず、Runtime型のDomain Reload完了後にEditor Menu検証へ進むか、Importを一括化してCsc中の追加timestamp変更を防ぐ。再起動後も再発する場合はEditor.logで破損対象の実パスを確定するまで削除しない。
+- 禁止: 別MenuやEvalへ切り替えること、Scene YAMLを手編集してMigrationを迂回すること、パス不明の`MemoryStream`候補やLibrary全体を削除すること。
 
 ### sandbox内のMainWindowHandle=0をAssetImportWorkerと誤判定する
 
@@ -78,7 +122,45 @@
 
 - 原因: 検索・読み取りWrapperの `-First` と、Unity Console入口の正式契約 `-MaxCount` を混同した。
 - 対応: `safe-unity.ps1 -Action ConsoleErrors -MaxCount <件数>` を使い、自己テストでparam転送を固定する。
+
+### Play Mode終了直後の連続性能計測がguard 23で止まる
+
+- 症状: `safe-unity.ps1 -Action PlayExit`成功直後に次の性能シナリオ準備Menuを呼ぶと、`guard_code: 23`でPlay Mode遷移中として停止する。
+- 原因: 1回目の計測シーケンス終了と2回目のシナリオ準備を連続実行し、`last-playmode-exit.utc`の20秒クールダウン内にUniCLI Menuへ到達した。
+- 対応: 連続戦闘性能計測は`combat-performance-probe.ps1`を入口とし、同Wrapperがmarker時刻から残りクールダウンを待ってから次のMenuを実行する。PlayExit後に別のUnityコマンドを手打ちで続けない。
+- 禁止: guard 23を無効化すること、別Menu/Evalへ切り替えること、markerを手動削除して遷移中のUnityへ接続すること。
+
+### AssetImportへフォルダを渡した後もCompileがstale判定される
+
+- 症状: `safe-unity AssetImport -AssetPath <folder>` は成功応答を返すが、続くCompileが `guard_code: 41` で古いAssemblyを拒否する。
+- 原因: UniCLIのAssetImportは `AssetDatabase.ImportAsset(path, ForceUpdate)` を呼び、フォルダ指定時に `ImportRecursive` を付けないため、配下の変更Scriptを再Importしない。
+- 対応: `safe-unity AssetImport` は既存の単一ファイルだけを受け付ける。変更した各 `.cs` を1件ずつImportしてからCompileする。全体Refreshを意図する場合だけ `AssetRefresh` を明示使用する。
+- 禁止: フォルダImportの成功応答を再帰Import成功とみなすこと、stale判定後に同じCompileを再実行すること。
 - 禁止: `-First`、`-Count`などの候補を手打ちで順番に試すこと。
+
+### safe-readの80行対話上限を同一作業で再発させる
+
+- 症状: `safe-read.ps1 -PrintOutput`へ81行以上の範囲を渡して`guard_code: 39`になった後、別ファイルでも同じ形式を使って再度停止する。
+- 原因: Guard出力と`token-tools.md`が`safe-read-batch`を示しているのに、対象ファイルが変わったことで同じ呼び出し形式を再利用した。
+- 対応: 1回目の`guard_code: 39`以降、その作業では行範囲指定の`safe-read.ps1`を使わない。読み取り対象や行数にかかわらず`safe-read-batch.ps1 -Ranges "<start>-<end>" -PrintOutput`へ固定し、自動80行分割へ任せる。
+- 検証: Guardは対象読取前に停止して状態変更0であること、`safe-read-batch`の限定読み取りと`command-tools-self-test.ps1`が成功することを確認する。
+- 禁止: 対象ファイルを変えて同じ`safe-read`形式を使うこと、`-AllowMany`で対話上限を迂回すること。
+
+### Graphify出力の空行でMandatory string配列が停止する
+
+- 症状: `safe-graphify-pilot.ps1 -Action Explain`のGraphify本体は結果を返すが、`Get-GraphifyOutputSignals -OutputLines`で`Cannot bind ... because it is an empty string`となる。
+- 原因: native出力配列に空行が含まれ、PowerShellの`[Parameter(Mandatory)] [string[]]`が空文字要素を拒否した。Graphify検索ではなくWrapperの出力解析境界である。
+- 対応: 出力解析用配列へ`[AllowEmptyString()]`と`[AllowEmptyCollection()]`、結合後テキストへ`[AllowEmptyString()]`を明示する。空行は保持したままcaptureと使用記録へ流す。
+- 検証: `command-tools-self-test.ps1`で属性の再脱落を拒否し、失敗した同一`Explain`だけを1回再実行する。
+- 禁止: 空行をGraphify結果なしと誤認すること、`focused-search`等へ迂回して失敗境界を残すこと。
+
+### Graphify Explainが同名のSource欠落ノードを正常扱いする
+
+- 症状: Runtimeクラス名を`Explain`したのに、Editor Validator内の同名ノードIDが選ばれ、`Source:`が空、接続1件だけの結果を終了コード0で返す。
+- 原因: Graphifyの同名ノード解決が別ファイルの抽出ノードへ寄り、Wrapperも空の`Source:`を曖昧結果として検出していなかった。
+- 対応: `Explain / Path / Affected`結果の`Source:`が空なら`missing-source-path`を理由に`graphify_verification_required: true`とし、既存の`focused-search` fallbackを表示する。
+- 検証: `command-tools-self-test.ps1`で判定sentinelを固定し、同一Explainがfallback要求を返すことを確認する。
+- 禁止: node名が一致しただけで依存証拠にすること、Source欠落結果から呼び出し関係を推測すること。
 
 ### `safe-unity Screenshot`へ絶対パスを渡す
 
@@ -128,6 +210,13 @@
 - 対応: 指定種別の有無は`logs`と`displayedCount`で判定する。内訳が必要な場合は同じ時点の`ConsoleLogs`を最大件数付きで1回だけ取得し、`totalCount`の内容を確定する。
 - 禁止: `totalCount`をError件数として扱うこと、または空のError結果だけを理由にCompile鮮度失敗を無視すること。
 
+### 全体Localization Coverageが対象外の既存未登録文言で失敗する
+
+- 症状: 今回追加した文言は翻訳辞書へ登録済みだが、`Area Survivors/Validate/Localization Coverage`が別Scene・Prefabの既存文言を列挙してsuccess markerを作らない。
+- 原因境界: 今回変更した文言の不足ではなく、全Scene・Prefabを対象にするValidatorが既存の未解消項目も同時に検出している。Menu受付成功だけでは合格扱いにしない。
+- 対応: Console Errorで今回の対象文言が一覧に含まれないことを確認し、機能専用Validatorで対象文言ごとの`LocalizationTextCatalog.Translate(..., GameLanguage.English)`期待値を検証する。既存未登録文言は別TODOとして分離する。
+- 禁止: 対象外の全翻訳を便乗修正すること、全体Validator失敗を今回の文言不足と推測して辞書項目を重複追加すること、success markerなしで全体Validator成功と報告すること。
+
 ### 外部編集したC#をImportせずsafe-unity Compileへ渡してstaleになる
 
 - 原因: `safe-unity -Action Compile`を再Compile要求と誤認した。このActionは現行Assembly/Bee artifactの鮮度検証だけを行い、AssetDatabase Importを実行しない。Unity外で変更したRuntime/Editor C#が未Importなら、C#エラーの有無に関係なく旧Assemblyのまま`guard_code: 41`になる。
@@ -172,6 +261,13 @@
 - 対応: 正規のプロジェクト相対パスに対応するディスク上の実ファイルを先に確認し、そのパスを`AssetDatabase.ImportAsset`へ渡してからSprite設定を適用する。Migration/Validatorは成功時だけ`Library/AreaSafeUnity`へ完了マーカーを作成し、Menu実行結果だけで成功判定しない。
 - 禁止: `.meta`不在を画像名やUnity接続不良と推測して別Importerへ切り替えること、`executed=true`だけでPrefab保存済みと報告すること。
 
+### 画像後処理が書き込み完了表示後にtimeoutする
+
+- 症状: 画像処理スクリプトが`Wrote <path>`と統計を出力した後、外側コマンドが終了コード124でtimeoutする。
+- 原因境界: 既定10秒が画像デコード・透過処理・PNG圧縮・終了処理の合計より短く、成果物書き込み後の終了待ちで外側だけが打ち切られる場合がある。
+- 対応: 同じ処理を再発行せず、残存プロセス、対象PNGの存在・更新時刻、画像デコード、alpha cornerとsubject coverageを読み取り検証する。PNGが正常なら成果物を採用し、次回の同処理は最初から30秒以上のtimeoutを確保する。
+- 禁止: timeoutだけを根拠に同じ画像処理を再実行すること、検証前に成果物を削除・上書きすること。
+
 ### append-vault-noteで未確認のKnowledge名を指定する
 
 - 原因: `append-vault-note.ps1`は既存ノートへの追記専用であり、存在未確認の新規`Knowledge/*.md`を自動作成しない。
@@ -192,14 +288,32 @@
 ### safe-searchへ未定義のMaxResults引数を渡す
 
 - 原因: 他の検索APIで使う件数指定名から`-MaxResults`を推測し、`safe-search.ps1`の正式な`-First`を確認せず実行した。
-- 対応: 初回利用時にhelpまたは`param(...)`を読み、件数上限は`safe-search.ps1 -First <件数>`だけで指定する。20件を超える意図的な検索だけ`-AllowMany`を併用する。
+- 対応: 初回利用時にhelpまたは`param(...)`を読む。正式名は`safe-search.ps1 -First <件数>`で、既存の検索APIから持ち込みやすい`-MaxMatches`だけ互換aliasとして受け付ける。20件を超える意図的な検索だけ`-AllowMany`を併用する。
 - 禁止: `-MaxResults`、`-Limit`、`-Top`を順番に試すこと。ParameterBindingException後は検索を再発行する前に正式契約へ戻る。
 
 ### safe-readのFirstが80行を超える
 
 - 原因: 既定の会話出力上限80行を確認済みでも、ファイル全体の想定行数をそのまま`-First`へ渡した。
 - 対応: `guard_code: 39`が返す`suggested_first=80`以下へ限定する。80行を超える意図的な単一範囲は`safe-read-batch.ps1`へ元の範囲を1回だけ渡して自動分割する。
+- 同一タスク中に`guard_code: 39`が一度でも発生した後は、そのタスクの残りで`safe-read.ps1 -Pattern`を手打ちしない。既知ファイルは`safe-read-batch.ps1 -Ranges '<start>-<end>'`の80行自動分割へ固定し、未知ファイルは`safe-search.ps1 -FilesOnly`でパスだけ確定してから同じbatch入口で読む。
 - 禁止: `-First 100`等のGuard後に79、80などの候補を手打ち再試行すること。
+
+### safe-readへTailを渡してParameterBindingExceptionになる
+
+- 原因: 内部の`Get-Content -Tail`または一般的な末尾読み取り名から、正式引数`-Last`を確認せず`-Tail`を推測した。
+- 対応: 正式名は`safe-read.ps1 -Last <行数>`とし、`-Tail`は互換aliasとしてWrapperと自己テストへ固定する。初回利用時は引き続き`param(...)`を確認する。
+
+### 複数のSKILL全文を1つのfunctions.exec出力へ集約して切れる
+
+- 原因: 個々の`safe-read`/`safe-read-batch`が出力上限内でも、複数ファイルの全文を同じ`functions.exec`で連続出力すると合計応答がcontext上限を超える。
+- 対応: 選択した`SKILL.md`は1ファイルずつ、必要なら80行以下の範囲ごとに別の`functions.exec`で直列に読む。切れた一括コマンドは再発行しない。
+- 禁止: 複数スキルの全文を1つのcellへ集約すること、切れた出力を全文読了とみなすこと。
+
+### safe-readへ未定義のPinpoint引数を渡す
+
+- 原因: 他Wrapperの限定出力用引数を`safe-read.ps1`にも存在すると推測した。
+- 対応: `safe-read.ps1`は`-Pattern`、`-Context`、`-MaxMatches`、必要に応じて`-LiteralPattern`と`-PrintOutput`を使う。初回または引数に迷った場合は先頭の`param(...)`を読む。
+- 禁止: `-Pinpoint`など未確認の引数を転用すること。
 
 ### safe-readのStartLine-EndLineが80行を1行だけ超える
 
@@ -309,13 +423,13 @@
 ### safe-read -PrintOutputの合算出力が会話コンテキスト上限を超える
 
 - 原因: `-AllowMany`はファイル読取件数の意図確認であり、会話へ流す標準出力量を制限していなかった。大きい行範囲や`MaxMatches × Context`を別の読取と並列実行すると、各コマンドは成功しても`functions.exec`の合算結果が切り捨てられる。
-- 対応: `safe-read.ps1`は`-PrintOutput`の推定出力が80行を超える場合を`guard_code: 39`で入口拒否する。範囲・一致数・Contextを狭めて直列に読む。`functions.exec` 1回につき `-PrintOutput`を伴う読み取りは1件だけとし、複数コマンドの出力を合算しない。単一呼び出しの出力予算を明示的に確保した場合だけ`-AllowHighOutput`を使い、その呼び出しと他の出力を並列化しない。
+- 対応: `safe-read.ps1`は`-PrintOutput`の推定出力が80行を超える場合を`guard_code: 39`で入口拒否する。Pattern検索は実行前に`MaxMatches * (Context * 2 + 4) <= 80`を確認し、範囲・一致数・Contextを狭めて直列に読む。`functions.exec` 1回につき `-PrintOutput`を伴う読み取りは1件だけとし、複数コマンドの出力を合算しない。単一呼び出しの出力予算を明示的に確保した場合だけ`-AllowHighOutput`を使い、その呼び出しと他の出力を並列化しない。
 - 禁止: 切り捨て後に同じ大範囲読取を再発行すること、単体が80行以内でも複数の`-PrintOutput`を同じ`functions.exec`へまとめること、`-AllowMany`だけで大きい`-PrintOutput`を並列実行すること、capture済みの結果を未回収のまま別検索方式へ切り替えること。
 
-### PowerShell `-File`へ`.cs`を直接渡して読み取ろうとする
+### PowerShell `-File`へ`.cs`や`.md`を直接渡して読み取ろうとする
 
 - 原因: 並列コマンドの一部で`safe-read.ps1 -Path`を付け忘れ、対象C#パスをPowerShellの実行スクリプトとしてbindした。
-- 対応: ソース読み取りは必ず`safe-read.ps1 -Path <既存ファイル>`を入口にする。PowerShell `-File`の直後は`.ps1` Wrapperだけを置き、C#やSceneパスを置かない。
+- 対応: ソースやMarkdownの読み取りは必ず`safe-read.ps1 -Path <既存ファイル>`を入口にする。PowerShell `-File`の直後は`.ps1` Wrapperだけを置き、C#、Markdown、Sceneパスを置かない。
 - 禁止: 拡張子エラー後に`Get-Content`や別Shellへ切り替えること。正規の`safe-read`入口で同じ読み取りを1回だけ行う。
 
 ### 並列safe-readの1本だけPath末尾の引用符が余る
@@ -363,6 +477,12 @@
 - 原因: `Group-Object`から得たPowerShellオブジェクトをそのまま出力し、直後に`exit 0`したため、遅延した表示整形がcaptureへ書き出されなかった。また絶対パスを最初のコロンで分割するとWindowsドライブ文字`C:`で切れ、全結果が`C`へ集約された。
 - 対応: CountとNameを明示文字列へ変換してから終了する。ファイルパスは先頭コロンではなく`:<行番号>:`の末尾構造で抽出する。自己テストは絶対パス配下の既知ファイル名がHitSummary出力へ含まれることを確認する。
 - 禁止: 空captureを一致なしとして受け入れること、または別検索方式の結果だけで実装判断を続けること。
+
+### safe-searchのPatternに二重引用符を含めるとrg exit 2になる
+
+- 原因: Windows PowerShell 5.1からnative `rg`へ引数を渡す境界で、正規表現内の二重引用符が保持されず、`safe-search`の事前`.NET Regex`検証は通っても`rg`が終了コード2かつ空captureで終了する。
+- 対応: `safe-search.ps1`はPattern内の二重引用符を`guard_code: 45`で入口拒否する。引用符そのものを検索条件へ含めず、`MenuItem\(`など周辺の十分に限定されたPatternへ分ける。
+- 禁止: 二重引用符をバッククォートやバックスラッシュで手直しして同じnative境界へ再投入すること、空captureを一致なしとして扱うこと。
 
 ### safe-unity-searchが別クエリの最新レポートを返す
 
@@ -425,6 +545,21 @@
 - 対応: `safe-unity` の名前付きMutexでUnityコマンド全体を直列化し、競合時は `guard_code: 34` でUniCLIへ接続する前に拒否する。複数Scene検証は `OpenSceneMode.Single` の往復を避け、必要SceneだけAdditiveで一時読込して閉じる。
 - 禁止: Unity Menu、Compile、Console確認を `Promise.all` や未完了の非同期処理で並列実行すること。先発の終了コードを確認する前に次のUnityコマンドを開始しない。
 
+### C#一括更新をBatchRefreshへ流すとtimeout後にserverがunknown busyになる
+
+- 症状: `invoke-unity-editor-runner.ps1 -Phase RegisterAndRun -BatchRefresh` の `AssetDatabase.Import` が終了コード124でtimeoutする。Editor.logではasset import自体が完了していてもRuntime/Editor Assemblyはstaleのままで、後続の明示AssetImportは `Server is busy executing 'unknown'` を返す。
+- 原因: `-BatchRefresh` はScene・Prefab・asset等のserialized asset一括更新用であり、外部変更C#の明示Importを代替しない。大量変更を含むRefreshがscript compilation／Domain Reload境界へ入るとpipe応答が失われ、UniCLI server側のcurrent commandまたはqueueが解放されない場合がある。
+- 対応: Assemblyより新しい全C#を列挙し、永続Validatorを `RegisterAndRun` のScriptPath、残りを `-DependencyScriptPaths` として明示Importする。`RefreshAfterRemoval` は事前にAssembly currentを確認し、追加C#がある場合はUnity状態を変える前に拒否する。
+- 発生済みbusy: `unity-process-report.ps1`、Safe-Command capture、Editor.log、Assembly freshnessを保存する。`busy executing 'unknown'` を確認した後はUnityコマンドを重ねず、Unity EditorまたはUniCLI serverの再起動でserver instanceを作り直してから、未実行だった明示Importを1回だけ再開する。
+- 禁止: busy中にAssetImport、AssetRefresh、Compile、Menu、Statusを順番に試すこと、BatchRefreshのtimeout値だけを延ばしてC#初回Importを再試行すること。
+
+### Unity保存直後の空scalarをgit diff --checkが末尾空白として報告する
+
+- 症状: Unityが追加したMonoBehaviourの`m_Name: `、`m_EditorClassIdentifier: `だけを`git diff --check`がtrailing whitespaceとして終了コード1にする。
+- 原因: Unity 2022.3のYAML serializerが空scalarをコロン＋空白で保存するため。Missing Scriptや空参照を意味しない。
+- 対応: 対象を限定読取し、Unity生成Componentの標準ヘッダー2行だけであることを確認する。Sceneを手編集せず既知例外とし、Scene以外のtask対象へ`git diff --check`を限定して本来のwhitespace errorが0件であることを確認する。
+- 禁止: diff checkを通すためだけにScene YAMLの空scalar表現を書き換えること、Component参照の欠損と推測してSceneを再生成すること。
+
 ### AssetRefresh直後の明示Compileが空応答になる
 
 - 症状: AssetRefreshは成功するが、直後の`safe-unity -Action Compile`が標準出力もSafe-Command JSONLも残さず終了する。Editor.logにはScriptCompilation要求と変更C# importだけが残る。
@@ -464,3 +599,38 @@
 - 原因境界: 2本のコマンド文字列は正規形式で、差は並列実行のみ。失敗側は`safe-read-batch`の先頭出力へ到達しておらず、RTK→PowerShell `-File`引数境界でWrapperと対象Pathの対応が崩れた。
 - 対応: 同一PowerShell読み取りWrapperは直列実行する。複数範囲は1回の`safe-read-batch -Ranges`へまとめ、複数ファイルは順番に読む。
 - 禁止: 同一Wrapperを`Promise.all`で並列起動すること、失敗後に同じ並列形式を再発行すること。
+
+### 引用した実行ファイルパスをPowerShellで直接並べるとParserErrorになる
+
+- 症状: `"C:\path\python.exe" "C:\path\script.py" --flag`を実行すると、2つ目の引用文字列や`--flag`が`Unexpected token`としてPowerShell解析段階で拒否される。
+- 原因境界: PowerShellでは引用文字列単体は実行式にならず、パスに空白がなくても引用した実行ファイルを呼ぶにはcall operator `&`が必要である。対象実行ファイルやスクリプトには到達していない。
+- 対応: `& "C:\path\python.exe" "C:\path\script.py" --flag`の形式に固定する。再開前に同じ実行ファイルへ`& "<exe>" --version`を実行し、call operator経路だけを限定自己テストする。
+- 禁止: ParserError後に引用符を外す、別Shellへ切り替える、`-Command`文字列へ複雑なエスケープを埋め込むこと。
+
+### 入れ子の`powershell.exe -Command`で変数が外側Shellに先行展開される
+
+- 症状: `powershell.exe -Command "$value = ..."`の`$value`が子PowerShellへ届く前に空文字へ変わり、コマンド先頭が`=...`となって終了コード1になる。
+- 原因境界: Codexの既定ShellもPowerShellであるため、二重引用符内の`$variable`は外側Shellが先に展開する。子PowerShellや対象ファイルには意図した式が届いていない。
+- 対応: 変数、複数式、検証ロジックを含む処理は`.ps1` Reporter/Wrapperへ分離し、`powershell.exe -File <wrapper.ps1> -NamedParameter <value>`で呼ぶ。限定確認はWrapperのJSON出力で行う。
+- 禁止: バッククォートや引用符の追加で同じ`-Command`文字列を手直し再試行すること。
+
+### `Get-Content`の一致行をそのままJSON化するとProvider情報が展開される
+
+- 症状: 数行のログ抜粋だけを含むReporterが、`PSPath`、`PSDrive`、Provider型情報までJSON化して数千行へ膨張し、会話出力が切り捨てられる。
+- 原因境界: Windows PowerShellのパイプライン上の文字列には拡張プロパティが付く場合があり、`ConvertTo-Json -Depth`がそのメタデータまで再帰展開する。
+- 対応: ログ抜粋は`Select-Object -First <上限>`の後に`ForEach-Object { $_.ToString() }`で純粋な文字列へ変換してからReportへ格納する。
+- 禁止: 切り捨て後に同じReporterを再発行すること、`ConvertTo-Json -Depth`を下げるだけで偶然抑えること。
+
+### Unity Editorコードで`CompressionLevel`がCS0104になる
+
+- 症状: `System.IO.Compression`と`UnityEngine`を同時にusingしたEditorコードで、`CompressionLevel.Optimal`がCS0104（ambiguous reference）になる。
+- 原因境界: Unity 2022には`UnityEngine.CompressionLevel`も存在し、短い型名だけではZIP用の`System.IO.Compression.CompressionLevel`を選べない。
+- 対応: ZIP生成の引数は`System.IO.Compression.CompressionLevel.Optimal`の完全修飾名で指定する。Compile鮮度失敗後はEditor.logのCS0104を確認してから限定修正する。
+- 禁止: usingの順序変更や別ZIPライブラリへの切り替えで曖昧さを回避しようとすること。
+
+### MenuExistsが`+`を含む登録済みメニューを未登録と誤判定する
+
+- 症状: `Menu.List`の`items`には対象pathがあるのに、`safe-unity -Action MenuExists`が`guard_code: 24`を返す。
+- 原因境界: JSON内の`+`が`\u002B`へエスケープされ、JSON生文字列に対する正規表現の完全一致では元のMenuPathと一致しない。
+- 対応: `Invoke-AreaSafeUnity.ps1`は`ConvertFrom-Json`後の`items[].path`をOrdinal比較する。guard後はTokenReportsから当該captureを読み、構造化済みpathの有無で原因を確定する。
+- 禁止: `+`を削った別MenuPathの手打ち試行、Evalでの代替確認、登録済みメニュー名をツール都合で変更すること。

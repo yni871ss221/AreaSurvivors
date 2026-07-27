@@ -7,6 +7,8 @@ namespace AreaSurvivors
     public sealed class SteamAchievementRuntime : MonoBehaviour
     {
         public const uint AppId = 4980380;
+        const float StatsInitializationRetryIntervalSeconds = 0.5f;
+        const float StatsInitializationWarningDelaySeconds = 10f;
 
         static SteamAchievementRuntime instance;
 
@@ -16,6 +18,9 @@ namespace AreaSurvivors
         CGameID gameId;
         bool steamInitialized;
         bool shuttingDown;
+        bool statsInitializationWarningLogged;
+        float statsInitializationStartedTime;
+        float nextStatsInitializationAttemptTime;
 
         public static void ReportTotalKills(int totalKills)
         {
@@ -74,13 +79,34 @@ namespace AreaSurvivors
             service = new SteamAchievementService(new SteamworksAchievementBackend());
             userStatsStored = Callback<UserStatsStored_t>.Create(OnUserStatsStored);
             achievementStored = Callback<UserAchievementStored_t>.Create(OnAchievementStored);
-            service.InitializeFromSteam();
-            service.EvaluateAndStore(ProgressionStore.Data);
+            statsInitializationStartedTime = Time.realtimeSinceStartup;
+            TryInitializeAchievements();
         }
 
         void Update()
         {
-            if (steamInitialized) SteamAPI.RunCallbacks();
+            if (!steamInitialized) return;
+            SteamAPI.RunCallbacks();
+
+            if (service == null || service.IsReady || Time.realtimeSinceStartup < nextStatsInitializationAttemptTime) return;
+            TryInitializeAchievements();
+        }
+
+        void TryInitializeAchievements()
+        {
+            if (service == null || service.IsReady) return;
+            if (service.InitializeFromSteam(logReadFailures: false))
+            {
+                service.EvaluateAndStore(ProgressionStore.Data);
+                return;
+            }
+
+            nextStatsInitializationAttemptTime = Time.realtimeSinceStartup + StatsInitializationRetryIntervalSeconds;
+            if (statsInitializationWarningLogged ||
+                Time.realtimeSinceStartup - statsInitializationStartedTime < StatsInitializationWarningDelaySeconds) return;
+
+            statsInitializationWarningLogged = true;
+            Debug.LogWarning("Steam achievement data is still unavailable. Initialization will continue retrying in the background.");
         }
 
         void OnUserStatsStored(UserStatsStored_t callback)

@@ -23,28 +23,22 @@ namespace AreaSurvivors
             AudioManager.PlaySfx(SfxTrack.RelicChestPickup);
             if (RelicCatalog.TryPickRandom(out var definition))
             {
-                int duplicateTokenReward = 0;
-                if (ProgressionStore.HasRelic(definition.type))
+                if (!ProgressionStore.UnlockRelic(definition.type))
                 {
-                    duplicateTokenReward = RelicCatalog.GetDuplicateTokenReward(definition.rarity);
-                    ProgressionStore.AddTokens(duplicateTokenReward);
-                }
-                else if (ProgressionStore.UnlockRelic(definition.type))
-                {
-                    player.StatsSource?.Refresh();
-                    player.ApplyCurrentStats(false);
-                }
-                else
-                {
-                    duplicateTokenReward = RelicCatalog.GetDuplicateTokenReward(definition.rarity);
-                    ProgressionStore.AddTokens(duplicateTokenReward);
+                    GameManager.Instance?.ShowAnnouncement(
+                        LocalizationService.Text("レリックが見つかりません", "No relic found"));
+                    Destroy(gameObject);
+                    return;
                 }
 
-                GameManager.Instance?.ShowRelicAcquisition(definition, duplicateTokenReward);
+                player.StatsSource?.Refresh();
+                player.ApplyCurrentStats(false);
+                GameManager.Instance?.ShowRelicAcquisition(definition, 0);
             }
             else
             {
-                GameManager.Instance?.ShowAnnouncement("レリックが見つかりません");
+                GameManager.Instance?.ShowAnnouncement(
+                    LocalizationService.Text("レリックが見つかりません", "No relic found"));
             }
 
             Destroy(gameObject);

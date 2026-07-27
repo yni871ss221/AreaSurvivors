@@ -659,6 +659,7 @@ MonoBehaviour:
   sortingOrder: 24100
   anchorBottomCenter: 0
   verticalFill: 1
+  flipHorizontal: 0
 --- !u!1 &5295211198583613730
 GameObject:
   m_ObjectHideFlags: 0
@@ -847,6 +848,7 @@ MonoBehaviour:
   faceColor: {r: 1, g: 0.9019608, b: 0.2784314, a: 1}
   outlineColor: {r: 0, g: 0, b: 0, a: 1}
   outlinePixels: 2
+  sharedOutlineMaterial: {fileID: 0}
 --- !u!1 &6078576778799337438
 GameObject:
   m_ObjectHideFlags: 0
@@ -986,6 +988,7 @@ MonoBehaviour:
   sortingOrder: 1000
   anchorBottomCenter: 0
   verticalFill: 1
+  flipHorizontal: 0
 --- !u!95 &206202744264521849
 Animator:
   serializedVersion: 5

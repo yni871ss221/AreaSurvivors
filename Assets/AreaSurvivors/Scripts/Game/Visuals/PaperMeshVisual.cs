@@ -22,6 +22,7 @@ namespace AreaSurvivors
         [SerializeField] int sortingOrder;
         [SerializeField] bool anchorBottomCenter;
         [SerializeField, Range(0f, 1f)] float verticalFill = 1f;
+        [SerializeField] bool flipHorizontal;
 
         MeshFilter meshFilter;
         MeshRenderer meshRenderer;
@@ -40,6 +41,7 @@ namespace AreaSurvivors
             readonly bool ellipseShape;
             readonly int ellipseSegments;
             readonly int ellipseTextureCrop;
+            readonly bool flipHorizontal;
 
             public MeshCacheKey(
                 Sprite sprite,
@@ -48,7 +50,8 @@ namespace AreaSurvivors
                 float verticalFill,
                 bool ellipseShape,
                 int ellipseSegments,
-                float ellipseTextureCrop)
+                float ellipseTextureCrop,
+                bool flipHorizontal)
             {
                 spriteId = sprite != null ? sprite.GetInstanceID() : 0;
                 shapeSpriteId = shapeSprite != null ? shapeSprite.GetInstanceID() : 0;
@@ -57,6 +60,7 @@ namespace AreaSurvivors
                 this.ellipseShape = ellipseShape;
                 this.ellipseSegments = ellipseSegments;
                 this.ellipseTextureCrop = Quantize(ellipseTextureCrop);
+                this.flipHorizontal = flipHorizontal;
             }
 
             public bool Equals(MeshCacheKey other)
@@ -67,7 +71,8 @@ namespace AreaSurvivors
                     verticalFill == other.verticalFill &&
                     ellipseShape == other.ellipseShape &&
                     ellipseSegments == other.ellipseSegments &&
-                    ellipseTextureCrop == other.ellipseTextureCrop;
+                    ellipseTextureCrop == other.ellipseTextureCrop &&
+                    flipHorizontal == other.flipHorizontal;
             }
 
             public override bool Equals(object obj)
@@ -86,6 +91,7 @@ namespace AreaSurvivors
                     hash = (hash * 397) ^ ellipseShape.GetHashCode();
                     hash = (hash * 397) ^ ellipseSegments;
                     hash = (hash * 397) ^ ellipseTextureCrop;
+                    hash = (hash * 397) ^ flipHorizontal.GetHashCode();
                     return hash;
                 }
             }
@@ -254,7 +260,7 @@ namespace AreaSurvivors
 
         Mesh GetOrCreateSpriteMesh()
         {
-            var key = new MeshCacheKey(sourceSprite, null, anchorBottomCenter, verticalFill, false, 0, 0f);
+            var key = new MeshCacheKey(sourceSprite, null, anchorBottomCenter, verticalFill, false, 0, 0f, flipHorizontal);
             if (MeshCache.TryGetValue(key, out var cached) && cached != null) return cached;
 
             var bounds = sourceSprite.bounds;
@@ -288,13 +294,21 @@ namespace AreaSurvivors
                 new Vector3(min.x, filledMaxY, 0f),
                 new Vector3(max.x, filledMaxY, 0f)
             };
-            mesh.uv = new[]
-            {
-                new Vector2(x0, y0),
-                new Vector2(x1, y0),
-                new Vector2(x0, filledY1),
-                new Vector2(x1, filledY1)
-            };
+            mesh.uv = flipHorizontal
+                ? new[]
+                {
+                    new Vector2(x1, y0),
+                    new Vector2(x0, y0),
+                    new Vector2(x1, filledY1),
+                    new Vector2(x0, filledY1)
+                }
+                : new[]
+                {
+                    new Vector2(x0, y0),
+                    new Vector2(x1, y0),
+                    new Vector2(x0, filledY1),
+                    new Vector2(x1, filledY1)
+                };
             mesh.triangles = new[] { 0, 2, 1, 2, 3, 1 };
             mesh.RecalculateBounds();
 
@@ -305,7 +319,7 @@ namespace AreaSurvivors
         Mesh GetOrCreateEllipseMesh()
         {
             int segments = Mathf.Clamp(ellipseSegments, 16, 128);
-            var key = new MeshCacheKey(sourceSprite, shapeSpriteOverride, false, 1f, true, segments, ellipseTextureCrop);
+            var key = new MeshCacheKey(sourceSprite, shapeSpriteOverride, false, 1f, true, segments, ellipseTextureCrop, false);
             if (MeshCache.TryGetValue(key, out var cached) && cached != null) return cached;
 
             float radiusX = 1f;

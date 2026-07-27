@@ -20,6 +20,7 @@ namespace AreaSurvivors.EditorTools
         const string PrefabRoot = "Assets/AreaSurvivors/Prefabs/Weapons/";
         const string GeneratedWeaponRoot = "Assets/AreaSurvivors/Sprites/Generated/Weapons/";
         const string CompletionMarkerRelativePath = "Library/AreaSafeUnity/weapon-evolution-batch-migration.ok";
+        const string FireMissileMotionMarkerRelativePath = "Library/AreaSafeUnity/fire-missile-motion-migration.ok";
 
         static readonly Color LockedIconColor = new Color(0f, 0f, 0f, 0.78f);
         static readonly Color GoldenArrowTint = new Color(1f, 0.75f, 0.1f, 1f);
@@ -206,26 +207,24 @@ namespace AreaSurvivors.EditorTools
             Debug.Log("Machine Gun bullet visual settings: applied without runtime scale overrides.");
         }
 
-        [MenuItem("Area Survivors/Migrations/Apply Fire Missile Cooldown Correction")]
-        public static void ApplyFireMissileCooldownCorrection()
+        [MenuItem("Area Survivors/Migrations/Apply Fire Missile Motion")]
+        public static void ApplyFireMissileMotion()
         {
-            var config = AssetDatabase.LoadAssetAtPath<GameConfig>(GameConfigPath);
-            if (config == null) throw new InvalidOperationException("GameConfig is missing: " + GameConfigPath);
-            config.fireMissileBaseCooldownMultiplier = 0.5f;
-            EditorUtility.SetDirty(config);
-            AssetDatabase.SaveAssetIfDirty(config);
-            Debug.Log("Fire Missile base cooldown correction: applied at 0.5x Fireball Lv.1 cooldown.");
-        }
+            string markerPath = Path.Combine(Directory.GetParent(Application.dataPath).FullName,
+                FireMissileMotionMarkerRelativePath);
+            if (File.Exists(markerPath)) File.Delete(markerPath);
 
-        [MenuItem("Area Survivors/Migrations/Apply Fire Missile Homing")]
-        public static void ApplyFireMissileHoming()
-        {
             var config = AssetDatabase.LoadAssetAtPath<GameConfig>(GameConfigPath);
             if (config == null) throw new InvalidOperationException("GameConfig is missing: " + GameConfigPath);
+            config.fireMissileBaseCooldownSeconds = 0.5f;
+            config.fireMissileProjectileSpeedMultiplier = 0.75f;
+            config.fireMissileLaunchArcDegrees = 180f;
             config.fireMissileHomingTurnSpeedDegrees = 180f;
             EditorUtility.SetDirty(config);
             AssetDatabase.SaveAssetIfDirty(config);
-            Debug.Log("Fire Missile homing: applied with random launch direction and 180 degrees/second turn speed.");
+            Directory.CreateDirectory(Path.GetDirectoryName(markerPath));
+            File.WriteAllText(markerPath, DateTime.UtcNow.ToString("o"));
+            Debug.Log("Fire Missile motion: applied with 0.5-second base cooldown, 75% speed, forward 180-degree launch arc, and homing.");
         }
 
         static EvolutionSpec Spec(WeaponType type, WeaponType sourceType, string assetName, string detailIconName,

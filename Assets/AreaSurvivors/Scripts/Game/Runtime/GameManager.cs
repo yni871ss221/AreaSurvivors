@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using Unity.Profiling;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -18,8 +17,7 @@ namespace AreaSurvivors
         public PlayerController playerPrefab;
         public TowerController sceneTower;
         public EnemySpawner spawner;
-        public BuildPlacementController buildPlacement;
-        public BuildingUpgradeController buildingUpgrade;
+        public FixedBuildingLayoutService fixedBuildingLayout;
         public GameHudController gameHud;
         public Text timerText;
         public Text killText;
@@ -38,19 +36,15 @@ namespace AreaSurvivors
         public TowerController Tower { get; private set; }
         public int CurrentStage => currentStage;
         public int CurrentLevel => level;
-        ProfilerRecorder materialCountRecorder;
-        ProfilerRecorder meshCountRecorder;
-        ProfilerRecorder textureCountRecorder;
-        ProfilerRecorder gameObjectCountRecorder;
-        ProfilerRecorder totalUsedMemoryRecorder;
+        public float ElapsedSeconds => elapsed;
+        public IReadOnlyList<string> RunUpgrades => runUpgrades;
+        public IReadOnlyList<string> RunRelics => runRelics;
+        readonly RuntimeResourceDiagnostics runtimeResourceDiagnostics = new RuntimeResourceDiagnostics();
         public int CurrentXp => xp;
         public int XpToNext => xpToNext;
-        public int Wood { get; private set; }
-        public int Stone { get; private set; }
-        public int RunTokens { get; private set; }
+        public int RunTokens => tokenRuntime.RunTokens;
         public int Kills => kills;
         public bool BossActive => bossActive;
-        public MapSessionMode SessionMode => sessionMode;
         public event Action CombatModifiersChanged;
 
         int kills;
@@ -62,7 +56,6 @@ namespace AreaSurvivors
         float hudElapsed;
         float xpRemainder;
         int currentStage = 1;
-        MapSessionMode sessionMode = MapSessionMode.Game;
         bool bossActive;
         bool gameEnding;
         bool endingCutsceneActive;
@@ -72,28 +65,20 @@ namespace AreaSurvivors
         readonly List<RunStageLogEntry> runReachedStages = new List<RunStageLogEntry>();
         readonly List<RunBossClearLogEntry> runBossClears = new List<RunBossClearLogEntry>();
         readonly RunDamageTracker runDamageTracker = new RunDamageTracker();
+        readonly TokenRuntimeService tokenRuntime = new TokenRuntimeService();
         const int LevelUpSkipLimit = 3;
-        const int LevelUpRerollLimit = 3;
         const int InitialTowerTerritoryRadius = 10;
-        const int PaintAreaTokenThreshold = 500;
-        const float ElapsedTokenRewardIntervalSeconds = 30f;
         const float OpeningEffectsDelayAfterFadeSeconds = 0.15f;
-        int paintAreaTokenProgress;
-        int killTokenProgress;
-        int killMilestoneTokens;
-        int elapsedTimeTokens;
-        int tokenOrbTokens;
-        int paintAreaTokens;
-        int relicDuplicateTokens;
-        int tokenBalanceAtRunStart;
+        const float StageTransitionPickupAttractionTimeoutMultiplier = 4f;
+        const float StageTransitionPickupAttractionTimeoutPaddingSeconds = 1f;
         int runStartStage = 1;
         int runStartStageDifficulty = 1;
         int pendingOpeningLevelUps;
+        int pendingRunLevelUps;
         int remainingLevelUpSkips;
         int remainingLevelUpRerolls;
         int lastLevelUpActionFrame;
         string runSessionId;
-        float nextElapsedTokenRewardSeconds = ElapsedTokenRewardIntervalSeconds;
         static readonly Color UpgradeNormalColor = new Color(0.12f, 0.20f, 0.16f, 0.94f);
         static readonly Color UpgradeHoverColor = new Color(0.106f, 0.353f, 0.216f, 0.98f);
         void Awake()
@@ -107,30 +92,27 @@ namespace AreaSurvivors
             }
 
             Instance = this;
-            StartRuntimeResourceRecorders();
+            runtimeResourceDiagnostics.Start();
         }
 
         void Start()
         {
             Time.timeScale = screenFade != null ? 0f : 1f;
             remainingLevelUpSkips = LevelUpSkipLimit;
-            remainingLevelUpRerolls = LevelUpRerollLimit;
+            remainingLevelUpRerolls = ProgressionStore.GetInitialLevelUpRerollCount();
             lastLevelUpActionFrame = -1;
             AudioManager.PlayBgm(BgmTrack.GameNormal);
 
-            sessionMode = MapSessionMode.Game;
             runDamageTracker.Reset();
             runRelics.Clear();
             runRelicEntries.Clear();
             runReachedStages.Clear();
             runBossClears.Clear();
             runSessionId = Guid.NewGuid().ToString("N");
-            tokenBalanceAtRunStart = ProgressionStore.Data.tokens;
+            tokenRuntime.Initialize();
             config = Instantiate(config);
             config.EnsureEnemySpawnDefaults();
             config.EnsureWeaponLevelDefaults();
-            Wood = sessionMode == MapSessionMode.Build ? ProgressionStore.Data.wood : 0;
-            Stone = sessionMode == MapSessionMode.Build ? ProgressionStore.Data.stone : 0;
             if (grid != null)
             {
                 grid.ApplySquareChunkMapLayout();
@@ -163,26 +145,25 @@ namespace AreaSurvivors
             runStartStageDifficulty = ProgressionStore.GetStageDifficulty(runStartStage);
             float startStageElapsedSeconds = RunState.ConsumeNextStartStageElapsed();
             bool hasBossTestSpawnSide = RunState.TryConsumeNextBossTestSpawnSide(out var bossTestSpawnSide);
-            SyncFixedBuildingSlots(stage);
-
-            if (sessionMode == MapSessionMode.Game)
+            if (fixedBuildingLayout != null)
             {
-                Player = Instantiate(playerPrefab, grid.GridToWorld(grid.width / 2, grid.height / 2 - 6), Quaternion.identity);
-                if (spawner != null) Player.damagePopupPrefab = spawner.damagePopupPrefab;
-                Player.Configure(config, grid, CharacterType.Knight);
+                fixedBuildingLayout.Initialize(config, grid, spawner != null ? spawner.damagePopupPrefab : null);
+                fixedBuildingLayout.SpawnUnlockedBuildings();
             }
 
-            if (buildPlacement != null)
-            {
-                if (spawner != null) buildPlacement.damagePopupPrefab = spawner.damagePopupPrefab;
-                buildPlacement.Initialize(config, grid, sessionMode == MapSessionMode.Build ? null : Player);
-            }
-            if (buildPlacement != null) buildPlacement.RestoreStageBuildings(stage);
+            Player = Instantiate(playerPrefab, grid.GridToWorld(grid.width / 2, grid.height / 2 - 6), Quaternion.identity);
+            if (spawner != null) Player.damagePopupPrefab = spawner.damagePopupPrefab;
+            var selectedCharacter = CharacterUnlockCatalog.IsUnlocked(RunState.SelectedCharacter)
+                ? RunState.SelectedCharacter
+                : CharacterType.Knight;
+            RunState.SelectedCharacter = selectedCharacter;
+            Player.Configure(config, grid, selectedCharacter);
+
             PolishHud();
             ConfigureGameHud();
 
             var cameraFollow = Camera.main.GetComponent<CameraFollow>();
-            if (cameraFollow != null && sessionMode == MapSessionMode.Game && Player != null) cameraFollow.Configure(Player.transform, Tower.transform, config);
+            if (cameraFollow != null && Player != null) cameraFollow.Configure(Player.transform, Tower.transform, config);
             if (hasBossTestSpawnSide && spawner != null) spawner.SetNextBossTestSpawnSide(bossTestSpawnSide);
             UpdateHud();
             StartCoroutine(BeginGameAfterFade(stage, startStageElapsedSeconds));
@@ -211,7 +192,7 @@ namespace AreaSurvivors
         {
             if (Instance == this) Instance = null;
             if (grid != null) grid.PlayerCellsPainted -= OnPlayerCellsPainted;
-            DisposeRuntimeResourceRecorders();
+            runtimeResourceDiagnostics.Dispose();
         }
 
         void RebuildMapPerimeter()
@@ -225,7 +206,7 @@ namespace AreaSurvivors
         void SpawnInitialRelicChest()
         {
             if (!ProgressionStore.IsUnlocked(UpgradeType.UnlockOpeningRelicChest)) return;
-            if (sessionMode != MapSessionMode.Game || grid == null) return;
+            if (grid == null) return;
 
             var position = grid.GridToWorld(grid.width / 2, grid.height / 2 - 3);
             SpawnRelicChest(position);
@@ -233,7 +214,7 @@ namespace AreaSurvivors
 
         void SpawnRelicChest(Vector3 position)
         {
-            if (sessionMode != MapSessionMode.Game || relicChestPrefab == null) return;
+            if (relicChestPrefab == null) return;
             Instantiate(relicChestPrefab, position, Quaternion.identity);
         }
 
@@ -262,247 +243,15 @@ namespace AreaSurvivors
             Tower.CompleteUpgrade(config, grid, Tower.GetConfiguredUpgradeSprite());
         }
 
-        void SyncFixedBuildingSlots(int stage)
-        {
-            if (grid == null) return;
-            var fixedBuildings = BuildFixedStageBuildings(stage);
-            ProgressionStore.ReplaceStageBuildings(stage, fixedBuildings);
-        }
-
-        sealed class FixedBuildingSlotDefinition
-        {
-            public SavedBuildingKind kind;
-            public UpgradeType unlockType;
-            public UpgradeType fixedSlotUpgradeType;
-            public Vector2Int footprint;
-            public Vector2Int desiredOffset;
-            public bool requiresUnlock = true;
-            public bool requiresPlayerTerritory = true;
-            public bool upgradesWithFixedSlotSkill;
-        }
-
-        const int FixedLayoutTowerCenterColumn = 13;
-        const int FixedLayoutTowerCenterRow = 13;
-
-        static readonly FixedBuildingSlotDefinition[] FixedBuildingSlotDefinitions = BuildFixedBuildingSlotDefinitions();
-
-        static FixedBuildingSlotDefinition[] BuildFixedBuildingSlotDefinitions()
-        {
-            var slots = new List<FixedBuildingSlotDefinition>();
-
-            AddWallLine(slots, 6, 6, 11, 6);
-            AddWallLine(slots, 6, 7, 6, 11);
-            AddWallLine(slots, 15, 6, 20, 6);
-            AddWallLine(slots, 20, 7, 20, 11);
-            AddWallLine(slots, 6, 15, 6, 20);
-            AddWallLine(slots, 7, 20, 11, 20);
-            AddWallLine(slots, 20, 15, 20, 20);
-            AddWallLine(slots, 15, 20, 19, 20);
-
-            AddBallista(slots, 7, 8);
-            AddBallista(slots, 18, 8);
-            AddBallista(slots, 7, 19);
-            AddBallista(slots, 18, 19);
-
-            AddWatchTower(slots, 2, 3);
-            AddWatchTower(slots, 23, 3);
-            AddWatchTower(slots, 2, 24);
-            AddWatchTower(slots, 23, 24);
-
-            AddOuterWallLine(slots, 1, 1, 11, 1);
-            AddOuterWallLine(slots, 15, 1, 25, 1);
-            AddOuterWallLine(slots, 1, 2, 1, 11);
-            AddOuterWallLine(slots, 25, 2, 25, 11);
-            AddOuterWallLine(slots, 1, 15, 1, 24);
-            AddOuterWallLine(slots, 25, 15, 25, 24);
-            AddOuterWallLine(slots, 1, 25, 11, 25);
-            AddOuterWallLine(slots, 15, 25, 25, 25);
-
-            return slots.ToArray();
-        }
-
-        static void AddWallLine(List<FixedBuildingSlotDefinition> slots, int startColumn, int startRow, int endColumn, int endRow)
-        {
-            int columnStep = Math.Sign(endColumn - startColumn);
-            int rowStep = Math.Sign(endRow - startRow);
-            int length = Mathf.Max(Mathf.Abs(endColumn - startColumn), Mathf.Abs(endRow - startRow));
-            for (int i = 0; i <= length; i++)
-            {
-                slots.Add(CreateFixedWallSlot(startColumn + columnStep * i, startRow + rowStep * i));
-            }
-        }
-
-        static void AddOuterWallLine(List<FixedBuildingSlotDefinition> slots, int startColumn, int startRow, int endColumn, int endRow)
-        {
-            int columnStep = Math.Sign(endColumn - startColumn);
-            int rowStep = Math.Sign(endRow - startRow);
-            int length = Mathf.Max(Mathf.Abs(endColumn - startColumn), Mathf.Abs(endRow - startRow));
-            for (int i = 0; i <= length; i++)
-            {
-                slots.Add(CreateFixedOuterWallSlot(startColumn + columnStep * i, startRow + rowStep * i));
-            }
-        }
-
-        static void AddBallista(List<FixedBuildingSlotDefinition> slots, int leftColumn, int lowerRow)
-        {
-            slots.Add(new FixedBuildingSlotDefinition
-            {
-                kind = SavedBuildingKind.Ballista,
-                unlockType = UpgradeType.UnlockBallista,
-                fixedSlotUpgradeType = UpgradeType.BallistaUpgrade,
-                footprint = new Vector2Int(2, 2),
-                desiredOffset = OffsetFromLayoutCell(leftColumn, lowerRow),
-                upgradesWithFixedSlotSkill = true
-            });
-        }
-
-        static void AddWatchTower(List<FixedBuildingSlotDefinition> slots, int leftColumn, int lowerRow)
-        {
-            slots.Add(new FixedBuildingSlotDefinition
-            {
-                kind = SavedBuildingKind.WatchTower,
-                unlockType = UpgradeType.UnlockWatchTower,
-                fixedSlotUpgradeType = UpgradeType.WatchTowerUpgrade,
-                footprint = new Vector2Int(2, 2),
-                desiredOffset = OffsetFromLayoutCell(leftColumn, lowerRow),
-                requiresPlayerTerritory = false,
-                upgradesWithFixedSlotSkill = true
-            });
-        }
-
-        static FixedBuildingSlotDefinition CreateFixedWallSlot(int column, int row)
-        {
-            return new FixedBuildingSlotDefinition
-            {
-                kind = SavedBuildingKind.WoodenWall,
-                unlockType = UpgradeType.UnlockWall,
-                fixedSlotUpgradeType = UpgradeType.WallUpgrade,
-                footprint = Vector2Int.one,
-                desiredOffset = OffsetFromLayoutCell(column, row),
-                upgradesWithFixedSlotSkill = true
-            };
-        }
-
-        static FixedBuildingSlotDefinition CreateFixedOuterWallSlot(int column, int row)
-        {
-            return new FixedBuildingSlotDefinition
-            {
-                kind = SavedBuildingKind.WoodenWall,
-                unlockType = UpgradeType.UnlockWall2,
-                fixedSlotUpgradeType = UpgradeType.Wall2Upgrade,
-                footprint = Vector2Int.one,
-                desiredOffset = OffsetFromLayoutCell(column, row),
-                requiresPlayerTerritory = false,
-                upgradesWithFixedSlotSkill = true
-            };
-        }
-
-        static Vector2Int OffsetFromLayoutCell(int column, int row)
-        {
-            return new Vector2Int(column - FixedLayoutTowerCenterColumn, FixedLayoutTowerCenterRow - row);
-        }
-
-        List<SavedBuildingData> BuildFixedStageBuildings(int stage)
-        {
-            var result = new List<SavedBuildingData>();
-            if (grid == null) return result;
-
-            var existing = ProgressionStore.GetStageBuildings(stage).buildings;
-            var towerOrigin = grid.GridToCell(grid.width / 2, grid.height / 2);
-            for (int i = 0; i < FixedBuildingSlotDefinitions.Length; i++)
-            {
-                var definition = FixedBuildingSlotDefinitions[i];
-                if (definition.requiresUnlock && !ProgressionStore.IsUnlocked(definition.unlockType)) continue;
-                if (!TryFindFixedSlotOrigin(towerOrigin, definition.footprint, definition.desiredOffset, definition.requiresPlayerTerritory, out var originCell)) continue;
-
-                var saved = FindExistingFixedBuilding(existing, definition.kind, originCell);
-                bool isNewBuilding = saved == null;
-                if (isNewBuilding) saved = new SavedBuildingData();
-                var previousKind = saved.kind;
-                saved.kind = definition.kind;
-                saved.x = originCell.x;
-                saved.y = originCell.y;
-                saved.destroyed = false;
-                if (previousKind != definition.kind) saved.upgraded = false;
-                if (definition.upgradesWithFixedSlotSkill) saved.upgraded = ProgressionStore.IsUnlocked(definition.fixedSlotUpgradeType);
-                result.Add(saved);
-            }
-
-            return result;
-        }
-
-        static SavedBuildingData FindExistingFixedBuilding(List<SavedBuildingData> existing, SavedBuildingKind kind, Vector3Int originCell)
-        {
-            if (existing == null) return null;
-            foreach (var saved in existing)
-            {
-                if (saved == null) continue;
-                if (saved.kind == kind && saved.x == originCell.x && saved.y == originCell.y) return saved;
-            }
-
-            return null;
-        }
-
-        bool TryFindFixedSlotOrigin(Vector3Int towerOrigin, Vector2Int footprint, Vector2Int desiredOffset, bool requiresPlayerTerritory, out Vector3Int originCell)
-        {
-            footprint = new Vector2Int(Mathf.Max(1, footprint.x), Mathf.Max(1, footprint.y));
-            for (int radius = 0; radius <= 5; radius++)
-            {
-                foreach (var offset in EnumerateFixedSlotOffsets(desiredOffset, radius))
-                {
-                    originCell = towerOrigin + new Vector3Int(offset.x, offset.y, 0);
-                    if (!grid.ContainsCell(originCell)) continue;
-                    if (!grid.CanPlaceObject(originCell, footprint)) continue;
-                    if (requiresPlayerTerritory && !HasPlayerTerritory(originCell, footprint)) continue;
-                    return true;
-                }
-            }
-
-            originCell = default(Vector3Int);
-            return false;
-        }
-
-        static IEnumerable<Vector2Int> EnumerateFixedSlotOffsets(Vector2Int desiredOffset, int radius)
-        {
-            if (radius == 0)
-            {
-                yield return desiredOffset;
-                yield break;
-            }
-
-            for (int dy = -radius; dy <= radius; dy++)
-            {
-                for (int dx = -radius; dx <= radius; dx++)
-                {
-                    if (Mathf.Abs(dx) + Mathf.Abs(dy) != radius) continue;
-                    yield return desiredOffset + new Vector2Int(dx, dy);
-                }
-            }
-        }
-
-        bool HasPlayerTerritory(Vector3Int originCell, Vector2Int footprint)
-        {
-            return grid != null && grid.IsFootprintOwnedBy(originCell, footprint, TileOwner.Player);
-        }
-
         void Update()
         {
-            if (sessionMode == MapSessionMode.Game)
+            if (!bossActive)
             {
-                if (!bossActive)
-                {
-                    elapsed += Time.deltaTime;
-                    AwardElapsedTimeTokens();
-                }
-
-                hudElapsed = elapsed;
-            }
-            else
-            {
-                hudElapsed = 0f;
+                elapsed += Time.deltaTime;
+                AwardElapsedTimeTokens();
             }
 
-            if (sessionMode == MapSessionMode.Build && buildPlacement != null && (buildingUpgrade == null || !buildingUpgrade.IsActive)) buildPlacement.Tick();
+            hudElapsed = elapsed;
             UpdateLevelUpButtonHover();
             UpdateHud();
         }
@@ -517,28 +266,14 @@ namespace AreaSurvivors
 
         void AwardKillTokens()
         {
-            if (sessionMode != MapSessionMode.Game || gameEnding || config == null) return;
-
-            killTokenProgress++;
-            int threshold = Mathf.Max(1, config.tokenKillsDivisor);
-            int rewards = killTokenProgress / threshold;
+            int rewards = tokenRuntime.AwardKillTokens(gameEnding, config);
             if (rewards <= 0) return;
-
-            killTokenProgress -= rewards * threshold;
             AddRunTokens(rewards, RunTokenSource.KillMilestone);
         }
 
         void AwardElapsedTimeTokens()
         {
-            if (gameEnding) return;
-
-            int rewards = 0;
-            while (elapsed + 0.0001f >= nextElapsedTokenRewardSeconds)
-            {
-                rewards++;
-                nextElapsedTokenRewardSeconds += ElapsedTokenRewardIntervalSeconds;
-            }
-
+            int rewards = tokenRuntime.AwardElapsedTimeTokens(elapsed, gameEnding);
             if (rewards > 0) AddRunTokens(rewards, RunTokenSource.ElapsedTime);
         }
 
@@ -572,93 +307,29 @@ namespace AreaSurvivors
 
         public void MarkWeaponActive(WeaponType type)
         {
-            if (sessionMode != MapSessionMode.Game || gameEnding) return;
+            if (gameEnding) return;
             runDamageTracker.MarkActive(RunDamageSource.ForWeapon(type));
         }
 
         public void MarkBuildingDamageSourceActive(RunDamageBuildingSource source)
         {
-            if (sessionMode != MapSessionMode.Game || gameEnding) return;
+            if (gameEnding) return;
             runDamageTracker.MarkActive(RunDamageSource.ForBuilding(source));
-        }
-
-        public bool HasResources(int wood, int stone)
-        {
-            return Wood >= Mathf.Max(0, wood) && Stone >= Mathf.Max(0, stone);
-        }
-
-        public bool TrySpendResources(int wood, int stone)
-        {
-            wood = Mathf.Max(0, wood);
-            stone = Mathf.Max(0, stone);
-            if (!HasResources(wood, stone)) return false;
-            Wood -= wood;
-            Stone -= stone;
-            return true;
-        }
-
-        public void SyncPersistentResources()
-        {
-            if (sessionMode != MapSessionMode.Build) return;
-            Wood = Mathf.Max(0, ProgressionStore.Data.wood);
-            Stone = Mathf.Max(0, ProgressionStore.Data.stone);
-        }
-
-        public void AddResource(ResourceType type, int amount)
-        {
-            amount = Mathf.Max(0, amount);
-            if (type == ResourceType.Wood) Wood += amount;
-            else Stone += amount;
-        }
-
-        public void AddPersistentResourcesForTesting(int wood, int stone)
-        {
-            if (sessionMode != MapSessionMode.Build) return;
-            ProgressionStore.AddPersistentResources(wood, stone);
-            SyncPersistentResources();
         }
 
         public void AddRunTokens(int amount, RunTokenSource source = RunTokenSource.TokenOrb)
         {
-            int gained = Mathf.Max(0, amount);
-            if (gained <= 0) return;
-            int previousAttackTier = RunTokens / 10;
-            RunTokens += gained;
-            if (RunTokens / 10 != previousAttackTier) CombatModifiersChanged?.Invoke();
-            TrackRunTokenSource(source, gained);
-            ShowTokenGainFeedback(gained);
+            var result = tokenRuntime.AddRunTokens(amount, source);
+            if (result.gained <= 0) return;
+            if (result.attackTierChanged) CombatModifiersChanged?.Invoke();
+            ShowTokenGainFeedback(result.gained);
             UpdateHud();
-        }
-
-        void TrackRunTokenSource(RunTokenSource source, int gained)
-        {
-            switch (source)
-            {
-                case RunTokenSource.KillMilestone:
-                    killMilestoneTokens += gained;
-                    break;
-                case RunTokenSource.ElapsedTime:
-                    elapsedTimeTokens += gained;
-                    break;
-                case RunTokenSource.PaintArea:
-                    paintAreaTokens += gained;
-                    break;
-                default:
-                    tokenOrbTokens += gained;
-                    break;
-            }
         }
 
         void OnPlayerCellsPainted(int count)
         {
-            int rewardLevel = ProgressionStore.GetLevel(UpgradeType.PaintAreaTokenGain);
-            if (rewardLevel <= 0 || count <= 0) return;
-            paintAreaTokenProgress += count;
-            int threshold = Mathf.Max(1, PaintAreaTokenThreshold);
-            int rewards = paintAreaTokenProgress / threshold;
-            if (rewards <= 0) return;
-            paintAreaTokenProgress -= rewards * threshold;
-            AddRunTokens(rewards * Mathf.Clamp(rewardLevel, 1, ProgressionStore.GetMaxLevel(UpgradeType.PaintAreaTokenGain)), RunTokenSource.PaintArea);
+            int reward = tokenRuntime.CalculatePaintAreaTokenReward(count);
+            if (reward > 0) AddRunTokens(reward, RunTokenSource.PaintArea);
         }
 
         void ShowTokenGainFeedback(int amount)
@@ -675,15 +346,55 @@ namespace AreaSurvivors
             if (gained <= 0) return;
             xpRemainder -= gained;
             xp += gained;
+            int gainedLevels = 0;
             while (xp >= xpToNext)
             {
                 xp -= xpToNext;
                 level++;
+                gainedLevels++;
                 ApplyPlayerLevelStatBonus();
-                xpToNext = Mathf.RoundToInt(xpToNext * 1.35f + 3);
-                ShowLevelUp();
+                xpToNext = CalculateNextXpRequirement(xpToNext, level);
             }
+            QueueRunLevelUps(gainedLevels);
             UpdateHud();
+        }
+
+        void QueueRunLevelUps(int count)
+        {
+            if (count <= 0) return;
+            pendingRunLevelUps += count;
+            TryShowNextRunLevelUp();
+        }
+
+        bool TryShowNextRunLevelUp()
+        {
+            if (pendingRunLevelUps <= 0 ||
+                pendingOpeningLevelUps > 0 ||
+                Player == null ||
+                levelUpPanel == null ||
+                levelUpPanel.activeInHierarchy)
+            {
+                return false;
+            }
+
+            pendingRunLevelUps--;
+            ShowLevelUp();
+            return true;
+        }
+
+        int CalculateNextXpRequirement(int currentRequirement, int currentLevel)
+        {
+            float growthStart = config != null ? Mathf.Max(1f, config.xpRequirementGrowthStart) : 1.35f;
+            float growthEnd = config != null ? Mathf.Max(1f, config.xpRequirementGrowthEnd) : 1.1f;
+            int growthStartLevel = config != null ? Mathf.Max(2, config.xpRequirementGrowthStartLevel) : 2;
+            int growthEndLevel = config != null
+                ? Mathf.Max(growthStartLevel + 1, config.xpRequirementGrowthEndLevel)
+                : 39;
+            float flatBonus = config != null ? Mathf.Max(0f, config.xpRequirementFlatBonus) : 3f;
+            int clampedLevel = Mathf.Clamp(currentLevel, growthStartLevel, growthEndLevel);
+            float progress = Mathf.InverseLerp(growthStartLevel, growthEndLevel, clampedLevel);
+            float growth = Mathf.Lerp(growthStart, growthEnd, progress);
+            return Mathf.Max(1, Mathf.RoundToInt(Mathf.Max(1, currentRequirement) * growth + flatBonus));
         }
 
         void ApplyPlayerLevelStatBonus()
@@ -716,7 +427,7 @@ namespace AreaSurvivors
             xp = 0;
             xpRemainder = 0f;
             ApplyPlayerLevelStatBonus();
-            xpToNext = Mathf.RoundToInt(xpToNext * 1.35f + 3);
+            xpToNext = CalculateNextXpRequirement(xpToNext, level);
             UpdateHud();
             ShowLevelUp();
         }
@@ -852,7 +563,7 @@ namespace AreaSurvivors
                 bool canAcquireNewWeapon = weapon.HasOpenWeaponSlot;
                 if (canAcquireNewWeapon)
                 {
-                    if (!weapon.SlashUnlocked && ProgressionStore.IsUnlocked(UpgradeType.RemoveStartingSlash))
+                    if (!weapon.SlashUnlocked)
                     {
                         pool.Add(RunUpgradeChoice.NewWeapon(WeaponType.Slash, () => weapon.UnlockSlash()));
                     }
@@ -916,7 +627,7 @@ namespace AreaSurvivors
         {
             var stats = weapon.SlashStats;
             var displayType = weapon.GetDisplayWeaponType(WeaponType.Slash);
-            int attackBonus = Mathf.Max(1, config.runAttackPowerBonus);
+            int attackBonus = config.GetRunAttackPowerBonus(WeaponType.Slash);
             float cooldownMultiplier = Mathf.Clamp(config.runAttackCooldownMultiplier, 0.05f, 1f);
             pool.Add(new RunUpgradeChoice(
                 displayType,
@@ -930,21 +641,21 @@ namespace AreaSurvivors
                 () => weapon.MultiplySlashCooldown(cooldownMultiplier)));
             pool.Add(new RunUpgradeChoice(
                 displayType,
-                "ノックバック " + Number(stats.knockback) + ">" + Number(stats.knockback + WeaponController.SlashKnockbackUpgradeAmount),
+                "ノックバック " + Number(stats.knockback) + ">" + Number(stats.knockback + config.runWeaponKnockbackBonus),
                 StatIconCatalog.Knockback,
-                () => weapon.AddSlashKnockback(WeaponController.SlashKnockbackUpgradeAmount)));
+                () => weapon.AddSlashKnockback(config.runWeaponKnockbackBonus)));
             pool.Add(new RunUpgradeChoice(
                 displayType,
-                "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + WeaponController.SlashRangeUpgradeAmount),
+                "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + config.runMediumRangeBonus),
                 StatIconCatalog.Range,
-                () => weapon.AddSlashRange(WeaponController.SlashRangeUpgradeAmount)));
+                () => weapon.AddSlashRange(config.runMediumRangeBonus)));
         }
 
         void AddArrowUpgradeChoices(List<RunUpgradeChoice> pool, WeaponController weapon)
         {
             var stats = weapon.ArrowStats;
             var displayType = weapon.GetDisplayWeaponType(WeaponType.Arrow);
-            int attackBonus = Mathf.Max(1, config.runAttackPowerBonus);
+            int attackBonus = config.GetRunAttackPowerBonus(WeaponType.Arrow);
             float cooldownMultiplier = Mathf.Clamp(config.runAttackCooldownMultiplier, 0.05f, 1f);
             pool.Add(new RunUpgradeChoice(
                 displayType,
@@ -958,21 +669,21 @@ namespace AreaSurvivors
                 () => weapon.MultiplyArrowCooldown(cooldownMultiplier)));
             pool.Add(new RunUpgradeChoice(
                 displayType,
-                "矢の本数 " + stats.projectileCount + ">" + (stats.projectileCount + 1),
+                "矢の本数 " + stats.projectileCount + ">" + (stats.projectileCount + config.runProjectileCountBonus),
                 StatIconCatalog.Projectile,
-                () => weapon.AddArrowProjectileCount(1)));
+                () => weapon.AddArrowProjectileCount(config.runProjectileCountBonus)));
             pool.Add(new RunUpgradeChoice(
                 displayType,
-                "射程 " + Number(stats.range) + ">" + Number(stats.range + WeaponController.ProjectileRangeUpgradeAmount),
+                "射程 " + Number(stats.range) + ">" + Number(stats.range + config.runProjectileRangeBonus),
                 StatIconCatalog.Range,
-                () => weapon.AddArrowRange(WeaponController.ProjectileRangeUpgradeAmount)));
+                () => weapon.AddArrowRange(config.runProjectileRangeBonus)));
         }
 
         void AddFireballUpgradeChoices(List<RunUpgradeChoice> pool, WeaponController weapon)
         {
             var stats = weapon.FireballStats;
             var displayType = weapon.GetDisplayWeaponType(WeaponType.Fireball);
-            int attackBonus = Mathf.Max(1, config.runAttackPowerBonus);
+            int attackBonus = config.GetRunAttackPowerBonus(WeaponType.Fireball);
             float cooldownMultiplier = Mathf.Clamp(config.runAttackCooldownMultiplier, 0.05f, 1f);
             pool.Add(new RunUpgradeChoice(
                 displayType,
@@ -986,21 +697,21 @@ namespace AreaSurvivors
                 () => weapon.MultiplyFireballCooldown(cooldownMultiplier)));
             pool.Add(new RunUpgradeChoice(
                 displayType,
-                "爆発範囲 " + Number(stats.explosionRadius) + ">" + Number(stats.explosionRadius + WeaponController.FireballExplosionUpgradeAmount),
+                "爆発範囲 " + Number(stats.explosionRadius) + ">" + Number(stats.explosionRadius + config.runExplosionRadiusBonus),
                 StatIconCatalog.Range,
-                () => weapon.AddFireballExplosionRadius(WeaponController.FireballExplosionUpgradeAmount)));
+                () => weapon.AddFireballExplosionRadius(config.runExplosionRadiusBonus)));
             pool.Add(new RunUpgradeChoice(
                 displayType,
-                "射程 " + Number(weapon.FireballRange) + ">" + Number(weapon.FireballRange + WeaponController.ProjectileRangeUpgradeAmount),
+                "射程 " + Number(weapon.FireballRange) + ">" + Number(weapon.FireballRange + config.runProjectileRangeBonus),
                 StatIconCatalog.Range,
-                () => weapon.AddFireballRange(WeaponController.ProjectileRangeUpgradeAmount)));
+                () => weapon.AddFireballRange(config.runProjectileRangeBonus)));
         }
 
         void AddShieldUpgradeChoices(List<RunUpgradeChoice> pool, WeaponController weapon)
         {
             var stats = weapon.ShieldStats;
             var displayType = weapon.GetDisplayWeaponType(WeaponType.Shield);
-            int attackBonus = Mathf.Max(1, config.runAttackPowerBonus);
+            int attackBonus = config.GetRunAttackPowerBonus(WeaponType.Shield);
             pool.Add(new RunUpgradeChoice(
                 displayType,
                 "攻撃力 " + stats.attackPower + ">" + (stats.attackPower + attackBonus),
@@ -1008,26 +719,26 @@ namespace AreaSurvivors
                 () => weapon.AddShieldAttack(attackBonus)));
             pool.Add(new RunUpgradeChoice(
                 displayType,
-                "シールド数 " + stats.projectileCount + ">" + (stats.projectileCount + 1),
+                "シールド数 " + stats.projectileCount + ">" + (stats.projectileCount + config.runProjectileCountBonus),
                 StatIconCatalog.Defense,
-                () => weapon.AddShieldCount(1)));
+                () => weapon.AddShieldCount(config.runProjectileCountBonus)));
             pool.Add(new RunUpgradeChoice(
                 displayType,
-                "ノックバック " + Number(stats.knockback) + ">" + Number(stats.knockback + WeaponController.ShieldKnockbackUpgradeAmount),
+                "ノックバック " + Number(stats.knockback) + ">" + Number(stats.knockback + config.runWeaponKnockbackBonus),
                 StatIconCatalog.Knockback,
-                () => weapon.AddShieldKnockback(WeaponController.ShieldKnockbackUpgradeAmount)));
+                () => weapon.AddShieldKnockback(config.runWeaponKnockbackBonus)));
             pool.Add(new RunUpgradeChoice(
                 displayType,
-                "回転速度 " + Number(stats.rotationSpeed) + ">" + Number(stats.rotationSpeed + WeaponController.ShieldRotationSpeedUpgradeAmount),
+                "回転速度 " + Number(stats.rotationSpeed) + ">" + Number(stats.rotationSpeed + config.runShieldRotationSpeedBonus),
                 StatIconCatalog.MoveSpeed,
-                () => weapon.AddShieldRotationSpeed(WeaponController.ShieldRotationSpeedUpgradeAmount)));
+                () => weapon.AddShieldRotationSpeed(config.runShieldRotationSpeedBonus)));
         }
 
         void AddAdvancedWeaponUpgradeChoices(List<RunUpgradeChoice> pool, WeaponController weapon, WeaponType type)
         {
             var stats = weapon.GetWeaponStatsFor(type);
             var displayType = weapon.GetDisplayWeaponType(type);
-            int attackBonus = Mathf.Max(1, config.runAttackPowerBonus);
+            int attackBonus = config.GetRunAttackPowerBonus(type);
             float cooldownMultiplier = Mathf.Clamp(config.runAttackCooldownMultiplier, 0.05f, 1f);
             pool.Add(new RunUpgradeChoice(
                 displayType,
@@ -1038,39 +749,39 @@ namespace AreaSurvivors
             switch (type)
             {
                 case WeaponType.Flag:
-                    pool.Add(new RunUpgradeChoice(displayType, "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + WeaponController.ProjectileRangeUpgradeAmount), StatIconCatalog.Range, () => weapon.AddWeaponRange(type, WeaponController.ProjectileRangeUpgradeAmount)));
-                    pool.Add(new RunUpgradeChoice(displayType, "速度低下 " + Percent(stats.slowAmount) + ">" + Percent(stats.slowAmount + 0.05f), StatIconCatalog.MoveSpeed, () => weapon.AddWeaponSlow(type, 0.05f)));
+                    pool.Add(new RunUpgradeChoice(displayType, "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + config.runAreaRangeBonus), StatIconCatalog.Range, () => weapon.AddWeaponRange(type, config.runAreaRangeBonus)));
+                    pool.Add(new RunUpgradeChoice(displayType, "速度低下 " + Percent(stats.slowAmount) + ">" + Percent(stats.slowAmount + config.runSlowBonus), StatIconCatalog.MoveSpeed, () => weapon.AddWeaponSlow(type, config.runSlowBonus)));
                     pool.Add(new RunUpgradeChoice(displayType, "攻撃間隔 " + Seconds(stats.damageIntervalSeconds) + ">" + Seconds(stats.damageIntervalSeconds * cooldownMultiplier), StatIconCatalog.Cooldown, () => weapon.MultiplyWeaponDamageInterval(type, cooldownMultiplier)));
                     break;
                 case WeaponType.BoomerangSword:
-                    pool.Add(new RunUpgradeChoice(displayType, "剣本数 " + stats.projectileCount + ">" + (stats.projectileCount + 1), StatIconCatalog.Projectile, () => weapon.AddWeaponCount(type, 1)));
-                    pool.Add(new RunUpgradeChoice(displayType, "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + WeaponController.SlashRangeUpgradeAmount), StatIconCatalog.Range, () => weapon.AddWeaponRange(type, WeaponController.SlashRangeUpgradeAmount)));
+                    pool.Add(new RunUpgradeChoice(displayType, "剣本数 " + stats.projectileCount + ">" + (stats.projectileCount + config.runProjectileCountBonus), StatIconCatalog.Projectile, () => weapon.AddWeaponCount(type, config.runProjectileCountBonus)));
+                    pool.Add(new RunUpgradeChoice(displayType, "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + config.runMediumRangeBonus), StatIconCatalog.Range, () => weapon.AddWeaponRange(type, config.runMediumRangeBonus)));
                     pool.Add(new RunUpgradeChoice(displayType, "攻撃間隔 " + Seconds(stats.cooldownSeconds) + ">" + Seconds(stats.cooldownSeconds * cooldownMultiplier), StatIconCatalog.Cooldown, () => weapon.MultiplyWeaponCooldown(type, cooldownMultiplier)));
                     break;
                 case WeaponType.AuraSword:
-                    pool.Add(new RunUpgradeChoice(displayType, "攻撃回数 " + stats.projectileCount + ">" + (stats.projectileCount + 1), StatIconCatalog.Projectile, () => weapon.AddWeaponCount(type, 1)));
-                    pool.Add(new RunUpgradeChoice(displayType, "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + WeaponController.ProjectileRangeUpgradeAmount), StatIconCatalog.Range, () => weapon.AddWeaponRange(type, WeaponController.ProjectileRangeUpgradeAmount)));
-                    pool.Add(new RunUpgradeChoice(displayType, "攻撃距離 " + Number(stats.distance) + ">" + Number(stats.distance + WeaponController.ProjectileRangeUpgradeAmount), StatIconCatalog.Range, () => weapon.AddWeaponDistance(type, WeaponController.ProjectileRangeUpgradeAmount)));
+                    pool.Add(new RunUpgradeChoice(displayType, "攻撃回数 " + stats.projectileCount + ">" + (stats.projectileCount + config.runProjectileCountBonus), StatIconCatalog.Projectile, () => weapon.AddWeaponCount(type, config.runProjectileCountBonus)));
+                    pool.Add(new RunUpgradeChoice(displayType, "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + config.runAreaRangeBonus), StatIconCatalog.Range, () => weapon.AddWeaponRange(type, config.runAreaRangeBonus)));
+                    pool.Add(new RunUpgradeChoice(displayType, "攻撃距離 " + Number(stats.distance) + ">" + Number(stats.distance + config.runProjectileRangeBonus), StatIconCatalog.Range, () => weapon.AddWeaponDistance(type, config.runProjectileRangeBonus)));
                     break;
                 case WeaponType.ArrowRain:
-                    pool.Add(new RunUpgradeChoice(displayType, "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + WeaponController.ProjectileRangeUpgradeAmount), StatIconCatalog.Range, () => weapon.AddWeaponRange(type, WeaponController.ProjectileRangeUpgradeAmount)));
-                    pool.Add(new RunUpgradeChoice(displayType, "攻撃時間 " + Seconds(stats.durationSeconds) + ">" + Seconds(stats.durationSeconds + 0.4f), StatIconCatalog.Cooldown, () => weapon.AddWeaponDuration(type, 0.4f)));
+                    pool.Add(new RunUpgradeChoice(displayType, "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + config.runMediumRangeBonus), StatIconCatalog.Range, () => weapon.AddWeaponRange(type, config.runMediumRangeBonus)));
+                    pool.Add(new RunUpgradeChoice(displayType, "攻撃時間 " + Seconds(stats.durationSeconds) + ">" + Seconds(stats.durationSeconds + config.runArrowRainDurationBonus), StatIconCatalog.Cooldown, () => weapon.AddWeaponDuration(type, config.runArrowRainDurationBonus)));
                     pool.Add(new RunUpgradeChoice(displayType, "攻撃間隔 " + Seconds(stats.cooldownSeconds) + ">" + Seconds(stats.cooldownSeconds * cooldownMultiplier), StatIconCatalog.Cooldown, () => weapon.MultiplyWeaponCooldown(type, cooldownMultiplier)));
                     break;
                 case WeaponType.Gun:
                     pool.Add(new RunUpgradeChoice(displayType, "攻撃間隔 " + Seconds(stats.cooldownSeconds) + ">" + Seconds(stats.cooldownSeconds * cooldownMultiplier), StatIconCatalog.Cooldown, () => weapon.MultiplyWeaponCooldown(type, cooldownMultiplier)));
-                    pool.Add(new RunUpgradeChoice(displayType, "攻撃距離 " + Number(stats.distance) + ">" + Number(stats.distance + WeaponController.ProjectileRangeUpgradeAmount), StatIconCatalog.Range, () => weapon.AddWeaponDistance(type, WeaponController.ProjectileRangeUpgradeAmount)));
-                    pool.Add(new RunUpgradeChoice(displayType, "攻撃回数 " + stats.projectileCount + ">" + (stats.projectileCount + 1), StatIconCatalog.Projectile, () => weapon.AddWeaponCount(type, 1)));
+                    pool.Add(new RunUpgradeChoice(displayType, "攻撃距離 " + Number(stats.distance) + ">" + Number(stats.distance + config.runProjectileRangeBonus), StatIconCatalog.Range, () => weapon.AddWeaponDistance(type, config.runProjectileRangeBonus)));
+                    pool.Add(new RunUpgradeChoice(displayType, "攻撃回数 " + stats.projectileCount + ">" + (stats.projectileCount + config.runProjectileCountBonus), StatIconCatalog.Projectile, () => weapon.AddWeaponCount(type, config.runProjectileCountBonus)));
                     break;
                 case WeaponType.Frost:
-                    pool.Add(new RunUpgradeChoice(displayType, "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + WeaponController.ProjectileRangeUpgradeAmount), StatIconCatalog.Range, () => weapon.AddWeaponRange(type, WeaponController.ProjectileRangeUpgradeAmount)));
-                    pool.Add(new RunUpgradeChoice(displayType, "速度低下 " + Percent(stats.slowAmount) + ">" + Percent(stats.slowAmount + 0.05f), StatIconCatalog.MoveSpeed, () => weapon.AddWeaponSlow(type, 0.05f)));
+                    pool.Add(new RunUpgradeChoice(displayType, "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + config.runAreaRangeBonus), StatIconCatalog.Range, () => weapon.AddWeaponRange(type, config.runAreaRangeBonus)));
+                    pool.Add(new RunUpgradeChoice(displayType, "速度低下 " + Percent(stats.slowAmount) + ">" + Percent(stats.slowAmount + config.runSlowBonus), StatIconCatalog.MoveSpeed, () => weapon.AddWeaponSlow(type, config.runSlowBonus)));
                     pool.Add(new RunUpgradeChoice(displayType, "攻撃間隔 " + Seconds(stats.cooldownSeconds) + ">" + Seconds(stats.cooldownSeconds * cooldownMultiplier), StatIconCatalog.Cooldown, () => weapon.MultiplyWeaponCooldown(type, cooldownMultiplier)));
                     break;
                 case WeaponType.ThunderBall:
-                    pool.Add(new RunUpgradeChoice(displayType, "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + WeaponController.ProjectileRangeUpgradeAmount), StatIconCatalog.Range, () => weapon.AddWeaponRange(type, WeaponController.ProjectileRangeUpgradeAmount)));
-                    pool.Add(new RunUpgradeChoice(displayType, "弾数 " + stats.projectileCount + ">" + (stats.projectileCount + 1), StatIconCatalog.Projectile, () => weapon.AddWeaponCount(type, 1)));
-                    pool.Add(new RunUpgradeChoice(displayType, "持続時間 " + Seconds(stats.durationSeconds) + ">" + Seconds(stats.durationSeconds + 0.5f), StatIconCatalog.Cooldown, () => weapon.AddWeaponDuration(type, 0.5f)));
+                    pool.Add(new RunUpgradeChoice(displayType, "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + config.runAreaRangeBonus), StatIconCatalog.Range, () => weapon.AddWeaponRange(type, config.runAreaRangeBonus)));
+                    pool.Add(new RunUpgradeChoice(displayType, "弾数 " + stats.projectileCount + ">" + (stats.projectileCount + config.runProjectileCountBonus), StatIconCatalog.Projectile, () => weapon.AddWeaponCount(type, config.runProjectileCountBonus)));
+                    pool.Add(new RunUpgradeChoice(displayType, "持続時間 " + Seconds(stats.durationSeconds) + ">" + Seconds(stats.durationSeconds + config.runThunderBallDurationBonus), StatIconCatalog.Cooldown, () => weapon.AddWeaponDuration(type, config.runThunderBallDurationBonus)));
                     break;
             }
         }
@@ -1139,6 +850,7 @@ namespace AreaSurvivors
                 ShowNextOpeningLevelUp();
                 return;
             }
+            if (TryShowNextRunLevelUp()) return;
 
             Time.timeScale = 1f;
         }
@@ -1409,8 +1121,18 @@ namespace AreaSurvivors
         {
             if (gameEnding) return;
             bool firstClear = IsFirstBossDefeatForCurrentStage(boss);
-            if (!firstClear) DropBossRelicChest(boss);
+            if (ShouldSpawnBossRelicChest(firstClear, currentStage)) DropBossRelicChest(boss);
             StartCoroutine(BossDefeatedRoutine(boss));
+        }
+
+        public static bool ShouldSpawnBossRelicChest(bool firstClear, int stage)
+        {
+            return !firstClear && stage >= 1 && stage < 4;
+        }
+
+        public static bool ShouldGrantRelicBeforeGameClear(bool firstClear, int stage)
+        {
+            return !firstClear && stage >= 4;
         }
 
         public bool IsFirstBossDefeatForCurrentStage(EnemyController boss)
@@ -1454,7 +1176,12 @@ namespace AreaSurvivors
             }
             else
             {
-                yield return GameClearRoutine(boss, currentStage, unlockedNextStage ? currentStage + 1 : 0, string.Empty);
+                yield return GameClearRoutine(
+                    boss,
+                    currentStage,
+                    unlockedNextStage ? currentStage + 1 : 0,
+                    string.Empty,
+                    ShouldGrantRelicBeforeGameClear(firstClear, currentStage));
             }
         }
 
@@ -1468,15 +1195,24 @@ namespace AreaSurvivors
         void ReviveBuildingsOnBossDefeat()
         {
             if (!ProgressionStore.IsUnlocked(UpgradeType.ReviveBuildingsOnBossDefeat)) return;
-            BuildingPersistentState.ReviveDestroyedBuildings(grid, 0.5f);
+            BuildingRevivalState.ReviveDestroyedBuildings(grid, 0.5f);
         }
 
-        IEnumerator GameClearRoutine(EnemyController boss, int clearedStage, int unlockedStage, string clearMessage)
+        IEnumerator GameClearRoutine(
+            EnemyController boss,
+            int clearedStage,
+            int unlockedStage,
+            string clearMessage,
+            bool grantRelicBeforeEnd)
         {
             gameEnding = true;
             StopGameplayActionAudio();
             spawner?.StopAndClearEnemies(boss);
             ShowAnnouncement("GAME CLEAR");
+            if (grantRelicBeforeEnd)
+            {
+                yield return AcquireRelicRewardRoutine();
+            }
             yield return new WaitForSeconds(1.8f);
             EndRun(true, clearedStage, unlockedStage, clearMessage);
         }
@@ -1510,25 +1246,16 @@ namespace AreaSurvivors
                 yield break;
             }
 
-            int duplicateTokenReward = 0;
-            if (ProgressionStore.HasRelic(definition.type))
+            if (!ProgressionStore.UnlockRelic(definition.type))
             {
-                duplicateTokenReward = RelicCatalog.GetDuplicateTokenReward(definition.rarity);
-                ProgressionStore.AddTokens(duplicateTokenReward);
-            }
-            else if (ProgressionStore.UnlockRelic(definition.type))
-            {
-                Player?.StatsSource?.Refresh();
-                Player?.ApplyCurrentStats(false);
-            }
-            else
-            {
-                duplicateTokenReward = RelicCatalog.GetDuplicateTokenReward(definition.rarity);
-                ProgressionStore.AddTokens(duplicateTokenReward);
+                ShowAnnouncement(LocalizationService.Text("レリックが見つかりません", "No relic found"));
+                yield break;
             }
 
+            Player?.StatsSource?.Refresh();
+            Player?.ApplyCurrentStats(false);
             bool closed = false;
-            ShowRelicAcquisition(definition, duplicateTokenReward, () => closed = true);
+            ShowRelicAcquisition(definition, 0, () => closed = true);
             while (!closed) yield return null;
         }
 
@@ -1537,6 +1264,7 @@ namespace AreaSurvivors
             gameEnding = true;
             spawner?.StopSpawning();
             yield return DefeatRemainingEnemiesForStageTransition(boss);
+            yield return AttractRemainingStageRewards();
             ShowAnnouncement("ROUND " + nextStage);
             yield return new WaitForSeconds(1.2f);
             if (boss != null) Destroy(boss.gameObject);
@@ -1547,7 +1275,7 @@ namespace AreaSurvivors
         IEnumerator DefeatRemainingEnemiesForStageTransition(EnemyController boss)
         {
             var remainingEnemies = new List<EnemyController>();
-            foreach (var enemy in FindObjectsOfType<EnemyController>())
+            foreach (var enemy in EnemyController.ActiveEnemies)
             {
                 if (enemy == null || enemy == boss || enemy.boss) continue;
                 enemy.SetActionLocked(true, enemy.FacingDirection);
@@ -1573,21 +1301,82 @@ namespace AreaSurvivors
             float elapsedSeconds = 0f;
             while (elapsedSeconds < timeoutSeconds)
             {
-                bool anyRemaining = false;
-                foreach (var enemy in remainingEnemies)
-                {
-                    if (enemy == null) continue;
-                    anyRemaining = true;
-                    break;
-                }
-
-                if (!anyRemaining) yield break;
+                if (!HasRemainingStageTransitionEnemy(remainingEnemies)) yield break;
                 elapsedSeconds += Time.unscaledDeltaTime;
                 yield return null;
             }
 
-            Debug.LogError("Stage transition enemy defeat timed out. Remaining enemies will be cleared without rewards.");
-            spawner?.StopAndClearEnemies(boss);
+            Debug.LogWarning(
+                "Stage transition enemy defeat exceeded its normal timeout. " +
+                "Remaining enemies will be defeated immediately so their rewards are preserved.");
+            foreach (var enemy in remainingEnemies)
+            {
+                if (enemy != null) enemy.ForceStageTransitionDefeat();
+            }
+
+            while (HasRemainingStageTransitionEnemy(remainingEnemies))
+            {
+                yield return null;
+            }
+        }
+
+        static bool HasRemainingStageTransitionEnemy(List<EnemyController> enemies)
+        {
+            for (int i = 0; i < enemies.Count; i++)
+            {
+                if (enemies[i] != null) return true;
+            }
+            return false;
+        }
+
+        IEnumerator AttractRemainingStageRewards()
+        {
+            if (Player == null) yield break;
+
+            var pickups = new List<AttractablePickup>();
+            PickupAttractionRegistry.CopyActiveTo(pickups);
+            float longestEstimatedTravelSeconds = 0f;
+
+            for (int i = 0; i < pickups.Count; i++)
+            {
+                var pickup = pickups[i];
+                if (pickup == null) continue;
+                longestEstimatedTravelSeconds = Mathf.Max(
+                    longestEstimatedTravelSeconds,
+                    pickup.EstimateStageTransitionAttractionSeconds(Player));
+                pickup.BeginStageTransitionAttraction(Player);
+            }
+
+            float timeoutSeconds =
+                longestEstimatedTravelSeconds *
+                StageTransitionPickupAttractionTimeoutMultiplier +
+                StageTransitionPickupAttractionTimeoutPaddingSeconds;
+            float elapsedSeconds = 0f;
+            while (elapsedSeconds < timeoutSeconds &&
+                   HasActiveStageTransitionAttraction(pickups))
+            {
+                elapsedSeconds += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            for (int i = 0; i < pickups.Count; i++)
+            {
+                if (pickups[i] != null) pickups[i].CompleteStageTransitionAttraction();
+            }
+        }
+
+        static bool HasActiveStageTransitionAttraction(
+            List<AttractablePickup> pickups)
+        {
+            for (int i = 0; i < pickups.Count; i++)
+            {
+                if (pickups[i] != null &&
+                    pickups[i].IsStageTransitionAttracting)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public void ShowAnnouncement(string message)
@@ -1617,7 +1406,7 @@ namespace AreaSurvivors
             runRelics.Add(duplicateTokenReward > 0
                 ? definition.displayNameSource + "（変換）"
                 : definition.displayNameSource);
-            if (duplicateTokenReward > 0) relicDuplicateTokens += duplicateTokenReward;
+            tokenRuntime.AddRelicDuplicateTokens(duplicateTokenReward);
             runRelicEntries.Add(new RunRelicReportEntry
             {
                 type = definition.type,
@@ -1656,14 +1445,10 @@ namespace AreaSurvivors
             gameEnding = true;
             Time.timeScale = 1f;
             StopGameplayActionAudio();
-            int rewardWood = EndWoodReward();
-            int rewardStone = EndStoneReward();
             int guaranteedTokens;
             int tokenBaseBeforeMultiplier;
             float endTokenMultiplier;
             int tokenEarned = EndTokenReward(out guaranteedTokens, out tokenBaseBeforeMultiplier, out endTokenMultiplier);
-            int woodEarned = Mathf.Max(0, Wood) + rewardWood;
-            int stoneEarned = Mathf.Max(0, Stone) + rewardStone;
             int tokenBalanceBeforeEndReward = ProgressionStore.Data.tokens;
             RunResult.Last = new RunResult
             {
@@ -1671,13 +1456,12 @@ namespace AreaSurvivors
                 damageDealt = damageDealt,
                 level = level,
                 tokensEarned = tokenEarned,
-                woodEarned = woodEarned,
-                stoneEarned = stoneEarned,
                 reachedStage = currentStage,
                 survivedSeconds = elapsed,
                 gameClear = clear,
                 clearedStage = clearedStage,
                 unlockedStage = unlockedStage,
+                allStagesDifficultyFiveCleared = clear && ProgressionStore.AreAllStagesClearedAtMaxDifficulty(),
                 clearMessage = clearMessage,
                 upgrades = new List<string>(runUpgrades),
                 acquiredRelics = new List<string>(runRelics),
@@ -1686,7 +1470,6 @@ namespace AreaSurvivors
             };
             ProgressionStore.AddRunTokens(kills, tokenEarned);
             int tokenBalanceAfterEndReward = ProgressionStore.Data.tokens;
-            ProgressionStore.AddPersistentResources(woodEarned, stoneEarned);
             WriteTokenRunLog(
                 clear,
                 clearedStage,
@@ -1696,121 +1479,9 @@ namespace AreaSurvivors
                 tokenBaseBeforeMultiplier,
                 endTokenMultiplier,
                 tokenBalanceBeforeEndReward,
-                tokenBalanceAfterEndReward,
-                woodEarned,
-                stoneEarned);
-            LogRuntimeObjectSnapshot(SceneNames.GameEnd);
+                tokenBalanceAfterEndReward);
+            runtimeResourceDiagnostics.LogSnapshot(SceneNames.GameEnd);
             SceneManager.LoadScene(SceneNames.GameEnd);
-        }
-
-        void LogRuntimeObjectSnapshot(string label)
-        {
-            var rendererMaterialStats = CollectRendererMaterialStats();
-            Debug.Log(
-                "Runtime object snapshot before scene transition"
-                + $" ({label}): "
-                + $"GameObject={FormatRecorderValue(gameObjectCountRecorder)}, "
-                + $"Mesh={FormatRecorderValue(meshCountRecorder)}, "
-                + $"Material={FormatRecorderValue(materialCountRecorder)}, "
-                + $"Texture={FormatRecorderValue(textureCountRecorder)}, "
-                + $"TotalUsedMemory={FormatBytesRecorderValue(totalUsedMemoryRecorder)}, "
-                + $"Renderer={rendererMaterialStats.rendererCount}, "
-                + $"RendererMaterialSlots={rendererMaterialStats.materialSlotCount}, "
-                + $"UniqueSharedMaterials={rendererMaterialStats.uniqueSharedMaterialCount}, "
-                + $"NullMaterialSlots={rendererMaterialStats.nullMaterialSlotCount}, "
-                + $"PaperMeshVisual={CountSceneObjects<PaperMeshVisual>()}, "
-                + $"RuntimeSpriteOutline={CountSceneObjects<RuntimeSpriteOutline>()}, "
-                + $"PixelBurstEffect={CountSceneObjects<PixelBurstEffect>()}, "
-                + $"Projectile={CountSceneObjects<Projectile>()}, "
-                + $"TokenOrb={CountSceneObjects<TokenOrb>()}");
-        }
-
-        void StartRuntimeResourceRecorders()
-        {
-            StartProfilerRecorder(ref materialCountRecorder, "Material Count");
-            StartProfilerRecorder(ref meshCountRecorder, "Mesh Count");
-            StartProfilerRecorder(ref textureCountRecorder, "Texture Count");
-            StartProfilerRecorder(ref gameObjectCountRecorder, "Game Object Count");
-            StartProfilerRecorder(ref totalUsedMemoryRecorder, "Total Used Memory");
-        }
-
-        void DisposeRuntimeResourceRecorders()
-        {
-            DisposeProfilerRecorder(ref materialCountRecorder);
-            DisposeProfilerRecorder(ref meshCountRecorder);
-            DisposeProfilerRecorder(ref textureCountRecorder);
-            DisposeProfilerRecorder(ref gameObjectCountRecorder);
-            DisposeProfilerRecorder(ref totalUsedMemoryRecorder);
-        }
-
-        static void StartProfilerRecorder(ref ProfilerRecorder recorder, string statName)
-        {
-            try
-            {
-                recorder = ProfilerRecorder.StartNew(ProfilerCategory.Memory, statName);
-            }
-            catch (Exception exception)
-            {
-                Debug.LogWarning($"Failed to start profiler recorder '{statName}': {exception.Message}");
-            }
-        }
-
-        static void DisposeProfilerRecorder(ref ProfilerRecorder recorder)
-        {
-            if (recorder.Valid) recorder.Dispose();
-            recorder = default;
-        }
-
-        static string FormatRecorderValue(ProfilerRecorder recorder)
-        {
-            return recorder.Valid ? recorder.LastValue.ToString() : "unavailable";
-        }
-
-        static string FormatBytesRecorderValue(ProfilerRecorder recorder)
-        {
-            if (!recorder.Valid) return "unavailable";
-            return $"{recorder.LastValue / (1024f * 1024f):0.0}MB";
-        }
-
-        static int CountSceneObjects<T>() where T : UnityEngine.Object
-        {
-            return FindObjectsByType<T>(FindObjectsInactive.Include, FindObjectsSortMode.None).Length;
-        }
-
-        static RendererMaterialStats CollectRendererMaterialStats()
-        {
-            var stats = new RendererMaterialStats();
-            var uniqueMaterialIds = new HashSet<int>();
-            var renderers = FindObjectsByType<Renderer>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-            stats.rendererCount = renderers.Length;
-            foreach (var renderer in renderers)
-            {
-                if (renderer == null) continue;
-                var materials = renderer.sharedMaterials;
-                stats.materialSlotCount += materials.Length;
-                for (int i = 0; i < materials.Length; i++)
-                {
-                    var material = materials[i];
-                    if (material == null)
-                    {
-                        stats.nullMaterialSlotCount++;
-                        continue;
-                    }
-
-                    uniqueMaterialIds.Add(material.GetInstanceID());
-                }
-            }
-
-            stats.uniqueSharedMaterialCount = uniqueMaterialIds.Count;
-            return stats;
-        }
-
-        struct RendererMaterialStats
-        {
-            public int rendererCount;
-            public int materialSlotCount;
-            public int uniqueSharedMaterialCount;
-            public int nullMaterialSlotCount;
         }
 
         void StopGameplayActionAudio()
@@ -1861,9 +1532,7 @@ namespace AreaSurvivors
             int tokenBaseBeforeMultiplier,
             float endTokenMultiplier,
             int tokenBalanceBeforeEndReward,
-            int tokenBalanceAfterEndReward,
-            int woodEarned,
-            int stoneEarned)
+            int tokenBalanceAfterEndReward)
         {
             var localNow = DateTime.Now;
             var utcNow = DateTime.UtcNow;
@@ -1887,28 +1556,26 @@ namespace AreaSurvivors
                 kills = kills,
                 damageDealt = damageDealt,
                 runTokensBeforeEndReward = RunTokens,
-                killMilestoneTokens = killMilestoneTokens,
-                elapsedTimeTokens = elapsedTimeTokens,
-                tokenOrbTokens = tokenOrbTokens,
-                paintAreaTokens = paintAreaTokens,
-                relicDuplicateTokens = relicDuplicateTokens,
+                killMilestoneTokens = tokenRuntime.KillMilestoneTokens,
+                elapsedTimeTokens = tokenRuntime.ElapsedTimeTokens,
+                tokenOrbTokens = tokenRuntime.TokenOrbTokens,
+                paintAreaTokens = tokenRuntime.PaintAreaTokens,
+                relicDuplicateTokens = tokenRuntime.RelicDuplicateTokens,
                 guaranteedEndTokens = guaranteedTokens,
                 endTokenGainLevel = ProgressionStore.GetLevel(UpgradeType.EndTokenGain),
                 endTokenMultiplier = endTokenMultiplier,
                 endTokenBaseBeforeMultiplier = tokenBaseBeforeMultiplier,
                 finalEndRewardTokens = tokenEarned,
-                tokenBalanceAtRunStart = tokenBalanceAtRunStart,
+                tokenBalanceAtRunStart = tokenRuntime.TokenBalanceAtRunStart,
                 tokenBalanceBeforeEndReward = tokenBalanceBeforeEndReward,
                 tokenBalanceAfterEndReward = tokenBalanceAfterEndReward,
-                totalTokenBalanceIncrease = tokenBalanceAfterEndReward - tokenBalanceAtRunStart,
+                totalTokenBalanceIncrease = tokenBalanceAfterEndReward - tokenRuntime.TokenBalanceAtRunStart,
                 killTokenDivisor = config != null ? Mathf.Max(1, config.tokenKillsDivisor) : 1,
-                killTokenRemainder = killTokenProgress,
-                elapsedTokenIntervalSeconds = ElapsedTokenRewardIntervalSeconds,
-                nextElapsedTokenRewardSeconds = nextElapsedTokenRewardSeconds,
-                paintAreaTokenThreshold = PaintAreaTokenThreshold,
-                paintAreaTokenRemainder = paintAreaTokenProgress,
-                woodEarned = woodEarned,
-                stoneEarned = stoneEarned,
+                killTokenRemainder = tokenRuntime.KillTokenProgress,
+                elapsedTokenIntervalSeconds = TokenRuntimeService.ElapsedTokenRewardIntervalSeconds,
+                nextElapsedTokenRewardSeconds = tokenRuntime.NextElapsedTokenRewardSeconds,
+                paintAreaTokenThreshold = TokenRuntimeService.PaintAreaTokenThreshold,
+                paintAreaTokenRemainder = tokenRuntime.PaintAreaTokenProgress,
                 reachedStageSummary = StageLogSummary(),
                 bossClearSummary = BossClearLogSummary(),
                 reachedStages = new List<RunStageLogEntry>(runReachedStages),
@@ -1947,16 +1614,6 @@ namespace AreaSurvivors
             return string.Join(" | ", parts);
         }
 
-        int EndWoodReward()
-        {
-            return Mathf.Max(0, config.roundEndWoodReward + ProgressionStore.GetLevel(UpgradeType.StartingWood) * config.roundEndWoodRewardPerUpgradeLevel);
-        }
-
-        int EndStoneReward()
-        {
-            return Mathf.Max(0, config.roundEndStoneReward + ProgressionStore.GetLevel(UpgradeType.StartingStone) * config.roundEndStoneRewardPerUpgradeLevel);
-        }
-
         void UpdateHud()
         {
             if (timerText != null)
@@ -1987,7 +1644,7 @@ namespace AreaSurvivors
             float displayElapsedOffset = preserveRunElapsed ? elapsed : StageStartDisplaySeconds();
             elapsed = displayElapsedOffset + Mathf.Max(0f, startStageElapsedSeconds);
             hudElapsed = elapsed;
-            nextElapsedTokenRewardSeconds = (Mathf.Floor(elapsed / ElapsedTokenRewardIntervalSeconds) + 1f) * ElapsedTokenRewardIntervalSeconds;
+            tokenRuntime.SetElapsedTokenRewardSchedule(elapsed);
             bossActive = false;
             RecordStageReached(currentStage, runReachedStages.Count == 0);
             AudioManager.PlayBgm(BgmTrack.GameNormal);
@@ -1995,7 +1652,14 @@ namespace AreaSurvivors
             if (spawner != null)
             {
                 spawner.useUpperChunkSpawn = false;
-                spawner.BeginStage(config, grid, Tower.EnemyTarget, currentStage, displayElapsedOffset, startStageElapsedSeconds);
+                spawner.BeginStage(
+                    config,
+                    grid,
+                    Tower.EnemyTarget,
+                    currentStage,
+                    displayElapsedOffset,
+                    startStageElapsedSeconds,
+                    Player != null ? Player.transform : null);
             }
             gameHud?.SetStage(currentStage);
         }
@@ -2051,7 +1715,7 @@ namespace AreaSurvivors
         {
             if (gameHud == null) gameHud = GetComponent<GameHudController>();
             if (gameHud == null) gameHud = gameObject.AddComponent<GameHudController>();
-            gameHud.Initialize(buildPlacement, Tower, this);
+            gameHud.Initialize(Tower, this);
         }
 
         void HideLegacyPlayerProgressHud()
@@ -2189,1058 +1853,6 @@ namespace AreaSurvivors
             static string WeaponIconResource(WeaponType weaponType)
             {
                 return WeaponCatalog.IconResource(weaponType);
-            }
-        }
-    }
-
-    public sealed class GameHudController : MonoBehaviour
-    {
-        const float LowHpBlinkThreshold = 0.1f;
-        static readonly Color PanelColor = new Color(0.035f, 0.05f, 0.045f, 0.72f);
-        static readonly Color SlotColor = new Color(0.09f, 0.16f, 0.12f, 0.92f);
-        static readonly Color SlotSelectedColor = new Color(0.114f, 0.529f, 0.298f, 0.98f);
-        static readonly Color EdgeColor = new Color(0.58f, 0.68f, 0.40f, 0.9f);
-        static readonly Color HpBlue = new Color(0.22f, 0.62f, 1f, 0.96f);
-        static readonly Color HpYellow = new Color(1f, 0.82f, 0.20f, 0.98f);
-        static readonly Color HpRed = new Color(1f, 0.18f, 0.12f, 0.98f);
-        static readonly Vector2 TowerPanelSize = new Vector2(110f, 314f);
-        static readonly Vector2 TowerIconSize = new Vector2(98f, 98f);
-        static readonly Vector2 TowerIconPosition = new Vector2(0f, -8f);
-        static readonly Vector2 TowerHpBarPosition = new Vector2(0f, -126f);
-        static readonly Vector2 TowerHpBarSize = new Vector2(38f, 136f);
-        static readonly Vector2 TowerHpTextPosition = new Vector2(0f, -286f);
-        const string LeftStatusHudGroup = "LeftStatusHud";
-        const string TopCenterHudGroup = "TopCenterHud";
-        const string RightStatusHudGroup = "RightStatusHud";
-        const float HudOverlapPadding = 96f;
-        static readonly Vector2 PlayerPanelSize = new Vector2(390f, 318f);
-        static readonly Vector2 PlayerIconSize = new Vector2(58f, 58f);
-
-        BuildPlacementController buildPlacement;
-        GameManager gameManager;
-        PlayerController player;
-        TowerController towerController;
-        Health towerHealth;
-        Image towerImage;
-        RectTransform towerPanel;
-        RectTransform playerPanel;
-        RectTransform playerStatsPanel;
-        Image hpFill;
-        Image playerHpFill;
-        Image playerXpFill;
-        Text hpText;
-        Text playerHpText;
-        Text playerLevelText;
-        Text playerSpeedText;
-        Text playerPaintText;
-        RectTransform paintControlRoot;
-        RectTransform paintControlBlueSegment;
-        RectTransform paintControlNeutralSegment;
-        RectTransform paintControlRedSegment;
-        Text paintControlBlueText;
-        Text paintControlNeutralText;
-        Text paintControlRedText;
-        Text playerReviveText;
-        Text playerDefenseText;
-        Text playerXpGainText;
-        Text playerRegenText;
-        readonly WeaponHudPanelBinding weaponHud = new WeaponHudPanelBinding();
-        Health playerHealth;
-        TileGrid weaponHudGrid;
-        bool weaponHudDirty = true;
-        Coroutine weaponHudRefreshRoutine;
-        bool warnedMissingPlayerStatsHud;
-        bool warnedMissingWeaponStatsHud;
-        Text tokenText;
-        RectTransform bossPanel;
-        Text bossNameText;
-        Image bossHpFill;
-        Text bossHpText;
-        Text announcementText;
-        AnnouncementBannerTextAnimator announcementAnimator;
-        RelicHudPanel relicHud;
-        EnemyController activeBoss;
-        Health bossHealth;
-        Coroutine announcementRoutine;
-        Text stageText;
-        readonly List<FloatingHudDamage> damagePopups = new List<FloatingHudDamage>();
-
-        public void Initialize(BuildPlacementController placement, TowerController tower, GameManager owner)
-        {
-            buildPlacement = placement;
-            gameManager = owner;
-            player = owner != null ? owner.Player : null;
-            BindWeaponHudRefreshSources();
-            towerController = tower;
-            towerHealth = tower != null ? tower.GetComponent<Health>() : null;
-            if (towerHealth != null) towerHealth.Damaged += OnTowerDamaged;
-            if (towerController != null) towerController.Upgraded += OnTowerUpgraded;
-
-            var canvas = FindHudCanvas();
-            if (canvas == null) canvas = CreateCanvas();
-
-            HideLegacyBuildStatus(canvas.transform);
-            ApplySessionHudVisibility(canvas.transform);
-            if (gameManager == null || gameManager.SessionMode == MapSessionMode.Game) BindSceneRunStats(canvas.transform);
-            BuildStagePanel(canvas.transform);
-            if (gameManager == null || gameManager.SessionMode == MapSessionMode.Game)
-            {
-                BindSceneBossHud(canvas.transform);
-                BuildPlayerPanel(canvas.transform);
-            }
-            BuildTowerPanel(canvas.transform);
-            BindRelicHud(canvas.transform);
-            ConfigureHudOverlapGroups(canvas.transform);
-            UpdatePlayerPanel();
-            RefreshWeaponStatsIfDirty();
-            UpdateTokenHud();
-            UpdateTowerPanel();
-            UpdateBossHud();
-        }
-
-        void OnDestroy()
-        {
-            if (towerHealth != null) towerHealth.Damaged -= OnTowerDamaged;
-            if (towerController != null) towerController.Upgraded -= OnTowerUpgraded;
-            if (bossHealth != null) bossHealth.Died -= OnBossDied;
-            if (gameManager != null) gameManager.CombatModifiersChanged -= MarkWeaponHudDirty;
-            if (weaponHudGrid != null) weaponHudGrid.ControlChanged -= MarkWeaponHudDirty;
-            if (playerHealth != null)
-            {
-                playerHealth.Damaged -= OnPlayerHealthChanged;
-                playerHealth.Healed -= OnPlayerHealthChanged;
-            }
-            LocalizationService.LanguageChanged -= RefreshWeaponStatsForLanguageChange;
-        }
-
-        void ApplySessionHudVisibility(Transform parent)
-        {
-            if (parent == null || gameManager == null) return;
-            SetDirectChildActive(parent, "Timer Panel", true);
-            SetDirectChildActive(parent, "Kill Panel", true);
-            SetDirectChildActive(parent, "Boss Status", true);
-            SetDirectChildActive(parent, "Player Status", true);
-            SetDirectChildActive(parent, "Token Resource", true);
-            SetDirectChildActive(parent, "Relic HUD", true);
-            SetDirectChildActive(parent, "XP Bar", true);
-            SetDirectChildActive(parent, "Level Panel", true);
-        }
-
-        static void SetDirectChildActive(Transform parent, string path, bool active)
-        {
-            var child = parent != null ? parent.Find(path) : null;
-            if (child != null) child.gameObject.SetActive(active);
-        }
-
-        void Update()
-        {
-            if (player == null && gameManager != null)
-            {
-                player = gameManager.Player;
-                BindPlayerHealth();
-                MarkWeaponHudDirty();
-            }
-            BindWeaponHudGrid();
-            UpdatePlayerPanel();
-            UpdateTokenHud();
-            UpdateTowerPanel();
-            UpdateBossHud();
-            TickDamagePopups();
-        }
-
-        public void RefreshRelics()
-        {
-            relicHud?.Refresh(true);
-            MarkWeaponHudDirty();
-        }
-
-        public void RefreshWeaponStats()
-        {
-            MarkWeaponHudDirty();
-        }
-
-        void BindWeaponHudRefreshSources()
-        {
-            if (gameManager != null)
-            {
-                gameManager.CombatModifiersChanged -= MarkWeaponHudDirty;
-                gameManager.CombatModifiersChanged += MarkWeaponHudDirty;
-            }
-
-            LocalizationService.LanguageChanged -= RefreshWeaponStatsForLanguageChange;
-            LocalizationService.LanguageChanged += RefreshWeaponStatsForLanguageChange;
-            BindWeaponHudGrid();
-            BindPlayerHealth();
-            MarkWeaponHudDirty();
-        }
-
-        void BindWeaponHudGrid()
-        {
-            var nextGrid = gameManager != null ? gameManager.grid : null;
-            if (weaponHudGrid == nextGrid) return;
-            if (weaponHudGrid != null) weaponHudGrid.ControlChanged -= MarkWeaponHudDirty;
-            weaponHudGrid = nextGrid;
-            if (weaponHudGrid != null) weaponHudGrid.ControlChanged += MarkWeaponHudDirty;
-            MarkWeaponHudDirty();
-        }
-
-        void BindPlayerHealth()
-        {
-            var nextHealth = player != null ? player.Health : null;
-            if (playerHealth == nextHealth) return;
-            if (playerHealth != null)
-            {
-                playerHealth.Damaged -= OnPlayerHealthChanged;
-                playerHealth.Healed -= OnPlayerHealthChanged;
-            }
-
-            playerHealth = nextHealth;
-            if (playerHealth != null)
-            {
-                playerHealth.Damaged += OnPlayerHealthChanged;
-                playerHealth.Healed += OnPlayerHealthChanged;
-            }
-        }
-
-        void OnPlayerHealthChanged(Health _, int __)
-        {
-            MarkWeaponHudDirty();
-        }
-
-        void MarkWeaponHudDirty()
-        {
-            weaponHudDirty = true;
-            if (weaponHudRefreshRoutine == null && isActiveAndEnabled)
-            {
-                weaponHudRefreshRoutine = StartCoroutine(RefreshWeaponStatsDeferred());
-            }
-        }
-
-        void RefreshWeaponStatsForLanguageChange()
-        {
-            weaponHudDirty = true;
-            RefreshWeaponStatsIfDirty();
-        }
-
-        IEnumerator RefreshWeaponStatsDeferred()
-        {
-            yield return null;
-            weaponHudRefreshRoutine = null;
-            RefreshWeaponStatsIfDirty();
-        }
-
-        void BindSceneRunStats(Transform parent)
-        {
-            if (parent == null || gameManager == null) return;
-            stageText = FindText(parent, "Stage Panel/Label");
-            var timer = FindText(parent, "Timer Panel/Label");
-            if (timer != null)
-            {
-                if (gameManager.timerText != null && gameManager.timerText != timer) gameManager.timerText.gameObject.SetActive(false);
-                gameManager.timerText = timer;
-            }
-            var kills = FindText(parent, "Kill Panel/Label");
-            if (kills != null)
-            {
-                if (gameManager.killText != null && gameManager.killText != kills) gameManager.killText.gameObject.SetActive(false);
-                gameManager.killText = kills;
-            }
-            ConfigureStaticHudIcon(parent, "Kill Panel/Icon");
-            tokenText = FindText(parent, "Token Resource/Amount");
-            ConfigureStaticHudIcon(parent, "Token Resource/Icon");
-        }
-
-        void BindRelicHud(Transform parent)
-        {
-            relicHud = parent != null ? parent.GetComponentInChildren<RelicHudPanel>(true) : null;
-            if (relicHud != null) relicHud.Initialize(gameManager);
-        }
-
-        public void SetStage(int stage)
-        {
-            if (stageText != null) stageText.text = "STAGE " + Mathf.Max(1, stage);
-        }
-
-        void UpdateTokenHud()
-        {
-            if (gameManager == null || tokenText == null) return;
-            tokenText.text = gameManager.RunTokens.ToString();
-        }
-
-        void BindSceneBossHud(Transform parent)
-        {
-            bossPanel = parent.Find("Boss Status") as RectTransform;
-            bossNameText = FindText(parent, "Boss Status/Boss Name");
-            bossHpText = FindText(parent, "Boss Status/Boss HP Bar/Label");
-            var fill = parent.Find("Boss Status/Boss HP Bar/Fill");
-            bossHpFill = fill != null ? fill.GetComponent<Image>() : null;
-            announcementText = FindText(parent, "Announcement/Label");
-            announcementAnimator = announcementText != null
-                ? announcementText.GetComponent<AnnouncementBannerTextAnimator>()
-                : null;
-            if (bossPanel != null) bossPanel.gameObject.SetActive(false);
-            if (announcementText != null) announcementText.transform.parent.gameObject.SetActive(false);
-        }
-
-        public void ShowBoss(EnemyController boss)
-        {
-            if (bossHealth != null) bossHealth.Died -= OnBossDied;
-            activeBoss = boss;
-            bossHealth = boss != null ? boss.GetComponent<Health>() : null;
-            if (bossHealth != null) bossHealth.Died += OnBossDied;
-            if (bossPanel != null) bossPanel.gameObject.SetActive(boss != null);
-            if (bossNameText != null) bossNameText.text = boss != null
-                ? LocalizationService.LocalizeSource(boss.displayName)
-                : "";
-            UpdateBossHud();
-        }
-
-        public void ShowAnnouncement(string message)
-        {
-            if (announcementText == null || string.IsNullOrEmpty(message)) return;
-            if (announcementRoutine != null) StopCoroutine(announcementRoutine);
-            announcementRoutine = StartCoroutine(AnnouncementRoutine(LocalizationService.LocalizeSource(message)));
-        }
-
-        IEnumerator AnnouncementRoutine(string message)
-        {
-            var root = announcementText.transform.parent.gameObject;
-            root.SetActive(true);
-            announcementText.text = message;
-            var color = announcementText.color;
-            color.a = 1f;
-            announcementText.color = color;
-
-            if (announcementAnimator != null)
-            {
-                yield return announcementAnimator.Play(message);
-            }
-            else
-            {
-                yield return new WaitForSecondsRealtime(1.8f);
-            }
-
-            root.SetActive(false);
-            if (announcementAnimator != null) announcementAnimator.ResetVisual();
-            announcementRoutine = null;
-        }
-
-        void UpdateBossHud()
-        {
-            if (bossPanel == null || bossHealth == null) return;
-            bossPanel.gameObject.SetActive(!bossHealth.IsDead);
-            float normalized = bossHealth.Normalized;
-            if (bossHpFill != null) bossHpFill.rectTransform.anchorMax = new Vector2(Mathf.Clamp01(normalized), 1f);
-            if (bossHpText != null) bossHpText.text = bossHealth.currentHp + "/" + bossHealth.maxHp;
-        }
-
-        void OnBossDied(Health _)
-        {
-            if (bossPanel != null) bossPanel.gameObject.SetActive(false);
-        }
-
-        void BuildPlayerPanel(Transform parent)
-        {
-            var splitPlayerRoot = parent.Find("Player");
-            var existing = splitPlayerRoot != null ? splitPlayerRoot : parent.Find("Player Status");
-            playerPanel = existing != null ? existing.GetComponent<RectTransform>() : null;
-
-            var statsRoot = splitPlayerRoot != null ? parent.Find("Player Status") : playerPanel;
-            playerStatsPanel = statsRoot != null ? statsRoot.GetComponent<RectTransform>() : playerPanel;
-            if (playerPanel == null || playerStatsPanel == null) WarnMissingPlayerStatsHud();
-            if (splitPlayerRoot != null && playerStatsPanel != null) HideLegacyPlayerTiles(playerStatsPanel);
-
-            var portrait = FindImage(playerPanel, "Character Frame/Character Image");
-            if (portrait != null)
-            {
-                portrait.sprite = player != null ? player.PortraitSprite : LoadHudSprite("Knight", null);
-                portrait.preserveAspect = true;
-            }
-
-            BuildPaintGauge(parent, playerPanel);
-
-            playerHpFill = BindHorizontalBar(playerPanel, "Player HP Bar", out playerHpText);
-            playerXpFill = BindHorizontalBar(playerPanel, "Player XP Bar", out playerLevelText);
-            playerSpeedText = BindSceneStatText(playerStatsPanel, "Speed Text");
-            playerPaintText = BindSceneStatText(playerStatsPanel, "Paint Text");
-            playerReviveText = BindSceneStatText(playerStatsPanel, "Revive Text");
-            playerDefenseText = BindSceneStatText(playerStatsPanel, "Defense Text");
-            playerXpGainText = BindSceneStatText(playerStatsPanel, "Xp Gain Text");
-            playerRegenText = BindSceneStatText(playerStatsPanel, "Regen Text");
-            weaponHud.Bind(parent, playerStatsPanel);
-            if (weaponHud.HasMissingReferences) WarnMissingWeaponStatsHud();
-            SetPauseDetailsVisible(false);
-        }
-
-        public void SetPauseDetailsVisible(bool visible)
-        {
-            if (playerStatsPanel != null && playerStatsPanel.gameObject.activeSelf != visible)
-            {
-                playerStatsPanel.gameObject.SetActive(visible);
-            }
-
-            weaponHud.SetDetailedMode(visible);
-            weaponHud.Update(player != null ? player.weapon : null);
-            weaponHudDirty = false;
-        }
-
-        Text BindSceneStatText(RectTransform statsRoot, string name)
-        {
-            var text = BindStatText(statsRoot, name);
-            if (text == null) WarnMissingPlayerStatsHud();
-            return text;
-        }
-
-        void WarnMissingPlayerStatsHud()
-        {
-            if (warnedMissingPlayerStatsHud) return;
-            warnedMissingPlayerStatsHud = true;
-            Debug.LogWarning("Player status HUD rows are missing. Place Player Status stat boxes in 05_Game.unity; runtime HUD generation is intentionally disabled.");
-        }
-
-        static Image BindHorizontalBar(RectTransform parent, string name, out Text label)
-        {
-            label = null;
-            if (parent == null) return null;
-            label = FindText(parent, name + "/Label");
-            return FindImage(parent, name + "/Fill");
-        }
-
-        void WarnMissingWeaponStatsHud()
-        {
-            if (warnedMissingWeaponStatsHud) return;
-            warnedMissingWeaponStatsHud = true;
-            Debug.LogWarning("Weapon status HUD rows are missing. Place Slash/Arrow/Fireball Weapon Status panels in 05_Game.unity; runtime HUD generation is intentionally disabled.");
-        }
-
-        void BuildPaintGauge(Transform hudRoot, RectTransform fallbackParent)
-        {
-            paintControlRoot = FindPaintGaugeRoot(hudRoot, fallbackParent);
-            if (paintControlRoot == null) return;
-
-            paintControlBlueSegment = BindControlSegment(paintControlRoot, "Blue Segment");
-            paintControlNeutralSegment = BindControlSegment(paintControlRoot, "Neutral Segment");
-            paintControlRedSegment = BindControlSegment(paintControlRoot, "Red Segment");
-            if (paintControlBlueSegment == null || paintControlNeutralSegment == null || paintControlRedSegment == null) return;
-            paintControlBlueText = BindControlSegmentText(paintControlBlueSegment);
-            paintControlNeutralText = BindControlSegmentText(paintControlNeutralSegment);
-            paintControlRedText = BindControlSegmentText(paintControlRedSegment);
-            if (paintControlBlueText == null || paintControlNeutralText == null || paintControlRedText == null) return;
-        }
-
-        static RectTransform FindPaintGaugeRoot(Transform hudRoot, RectTransform fallbackParent)
-        {
-            var topPanelGauge = hudRoot != null ? hudRoot.Find("Area Control Panel/Control Breakdown") : null;
-            if (topPanelGauge != null) return topPanelGauge.GetComponent<RectTransform>();
-
-            var fallbackGauge = fallbackParent != null ? fallbackParent.Find("Control Breakdown") : null;
-            return fallbackGauge != null ? fallbackGauge.GetComponent<RectTransform>() : null;
-        }
-
-        static void HideLegacyPlayerTiles(RectTransform statsRoot)
-        {
-            if (statsRoot == null) return;
-            HideHudChild(statsRoot, "Character Frame");
-            HideHudChild(statsRoot, "Player HP Bar");
-            HideHudChild(statsRoot, "Player XP Bar");
-        }
-
-        static void HideHudChild(Transform parent, string name)
-        {
-            if (parent == null) return;
-            var child = parent.Find(name);
-            if (child != null) child.gameObject.SetActive(false);
-        }
-
-        void UpdatePlayerPanel()
-        {
-            if (playerPanel == null || player == null) return;
-            var health = player.Health;
-            if (playerHpFill != null && health != null)
-            {
-                playerHpFill.rectTransform.anchorMax = new Vector2(health.Normalized, 1f);
-                playerHpFill.color = health.Normalized <= 0.3f ? HpRed : new Color(0.36f, 0.88f, 0.36f, 0.98f);
-                if (playerHpText != null) playerHpText.text = health.currentHp + "/" + health.maxHp;
-            }
-            if (playerXpFill != null && gameManager != null)
-            {
-                float normalized = gameManager.XpToNext <= 0 ? 0f : (float)gameManager.CurrentXp / gameManager.XpToNext;
-                playerXpFill.rectTransform.anchorMax = new Vector2(Mathf.Clamp01(normalized), 1f);
-                if (playerLevelText != null) playerLevelText.text = "Lv." + gameManager.CurrentLevel;
-            }
-            UpdatePaintGauge();
-
-            var portrait = playerPanel.Find("Character Frame/Character Image")?.GetComponent<Image>();
-            if (portrait != null) portrait.sprite = player.PortraitSprite;
-            if (playerSpeedText != null) playerSpeedText.text = player.MoveSpeed.ToString("0.0");
-            if (playerPaintText != null) playerPaintText.text = player.PaintRadius.ToString();
-            if (playerReviveText != null) playerReviveText.text = player.ReviveSeconds.ToString("0.0") + "s";
-            var stats = player.Stats;
-            if (playerDefenseText != null) playerDefenseText.text = stats.defense.ToString("0.#");
-            if (playerXpGainText != null) playerXpGainText.text = stats.xpGainMultiplier.ToString("0.0") + "x";
-            if (playerRegenText != null) playerRegenText.text = stats.autoRegen.ToString();
-        }
-
-        void RefreshWeaponStatsIfDirty()
-        {
-            if (!weaponHudDirty) return;
-            weaponHudDirty = false;
-            weaponHud.Update(player != null ? player.weapon : null);
-        }
-
-        void UpdatePaintGauge()
-        {
-            if (gameManager == null || gameManager.grid == null) return;
-            if (paintControlBlueText == null && paintControlNeutralText == null && paintControlRedText == null) return;
-            var summary = gameManager.grid.GetControlSummary();
-            UpdateControlBreakdown(summary);
-        }
-
-        static RectTransform BindControlSegment(RectTransform root, string name)
-        {
-            if (root == null) return null;
-            var child = root.Find(name);
-            return child != null ? child.GetComponent<RectTransform>() : null;
-        }
-
-        static Text BindControlSegmentText(RectTransform segment)
-        {
-            if (segment == null) return null;
-            var label = segment.Find("Label");
-            var labelText = label != null ? label.GetComponent<Text>() : null;
-            return labelText != null ? labelText : segment.GetComponent<Text>();
-        }
-
-        void UpdateControlBreakdown(TileControlSummary summary)
-        {
-            const float minWidth = 32f;
-            float totalWidth = paintControlRoot != null ? Mathf.Max(96f, paintControlRoot.rect.width) : 190f;
-            int[] counts = { Mathf.Max(0, summary.playerCells), Mathf.Max(0, summary.neutralCells), Mathf.Max(0, summary.enemyCells) };
-            RectTransform[] segments = { paintControlBlueSegment, paintControlNeutralSegment, paintControlRedSegment };
-            Text[] labels = { paintControlBlueText, paintControlNeutralText, paintControlRedText };
-
-            float baseline = 0f;
-            for (int i = 0; i < counts.Length; i++)
-            {
-                baseline += minWidth;
-            }
-
-            float remaining = Mathf.Max(0f, totalWidth - baseline);
-            int totalCells = Mathf.Max(1, summary.totalCells);
-            float x = 0f;
-            for (int i = 0; i < segments.Length; i++)
-            {
-                if (segments[i] == null || labels[i] == null) continue;
-                float share = counts[i] > 0 ? remaining * counts[i] / (float)totalCells : 0f;
-                float width = minWidth + share;
-                SetControlSegment(segments[i], labels[i], width, x, counts[i]);
-                x += width;
-            }
-        }
-
-        static void SetControlSegment(RectTransform segment, Text label, float width, float x, int count)
-        {
-            segment.anchorMin = new Vector2(0f, 1f);
-            segment.anchorMax = new Vector2(0f, 1f);
-            segment.pivot = new Vector2(0f, 1f);
-            segment.anchoredPosition = new Vector2(x, 0f);
-            segment.sizeDelta = new Vector2(width, segment.sizeDelta.y);
-            label.rectTransform.anchorMin = Vector2.zero;
-            label.rectTransform.anchorMax = Vector2.one;
-            label.rectTransform.offsetMin = Vector2.zero;
-            label.rectTransform.offsetMax = Vector2.zero;
-            label.alignment = TextAnchor.MiddleCenter;
-            label.text = count.ToString();
-        }
-
-        static RectTransform EnsureIconFrame(RectTransform parent, string name, Vector2 position, Vector2 size)
-        {
-            var existing = parent.Find(name);
-            var rect = existing != null ? existing.GetComponent<RectTransform>() : null;
-            if (rect == null)
-            {
-                rect = CreatePanel(parent, name, position, size, Vector2.up, Vector2.up);
-                rect.GetComponent<Image>().color = SlotColor;
-                AddFrame(rect, size);
-            }
-            return rect;
-        }
-
-        static Image EnsureImage(RectTransform parent, string name, Vector2 size)
-        {
-            var existing = parent.Find(name);
-            var image = existing != null ? existing.GetComponent<Image>() : null;
-            bool createdImage = image == null;
-            if (createdImage)
-            {
-                image = new GameObject(name).AddComponent<Image>();
-                image.transform.SetParent(parent, false);
-            }
-            image.raycastTarget = false;
-            if (createdImage)
-            {
-                image.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
-                image.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
-                image.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-                image.rectTransform.anchoredPosition = Vector2.zero;
-                image.rectTransform.sizeDelta = size;
-            }
-            return image;
-        }
-
-        static Image EnsureHorizontalBar(RectTransform parent, string name, Vector2 position, Vector2 size, Color fillColor, out Text label)
-        {
-            var existing = parent.Find(name);
-            var root = existing != null ? existing.GetComponent<RectTransform>() : null;
-            if (root == null)
-            {
-                root = CreatePanel(parent, name, position, size, Vector2.up, Vector2.up);
-                root.GetComponent<Image>().color = new Color(0.02f, 0.025f, 0.025f, 0.88f);
-            }
-
-            var fillTransform = root.Find("Fill");
-            var fill = fillTransform != null ? fillTransform.GetComponent<Image>() : null;
-            if (fill == null)
-            {
-                fill = new GameObject("Fill").AddComponent<Image>();
-                fill.transform.SetParent(root, false);
-            }
-            fill.color = fillColor;
-            fill.raycastTarget = false;
-            fill.rectTransform.anchorMin = Vector2.zero;
-            fill.rectTransform.anchorMax = Vector2.one;
-            fill.rectTransform.pivot = new Vector2(0f, 0.5f);
-            fill.rectTransform.offsetMin = new Vector2(3f, 3f);
-            fill.rectTransform.offsetMax = new Vector2(-3f, -3f);
-
-            var labelTransform = root.Find("Label");
-            label = labelTransform != null ? labelTransform.GetComponent<Text>() : null;
-            if (label == null) label = CreateText(root, "Label", "", 13, Vector2.zero, size, TextAnchor.MiddleCenter);
-            label.rectTransform.anchorMin = Vector2.zero;
-            label.rectTransform.anchorMax = Vector2.one;
-            label.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-            label.rectTransform.anchoredPosition = Vector2.zero;
-            label.rectTransform.offsetMin = Vector2.zero;
-            label.rectTransform.offsetMax = Vector2.zero;
-            return fill;
-        }
-
-        static Text BindStatText(RectTransform parent, string name)
-        {
-            if (parent == null) return null;
-            var value = parent.Find(name + " Box/Value");
-            if (value != null && value.GetComponent<Text>() != null) return value.GetComponent<Text>();
-            return null;
-        }
-
-        static void SetStatColumns(RectTransform rect, float minX, float maxX, float left, float right)
-        {
-            rect.anchorMin = new Vector2(minX, 0f);
-            rect.anchorMax = new Vector2(maxX, 1f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = Vector2.zero;
-            rect.offsetMin = new Vector2(left, 0f);
-            rect.offsetMax = new Vector2(right, 0f);
-        }
-
-        void BuildStagePanel(Transform parent)
-        {
-            var existing = parent.Find("Stage Panel");
-            var root = existing != null ? existing.GetComponent<RectTransform>() : null;
-            if (root == null)
-            {
-                root = CreatePanel(parent, "Stage Panel", new Vector2(-222f, -28f), new Vector2(118f, 34f), new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
-                AddFrame(root, root.sizeDelta);
-                root.anchorMin = new Vector2(0.5f, 1f);
-                root.anchorMax = new Vector2(0.5f, 1f);
-                root.pivot = new Vector2(0.5f, 1f);
-                root.anchoredPosition = new Vector2(-222f, -28f);
-                root.sizeDelta = new Vector2(118f, 34f);
-            }
-
-            var label = FindText(root, "Label");
-            if (label == null) label = CreateText(root, "Label", "", 18, Vector2.zero, root.sizeDelta, TextAnchor.MiddleCenter);
-            label.rectTransform.anchorMin = Vector2.zero;
-            label.rectTransform.anchorMax = Vector2.one;
-            label.rectTransform.offsetMin = Vector2.zero;
-            label.rectTransform.offsetMax = Vector2.zero;
-            stageText = label;
-            SetStage(gameManager != null ? gameManager.CurrentStage : 1);
-        }
-
-        void BuildTowerPanel(Transform parent)
-        {
-            var existing = parent.Find("Tower Status");
-            towerPanel = existing != null ? existing.GetComponent<RectTransform>() : null;
-            if (towerPanel == null)
-            {
-                towerPanel = CreatePanel(parent, "Tower Status", new Vector2(-14f, -12f), TowerPanelSize, Vector2.one, Vector2.one);
-                AddFrame(towerPanel, TowerPanelSize);
-            }
-
-            var towerImageTransform = towerPanel.Find("Tower Image");
-            towerImage = towerImageTransform != null ? towerImageTransform.GetComponent<Image>() : null;
-            bool createdTowerImage = towerImage == null;
-            if (createdTowerImage)
-            {
-                towerImage = new GameObject("Tower Image").AddComponent<Image>();
-                towerImage.transform.SetParent(towerPanel, false);
-                towerImage.sprite = LoadHudSprite("Tower", CreateTowerSpriteFromRenderer(towerController));
-                AnchorTopCenter(towerImage.rectTransform);
-                towerImage.rectTransform.anchoredPosition = TowerIconPosition;
-                towerImage.rectTransform.sizeDelta = TowerIconSize;
-            }
-
-            if (towerImage != null)
-            {
-                towerImage.preserveAspect = true;
-                towerImage.raycastTarget = false;
-            }
-
-            var barTransform = towerPanel.Find("Tower HP Bar");
-            var barRoot = barTransform != null ? barTransform.GetComponent<RectTransform>() : null;
-            if (barRoot == null) barRoot = CreatePanel(towerPanel, "Tower HP Bar", TowerHpBarPosition, TowerHpBarSize, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f));
-            barRoot.GetComponent<Image>().color = new Color(0.02f, 0.025f, 0.025f, 0.86f);
-            var fillTransform = barRoot.Find("Fill");
-            hpFill = fillTransform != null ? fillTransform.GetComponent<Image>() : null;
-            if (hpFill == null) hpFill = new GameObject("Fill").AddComponent<Image>();
-            hpFill.transform.SetParent(barRoot, false);
-            hpFill.color = HpBlue;
-            hpFill.rectTransform.anchorMin = Vector2.zero;
-            hpFill.rectTransform.anchorMax = Vector2.one;
-            hpFill.rectTransform.pivot = new Vector2(0.5f, 0f);
-            hpFill.rectTransform.offsetMin = new Vector2(4f, 4f);
-            hpFill.rectTransform.offsetMax = new Vector2(-4f, -4f);
-
-            var hpTextTransform = towerPanel.Find("Tower HP Text");
-            hpText = hpTextTransform != null ? hpTextTransform.GetComponent<Text>() : null;
-            if (hpText == null)
-            {
-                hpText = CreateText(towerPanel, "Tower HP Text", "", 13, TowerHpTextPosition, new Vector2(88f, 20f), TextAnchor.MiddleCenter);
-                AnchorTopCenter(hpText.rectTransform);
-            }
-        }
-
-        void OnTowerUpgraded(Sprite sprite)
-        {
-            var nextSprite = sprite != null ? sprite : LoadHudSprite("TowerUpgrade", null);
-            if (towerImage != null && nextSprite != null)
-            {
-                towerImage.sprite = nextSprite;
-                towerImage.preserveAspect = true;
-            }
-        }
-
-        void UpdateTowerPanel()
-        {
-            if (towerHealth == null || hpFill == null) return;
-            float normalized = towerHealth.Normalized;
-            hpFill.rectTransform.anchorMax = new Vector2(1f, Mathf.Clamp01(normalized));
-            hpFill.color = TowerHpColor(normalized);
-            if (hpText != null) hpText.text = towerHealth.currentHp + "/" + towerHealth.maxHp;
-        }
-
-        Color TowerHpColor(float normalized)
-        {
-            if (normalized <= LowHpBlinkThreshold)
-            {
-                float pulse = Mathf.PingPong(Time.unscaledTime * 4.6f, 1f);
-                return Color.Lerp(HpRed, new Color(1f, 0.55f, 0.28f, 1f), pulse);
-            }
-            return normalized <= 0.5f ? HpYellow : HpBlue;
-        }
-
-        void OnTowerDamaged(Health _, int amount)
-        {
-            if (towerPanel == null || amount <= 0) return;
-            var text = CreateText(towerPanel, "Tower Damage", amount.ToString(), 22, new Vector2(0f, -26f), new Vector2(72f, 32f), TextAnchor.MiddleCenter, HpRed);
-            AnchorTopCenter(text.rectTransform);
-            damagePopups.Add(new FloatingHudDamage(text));
-        }
-
-        void TickDamagePopups()
-        {
-            for (int i = damagePopups.Count - 1; i >= 0; i--)
-            {
-                if (damagePopups[i].Tick(Time.unscaledDeltaTime)) damagePopups.RemoveAt(i);
-            }
-        }
-
-        void HideLegacyBuildStatus(Transform canvas)
-        {
-            if (buildPlacement == null || buildPlacement.buildText == null) return;
-            if (buildPlacement.buildText.name != "Build Status")
-            {
-                buildPlacement.buildText.gameObject.SetActive(false);
-            }
-            var backplate = canvas.Find("Build Backplate");
-            if (backplate != null) backplate.gameObject.SetActive(false);
-        }
-
-        static Canvas CreateCanvas()
-        {
-            var canvas = new GameObject("HUD").AddComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            var scaler = canvas.gameObject.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1280f, 720f);
-            canvas.gameObject.AddComponent<GraphicRaycaster>();
-            return canvas;
-        }
-
-        static Canvas FindHudCanvas()
-        {
-            var canvases = FindObjectsOfType<Canvas>();
-            foreach (var canvas in canvases)
-            {
-                if (canvas != null && canvas.renderMode == RenderMode.ScreenSpaceOverlay && canvas.name == "HUD") return canvas;
-            }
-            foreach (var canvas in canvases)
-            {
-                if (canvas != null && canvas.renderMode == RenderMode.ScreenSpaceOverlay) return canvas;
-            }
-            return null;
-        }
-
-        static RectTransform CreatePanel(Transform parent, string name, Vector2 anchoredPosition, Vector2 size, Vector2 anchorMin, Vector2 anchorMax)
-        {
-            var image = new GameObject(name).AddComponent<Image>();
-            image.transform.SetParent(parent, false);
-            image.color = PanelColor;
-            image.raycastTarget = false;
-            var rect = image.rectTransform;
-            rect.anchorMin = anchorMin;
-            rect.anchorMax = anchorMax;
-            rect.pivot = anchorMin == anchorMax ? anchorMin : new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = anchoredPosition;
-            rect.sizeDelta = size;
-            return rect;
-        }
-
-        static void ConfigureHudOverlapGroups(Transform hud)
-        {
-            ConfigureGroupPanel(hud, "Player", LeftStatusHudGroup);
-            ConfigureGroupPanel(hud, "Player Status", LeftStatusHudGroup);
-            ConfigureGroupPanel(hud, "Slash Weapon Status", LeftStatusHudGroup);
-            ConfigureGroupPanel(hud, "Arrow Weapon Status", LeftStatusHudGroup);
-            ConfigureGroupPanel(hud, "Fireball Weapon Status", LeftStatusHudGroup);
-
-            ConfigureGroupPanel(hud, "Area Control Panel", TopCenterHudGroup);
-            ConfigureGroupPanel(hud, "Stage Panel", TopCenterHudGroup);
-            ConfigureGroupPanel(hud, "Timer Panel", TopCenterHudGroup);
-
-            ConfigureGroupPanel(hud, "Tower Status", RightStatusHudGroup);
-            ConfigureGroupPanel(hud, "Token Resource", RightStatusHudGroup);
-            ConfigureGroupPanel(hud, "Kill Panel", RightStatusHudGroup);
-        }
-
-        static void ConfigureGroupPanel(Transform hud, string name, string groupId)
-        {
-            var rect = hud != null ? hud.Find(name) as RectTransform : null;
-            if (rect == null) return;
-            ConfigureOverlapFader(rect, groupId);
-        }
-
-        static void ConfigureOverlapFader(RectTransform panel, string groupId)
-        {
-            var group = panel.GetComponent<CanvasGroup>();
-            if (group == null) group = panel.gameObject.AddComponent<CanvasGroup>();
-            group.alpha = 1f;
-            group.interactable = true;
-            group.blocksRaycasts = true;
-
-            var fader = panel.GetComponent<HudOverlapFader>();
-            if (fader == null) fader = panel.gameObject.AddComponent<HudOverlapFader>();
-            fader.backgroundAlpha = 0.5f;
-            fader.overlapAlpha = 0.2f;
-            fader.padding = HudOverlapPadding;
-            fader.fadeSpeed = 10f;
-            fader.SetGroup(groupId);
-        }
-
-        static Text FindText(Transform parent, string path)
-        {
-            if (parent == null || string.IsNullOrEmpty(path)) return null;
-            var target = parent.Find(path);
-            return target != null ? target.GetComponent<Text>() : null;
-        }
-
-        static Image FindImage(Transform parent, string path)
-        {
-            if (parent == null || string.IsNullOrEmpty(path)) return null;
-            var target = parent.Find(path);
-            return target != null ? target.GetComponent<Image>() : null;
-        }
-
-        static RectTransform FindRect(Transform parent, string path)
-        {
-            if (parent == null || string.IsNullOrEmpty(path)) return null;
-            var target = parent.Find(path);
-            return target != null ? target.GetComponent<RectTransform>() : null;
-        }
-
-        static void ConfigureStaticHudIcon(Transform parent, string path)
-        {
-            if (parent == null) return;
-            var target = parent.Find(path);
-            var image = target != null ? target.GetComponent<Image>() : null;
-            if (image == null) return;
-            image.preserveAspect = true;
-            image.color = Color.white;
-            AddUiIconOutline(image);
-        }
-
-        static void AddUiIconOutline(Image image)
-        {
-            if (image == null) return;
-            var outline = image.GetComponent<Outline>();
-            if (outline == null) outline = image.gameObject.AddComponent<Outline>();
-            outline.effectColor = Color.black;
-            outline.effectDistance = new Vector2(2f, -2f);
-            outline.useGraphicAlpha = true;
-        }
-
-        static Text CreateText(Transform parent, string name, string value, int fontSize, Vector2 position, Vector2 size, TextAnchor alignment, Color? color = null)
-        {
-            var text = new GameObject(name).AddComponent<Text>();
-            text.transform.SetParent(parent, false);
-            text.font = JapaneseFontProvider.Font;
-            text.text = value;
-            text.fontSize = fontSize;
-            text.alignment = alignment;
-            text.color = color ?? Color.white;
-            text.horizontalOverflow = HorizontalWrapMode.Overflow;
-            text.verticalOverflow = VerticalWrapMode.Truncate;
-            text.raycastTarget = false;
-            text.rectTransform.anchoredPosition = position;
-            text.rectTransform.sizeDelta = size;
-            var outline = text.gameObject.AddComponent<Outline>();
-            outline.effectColor = new Color(0f, 0f, 0f, 0.82f);
-            outline.effectDistance = new Vector2(1f, -1f);
-            return text;
-        }
-
-        static void AnchorTopCenter(RectTransform rect)
-        {
-            rect.anchorMin = new Vector2(0.5f, 1f);
-            rect.anchorMax = new Vector2(0.5f, 1f);
-            rect.pivot = new Vector2(0.5f, 1f);
-        }
-
-        static Sprite LoadHudSprite(string name, Sprite fallback)
-        {
-            if (fallback != null) return fallback;
-            var sprite = GeneratedSpriteLoader.Load(name);
-            if (sprite != null) return sprite;
-            var texture = GeneratedSpriteLoader.LoadTexture(name);
-            if (texture != null)
-            {
-                texture.filterMode = FilterMode.Point;
-                texture.wrapMode = TextureWrapMode.Clamp;
-                return Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 128f);
-            }
-            return name == "Tower" ? CreateTowerHudSprite() : null;
-        }
-
-        static Sprite CreateTowerSpriteFromRenderer(TowerController tower)
-        {
-            if (tower == null) return null;
-            var baseImage = tower.transform.Find("Base Tower Image")?.GetComponent<PaperMeshVisual>();
-            if (baseImage != null && baseImage.sprite != null) return baseImage.sprite;
-
-            var renderers = tower.GetComponentsInChildren<Renderer>(true);
-            Texture2D bestTexture = null;
-            int bestPixels = 0;
-            foreach (var renderer in renderers)
-            {
-                if (renderer == null) continue;
-                var materials = renderer.sharedMaterials;
-                foreach (var material in materials)
-                {
-                    var texture = material != null ? material.mainTexture as Texture2D : null;
-                    if (texture == null || !texture.name.Contains("Tower")) continue;
-                    int pixels = texture.width * texture.height;
-                    if (pixels <= bestPixels) continue;
-                    bestTexture = texture;
-                    bestPixels = pixels;
-                }
-            }
-
-            if (bestTexture == null) return null;
-            return Sprite.Create(bestTexture, TowerTextureRect(bestTexture), new Vector2(0.5f, 0.5f), 128f);
-        }
-
-        static Rect TowerTextureRect(Texture2D texture)
-        {
-            float x = texture.width * 0.08f;
-            float y = texture.height * 0.04f;
-            float width = texture.width * 0.84f;
-            float height = texture.height * 0.92f;
-            return new Rect(x, y, width, height);
-        }
-
-        static Sprite CreateTowerHudSprite()
-        {
-            const int size = 32;
-            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
-            var clear = new Color(0f, 0f, 0f, 0f);
-            for (int y = 0; y < size; y++)
-            {
-                for (int x = 0; x < size; x++) texture.SetPixel(x, y, clear);
-            }
-
-            Fill(texture, 7, 4, 18, 14, new Color(0.55f, 0.56f, 0.55f, 1f));
-            Fill(texture, 5, 13, 22, 8, new Color(0.42f, 0.43f, 0.43f, 1f));
-            Fill(texture, 7, 21, 18, 5, new Color(0.30f, 0.31f, 0.32f, 1f));
-            Fill(texture, 9, 6, 4, 7, new Color(0.74f, 0.75f, 0.72f, 1f));
-            Fill(texture, 19, 6, 4, 7, new Color(0.74f, 0.75f, 0.72f, 1f));
-            Fill(texture, 13, 4, 6, 7, new Color(0.42f, 0.22f, 0.08f, 1f));
-            Fill(texture, 12, 15, 8, 6, new Color(0.08f, 0.35f, 0.62f, 1f));
-            Fill(texture, 15, 15, 2, 6, new Color(0.95f, 0.74f, 0.16f, 1f));
-            Fill(texture, 13, 17, 6, 2, new Color(0.95f, 0.74f, 0.16f, 1f));
-            texture.filterMode = FilterMode.Point;
-            texture.wrapMode = TextureWrapMode.Clamp;
-            texture.Apply();
-            return Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 128f);
-        }
-
-        static void Fill(Texture2D texture, int x, int y, int width, int height, Color color)
-        {
-            for (int py = y; py < y + height; py++)
-            {
-                for (int px = x; px < x + width; px++) texture.SetPixel(px, py, color);
-            }
-        }
-
-        static void AddFrame(Transform parent, Vector2 size)
-        {
-            UiBoxOutline.Apply(parent, EdgeColor, 2f);
-        }
-
-        sealed class FloatingHudDamage
-        {
-            readonly Text text;
-            float age;
-            const float Lifetime = 0.85f;
-
-            public FloatingHudDamage(Text text)
-            {
-                this.text = text;
-            }
-
-            public bool Tick(float deltaTime)
-            {
-                if (text == null) return true;
-                age += deltaTime;
-                float t = Mathf.Clamp01(age / Lifetime);
-                text.rectTransform.anchoredPosition += new Vector2(0f, 46f * deltaTime);
-                text.transform.localScale = Vector3.one * Mathf.Lerp(1.18f, 0.9f, t);
-                var color = text.color;
-                color.a = t < 0.48f ? 1f : 1f - Mathf.InverseLerp(0.48f, 1f, t);
-                text.color = color;
-                if (age < Lifetime) return false;
-                Destroy(text.gameObject);
-                return true;
             }
         }
     }

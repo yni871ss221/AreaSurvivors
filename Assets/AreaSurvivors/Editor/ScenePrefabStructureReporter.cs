@@ -83,7 +83,7 @@ namespace AreaSurvivors.Editor
             int images = 0;
             int texts = 0;
             int gameManagers = 0;
-            int buildControllers = 0;
+            int fixedBuildingLayouts = 0;
 
             foreach (var root in roots)
             {
@@ -98,13 +98,13 @@ namespace AreaSurvivors.Editor
                 images += root.GetComponentsInChildren<Image>(true).Length;
                 texts += root.GetComponentsInChildren<Text>(true).Length;
                 gameManagers += root.GetComponentsInChildren<GameManager>(true).Length;
-                buildControllers += root.GetComponentsInChildren<BuildPlacementController>(true).Length;
+                fixedBuildingLayouts += root.GetComponentsInChildren<FixedBuildingLayoutService>(true).Length;
             }
 
             report.AppendLine($"- path: {scenePath}");
             report.AppendLine($"- roots: {roots.Length}, objects: {objects}, missingScripts: {missingScripts}");
             report.AppendLine($"- cameras: {cameras}, canvases: {canvases}, tilemaps: {tilemaps}, images: {images}, texts: {texts}");
-            report.AppendLine($"- GameManager: {gameManagers}, BuildPlacementController: {buildControllers}");
+            report.AppendLine($"- GameManager: {gameManagers}, FixedBuildingLayoutService: {fixedBuildingLayouts}");
             if (includeRows)
             {
                 report.AppendLine("- root objects:");

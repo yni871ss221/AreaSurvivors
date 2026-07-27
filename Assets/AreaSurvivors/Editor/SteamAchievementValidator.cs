@@ -133,7 +133,10 @@ namespace AreaSurvivors.Editor
         {
             var backend = new MockBackend();
             var service = new SteamAchievementService(backend);
-            service.InitializeFromSteam();
+            if (!service.InitializeFromSteam() || !service.IsReady)
+            {
+                throw new InvalidOperationException("Steam achievement service did not become ready after all achievement states were read.");
+            }
             var data = new SaveData { playCount = 1, totalKills = 100 };
             int unlocked = service.EvaluateAndStore(data);
             if (unlocked != 2 || backend.StoreCalls != 1 ||

@@ -19,6 +19,8 @@ namespace AreaSurvivors
         static readonly Dictionary<Texture, Material> StencilMaterials = new Dictionary<Texture, Material>();
         const int NormalEnemyChecksPerFrame = 24;
         const float NormalEnemyRetrySeconds = 0.03f;
+        const float AttachedNormalEnemyCheckInterval = 0.1f;
+        const int ResourceValidationFrameInterval = 60;
         static int normalEnemyBudgetFrame = -1;
         static int normalEnemyChecksThisFrame;
 
@@ -35,6 +37,15 @@ namespace AreaSurvivors
         readonly List<Renderer> activeOccluders = new List<Renderer>();
         bool commandBufferAttached;
         float timer;
+        int nextResourceValidationFrame;
+        Mesh lastSilhouetteSourceMesh;
+        Texture lastSilhouetteTexture;
+        Color lastSilhouetteColor;
+        Color lastSilhouetteOutlineColor;
+        float lastSilhouetteThickness;
+        bool silhouetteMaterialInitialized;
+        Matrix4x4 lastCommandSourceMatrix;
+        bool commandSourceMatrixInitialized;
         static readonly Dictionary<SilhouetteMeshCacheKey, SilhouetteMeshData> SilhouetteMeshCache = new Dictionary<SilhouetteMeshCacheKey, SilhouetteMeshData>();
 
         sealed class SilhouetteMeshData
@@ -78,33 +89,39 @@ namespace AreaSurvivors
         {
             EnsureResources();
             timer = InitialTimerOffset();
+            nextResourceValidationFrame = Time.frameCount + ResourceValidationFrameInterval;
+            silhouetteMaterialInitialized = false;
         }
 
         void LateUpdate()
         {
-            EnsureResources();
+            if (sourceRenderer == null || commandBuffer == null || renderCamera == null ||
+                Time.frameCount >= nextResourceValidationFrame)
+            {
+                EnsureResources();
+                nextResourceValidationFrame = Time.frameCount + ResourceValidationFrameInterval;
+            }
             if (sourceRenderer == null || commandBuffer == null) return;
 
+            bool silhouetteGeometryChanged = commandBufferAttached && SyncSilhouetteMaterialIfNeeded();
+            bool sourceTransformChanged = commandBufferAttached && SourceTransformChanged();
             timer -= Time.unscaledDeltaTime;
-            bool refreshedOccluders = false;
+            bool rebuiltCommands = false;
             if (timer <= 0f)
             {
                 if (CanRunThisFrame())
                 {
-                    timer = EffectiveCheckInterval();
+                    timer = EffectiveRefreshInterval();
                     RefreshActiveOccluders();
-                    refreshedOccluders = true;
+                    RebuildCommands();
+                    rebuiltCommands = true;
                 }
                 else
                 {
                     timer = NormalEnemyRetrySeconds;
                 }
             }
-
-            if (refreshedOccluders || commandBufferAttached)
-            {
-                RebuildCommands();
-            }
+            if ((silhouetteGeometryChanged || sourceTransformChanged) && !rebuiltCommands) RebuildCommands();
         }
 
         void EnsureResources()
@@ -166,6 +183,14 @@ namespace AreaSurvivors
                 : checkInterval;
         }
 
+        float EffectiveRefreshInterval()
+        {
+            float interval = EffectiveCheckInterval();
+            return commandBufferAttached && IsNormalEnemy()
+                ? Mathf.Min(interval, AttachedNormalEnemyCheckInterval)
+                : interval;
+        }
+
         float InitialTimerOffset()
         {
             float interval = EffectiveCheckInterval();
@@ -196,15 +221,17 @@ namespace AreaSurvivors
         void RebuildCommands()
         {
             commandBuffer.Clear();
-            if (source == null || sourceRenderer == null || !sourceRenderer.enabled) return;
+            if (source == null || sourceRenderer == null || !sourceRenderer.enabled)
+            {
+                SetCommandBufferAttached(false);
+                return;
+            }
 
-            Rect sourceScreenRect = ScreenRect(sourceRenderer.bounds);
-            int sourceOrder = sourceRenderer.sortingOrder;
             bool hasOccluder = false;
             for (int i = activeOccluders.Count - 1; i >= 0; i--)
             {
                 var renderer = activeOccluders[i];
-                if (!IsFrontOverlappingOccluder(renderer, sourceScreenRect, sourceOrder)) continue;
+                if (renderer == null || !renderer.enabled) continue;
                 Texture texture = renderer.sharedMaterial != null ? renderer.sharedMaterial.mainTexture : null;
                 if (texture == null) continue;
                 Material maskMaterial = GetStencilMaterial(texture);
@@ -221,11 +248,8 @@ namespace AreaSurvivors
 
             SetCommandBufferAttached(hasOccluder);
             if (!hasOccluder) return;
-            silhouetteMaterial.mainTexture = source.sprite != null ? source.sprite.texture : null;
-            silhouetteMaterial.SetColor("_Color", silhouetteColor);
-            silhouetteMaterial.SetColor("_OutlineColor", outlineColor);
+            SyncSilhouetteMaterialIfNeeded();
             var silhouetteData = EnsureSilhouetteMesh(sourceFilter != null ? sourceFilter.sharedMesh : null);
-            ApplySilhouetteProperties(silhouetteData);
             if (silhouetteData != null && silhouetteData.mesh != null)
             {
                 commandBuffer.DrawMesh(silhouetteData.mesh, source.transform.localToWorldMatrix, silhouetteMaterial);
@@ -234,6 +258,47 @@ namespace AreaSurvivors
             {
                 commandBuffer.DrawRenderer(sourceRenderer, silhouetteMaterial);
             }
+            lastCommandSourceMatrix = source.transform.localToWorldMatrix;
+            commandSourceMatrixInitialized = true;
+        }
+
+        bool SourceTransformChanged()
+        {
+            if (source == null) return false;
+            Matrix4x4 current = source.transform.localToWorldMatrix;
+            return !commandSourceMatrixInitialized || current != lastCommandSourceMatrix;
+        }
+
+        bool SyncSilhouetteMaterialIfNeeded()
+        {
+            if (silhouetteMaterial == null || source == null || sourceFilter == null) return false;
+
+            Mesh sourceMesh = sourceFilter.sharedMesh;
+            Texture texture = source.sprite != null ? source.sprite.texture : null;
+            float thickness = EffectiveSilhouetteThickness();
+            bool geometryChanged =
+                !silhouetteMaterialInitialized ||
+                lastSilhouetteSourceMesh != sourceMesh ||
+                !Mathf.Approximately(lastSilhouetteThickness, thickness);
+            bool materialChanged =
+                geometryChanged ||
+                lastSilhouetteTexture != texture ||
+                lastSilhouetteColor != silhouetteColor ||
+                lastSilhouetteOutlineColor != outlineColor;
+            if (!materialChanged) return false;
+
+            silhouetteMaterial.mainTexture = texture;
+            silhouetteMaterial.SetColor("_Color", silhouetteColor);
+            silhouetteMaterial.SetColor("_OutlineColor", outlineColor);
+            ApplySilhouetteProperties(EnsureSilhouetteMesh(sourceMesh));
+
+            lastSilhouetteSourceMesh = sourceMesh;
+            lastSilhouetteTexture = texture;
+            lastSilhouetteColor = silhouetteColor;
+            lastSilhouetteOutlineColor = outlineColor;
+            lastSilhouetteThickness = thickness;
+            silhouetteMaterialInitialized = true;
+            return geometryChanged;
         }
 
         SilhouetteMeshData EnsureSilhouetteMesh(Mesh sourceMesh)
@@ -422,6 +487,7 @@ namespace AreaSurvivors
         void OnDisable()
         {
             DetachCommandBuffer();
+            silhouetteMaterialInitialized = false;
         }
 
         void OnDestroy()
@@ -433,6 +499,7 @@ namespace AreaSurvivors
         void DetachCommandBuffer()
         {
             SetCommandBufferAttached(false);
+            commandSourceMatrixInitialized = false;
             commandBuffer?.Release();
             commandBuffer = null;
         }

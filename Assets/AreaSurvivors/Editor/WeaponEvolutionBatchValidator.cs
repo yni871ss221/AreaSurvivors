@@ -18,6 +18,7 @@ namespace AreaSurvivors.EditorTools
         const string PlayerPrefabPath = "Assets/AreaSurvivors/Prefabs/Characters/Player.prefab";
         const string PrefabRoot = "Assets/AreaSurvivors/Prefabs/Weapons/";
         const string SpriteRoot = "Assets/AreaSurvivors/Sprites/Generated/Weapons/";
+        const string GeneratedSpriteCatalogPath = "Assets/AreaSurvivors/Resources/GeneratedSpriteCatalog.asset";
         const string MachineGunVisualMarkerRelativePath = "Library/AreaSafeUnity/machine-gun-bullet-visual-validator.ok";
         const string FireMissileCooldownMarkerRelativePath = "Library/AreaSafeUnity/fire-missile-cooldown-validator.ok";
         const string FireMissileHomingMarkerRelativePath = "Library/AreaSafeUnity/fire-missile-homing-validator.ok";
@@ -180,6 +181,8 @@ namespace AreaSurvivors.EditorTools
             if (icons.Any(pair => pair.Value == null)) Error("One or more evolution HUD icons are missing.", ref errors);
 
             ValidatePlayerPrefab(prefabs, ref errors);
+            errors += FireMissileFlipAnimationValidator.ValidateAssets();
+            errors += AreaControlRangeScalingValidator.ValidateAssets();
             errors += ValidateScene(GameScenePath, scene => ValidateGameScene(scene, icons));
             errors += ValidateScene(WeaponBookScenePath, scene => ValidateWeaponBookScene(scene, icons));
             errors += ValidateScene(TestLauncherScenePath, scene => ValidateTestLauncherScene(scene, icons));
@@ -295,18 +298,18 @@ namespace AreaSurvivors.EditorTools
 
             int errors = 0;
             var config = AssetDatabase.LoadAssetAtPath<GameConfig>("Assets/AreaSurvivors/Resources/Config/GameConfig.asset");
-            if (config == null || !Mathf.Approximately(config.fireMissileBaseCooldownMultiplier, 0.5f) ||
-                !Mathf.Approximately(WeaponController.ResolveEvolutionBaseCooldown(4f, 4f, 0.5f), 2f) ||
-                !Mathf.Approximately(WeaponController.ResolveEvolutionBaseCooldown(3.6f, 4f, 0.5f), 1.6f))
+            if (config == null || !Mathf.Approximately(config.fireMissileBaseCooldownSeconds, 0.5f) ||
+                !Mathf.Approximately(WeaponController.ResolveEvolutionBaseCooldownSeconds(1.45f, 1.45f, 0.5f), 0.5f) ||
+                !Mathf.Approximately(WeaponController.ResolveEvolutionBaseCooldownSeconds(1.334f, 1.45f, 0.5f), 0.384f))
             {
-                Error("Fire Missile cooldown must use half the Fireball Lv.1 base while preserving prior cooldown deltas.",
+                Error("Fire Missile cooldown must start at 0.5 seconds while preserving prior cooldown deltas.",
                     ref errors);
             }
 
             if (errors != 0) throw new InvalidOperationException("Fire Missile cooldown validation failed. errors=" + errors);
             Directory.CreateDirectory(Path.GetDirectoryName(markerPath));
             File.WriteAllText(markerPath, DateTime.UtcNow.ToString("o"));
-            Debug.Log("Fire Missile cooldown validator: passed. base=0.5x and prior upgrades are preserved.");
+            Debug.Log("Fire Missile cooldown validator: passed. base=0.5 seconds and prior upgrades are preserved.");
         }
 
         [MenuItem("Area Survivors/Validate/Fire Missile Homing")]
@@ -318,26 +321,43 @@ namespace AreaSurvivors.EditorTools
 
             int errors = 0;
             var config = AssetDatabase.LoadAssetAtPath<GameConfig>("Assets/AreaSurvivors/Resources/Config/GameConfig.asset");
-            var launchRight = WeaponController.ResolveFireMissileLaunchDirection(0f);
-            var launchUp = WeaponController.ResolveFireMissileLaunchDirection(90f);
+            var launchDown = WeaponController.ResolveFireMissileLaunchDirection(Vector2.right, -90f, 180f);
+            var launchRight = WeaponController.ResolveFireMissileLaunchDirection(Vector2.right, 0f, 180f);
+            var launchUp = WeaponController.ResolveFireMissileLaunchDirection(Vector2.right, 90f, 180f);
+            var clampedUp = WeaponController.ResolveFireMissileLaunchDirection(Vector2.right, 180f, 180f);
+            var noTargetLaunch = WeaponController.ResolveFireMissileLaunchDecision(true, 0);
+            var targetLaunch = WeaponController.ResolveFireMissileLaunchDecision(true, 1);
+            var missingPrefab = WeaponController.ResolveFireMissileLaunchDecision(false, 1);
             var quarterTurn = Projectile.ResolveHomingDirection(Vector2.right, Vector2.up, 180f, 0.25f);
             float expectedComponent = Mathf.Sqrt(0.5f);
+            const string japaneseDescription = "進行方向の前方180度へ炎の玉を放ち、射程内に敵がいれば追尾する。";
+            const string englishDescription = "Launches a fiery missile within the forward 180-degree arc and homes in on an enemy when one is in range.";
 
             if (config == null || !Mathf.Approximately(config.fireMissileHomingTurnSpeedDegrees, 180f) ||
+                !Mathf.Approximately(config.fireMissileLaunchArcDegrees, 180f) ||
+                !Mathf.Approximately(config.fireMissileProjectileSpeedMultiplier, 0.75f) ||
+                !Mathf.Approximately(WeaponController.ResolveFireMissileProjectileSpeed(12f, 0.75f), 9f) ||
+                WeaponCatalog.EvolutionDescriptionSource(WeaponType.FireMissile) != japaneseDescription ||
+                LocalizationTextCatalog.Translate(japaneseDescription, GameLanguage.English) != englishDescription ||
+                Vector2.Distance(launchDown, Vector2.down) > 0.0001f ||
                 Vector2.Distance(launchRight, Vector2.right) > 0.0001f ||
                 Vector2.Distance(launchUp, Vector2.up) > 0.0001f ||
+                Vector2.Distance(clampedUp, Vector2.up) > 0.0001f ||
+                !noTargetLaunch.shouldLaunch || noTargetLaunch.targetIndex != -1 ||
+                !targetLaunch.shouldLaunch || targetLaunch.targetIndex != 0 ||
+                missingPrefab.shouldLaunch ||
                 Mathf.Abs(quarterTurn.x - expectedComponent) > 0.0001f ||
                 Mathf.Abs(quarterTurn.y - expectedComponent) > 0.0001f ||
                 Vector2.Distance(quarterTurn, Vector2.up) < 0.1f)
             {
-                Error("Fire Missile must launch by angle and turn gradually toward its target at the configured rate.",
+                Error("Fire Missile must launch inside the forward 180-degree arc even without a target, use 75% speed, and turn gradually toward a target.",
                     ref errors);
             }
 
             if (errors != 0) throw new InvalidOperationException("Fire Missile homing validation failed. errors=" + errors);
             Directory.CreateDirectory(Path.GetDirectoryName(markerPath));
             File.WriteAllText(markerPath, DateTime.UtcNow.ToString("o"));
-            Debug.Log("Fire Missile homing validator: passed. random launch direction and gradual turn are configured.");
+            Debug.Log("Fire Missile homing validator: passed. forward arc, no-target launch, 75% speed, and gradual homing are configured.");
         }
 
         static void ValidateArrowScheduleGate(System.Reflection.MethodInfo scheduleMethod, ref int errors)
@@ -407,7 +427,7 @@ namespace AreaSurvivors.EditorTools
         static bool ValidateEvolutionTestUpgradeBonuses(WeaponController controller, WeaponType type, GameConfig gameConfig)
         {
             int count = WeaponController.EvolutionTestUpgradeCount;
-            int attackBonus = Mathf.Max(1, gameConfig.runAttackPowerBonus) * count;
+            int attackBonus = gameConfig.GetRunAttackPowerBonus(type) * count;
             float cooldownMultiplier = Mathf.Pow(Mathf.Clamp(gameConfig.runAttackCooldownMultiplier, 0.05f, 1f), count);
 
             switch (type)
@@ -415,23 +435,23 @@ namespace AreaSurvivors.EditorTools
                 case WeaponType.Slash:
                     return IntFieldEquals(controller, "slashAttackBonus", attackBonus) &&
                         FloatFieldEquals(controller, "slashCooldownMultiplier", cooldownMultiplier) &&
-                        FloatFieldEquals(controller, "slashKnockbackBonus", WeaponController.SlashKnockbackUpgradeAmount * count) &&
-                        FloatFieldEquals(controller, "slashRangeBonus", WeaponController.SlashRangeUpgradeAmount * count);
+                        FloatFieldEquals(controller, "slashKnockbackBonus", gameConfig.runWeaponKnockbackBonus * count) &&
+                        FloatFieldEquals(controller, "slashRangeBonus", gameConfig.runMediumRangeBonus * count);
                 case WeaponType.Arrow:
                     return IntFieldEquals(controller, "arrowAttackBonus", attackBonus) &&
                         FloatFieldEquals(controller, "arrowCooldownMultiplier", cooldownMultiplier) &&
-                        IntFieldEquals(controller, "arrowProjectileCountBonus", count) &&
-                        FloatFieldEquals(controller, "arrowRangeBonus", WeaponController.ProjectileRangeUpgradeAmount * count);
+                        IntFieldEquals(controller, "arrowProjectileCountBonus", gameConfig.runProjectileCountBonus * count) &&
+                        FloatFieldEquals(controller, "arrowRangeBonus", gameConfig.runProjectileRangeBonus * count);
                 case WeaponType.Fireball:
                     return IntFieldEquals(controller, "fireballAttackBonus", attackBonus) &&
                         FloatFieldEquals(controller, "fireballCooldownMultiplier", cooldownMultiplier) &&
-                        FloatFieldEquals(controller, "fireballExplosionRadiusBonus", WeaponController.FireballExplosionUpgradeAmount * count) &&
-                        FloatFieldEquals(controller, "fireballRangeBonus", WeaponController.ProjectileRangeUpgradeAmount * count);
+                        FloatFieldEquals(controller, "fireballExplosionRadiusBonus", gameConfig.runExplosionRadiusBonus * count) &&
+                        FloatFieldEquals(controller, "fireballRangeBonus", gameConfig.runProjectileRangeBonus * count);
                 case WeaponType.Shield:
                     return IntFieldEquals(controller, "shieldAttackBonus", attackBonus) &&
-                        IntFieldEquals(controller, "shieldCountBonus", count) &&
-                        FloatFieldEquals(controller, "shieldKnockbackBonus", WeaponController.ShieldKnockbackUpgradeAmount * count) &&
-                        FloatFieldEquals(controller, "shieldRotationSpeedBonus", WeaponController.ShieldRotationSpeedUpgradeAmount * count);
+                        IntFieldEquals(controller, "shieldCountBonus", gameConfig.runProjectileCountBonus * count) &&
+                        FloatFieldEquals(controller, "shieldKnockbackBonus", gameConfig.runWeaponKnockbackBonus * count) &&
+                        FloatFieldEquals(controller, "shieldRotationSpeedBonus", gameConfig.runShieldRotationSpeedBonus * count);
             }
 
             const System.Reflection.BindingFlags Flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
@@ -443,33 +463,33 @@ namespace AreaSurvivors.EditorTools
             switch (type)
             {
                 case WeaponType.Flag:
-                    return FloatFieldEquals(state, "rangeBonus", WeaponController.ProjectileRangeUpgradeAmount * count) &&
-                        FloatFieldEquals(state, "slowBonus", 0.05f * count) &&
+                    return FloatFieldEquals(state, "rangeBonus", gameConfig.runAreaRangeBonus * count) &&
+                        FloatFieldEquals(state, "slowBonus", gameConfig.runSlowBonus * count) &&
                         FloatFieldEquals(state, "damageIntervalMultiplier", cooldownMultiplier);
                 case WeaponType.BoomerangSword:
-                    return IntFieldEquals(state, "projectileCountBonus", count) &&
-                        FloatFieldEquals(state, "rangeBonus", WeaponController.SlashRangeUpgradeAmount * count) &&
+                    return IntFieldEquals(state, "projectileCountBonus", gameConfig.runProjectileCountBonus * count) &&
+                        FloatFieldEquals(state, "rangeBonus", gameConfig.runMediumRangeBonus * count) &&
                         FloatFieldEquals(state, "cooldownMultiplier", cooldownMultiplier);
                 case WeaponType.AuraSword:
-                    return IntFieldEquals(state, "projectileCountBonus", count) &&
-                        FloatFieldEquals(state, "rangeBonus", WeaponController.ProjectileRangeUpgradeAmount * count) &&
-                        FloatFieldEquals(state, "distanceBonus", WeaponController.ProjectileRangeUpgradeAmount * count);
+                    return IntFieldEquals(state, "projectileCountBonus", gameConfig.runProjectileCountBonus * count) &&
+                        FloatFieldEquals(state, "rangeBonus", gameConfig.runAreaRangeBonus * count) &&
+                        FloatFieldEquals(state, "distanceBonus", gameConfig.runProjectileRangeBonus * count);
                 case WeaponType.ArrowRain:
-                    return FloatFieldEquals(state, "rangeBonus", WeaponController.ProjectileRangeUpgradeAmount * count) &&
-                        FloatFieldEquals(state, "durationBonus", 0.4f * count) &&
+                    return FloatFieldEquals(state, "rangeBonus", gameConfig.runMediumRangeBonus * count) &&
+                        FloatFieldEquals(state, "durationBonus", gameConfig.runArrowRainDurationBonus * count) &&
                         FloatFieldEquals(state, "cooldownMultiplier", cooldownMultiplier);
                 case WeaponType.Gun:
                     return FloatFieldEquals(state, "cooldownMultiplier", cooldownMultiplier) &&
-                        FloatFieldEquals(state, "distanceBonus", WeaponController.ProjectileRangeUpgradeAmount * count) &&
-                        IntFieldEquals(state, "projectileCountBonus", count);
+                        FloatFieldEquals(state, "distanceBonus", gameConfig.runProjectileRangeBonus * count) &&
+                        IntFieldEquals(state, "projectileCountBonus", gameConfig.runProjectileCountBonus * count);
                 case WeaponType.Frost:
-                    return FloatFieldEquals(state, "rangeBonus", WeaponController.ProjectileRangeUpgradeAmount * count) &&
-                        FloatFieldEquals(state, "slowBonus", 0.05f * count) &&
+                    return FloatFieldEquals(state, "rangeBonus", gameConfig.runAreaRangeBonus * count) &&
+                        FloatFieldEquals(state, "slowBonus", gameConfig.runSlowBonus * count) &&
                         FloatFieldEquals(state, "cooldownMultiplier", cooldownMultiplier);
                 case WeaponType.ThunderBall:
-                    return FloatFieldEquals(state, "rangeBonus", WeaponController.ProjectileRangeUpgradeAmount * count) &&
-                        IntFieldEquals(state, "projectileCountBonus", count) &&
-                        FloatFieldEquals(state, "durationBonus", 0.5f * count);
+                    return FloatFieldEquals(state, "rangeBonus", gameConfig.runAreaRangeBonus * count) &&
+                        IntFieldEquals(state, "projectileCountBonus", gameConfig.runProjectileCountBonus * count) &&
+                        FloatFieldEquals(state, "durationBonus", gameConfig.runThunderBallDurationBonus * count);
                 default:
                     return false;
             }
@@ -545,6 +565,26 @@ namespace AreaSurvivors.EditorTools
 
         static void ValidateCatalog(ref int errors)
         {
+            var generatedSpriteCatalog =
+                AssetDatabase.LoadAssetAtPath<GeneratedSpriteCatalog>(GeneratedSpriteCatalogPath);
+            if (generatedSpriteCatalog == null)
+            {
+                Error("GeneratedSpriteCatalog is missing: " + GeneratedSpriteCatalogPath, ref errors);
+            }
+            else
+            {
+                foreach (var type in BaseWeaponTypes.Concat(AllEvolutionTypes))
+                {
+                    string iconResource = WeaponCatalog.IconResource(type);
+                    if (string.IsNullOrWhiteSpace(iconResource) || generatedSpriteCatalog.Find(iconResource) == null)
+                    {
+                        Error(
+                            $"GeneratedSpriteCatalog has no exact weapon icon entry: {type} -> {iconResource}",
+                            ref errors);
+                    }
+                }
+            }
+
             foreach (var type in AllEvolutionTypes)
             {
                 var source = type == WeaponType.SwordRush ? WeaponType.Slash :
@@ -563,7 +603,13 @@ namespace AreaSurvivors.EditorTools
         static void ValidateConfig(ref int errors)
         {
             var config = AssetDatabase.LoadAssetAtPath<GameConfig>("Assets/AreaSurvivors/Resources/Config/GameConfig.asset");
-            if (config == null || config.swordRushBaseAttackPower != 16 || !Mathf.Approximately(config.swordRushBaseRange, 3.2f) ||
+            if (config == null || config.swordRushBaseAttackPower != 16 ||
+                config.goldenBowBaseAttackPower != 16 || config.fireMissileBaseAttackPower != 16 ||
+                config.dualShieldBaseAttackPower != 12 || config.goddessBlessingBaseAttackPower != 12 ||
+                config.bananaBaseAttackPower != 12 || config.excaliburBaseAttackPower != 12 ||
+                config.arrowShowerBaseAttackPower != 10 || config.machineGunBaseAttackPower != 80 ||
+                config.frostStormBaseAttackPower != 5 || config.thunderStormBaseAttackPower != 10 ||
+                !Mathf.Approximately(config.swordRushBaseRange, 3.2f) ||
                 config.swordRushStrikeCount != 5 || !Mathf.Approximately(config.bananaBaseRange, 1.4f) || config.bananaBaseProjectileCountBonus != 3 ||
                 !Mathf.Approximately(WeaponController.ExcaliburBaseRangeMultiplier, 1f) ||
                 !Mathf.Approximately(config.excaliburTravelSpeedCellsPerSecond, 10f) || !Mathf.Approximately(config.excaliburDamageIntervalSeconds, 0.2f) ||
@@ -572,13 +618,16 @@ namespace AreaSurvivors.EditorTools
                 !Mathf.Approximately(config.excaliburInitialRadiusCells, 0.25f) ||
                 !Mathf.Approximately(config.arrowShowerStrikeIntervalSeconds, 0.25f) || !Mathf.Approximately(config.evolvedGroundStrikeRadius, 0.7f) ||
                 !Mathf.Approximately(config.machineGunShotIntervalSeconds, 0.2f) || config.machineGunBaseAttackCountBonus != 10 ||
-                !Mathf.Approximately(config.fireMissileBaseCooldownMultiplier, 0.5f) ||
+                !Mathf.Approximately(config.fireMissileBaseCooldownSeconds, 0.5f) ||
+                !Mathf.Approximately(config.fireMissileProjectileSpeedMultiplier, 0.75f) ||
+                !Mathf.Approximately(config.fireMissileLaunchArcDegrees, 180f) ||
                 config.frostStormTargetCount != 5 || config.thunderStormOrbitCount != 3 || config.goddessBlessingHealAmount != 5)
             {
                 Error("GameConfig weapon evolution base values are invalid.", ref errors);
             }
             if (config == null) return;
 
+            ValidateEvolutionAttackPowers(config, ref errors);
             float auraBaseRange = config.GetWeaponStats(WeaponType.AuraSword, 1).range;
             float baseArc = AdvancedWeaponProjectile.CalculateExcaliburArcDegrees(
                 auraBaseRange, auraBaseRange, config.excaliburBaseArcDegrees, config.excaliburMaxArcDegrees);
@@ -606,6 +655,56 @@ namespace AreaSurvivors.EditorTools
                 TileGrid.IsPointInsideAnnularSector(annularHoleOffset, Vector2.right, 5f, excaliburInnerRadius, baseArc * 0.5f))
             {
                 Error("Excalibur visual, collider, and paint range must use the same annular sector.", ref errors);
+            }
+        }
+
+        static void ValidateEvolutionAttackPowers(GameConfig config, ref int errors)
+        {
+            if (config.GetWeaponStats(WeaponType.Gun, 1).attackPower != 50 ||
+                config.GetWeaponStats(WeaponType.Gun, 10).attackPower != 68)
+            {
+                Error("Gun attack power must grow from base 50 to level-10 value 68.", ref errors);
+            }
+
+            ValidateEvolutionAttackPower(config, WeaponType.Slash, config.swordRushBaseAttackPower, 25, true, ref errors);
+            ValidateEvolutionAttackPower(config, WeaponType.Arrow, config.goldenBowBaseAttackPower, 25, false, ref errors);
+            ValidateEvolutionAttackPower(config, WeaponType.Fireball, config.fireMissileBaseAttackPower, 25, false, ref errors);
+            ValidateEvolutionAttackPower(config, WeaponType.Shield, config.dualShieldBaseAttackPower, 21, false, ref errors);
+            ValidateEvolutionAttackPower(config, WeaponType.Flag, config.goddessBlessingBaseAttackPower, 21, false, ref errors);
+            ValidateEvolutionAttackPower(config, WeaponType.BoomerangSword, config.bananaBaseAttackPower, 21, false, ref errors);
+            ValidateEvolutionAttackPower(config, WeaponType.AuraSword, config.excaliburBaseAttackPower, 21, false, ref errors);
+            ValidateEvolutionAttackPower(config, WeaponType.ArrowRain, config.arrowShowerBaseAttackPower, 19, false, ref errors);
+            ValidateEvolutionAttackPower(config, WeaponType.Gun, config.machineGunBaseAttackPower, 98, false, ref errors);
+            ValidateEvolutionAttackPower(config, WeaponType.Frost, config.frostStormBaseAttackPower, 14, false, ref errors);
+            ValidateEvolutionAttackPower(config, WeaponType.ThunderBall, config.thunderStormBaseAttackPower, 19, false, ref errors);
+        }
+
+        static void ValidateEvolutionAttackPower(
+            GameConfig config,
+            WeaponType sourceType,
+            int evolutionBaseAttackPower,
+            int expectedLevelTenEvolutionAttackPower,
+            bool includeSlashDamageBonus,
+            ref int errors)
+        {
+            int levelOneAttackPower = config.GetWeaponStats(sourceType, 1).attackPower;
+            int levelTenAttackPower = config.GetWeaponStats(sourceType, 10).attackPower;
+            if (includeSlashDamageBonus)
+            {
+                levelOneAttackPower += config.slashDamageBonus;
+                levelTenAttackPower += config.slashDamageBonus;
+            }
+
+            int resolved = WeaponController.ResolveEvolutionAttackPower(
+                levelTenAttackPower,
+                levelOneAttackPower,
+                evolutionBaseAttackPower);
+            if (resolved != expectedLevelTenEvolutionAttackPower)
+            {
+                Error(
+                    $"{WeaponCatalog.EvolutionOf(sourceType)} attack power expected " +
+                    $"{expectedLevelTenEvolutionAttackPower} but resolved {resolved}.",
+                    ref errors);
             }
         }
 
@@ -688,9 +787,15 @@ namespace AreaSurvivors.EditorTools
         {
             int errors = 0;
             var presentations = ComponentsInScene<EvolutionChoicePresentation>(scene);
-            if (presentations.Length != 3 || presentations.Any(presentation => AllEvolutionTypes.Any(type => !HasEvolutionIcon(presentation.evolutionWeaponIcons, type, icons[type]))))
+            if (presentations.Length != 3 || presentations.Any(presentation =>
+                    presentation.bounceVisual == null ||
+                    presentation.bounceVisual.parent != presentation.transform ||
+                    presentation.bounceVisual.GetSiblingIndex() != 0 ||
+                    !Mathf.Approximately(presentation.bounceScale, 0f) ||
+                    !ApproximatelyColor(presentation.evolutionTextColor, Color.white) ||
+                    AllEvolutionTypes.Any(type => !HasEvolutionIcon(presentation.evolutionWeaponIcons, type, icons[type]))))
             {
-                Error("05_Game level-up presentations are missing static evolution icons.", ref errors);
+                Error("05_Game level-up presentations require a static first-sibling evolution visual, white text, and all evolution icons.", ref errors);
             }
 
             var slots = ComponentsInScene<WeaponHudCompactIconSlot>(scene);

@@ -1,0 +1,162 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ff4efad9b94e2b4ca9cd09cca12394d, type: 3}
+  m_Name: Gameplay_Combat_Performance_Enemy_Crowd
+  m_EditorClassIdentifier: 
+  systems:
+    buildGrid: 1
+    enableGameManager: 1
+    enableEnemySpawner: 0
+    enableScenePlayer: 1
+    enableSceneTower: 0
+    clearExistingEnemies: 1
+  configOverrides:
+  - fieldName: enemyBaseHp
+    valueType: 1
+    floatValue: 0
+    integerValue: 5000
+    booleanValue: 0
+  - fieldName: enemyDamage
+    valueType: 1
+    floatValue: 0
+    integerValue: 0
+    booleanValue: 0
+  - fieldName: enemyBaseSpeed
+    valueType: 0
+    floatValue: 0
+    integerValue: 0
+    booleanValue: 0
+  targetCellOffset: {x: 0, y: 0}
+  enemies:
+  - kind: 10
+    cellOffset: {x: 0, y: -1}
+    count: 8
+    spacing: {x: 0, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 12
+    cellOffset: {x: 0, y: -1}
+    count: 8
+    spacing: {x: 0, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 10
+    cellOffset: {x: 0, y: -1}
+    count: 8
+    spacing: {x: 0, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 12
+    cellOffset: {x: 0, y: -1}
+    count: 8
+    spacing: {x: 0, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 10
+    cellOffset: {x: 0, y: -1}
+    count: 8
+    spacing: {x: 0, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 12
+    cellOffset: {x: 0, y: -1}
+    count: 8
+    spacing: {x: 0, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 10
+    cellOffset: {x: 0, y: -1}
+    count: 8
+    spacing: {x: 0, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 12
+    cellOffset: {x: 0, y: -1}
+    count: 8
+    spacing: {x: 0, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 10
+    cellOffset: {x: 0, y: -1}
+    count: 8
+    spacing: {x: 0, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 12
+    cellOffset: {x: 0, y: -1}
+    count: 8
+    spacing: {x: 0, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 10
+    cellOffset: {x: 0, y: -1}
+    count: 8
+    spacing: {x: 0, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 12
+    cellOffset: {x: 0, y: -1}
+    count: 8
+    spacing: {x: 0, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 10
+    cellOffset: {x: 0, y: -1}
+    count: 8
+    spacing: {x: 0, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 12
+    cellOffset: {x: 0, y: -1}
+    count: 8
+    spacing: {x: 0, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 10
+    cellOffset: {x: 0, y: -1}
+    count: 8
+    spacing: {x: 0, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 12
+    cellOffset: {x: 0, y: -1}
+    count: 8
+    spacing: {x: 0, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  prefabs: []
+  scheduledActions:
+  - atSeconds: 0
+    type: 0
+    objectName: Player
+    cellOffset: {x: 0, y: 20}
+    worldOffset: {x: 0, y: 0, z: 0}
+    amount: 0
+    active: 1
+  useFixedRandomSeed: 1
+  randomSeed: 20260726
+  focusCameraOnSetup: 1
+  cameraFocusCellOffset: {x: 0, y: 0}
+  simulationTimeScale: 1
+  testDurationSeconds: 90
+  reachDistance: 1.25
+  stallSeconds: 2.5
+  stallMovementThreshold: 0.08
+  pauseOnComplete: 0
+  autoExitPlayModeOnComplete: 0
+  runPerformanceProbe: 1
+  performanceProbeMode: 0
+  performanceProbeWarmupSeconds: 2
+  performanceProbeDurationSeconds: 10
+  overrideStartingWeapon: 1
+  startingWeapon: 0
+  assertions: []

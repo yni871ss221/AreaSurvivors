@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet("hud-layout", "construction-menu-layout", "skill-tree-layout", "building-prefab-visuals", "asset-references")]
+    [ValidateSet("hud-layout", "construction-menu-layout", "skill-tree-layout", "building-prefab-visuals", "asset-references", "compact-project-snapshot", "scene-prefab-overview", "scene-prefab-structure")]
     [string]$Report
 )
 
@@ -31,6 +31,21 @@ $reportSpecByName = @{
         Menu = "Area Survivors/Reports/Asset References"
         Type = "AreaSurvivors.Editor.AssetReferenceReporter, Assembly-CSharp-Editor"
         Method = "LogAssetReferences"
+    }
+    "compact-project-snapshot" = @{
+        Menu = "Area Survivors/Reports/Compact Project Snapshot"
+        Type = "AreaSurvivors.Editor.CompactProjectReporter, Assembly-CSharp-Editor"
+        Method = "LogCompactProjectSnapshot"
+    }
+    "scene-prefab-overview" = @{
+        Menu = "Area Survivors/Reports/Scene Prefab Overview"
+        Type = "AreaSurvivors.Editor.ScenePrefabStructureReporter, Assembly-CSharp-Editor"
+        Method = "LogOverview"
+    }
+    "scene-prefab-structure" = @{
+        Menu = "Area Survivors/Reports/Scene Prefab Structure"
+        Type = "AreaSurvivors.Editor.ScenePrefabStructureReporter, Assembly-CSharp-Editor"
+        Method = "LogStructure"
     }
 }
 

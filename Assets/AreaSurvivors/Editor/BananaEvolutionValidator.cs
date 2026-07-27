@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -17,11 +18,22 @@ namespace AreaSurvivors.EditorTools
         const string BananaPrefabPath = "Assets/AreaSurvivors/Prefabs/Weapons/BananaProjectile.prefab";
         const string BananaIconPath = "Assets/AreaSurvivors/Sprites/Generated/Weapons/BananaIcon.png";
         const string BananaProjectilePath = "Assets/AreaSurvivors/Sprites/Generated/Weapons/BananaProjectile.png";
+        const string SuccessMarkerPath =
+            "Library/AreaSafeUnity/banana-evolution-validator.ok";
 
         [MenuItem("Area Survivors/Validate/Banana Evolution")]
         public static void ValidateMenu()
         {
-            if (!ValidateAll(true)) throw new InvalidOperationException("Banana evolution validation failed.");
+            if (File.Exists(SuccessMarkerPath)) File.Delete(SuccessMarkerPath);
+            if (!ValidateAll(true))
+                throw new InvalidOperationException(
+                    "Banana evolution validation failed.");
+            string directory = Path.GetDirectoryName(SuccessMarkerPath);
+            if (!string.IsNullOrEmpty(directory))
+                Directory.CreateDirectory(directory);
+            File.WriteAllText(
+                SuccessMarkerPath,
+                DateTime.UtcNow.ToString("O"));
         }
 
         public static bool ValidateAll(bool logSuccess)
@@ -35,9 +47,14 @@ namespace AreaSurvivors.EditorTools
             }
 
             var requirements = WeaponCatalog.EvolutionRequirementSources(WeaponType.Banana);
-            if (requirements == null || requirements.Length != 1 || requirements[0] != "武器Lv.10")
+            if (requirements == null ||
+                requirements.Length != 2 ||
+                requirements[0] != "武器Lv.10" ||
+                requirements[1] != "ゲームプレイ中の撃破数300")
             {
-                Error("Banana evolution requirement must be Weapon Lv.10.", ref errors);
+                Error(
+                    "Banana evolution requirements must be Weapon Lv.10 and 300 gameplay kills.",
+                    ref errors);
             }
 
             var config = AssetDatabase.LoadAssetAtPath<GameConfig>("Assets/AreaSurvivors/Resources/Config/GameConfig.asset");

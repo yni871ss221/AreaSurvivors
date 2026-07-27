@@ -17,6 +17,22 @@ namespace AreaSurvivors
         public Button relicButton;
         public ScreenFadeOverlay screenFade;
 
+        [Header("Character Selection")]
+        public Button characterPanelButton;
+        public GameObject characterSelectionModal;
+        public Button characterSelectionCancelButton;
+        public Button knightCharacterButton;
+        public Button archerCharacterButton;
+        public Button mageCharacterButton;
+        public Image knightCharacterChoiceIcon;
+        public Image archerCharacterChoiceIcon;
+        public Image mageCharacterChoiceIcon;
+        public Image knightDisplayIcon;
+        public Image archerDisplayIcon;
+        public Image mageDisplayIcon;
+        public Text characterNameText;
+        public Text characterDescriptionText;
+
         Canvas lobbyUi;
         SceneNavigator navigator;
         Button startGameButton;
@@ -24,6 +40,8 @@ namespace AreaSurvivors
         Button titleButton;
         Button testLaunchButton;
         bool isStartingGame;
+        bool characterSelectionOpen;
+        readonly Dictionary<Selectable, bool> lobbySelectableStates = new Dictionary<Selectable, bool>();
 
 #if UNITY_EDITOR
         void OnValidate()
@@ -44,11 +62,13 @@ namespace AreaSurvivors
 
         void Start()
         {
+            if (!Application.isPlaying) return;
+
             AudioManager.PlayBgm(BgmTrack.LobbyUpgrades);
 
             navigator = GetComponent<SceneNavigator>();
             if (navigator == null) navigator = gameObject.AddComponent<SceneNavigator>();
-            NormalizeCharacterSelection();
+            LoadSelectedCharacter();
             lobbyUi = FindLobbyCanvas();
             if (lobbyUi == null)
             {
@@ -58,12 +78,22 @@ namespace AreaSurvivors
             }
 
             BindStaticActions();
+            InitializeCharacterSelection();
             Refresh();
             SelectDefaultButton();
         }
 
         void Update()
         {
+            if (!Application.isPlaying) return;
+
+            if (characterSelectionOpen && UiSelectionUtility.CancelPressed())
+            {
+                AudioManager.PlayButtonConfirm();
+                CloseCharacterSelection();
+                return;
+            }
+
             var candidates = SelectionCandidates();
             if (UiSelectionUtility.TickControllerSubmit(candidates)) return;
             UiSelectionUtility.EnsureSelection(candidates);
@@ -75,7 +105,7 @@ namespace AreaSurvivors
             SetText("TokenCountValue", ProgressionStore.Data.tokens.ToString());
             SetText("TotalKillsValue", ProgressionStore.Data.totalKills.ToString());
             SetText("PlayCountValue", ProgressionStore.Data.playCount.ToString());
-            DisableCharacterSelection();
+            RefreshCharacterDisplay();
             DisableStatPanelFocus();
             RefreshStageCards();
             ConfigureLobbyNavigation();
@@ -100,6 +130,7 @@ namespace AreaSurvivors
             }
             BindButton("Title Button", navigator.LoadTitle);
             titleButton = FindButton("Title Button");
+            BindCharacterSelectionActions();
         }
 
         void ConfigureTestLaunchButton()
@@ -111,27 +142,174 @@ namespace AreaSurvivors
             if (RuntimeFeatureFlags.ShowTestFeatures) BindButton(testLaunchButton, navigator.LoadGameTestLauncher);
         }
 
-        void DisableCharacterSelection()
+        void BindCharacterSelectionActions()
         {
-            var card = FindChild("Character Knight");
-            if (card == null) return;
-            var highlight = card.GetComponent<CharacterSelectionHighlight>();
-            if (highlight != null) highlight.enabled = false;
-            var selection = card.GetComponent<UiSelectionHighlight>();
-            if (selection != null)
-            {
-                selection.SetForceSelected(false);
-                selection.enabled = false;
-            }
+            if (characterPanelButton == null) characterPanelButton = FindButton("Character Knight");
+            BindButton(characterPanelButton, OpenCharacterSelection);
+            BindButton(characterSelectionCancelButton, CloseCharacterSelection);
+            BindCharacterChoice(knightCharacterButton, CharacterType.Knight);
+            BindCharacterChoice(archerCharacterButton, CharacterType.Archer);
+            BindCharacterChoice(mageCharacterButton, CharacterType.Mage);
+        }
 
-            var button = card.GetComponent<Button>();
-            if (button != null)
+        void BindCharacterChoice(Button button, CharacterType type)
+        {
+            if (button == null) return;
+            button.onClick.RemoveAllListeners();
+            button.onClick.AddListener(() =>
             {
-                button.onClick.RemoveAllListeners();
-                button.interactable = false;
-            }
+                AudioManager.PlayButtonConfirm();
+                SelectCharacter(type);
+            });
+        }
 
-            HideGeneratedSelectionVisuals(card);
+        void InitializeCharacterSelection()
+        {
+            characterSelectionOpen = false;
+            lobbySelectableStates.Clear();
+            if (characterSelectionModal != null) characterSelectionModal.SetActive(false);
+            RefreshCharacterChoiceAvailability();
+        }
+
+        void OpenCharacterSelection()
+        {
+            if (characterSelectionOpen || characterSelectionModal == null) return;
+            characterSelectionOpen = true;
+            characterSelectionModal.SetActive(true);
+            LockLobbyInteraction();
+            RefreshCharacterChoiceAvailability();
+            ConfigureCharacterChoiceNavigation();
+            SelectCharacterChoice(RunState.SelectedCharacter);
+        }
+
+        void SelectCharacter(CharacterType type)
+        {
+            if (!CharacterUnlockCatalog.IsUnlocked(type)) return;
+            RunState.SelectedCharacter = type;
+            ProgressionStore.Data.selectedCharacter = type;
+            ProgressionStore.Save();
+            RefreshCharacterDisplay();
+            CloseCharacterSelection();
+        }
+
+        void CloseCharacterSelection()
+        {
+            if (!characterSelectionOpen) return;
+            characterSelectionOpen = false;
+            RestoreLobbyInteraction();
+            if (characterSelectionModal != null) characterSelectionModal.SetActive(false);
+            ConfigureLobbyNavigation();
+            if (EventSystem.current != null && UiSelectionUtility.IsSelectable(characterPanelButton))
+            {
+                EventSystem.current.SetSelectedGameObject(characterPanelButton.gameObject);
+            }
+        }
+
+        void LockLobbyInteraction()
+        {
+            lobbySelectableStates.Clear();
+            if (lobbyUi == null) return;
+            var selectables = lobbyUi.GetComponentsInChildren<Selectable>(true);
+            foreach (var selectable in selectables)
+            {
+                if (selectable == null || IsCharacterModalControl(selectable)) continue;
+                lobbySelectableStates[selectable] = selectable.interactable;
+                selectable.interactable = false;
+            }
+        }
+
+        void RestoreLobbyInteraction()
+        {
+            foreach (var pair in lobbySelectableStates)
+            {
+                if (pair.Key != null) pair.Key.interactable = pair.Value;
+            }
+            lobbySelectableStates.Clear();
+        }
+
+        bool IsCharacterModalControl(Selectable selectable)
+        {
+            return selectable == characterSelectionCancelButton ||
+                selectable == knightCharacterButton ||
+                selectable == archerCharacterButton ||
+                selectable == mageCharacterButton;
+        }
+
+        void RefreshCharacterChoiceAvailability()
+        {
+            ApplyCharacterChoiceAvailability(
+                knightCharacterButton,
+                knightCharacterChoiceIcon,
+                CharacterUnlockCatalog.IsUnlocked(CharacterType.Knight));
+            ApplyCharacterChoiceAvailability(
+                archerCharacterButton,
+                archerCharacterChoiceIcon,
+                CharacterUnlockCatalog.IsUnlocked(CharacterType.Archer));
+            ApplyCharacterChoiceAvailability(
+                mageCharacterButton,
+                mageCharacterChoiceIcon,
+                CharacterUnlockCatalog.IsUnlocked(CharacterType.Mage));
+        }
+
+        static void ApplyCharacterChoiceAvailability(Button button, Image icon, bool unlocked)
+        {
+            if (button != null) button.interactable = unlocked;
+            if (icon != null) icon.color = unlocked ? UnlockedColor : Color.black;
+        }
+
+        void SelectCharacterChoice(CharacterType type)
+        {
+            var selected = type == CharacterType.Archer
+                ? archerCharacterButton
+                : type == CharacterType.Mage
+                    ? mageCharacterButton
+                    : knightCharacterButton;
+            if (EventSystem.current != null && UiSelectionUtility.IsSelectable(selected))
+            {
+                EventSystem.current.SetSelectedGameObject(selected.gameObject);
+            }
+        }
+
+        void LoadSelectedCharacter()
+        {
+            var selected = ProgressionStore.Data.selectedCharacter;
+            if ((selected != CharacterType.Knight && selected != CharacterType.Archer && selected != CharacterType.Mage) ||
+                !CharacterUnlockCatalog.IsUnlocked(selected))
+            {
+                selected = CharacterType.Knight;
+                ProgressionStore.Data.selectedCharacter = selected;
+                ProgressionStore.Save();
+            }
+            RunState.SelectedCharacter = selected;
+        }
+
+        void RefreshCharacterDisplay()
+        {
+            var selected = RunState.SelectedCharacter;
+            SetImageActive(knightDisplayIcon, selected == CharacterType.Knight);
+            SetImageActive(archerDisplayIcon, selected == CharacterType.Archer);
+            SetImageActive(mageDisplayIcon, selected == CharacterType.Mage);
+            if (characterNameText != null) characterNameText.text = LocalizationService.LocalizeSource(CharacterName(selected));
+            if (characterDescriptionText != null) characterDescriptionText.text = LocalizationService.LocalizeSource(CharacterDescription(selected));
+        }
+
+        static void SetImageActive(Image image, bool active)
+        {
+            if (image != null) image.gameObject.SetActive(active);
+        }
+
+        static string CharacterName(CharacterType type)
+        {
+            if (type == CharacterType.Archer) return "アーチャー";
+            if (type == CharacterType.Mage) return "メイジ";
+            return "ナイト";
+        }
+
+        static string CharacterDescription(CharacterType type)
+        {
+            if (type == CharacterType.Archer) return "遠くの敵を射抜く";
+            if (type == CharacterType.Mage) return "魔法で敵を焼き払う";
+            return "前方を切り払う";
         }
 
         void DisableStatPanelFocus()
@@ -173,13 +351,6 @@ namespace AreaSurvivors
             }
 
             HideGeneratedSelectionVisuals(panel);
-        }
-
-        void NormalizeCharacterSelection()
-        {
-            RunState.SelectedCharacter = CharacterType.Knight;
-            ProgressionStore.Data.selectedCharacter = CharacterType.Knight;
-            ProgressionStore.Save();
         }
 
         static void HideGeneratedSelectionVisuals(Transform root)
@@ -327,6 +498,15 @@ namespace AreaSurvivors
 
         Selectable[] SelectionCandidates()
         {
+            if (characterSelectionOpen)
+            {
+                var characterChoices = new List<Selectable>();
+                AddCandidate(characterChoices, knightCharacterButton);
+                AddCandidate(characterChoices, archerCharacterButton);
+                AddCandidate(characterChoices, mageCharacterButton);
+                return characterChoices.ToArray();
+            }
+
             var candidates = new List<Selectable>
             {
                 upgradeButton,
@@ -334,7 +514,8 @@ namespace AreaSurvivors
                 weaponBookButton,
                 relicButton,
                 testLaunchButton,
-                titleButton
+                titleButton,
+                characterPanelButton
             };
 
             for (int stage = 1; stage <= StagePanelCount; stage++)
@@ -352,8 +533,41 @@ namespace AreaSurvivors
 
         void ConfigureLobbyNavigation()
         {
+            if (characterSelectionOpen)
+            {
+                ConfigureCharacterChoiceNavigation();
+                return;
+            }
             UiSelectionUtility.ConfigureDirectionalNavigation(SelectionCandidates());
             ConfigureDifficultyPairNavigation();
+        }
+
+        void ConfigureCharacterChoiceNavigation()
+        {
+            var choices = new List<Button>();
+            if (UiSelectionUtility.IsSelectable(knightCharacterButton)) choices.Add(knightCharacterButton);
+            if (UiSelectionUtility.IsSelectable(archerCharacterButton)) choices.Add(archerCharacterButton);
+            if (UiSelectionUtility.IsSelectable(mageCharacterButton)) choices.Add(mageCharacterButton);
+
+            for (int i = 0; i < choices.Count; i++)
+            {
+                var up = i > 0 ? choices[i - 1] : choices[i];
+                var down = i + 1 < choices.Count ? choices[i + 1] : choices[i];
+                ConfigureCharacterChoiceNavigation(choices[i], up, down);
+            }
+        }
+
+        static void ConfigureCharacterChoiceNavigation(Button button, Selectable up, Selectable down)
+        {
+            if (button == null) return;
+            var navigation = button.navigation;
+            navigation.mode = Navigation.Mode.Explicit;
+            navigation.wrapAround = false;
+            navigation.selectOnUp = up;
+            navigation.selectOnDown = down;
+            navigation.selectOnLeft = button;
+            navigation.selectOnRight = button;
+            button.navigation = navigation;
         }
 
         void ConfigureDifficultyPairNavigation()

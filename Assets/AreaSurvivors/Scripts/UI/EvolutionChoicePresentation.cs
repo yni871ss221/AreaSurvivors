@@ -18,8 +18,8 @@ namespace AreaSurvivors
         public GameObject evolutionWeaponIcon;
         public EvolutionIconEntry[] evolutionWeaponIcons = Array.Empty<EvolutionIconEntry>();
         public Text[] textTargets = Array.Empty<Text>();
-        public Color evolutionTextColor = new Color32(255, 92, 92, 255);
-        [Min(0f)] public float bounceScale = 0.055f;
+        public Color evolutionTextColor = Color.white;
+        [Min(0f)] public float bounceScale = 0f;
         [Min(0.01f)] public float bounceCyclesPerSecond = 1.8f;
 
         Color[] defaultTextColors = Array.Empty<Color>();
@@ -42,7 +42,7 @@ namespace AreaSurvivors
 
         void Update()
         {
-            if (!evolutionActive || bounceVisual == null) return;
+            if (!evolutionActive || bounceVisual == null || bounceScale <= 0f) return;
             phase += Time.unscaledDeltaTime * bounceCyclesPerSecond * Mathf.PI * 2f;
             float scale = 1f + (Mathf.Sin(phase) * 0.5f + 0.5f) * bounceScale;
             bounceVisual.localScale = bounceBaseScale * scale;
@@ -55,7 +55,7 @@ namespace AreaSurvivors
             activeEvolutionType = evolutionType;
             phase = 0f;
             ApplyStaticState();
-            enabled = active;
+            enabled = active && bounceScale > 0f;
         }
 
         void EnsureInitialized()

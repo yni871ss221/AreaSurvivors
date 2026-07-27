@@ -38,12 +38,6 @@ namespace AreaSurvivors.Editor
                 if (placement != null && placement.prefab == null) warnings.Add("Prefab Placementに未設定のPrefabがあります。");
             }
 
-            foreach (var placement in scenario.landmarks ?? System.Array.Empty<GameplayTestScenario.LandmarkPlacement>())
-            {
-                if (placement != null && string.IsNullOrWhiteSpace(placement.landmarkName))
-                    warnings.Add("Landmark Placementに名前未設定の項目があります。");
-            }
-
             foreach (var configOverride in scenario.configOverrides ?? System.Array.Empty<GameplayTestScenario.ConfigOverride>())
             {
                 if (configOverride != null && string.IsNullOrWhiteSpace(configOverride.fieldName))

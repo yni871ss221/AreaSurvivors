@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace AreaSurvivors
@@ -129,6 +130,7 @@ namespace AreaSurvivors
         const int UncommonDropWeight = 30;
         const int RareDropWeight = 15;
         const int LegendaryDropWeight = 5;
+        public const int StrongRelicMinimumOwnedCount = 10;
 
         static readonly RelicDefinition[] Definitions =
         {
@@ -149,7 +151,7 @@ namespace AreaSurvivors
             new RelicDefinition(RelicType.RallyBannerSigil, "鼓舞の紋旗", "周囲の士気を高める小さな紋章。旗の影響範囲を広げます。", "旗の攻撃範囲 +1", "RelicRallyBannerSigil", RelicRarity.Common, RelicEffectKind.WeaponRangeBonus, 1f, WeaponType.Flag),
             new RelicDefinition(RelicType.ReturningBladeRing, "返り刃の輪", "投げた刃を呼び戻す輪。ブーメランソードの本数を増やします。", "ブーメランソードの剣本数 +1", "RelicReturningBladeRing", RelicRarity.Common, RelicEffectKind.WeaponProjectileCountBonus, 1f, WeaponType.BoomerangSword),
             new RelicDefinition(RelicType.EchoSwordSeal, "残響の剣印", "斬撃の余韻を残す印。オーラソードの攻撃回数を増やします。", "オーラソードの攻撃回数 +1", "RelicEchoSwordSeal", RelicRarity.Common, RelicEffectKind.WeaponProjectileCountBonus, 1f, WeaponType.AuraSword),
-            new RelicDefinition(RelicType.RaincallerPlume, "雨呼びの羽飾り", "矢の雨を広げる羽飾り。アローレインの範囲を広げます。", "アローレインの攻撃範囲 +1", "RelicRaincallerPlume", RelicRarity.Common, RelicEffectKind.WeaponRangeBonus, 1f, WeaponType.ArrowRain),
+            new RelicDefinition(RelicType.RaincallerPlume, "雨呼びの羽飾り", "矢の雨を広げる羽飾り。アローレインの範囲を広げます。", "アローレインの攻撃範囲 +0.35", "RelicRaincallerPlume", RelicRarity.Common, RelicEffectKind.WeaponRangeBonus, 0.35f, WeaponType.ArrowRain),
             new RelicDefinition(RelicType.BlackIronBullet, "黒鉄の弾丸", "重く黒い弾丸。銃撃に鋭い衝撃を与えます。", "銃の攻撃力 +2", "RelicBlackIronBullet", RelicRarity.Common, RelicEffectKind.WeaponAttackBonus, 2f, WeaponType.Gun),
             new RelicDefinition(RelicType.FrostspreadCrystal, "霜広げの結晶", "冷気を薄く広げる結晶。フロストの範囲を広げます。", "フロストの攻撃範囲 +1", "RelicFrostspreadCrystal", RelicRarity.Common, RelicEffectKind.WeaponRangeBonus, 1f, WeaponType.Frost),
             new RelicDefinition(RelicType.ThunderCore, "蓄雷の核", "雷を内に溜める小さな核。サンダーボールを長く残します。", "サンダーボールの持続時間 +1", "RelicThunderCore", RelicRarity.Common, RelicEffectKind.WeaponDurationBonus, 1f, WeaponType.ThunderBall),
@@ -316,22 +318,27 @@ namespace AreaSurvivors
 
         public static bool TryPickRandom(out RelicDefinition definition)
         {
-            if (Definitions.Length == 0)
+            var eligibleDefinitions = GetDropEligibleDefinitions(
+                ProgressionStore.OwnedRelicCount(),
+                ProgressionStore.HasRelic);
+            if (eligibleDefinitions.Length == 0)
             {
                 definition = null;
                 return false;
             }
 
-            RelicRarity rarity = PickAvailableRarity();
-            return TryPickRandomByRarity(rarity, out definition);
+            RelicRarity rarity = PickAvailableRarity(eligibleDefinitions);
+            return TryPickRandomByRarity(eligibleDefinitions, rarity, out definition);
         }
 
         public static bool TryGetFirstUnowned(out RelicDefinition definition)
         {
-            for (int i = 0; i < Definitions.Length; i++)
+            var eligibleDefinitions = GetDropEligibleDefinitions(
+                ProgressionStore.OwnedRelicCount(),
+                ProgressionStore.HasRelic);
+            if (eligibleDefinitions.Length > 0)
             {
-                if (ProgressionStore.HasRelic(Definitions[i].type)) continue;
-                definition = Definitions[i];
+                definition = eligibleDefinitions[0];
                 return true;
             }
 
@@ -339,21 +346,32 @@ namespace AreaSurvivors
             return false;
         }
 
-        public static int GetDuplicateTokenReward(RelicRarity rarity)
+        public static RelicDefinition[] GetDropEligibleDefinitions(
+            int ownedRelicCount,
+            Predicate<RelicType> isOwned)
         {
-            switch (rarity)
+            var eligible = new List<RelicDefinition>(Definitions.Length);
+            for (int i = 0; i < Definitions.Length; i++)
             {
-                case RelicRarity.Common:
-                    return 5;
-                case RelicRarity.Uncommon:
-                    return 10;
-                case RelicRarity.Rare:
-                    return 30;
-                case RelicRarity.Legendary:
-                    return 50;
-                default:
-                    return 0;
+                var definition = Definitions[i];
+                if (IsDropEligible(definition, ownedRelicCount, isOwned))
+                {
+                    eligible.Add(definition);
+                }
             }
+
+            return eligible.ToArray();
+        }
+
+        public static bool IsDropEligible(
+            RelicDefinition definition,
+            int ownedRelicCount,
+            Predicate<RelicType> isOwned)
+        {
+            if (definition == null || isOwned == null || isOwned(definition.type)) return false;
+            if (ownedRelicCount >= StrongRelicMinimumOwnedCount) return true;
+            return definition.rarity != RelicRarity.Legendary &&
+                   definition.type != RelicType.SolitaryBlade;
         }
 
         public static string GetRarityDisplayName(RelicRarity rarity)
@@ -380,12 +398,12 @@ namespace AreaSurvivors
             return LocalizationService.LocalizeSource(japanese);
         }
 
-        static RelicRarity PickAvailableRarity()
+        static RelicRarity PickAvailableRarity(RelicDefinition[] eligibleDefinitions)
         {
-            int commonWeight = CountByRarity(RelicRarity.Common) > 0 ? CommonDropWeight : 0;
-            int uncommonWeight = CountByRarity(RelicRarity.Uncommon) > 0 ? UncommonDropWeight : 0;
-            int rareWeight = CountByRarity(RelicRarity.Rare) > 0 ? RareDropWeight : 0;
-            int legendaryWeight = CountByRarity(RelicRarity.Legendary) > 0 ? LegendaryDropWeight : 0;
+            int commonWeight = CountByRarity(eligibleDefinitions, RelicRarity.Common) > 0 ? CommonDropWeight : 0;
+            int uncommonWeight = CountByRarity(eligibleDefinitions, RelicRarity.Uncommon) > 0 ? UncommonDropWeight : 0;
+            int rareWeight = CountByRarity(eligibleDefinitions, RelicRarity.Rare) > 0 ? RareDropWeight : 0;
+            int legendaryWeight = CountByRarity(eligibleDefinitions, RelicRarity.Legendary) > 0 ? LegendaryDropWeight : 0;
             int totalWeight = commonWeight + uncommonWeight + rareWeight + legendaryWeight;
             if (totalWeight <= 0) return RelicRarity.Common;
 
@@ -398,9 +416,12 @@ namespace AreaSurvivors
             return RelicRarity.Legendary;
         }
 
-        static bool TryPickRandomByRarity(RelicRarity rarity, out RelicDefinition definition)
+        static bool TryPickRandomByRarity(
+            RelicDefinition[] eligibleDefinitions,
+            RelicRarity rarity,
+            out RelicDefinition definition)
         {
-            int count = CountByRarity(rarity);
+            int count = CountByRarity(eligibleDefinitions, rarity);
             if (count <= 0)
             {
                 definition = null;
@@ -408,12 +429,12 @@ namespace AreaSurvivors
             }
 
             int index = UnityEngine.Random.Range(0, count);
-            for (int i = 0; i < Definitions.Length; i++)
+            for (int i = 0; i < eligibleDefinitions.Length; i++)
             {
-                if (Definitions[i].rarity != rarity) continue;
+                if (eligibleDefinitions[i].rarity != rarity) continue;
                 if (index == 0)
                 {
-                    definition = Definitions[i];
+                    definition = eligibleDefinitions[i];
                     return true;
                 }
 
@@ -424,12 +445,14 @@ namespace AreaSurvivors
             return false;
         }
 
-        static int CountByRarity(RelicRarity rarity)
+        static int CountByRarity(
+            RelicDefinition[] eligibleDefinitions,
+            RelicRarity rarity)
         {
             int count = 0;
-            for (int i = 0; i < Definitions.Length; i++)
+            for (int i = 0; i < eligibleDefinitions.Length; i++)
             {
-                if (Definitions[i].rarity == rarity) count++;
+                if (eligibleDefinitions[i].rarity == rarity) count++;
             }
 
             return count;

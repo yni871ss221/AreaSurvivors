@@ -107,6 +107,7 @@ MonoBehaviour:
   sortingOrder: 20
   anchorBottomCenter: 0
   verticalFill: 1
+  flipHorizontal: 0
 --- !u!114 &5976156701649441457
 MonoBehaviour:
   m_ObjectHideFlags: 0

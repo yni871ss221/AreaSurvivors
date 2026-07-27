@@ -4,8 +4,9 @@
 - `safe-read.ps1` の正式なファイル引数は `-Path` であり、`-File` は受け付けない。契約を推測せずWrapperのparam定義または本書の記載に従う。
 - `functions.exec` から `tools.exec_command` へ渡す `cmd` に、PowerShell の変数宣言・参照を含む `powershell -Command "...$variable..."` を直接埋め込まない。この経路では `$` が実行前に失われ、`$path = ...` が `= ...` となる。読み取りは既存の `safe-read.ps1 -Path` または `safe-read-batch.ps1 -Path <file> -Ranges "start-end;start-end"` 入口へ固定する。`safe-read-batch.ps1` に `-Requests` や `-File` は存在しないため、既存Wrapperで表現できない処理だけを限定 `.ps1` Wrapperとして追加する。
 - `safe-read.ps1 -PrintOutput` は実行前に見込み出力を80行以下へ固定する。範囲読み取りは80行ずつ、Pattern検索は `-MaxMatches` を明示し、guard_code 39を「出力量を削らずに試す」ための再試行理由にしてはならない。
-- `safe-read-batch.ps1 -Ranges` の複数範囲はセミコロン区切りの単一文字列であり、Windows PowerShellへ渡すときは必ず `-Ranges "1-80;161-240"` のように引用する。引用なしの `;` はShellのコマンド区切りとなるため、Wrapperへ到達しない。
+- `safe-read-batch.ps1 -Ranges` の複数範囲は、引用した単一文字列として `-Ranges "1-80;161-240"` または `-Ranges "1-80,161-240"` のどちらでも渡せる。標準表記はセミコロン区切りとし、引用なしの `;` はShellのコマンド区切りになるため禁止する。`powershell.exe -File` 境界でカンマ区切りが単一文字列になってもWrapperが安全に展開する。
 - `safe-read.ps1 -Pattern`は正規表現契約。`-LiteralPattern`は値を取らないswitchなので、`kills++`、`value??`等のコード文字列は`safe-read.ps1 -Path <file> -Pattern "kills++" -LiteralPattern`の順で渡す。`-LiteralPattern "kills++"`は禁止。未エスケープの`++/**/??`は広範囲一致を防ぐため`guard_code: 36`で入口拒否する。
+- `safe-read.ps1 -Pattern`へPowerShell式を二重引用符ごと渡すために `\"` を使わない。Windows PowerShellではバックスラッシュが引用符escapeにならず、後続の `-Context/-MaxMatches/-PrintOutput` がPattern本文へ吸収され得る。単純識別子または既知行範囲へ落とし、後続引数列の混入は `guard_code: 45` で拒否する。
 - `safe-read`はregexを行照合前に構文検証し、未閉じ`(`等を`guard_code: 37`で拒否する。メソッド呼出し文字列をそのまま探す場合は`-Pattern "EnsureWeaponLevels(" -LiteralPattern`を使う。
 - PowerShell自体の`-File`へ`.cs`、`.unity`、`.prefab`等の対象ファイルを直接渡さない。`-File`の直後は実行する`.ps1` Wrapper、読み取り対象はそのWrapperの`-Path`へ渡す。
 - Wrapper自身の`param(...)`を読むPreflightは、必ず`safe-read-batch.ps1 -Path <対象Wrapper.ps1> -Ranges "1-80" -PrintOutput`として実行する。対象Wrapper自体へ`-Ranges`や`-PrintOutput`等の読み取り引数を渡さない。
@@ -30,7 +31,7 @@
 - 想定外の失敗、タイムアウト、無応答が出た場合は `command-failure-playbook.md` を読み、別方式へ切り替える前に失敗境界を確定してWrapper/Validatorへ反映する。
 - 引用符または改行を含むC#を `safe-unity.ps1 -Action Eval` へ渡してはいけない。入口が `guard_code: 25` で拒否する。新規Editor Runnerは `invoke-unity-editor-runner.ps1 -Phase RegisterAndRun` を使い、Import→Compile→Menu完全一致確認→Executeの順序を固定する。
 - Play Mode中のEvalは禁止する。`safe-unity` はEval前に `PlayMode.Status` を確認し、Play中なら `guard_code: 27`、状態確認不能なら `guard_code: 28` で拒否する。Play検証のUI操作や状態変更は事前コンパイル済みの限定フックまたは通常ゲーム入力を使う。
-- Unity外から追加または変更したRuntime/Editor C#に対してCompileだけを実行しない。`safe-unity -Action Compile`は現在のAssemblyを検証するだけでAssetDatabase Importや再Compile要求を行わない。変更した全C#を明示Importするか、`invoke-unity-editor-runner.ps1 -Phase RegisterAndRun -DependencyScriptPaths ...`でImport→Compile→Menu実行を固定する。Runner削除後は `-Phase RefreshAfterRemoval` でRefresh→Compileを1回ずつ行う。
+- Unity外から追加または変更したRuntime/Editor C#に対してCompileだけを実行しない。`safe-unity -Action Compile`は現在のAssemblyを検証するだけでAssetDatabase Importや再Compile要求を行わない。変更した全C#を明示Importするか、`invoke-unity-editor-runner.ps1 -Phase RegisterAndRun -DependencyScriptPaths ...`でImport→Compile→Menu実行を固定する。`-BatchRefresh` はScene・Prefab・asset等のserialized asset一括更新用であり、外部変更C#の明示Importを代替しない。Runner削除後は、他のC#編集がなくRuntime/Editor Assemblyがcurrentであることを事前確認した場合だけ `-Phase RefreshAfterRemoval` でRefresh→Compileを1回ずつ行う。Runner削除後にも追加C#編集がある場合は、先に永続Validatorを `RegisterAndRun` のScriptPathとし、Assemblyより新しい全C#を `-DependencyScriptPaths` へ列挙してImport・Compileする。
 - 一時Editor Runnerが新規Runtime/Validatorスクリプトへ依存する場合は、`invoke-unity-editor-runner.ps1 -DependencyScriptPaths "Assets/.../A.cs;Assets/.../B.cs"` へ全依存を列挙する。Runner本体だけをImportしてCompileせず、依存スクリプトをすべて明示ImportしてからCompileする。
 - `invoke-unity-editor-runner.ps1`を会話側から実行する時は`-Concise`を付ける。成功した各Unityサブコマンドの長いpayloadは表示せず段階名だけを返し、失敗時だけ末尾40行とSafe-Commandのcapture情報を証拠として返す。長時間Runnerを`functions.exec`で待つ場合も出力上限を小さく固定し、cell IDが返ったら外側の`functions.wait(cell_id)`だけで回収する。`functions.exec`内の`tools.wait`や同じRunnerの再発行は禁止する。
 - `functions.exec`内の`tools.exec_command`結果は`exit_code`と`session_id`を必ず同時に出力または保存する。30秒yieldを超えるRunnerは`exit_code`未定義・`session_id`ありで返るため、同じsessionを`tools.write_stdin`で回収する。session_idを表示せず失った場合はRunnerを再発行せず、`token-report-summary.ps1 -Recent <N> -Json`の`capture_path`・`timed_out`・`exit_code`で停止段階を確定する。
@@ -41,14 +42,17 @@
 - 直前の作業で取得済みのScene階層、instance ID、Sprite参照、表示経路は、Scene再読込やコンパイルで無効化されていない限り再検索しない。
 - 軽微なUI変更のスクリーンショットは代表状態1枚を上限目安とする。通常状態と特殊状態の両方が変更対象の場合だけ各1枚とし、同一状態の再撮影を避ける。
 - `safe-search.ps1 -PrintOutput` は原則 `-First 20` 以下。広域検索は `-FilesOnly` または `-HitSummary` を先に使う。
+- 「一致しないこと」が正常になり得る設定確認を生の`rg`で行わない。`rg`は一致なしでも終了コード1を返すため、`safe-search.ps1`で0/1を正常境界として扱うか、対象が既知の1ファイルなら`safe-read.ps1`で直接確認する。
+- 外部RepositoryやVaultの場所を探すために`C:\Develop`などの広い親ディレクトリへ再帰検索をかけない。既知のSkill、設定、`closeout.md`などの正規情報源を限定検索して実在パスを確定してから、そのディレクトリだけを検索起点にする。
 - `safe-search.ps1`の検索起点は`-Path <既存パス>`で指定する。`-Root`は未定義であり、`focused-search.ps1`や他ツールの引数名から推測して渡さない。
 - `safe-search.ps1`は周辺行を返す`-Context`を受け付けない。周辺行が必要な検索は、対象を既知の1パスに絞ったうえで`focused-search.ps1 -Pattern <語> -Path <既存パス> -Context <行数>`を使う。`safe-search`へ`-Context`を推測して渡し、ParameterBindingException後に別の引数を試すことを禁止する。
 - `safe-search.ps1 -Pattern/-Query`は正規表現である。括弧などのメタ文字を文字として探す場合はエスケープし、不正な正規表現は`guard_code: 43`で`rg`実行前に拒否する。
 - `.codex`のような広い外部ルートを検索する場合、`safe-search.ps1`はアクセス制限された`.sandbox-secrets/**`を除外する。制限ディレクトリ自体を検索起点に指定しない。
 - `.codex`ルート直下には複数のアクセス制限・稼働中データ領域があるため、`safe-search.ps1 -Path <...>/.codex`は禁止し`guard_code: 44`で拒否する。検索対象が分かっている`.codex/skills`等のサブディレクトリだけを指定する。
 - `safe-read.ps1` は `-Pattern` / `-Context` または `-StartLine` / `-EndLine` を優先し、長い `Get-Content` を避ける。`-PrintOutput`は推定80行以下かつ`functions.exec` 1回につき1件に限定し、複数読み取り結果を合算しない。
-- `safe-read.ps1 -Pattern ... -PrintOutput`の推定行数は`MaxMatches × (Context × 2 + 4)`で事前計算する。80行以下になる組み合わせを最初から指定し、Guard後に同種の引数微調整を反復しない。複数範囲が必要なら`safe-read-batch.ps1 -Ranges "start-end;start-end"`へ固定する。
-- `safe-read-batch.ps1`は`-AllowMany`なしの単一範囲が80行を超える場合、同じWrapper内で80行ずつへ自動分割する。Guard後に`1-80;81-...`を手作業で再構成せず、元の範囲を1回だけ渡す。
+- `safe-read.ps1 -Pattern ... -PrintOutput`の推定行数は`MaxMatches × (Context × 2 + 4)`で計算する。80行を超える指定はWrapperが`Context`／`MaxMatches`を安全件数へ自動調整し、Warningで実効値を示すため、Guard後の手作業再試行は行わない。行範囲が80行を超える場合は`safe-read-batch.ps1 -Ranges "start-end;start-end"`へ固定する。
+- `powershell.exe -File`へ渡す`safe-read`／`safe-search`のPatternに`$変数名`を含めると、外側PowerShellで展開されて正規表現が壊れる。`$`を含むコード断片は引数へ直接埋め込まず、周辺の単純識別子をPatternにするか、既知の行範囲を`safe-read-batch`で読む。
+- `safe-read-batch.ps1`は単一範囲が80行を超える場合、`-PrintOutput`中は`-AllowMany`の有無にかかわらず同じWrapper内で80行ずつへ自動分割する。Guard後に`1-80;81-...`を手作業で再構成せず、元の範囲を1回だけ渡す。`-AllowMany`は`-PrintOutput`なしのcapture-only読み取りだけで大範囲を1回にまとめる。
 - 長いスレッドでfilesystem-backed `SKILL.md`を読む場合も、生の`Get-Content -Raw`や単一tool出力へ全文を展開せず、`safe-read-batch.ps1`へ単一範囲を渡して80行単位で回収する。複数のSkill・ルール・実装ファイルを同じ`functions.exec`へ集約せず、1ファイルずつ直列に読む。
 - Editor.log等の末尾証拠は`safe-read.ps1 -Path <file> -Last <N> [-PrintOutput]`を使い、直接`Get-Content -Tail`を手打ちしない。`-Last`は`-Pattern`／`-StartLine`／`-EndLine`と併用せず、通常は80行以下にする。
 - RTK経由で同一のPowerShell読み取りWrapper（特に`safe-read-batch.ps1`）を`Promise.all`等で並列起動しない。`powershell -File`境界と対象`-Path`の対応を保つため、1プロセスずつ直列実行する。複数範囲は1回の`safe-read-batch -Ranges`へまとめ、複数ファイルは順番に読む。
@@ -69,7 +73,9 @@
 - Unity Reporter実行は `run-unity-report.ps1 -Report <name>` を使い、長い `unicli exec Eval --code ...` を毎回手打ちしない。
 - Reporter候補や実行名の確認は `reporter-candidates.ps1` を使い、既存Reporterの有無を先に確認する。
 - `git diff` は対象ファイル指定、必要なら `--name-only`、`--stat`、`safe-diff.ps1` を使う。
-- 未コミットのScene/Prefab差分が多数ある作業ツリーで広域 `git diff --check` を実行しない。今回所有する1ファイルずつ `Tools/TokenUsage/scoped-diff-check.ps1 -Path <file>` を使い、既存のユーザー差分に含まれる末尾空白と今回の問題を混同しない。
+- WindowsでCodex CLIを検証へ使う前に`Get-Command codex -All`で実体を確認する。`C:\Program Files\WindowsApps\...\codex.exe`はパッケージACLにより通常Shellから`Access is denied`になるため直接実行せず、Codex Appが管理するユーザー側の実行可能Runtimeを使うか、設定ファイルは専用Parserで検証する。
+- `.codex-global-state.json`のような1行圧縮JSONへ`Get-Content -TotalCount`や`Select-String`を使わない。会話履歴・状態全体を展開するため、JSON Parserで必要なキーだけを抽出し、プロファイル名の単純一致はprompt history中の文字列と区別する。
+- 未コミット差分が多数ある作業ツリーで広域 `git diff --check` を実行しない。C#や文書は今回所有する1ファイルずつ `Tools/TokenUsage/scoped-diff-check.ps1 -Path <file>` を使う。Unityが生成する`.unity` / `.prefab` / `.asset`は空の`m_Name: `等へ標準的な末尾空白を含むため`git diff --check`対象から外し、`safe-diff -SummaryOnly`と専用Reporter/Validatorで検証する。
 - TokenReportsの原因分析は `token-report-summary.ps1 -Recent <件数>` または `-SinceLastStart` を使う。
 - 作業開始時は `start-task-token-check.ps1 -Task "<依頼内容>" -UiPercent <開始%> [-BudgetTokens <推定枠tokens>]` を優先し、ルール選択と開始マーカーを同時に記録する。既に読むルールが明確な場合だけ `start-token-check.ps1 -UiPercent <開始%> -Note <作業名>` を直接使う。
 - 作業終了時は `end-token-check.ps1 -CurrentPercent <現在%>` を使う。Heavyベンチは明示時だけ実行する。
@@ -82,6 +88,8 @@
 - Unityプロセスの識別では、入れ子PowerShellの `-Command` へWMI/CIM filter文字列を手打ちしない。`Tools/TokenUsage/unity-process-report.ps1` を使い、ProcessId、MainWindowHandle、MainWindowTitle、CommandLineを固定形式で確認する。
 - UniCLIが永久busyでPlayExitを受理できない場合に限り、`unity-process-report.ps1`で本体PIDとAreaSurvivorsタイトルを一意確認してから、`unity-window-control.ps1 -Action Capture|StopPlay`を使う。対象検証なしのSendKeysや別ウィンドウへのCtrl+P送信は禁止する。
 - プロジェクトの重いファイルや未参照候補は `project-weight-report.ps1` で候補だけを見る。削除判断は別作業にする。
+- meta/GUID欠損、旧版フォルダ、重複payloadをまとめて監査する場合は `project-cleanliness-report.ps1 [-Top N] [-Json|-SummaryOnly]` を使う。重複groupの `ImporterSettingsEqual` はGUIDと`timeCreated`だけを除いたmeta内容の一致判定であり、`false`のgroupは同一payloadでも統合しない。
+- Editorの`*Migration.cs`を整理する前に `migration-inventory-report.ps1 [-Json]` を使い、Menu入口、外部class参照、対Validator、変更対象Scene/Prefab/assetを確認する。参照0だけを削除根拠にせず、再構築入口や同一ファイル内Validatorも保持判断へ含める。
 - Asset Reference Reporterの結果から `review-candidate` だけを見る時は `filter-asset-reference-report.ps1 -Top <件数>` を使い、全文を読み返さない。
 - アセット整理の標準手順は `run-unity-report.ps1 -Report asset-references` → `filter-asset-reference-report.ps1 -Top <件数>` → 必要時だけ `-ExportPath` で判定メモ出力、の順にする。
 - 複数ファイルから実装箇所を探す場合は `focused-search.ps1` を使い、上位ファイルの該当箇所だけ読む。

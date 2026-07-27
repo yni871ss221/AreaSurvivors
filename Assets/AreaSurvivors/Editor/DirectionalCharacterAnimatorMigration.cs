@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using UnityEditor;
 using UnityEditor.Animations;
 using UnityEngine;
@@ -13,7 +14,11 @@ namespace AreaSurvivors.Editor
         public const string AnimationRootPath = "Assets/AreaSurvivors/Animations/Characters/Player";
         public const string BaseFolderPath = AnimationRootPath + "/Base";
         public const string BaseControllerPath = AnimationRootPath + "/PlayerDirectionalBase.controller";
+        public const string CompletionMarkerRelativePath =
+            "Library/AreaSafeUnity/player-directional-animator-migration.ok";
         public const float FramesPerSecond = 8f;
+        const int ArcherWalkFrameSize = 384;
+        const int ArcherLegRegionTopY = 307;
 
         public static readonly string[] CharacterNames = { "Knight", "Archer", "Mage" };
         public static readonly StateSpec[] States =
@@ -42,11 +47,25 @@ namespace AreaSurvivors.Editor
             public bool Moving { get; }
         }
 
+        sealed class ArcherVerticalWalkBuild
+        {
+            public string targetPath;
+            public int width;
+            public int height;
+            public Color32[] outputPixels;
+        }
+
         [MenuItem(MenuPath)]
         public static void Migrate()
         {
+            string markerPath = Path.Combine(
+                Directory.GetParent(Application.dataPath).FullName,
+                CompletionMarkerRelativePath);
+            if (File.Exists(markerPath)) File.Delete(markerPath);
+
             EnsureFolder(AnimationRootPath);
             EnsureFolder(BaseFolderPath);
+            RebuildArcherVerticalWalkFrames();
 
             var root = PrefabUtility.LoadPrefabContents(PlayerPrefabPath);
             try
@@ -77,6 +96,8 @@ namespace AreaSurvivors.Editor
             }
 
             AssetDatabase.SaveAssets();
+            Directory.CreateDirectory(Path.GetDirectoryName(markerPath));
+            File.WriteAllText(markerPath, DateTime.UtcNow.ToString("O"));
             Debug.Log("Player directional Animator migration completed. Legacy DirectionalSpriteAnimator remains for Phase 2 removal.");
         }
 
@@ -159,15 +180,44 @@ namespace AreaSurvivors.Editor
                 if (!directionFrames.TryGetValue(state.DirectionName, out var frames) || frames == null || frames.Length != 3)
                     throw new InvalidOperationException($"Directional frames are invalid: {characterName}/{state.DirectionName}");
 
+                bool mageCharacter = string.Equals(characterName, "Mage", StringComparison.Ordinal);
+                bool archerCharacter = string.Equals(characterName, "Archer", StringComparison.Ordinal);
+                bool verticalDirection =
+                    string.Equals(state.DirectionName, "Up", StringComparison.Ordinal) ||
+                    string.Equals(state.DirectionName, "Down", StringComparison.Ordinal);
+                bool twoPoseWalkCycle = mageCharacter || (archerCharacter && !verticalDirection);
+                bool threePoseWalkCycle = archerCharacter && state.Moving && verticalDirection;
+                bool writesFlipCurve = mageCharacter || archerCharacter;
+                bool alternateFinalStep = mageCharacter && state.Moving && verticalDirection;
+                int idleFrameIndex = archerCharacter ? 0 : 1;
+
                 result.Add(
                     state.StateName,
-                    EnsureSpriteClip(CharacterClipPath(characterName, state.StateName), frames, state.Moving, false));
+                    EnsureSpriteClip(
+                        CharacterClipPath(characterName, state.StateName),
+                        frames,
+                        state.Moving,
+                        false,
+                        twoPoseWalkCycle,
+                        threePoseWalkCycle,
+                        writesFlipCurve,
+                        alternateFinalStep,
+                        idleFrameIndex));
             }
 
             return result;
         }
 
-        static AnimationClip EnsureSpriteClip(string assetPath, Sprite[] frames, bool moving, bool placeholder)
+        static AnimationClip EnsureSpriteClip(
+            string assetPath,
+            Sprite[] frames,
+            bool moving,
+            bool placeholder,
+            bool twoPoseWalkCycle = false,
+            bool threePoseWalkCycle = false,
+            bool writesFlipCurve = false,
+            bool alternateFinalStep = false,
+            int idleFrameIndex = 1)
         {
             var clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(assetPath);
             if (clip == null)
@@ -192,25 +242,67 @@ namespace AreaSurvivors.Editor
             }
             else if (moving)
             {
-                keys = new[]
+                if (threePoseWalkCycle)
                 {
-                    new ObjectReferenceKeyframe { time = 0f, value = frames[0] },
-                    new ObjectReferenceKeyframe { time = frameDuration, value = frames[1] },
-                    new ObjectReferenceKeyframe { time = frameDuration * 2f, value = frames[2] },
-                    new ObjectReferenceKeyframe { time = frameDuration * 3f, value = frames[2] },
-                };
+                    keys = new[]
+                    {
+                        new ObjectReferenceKeyframe { time = 0f, value = frames[0] },
+                        new ObjectReferenceKeyframe { time = frameDuration, value = frames[1] },
+                        new ObjectReferenceKeyframe { time = frameDuration * 2f, value = frames[0] },
+                        new ObjectReferenceKeyframe { time = frameDuration * 3f, value = frames[2] },
+                    };
+                }
+                else if (twoPoseWalkCycle)
+                {
+                    keys = new[]
+                    {
+                        new ObjectReferenceKeyframe { time = 0f, value = frames[0] },
+                        new ObjectReferenceKeyframe { time = frameDuration, value = frames[1] },
+                        new ObjectReferenceKeyframe { time = frameDuration * 2f, value = frames[0] },
+                        new ObjectReferenceKeyframe { time = frameDuration * 3f, value = frames[1] },
+                    };
+                }
+                else
+                {
+                    keys = new[]
+                    {
+                        new ObjectReferenceKeyframe { time = 0f, value = frames[0] },
+                        new ObjectReferenceKeyframe { time = frameDuration, value = frames[1] },
+                        new ObjectReferenceKeyframe { time = frameDuration * 2f, value = frames[2] },
+                        new ObjectReferenceKeyframe { time = frameDuration * 3f, value = frames[2] },
+                    };
+                }
             }
             else
             {
                 keys = new[]
                 {
-                    new ObjectReferenceKeyframe { time = 0f, value = frames[1] },
-                    new ObjectReferenceKeyframe { time = frameDuration, value = frames[1] },
+                    new ObjectReferenceKeyframe { time = 0f, value = frames[idleFrameIndex] },
+                    new ObjectReferenceKeyframe { time = frameDuration, value = frames[idleFrameIndex] },
                 };
             }
 
             var binding = EditorCurveBinding.PPtrCurve(string.Empty, typeof(PaperMeshVisual), "sourceSprite");
             AnimationUtility.SetObjectReferenceCurve(clip, binding, keys);
+            if (writesFlipCurve)
+            {
+                var flipKeys = new Keyframe[keys.Length];
+                for (int i = 0; i < keys.Length; i++)
+                {
+                    float value = alternateFinalStep && i == keys.Length - 1 ? 1f : 0f;
+                    flipKeys[i] = new Keyframe(keys[i].time, value);
+                }
+
+                var flipCurve = new AnimationCurve(flipKeys);
+                for (int i = 0; i < flipCurve.length; i++)
+                {
+                    AnimationUtility.SetKeyLeftTangentMode(flipCurve, i, AnimationUtility.TangentMode.Constant);
+                    AnimationUtility.SetKeyRightTangentMode(flipCurve, i, AnimationUtility.TangentMode.Constant);
+                }
+
+                var flipBinding = EditorCurveBinding.FloatCurve(string.Empty, typeof(PaperMeshVisual), "flipHorizontal");
+                AnimationUtility.SetEditorCurve(clip, flipBinding, flipCurve);
+            }
             AnimationUtility.SetAnimationEvents(clip, Array.Empty<AnimationEvent>());
 
             var settings = AnimationUtility.GetAnimationClipSettings(clip);
@@ -219,6 +311,188 @@ namespace AreaSurvivors.Editor
             EditorUtility.SetDirty(clip);
             AssetDatabase.SaveAssetIfDirty(clip);
             return clip;
+        }
+
+        static void RebuildArcherVerticalWalkFrames()
+        {
+            var builds = new List<ArcherVerticalWalkBuild>();
+            foreach (string directionName in new[] { "Down", "Up" })
+            {
+                PreflightArcherWalkSource(ArcherNeutralSourcePath(directionName));
+                for (int frameIndex = 1; frameIndex <= 2; frameIndex++)
+                    PreflightArcherWalkSource(ArcherWalkSourcePath(directionName, frameIndex));
+            }
+
+            foreach (string directionName in new[] { "Down", "Up" })
+            {
+                string cleanNeutralPath = ArcherNeutralSourcePath(directionName);
+                var cleanNeutralTexture = LoadPngTexture(cleanNeutralPath);
+                try
+                {
+                    ValidateArcherWalkSource(cleanNeutralTexture, cleanNeutralPath);
+                    var cleanNeutralPixels = cleanNeutralTexture.GetPixels32();
+                    builds.Add(new ArcherVerticalWalkBuild
+                    {
+                        targetPath = GeneratedFramePath("Archer", directionName, 0),
+                        width = cleanNeutralTexture.width,
+                        height = cleanNeutralTexture.height,
+                        outputPixels = cleanNeutralPixels
+                    });
+
+                    for (int frameIndex = 1; frameIndex <= 2; frameIndex++)
+                    {
+                        string sourcePath = ArcherWalkSourcePath(directionName, frameIndex);
+                        var sourceTexture = LoadPngTexture(sourcePath);
+                        try
+                        {
+                            ValidateArcherWalkSource(sourceTexture, sourcePath);
+                            if (sourceTexture.width != cleanNeutralTexture.width ||
+                                sourceTexture.height != cleanNeutralTexture.height)
+                            {
+                                throw new InvalidOperationException(
+                                    $"Archer vertical walk source must match the clean neutral frame: {cleanNeutralPath} / {sourcePath}");
+                            }
+
+                            var outputPixels = (Color32[])cleanNeutralPixels.Clone();
+                            int lowerRegionPixelCount =
+                                cleanNeutralTexture.width * (cleanNeutralTexture.height - ArcherLegRegionTopY);
+                            Array.Copy(
+                                sourceTexture.GetPixels32(),
+                                0,
+                                outputPixels,
+                                0,
+                                lowerRegionPixelCount);
+                            builds.Add(new ArcherVerticalWalkBuild
+                            {
+                                targetPath = GeneratedFramePath("Archer", directionName, frameIndex),
+                                width = cleanNeutralTexture.width,
+                                height = cleanNeutralTexture.height,
+                                outputPixels = outputPixels
+                            });
+                        }
+                        finally
+                        {
+                            UnityEngine.Object.DestroyImmediate(sourceTexture);
+                        }
+                    }
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(cleanNeutralTexture);
+                }
+            }
+
+            var changedTargetPaths = new List<string>();
+            foreach (var build in builds)
+            {
+                if (PngPixelsEqual(build.targetPath, build.width, build.height, build.outputPixels)) continue;
+
+                var outputTexture = new Texture2D(build.width, build.height, TextureFormat.RGBA32, false);
+                try
+                {
+                    outputTexture.SetPixels32(build.outputPixels);
+                    outputTexture.Apply(false, false);
+                    File.WriteAllBytes(Path.GetFullPath(build.targetPath), outputTexture.EncodeToPNG());
+                    changedTargetPaths.Add(build.targetPath);
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(outputTexture);
+                }
+            }
+
+            // Import only after every raw PNG write has completed. Importing a source or
+            // target between writes can leave another generated PNG memory-mapped by the
+            // Windows Asset Pipeline and make the next File.WriteAllBytes fail with IO 1224.
+            foreach (string changedTargetPath in changedTargetPaths)
+            {
+                AssetDatabase.ImportAsset(
+                    changedTargetPath,
+                    ImportAssetOptions.ForceSynchronousImport | ImportAssetOptions.ForceUpdate);
+                Debug.Log("Rebuilt Archer vertical walk frame from authored regions: " + changedTargetPath);
+            }
+        }
+
+        static void PreflightArcherWalkSource(string sourcePath)
+        {
+            if (!File.Exists(Path.GetFullPath(sourcePath)))
+                throw new FileNotFoundException("Archer walk source PNG is missing.", sourcePath);
+
+            if (AssetImporter.GetAtPath(sourcePath) == null)
+                throw new InvalidOperationException(
+                    "Archer walk source must already be imported with its .meta before migration: " + sourcePath);
+        }
+
+        static void ValidateArcherWalkSource(Texture2D texture, string sourcePath)
+        {
+            if (texture.width != ArcherWalkFrameSize || texture.height != ArcherWalkFrameSize)
+                throw new InvalidOperationException("Archer walk source must be 384x384: " + sourcePath);
+
+            var pixels = texture.GetPixels32();
+            bool hasVisiblePixel = false;
+            bool hasTransparentPixel = false;
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                hasVisiblePixel |= pixels[i].a > 0;
+                hasTransparentPixel |= pixels[i].a < byte.MaxValue;
+            }
+
+            if (!hasVisiblePixel || !hasTransparentPixel)
+                throw new InvalidOperationException("Archer walk source requires visible RGBA art and transparency: " + sourcePath);
+        }
+
+        static bool PngPixelsEqual(string assetPath, int width, int height, Color32[] expectedPixels)
+        {
+            if (!File.Exists(Path.GetFullPath(assetPath))) return false;
+
+            var texture = LoadPngTexture(assetPath);
+            try
+            {
+                if (texture.width != width || texture.height != height) return false;
+                var actualPixels = texture.GetPixels32();
+                if (actualPixels.Length != expectedPixels.Length) return false;
+                for (int i = 0; i < actualPixels.Length; i++)
+                {
+                    if (!SameColor(actualPixels[i], expectedPixels[i])) return false;
+                }
+                return true;
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(texture);
+            }
+        }
+
+        static Texture2D LoadPngTexture(string assetPath)
+        {
+            string fullPath = Path.GetFullPath(assetPath);
+            if (!File.Exists(fullPath)) throw new FileNotFoundException("Player walk PNG is missing.", fullPath);
+
+            var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            if (texture.LoadImage(File.ReadAllBytes(fullPath), false)) return texture;
+
+            UnityEngine.Object.DestroyImmediate(texture);
+            throw new InvalidOperationException("Player walk PNG could not be decoded: " + assetPath);
+        }
+
+        static bool SameColor(Color32 left, Color32 right)
+        {
+            return left.r == right.r && left.g == right.g && left.b == right.b && left.a == right.a;
+        }
+
+        static string GeneratedFramePath(string characterName, string directionName, int frameIndex)
+        {
+            return $"Assets/AreaSurvivors/Sprites/Generated/Walk/{characterName}/{directionName}_{frameIndex}.png";
+        }
+
+        static string ArcherWalkSourcePath(string directionName, int frameIndex)
+        {
+            return $"Assets/AreaSurvivors/Sprites/External/Archer{directionName}Walk{frameIndex}Source.png";
+        }
+
+        static string ArcherNeutralSourcePath(string directionName)
+        {
+            return $"Assets/AreaSurvivors/Sprites/External/Archer{directionName}NeutralCleanSource.png";
         }
 
         static void ClearClipCurves(AnimationClip clip)

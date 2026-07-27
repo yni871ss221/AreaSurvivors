@@ -14,21 +14,14 @@ namespace AreaSurvivors.Editor
         [MenuItem("Area Survivors/Reports/HUD Layout")]
         public static void LogHudLayout()
         {
-            var report = BuildReport(false);
+            var report = BuildReport();
             Debug.Log(ReportOutputUtility.SaveAndSummarize("HUD layout report", report, "hud-layout"));
         }
 
-        [MenuItem("Area Survivors/Reports/Construction Menu Layout")]
-        public static void LogConstructionMenuLayout()
-        {
-            var report = BuildReport(true);
-            Debug.Log(ReportOutputUtility.SaveAndSummarize("Construction menu layout report", report, "construction-menu-layout"));
-        }
-
-        static string BuildReport(bool constructionMenuOnly)
+        static string BuildReport()
         {
             var report = new StringBuilder(8192);
-            report.AppendLine(constructionMenuOnly ? "AreaSurvivors Construction Menu Layout" : "AreaSurvivors HUD Layout");
+            report.AppendLine("AreaSurvivors HUD Layout");
             var scene = OpenGameScene(out var openedAdditive);
             if (!scene.IsValid())
             {
@@ -44,18 +37,10 @@ namespace AreaSurvivors.Editor
                 return report.ToString();
             }
 
-            if (constructionMenuOnly)
-            {
-                AppendConstructionMenu(report, hud.transform);
-            }
-            else
-            {
-                AppendHudOverview(report, hud.transform);
-                AppendPlayerHud(report, hud.transform);
-                AppendConstructionMenu(report, hud.transform);
-                AppendResourceHud(report, hud.transform);
-                AppendWeaponHud(report, hud.transform);
-            }
+            AppendHudOverview(report, hud.transform);
+            AppendPlayerHud(report, hud.transform);
+            AppendTokenHud(report, hud.transform);
+            AppendWeaponHud(report, hud.transform);
 
             CloseIfOpened(scene, openedAdditive);
             return report.ToString();
@@ -120,55 +105,10 @@ namespace AreaSurvivors.Editor
             }
         }
 
-        static void AppendConstructionMenu(StringBuilder report, Transform hud)
+        static void AppendTokenHud(StringBuilder report, Transform hud)
         {
             report.AppendLine();
-            report.AppendLine("[Construction Menu]");
-            var menu = hud.Find("Construction Menu") as RectTransform;
-            if (menu == null)
-            {
-                report.AppendLine("- missing");
-                return;
-            }
-
-            report.Append("- root");
-            AppendRect(report, menu);
-            report.AppendLine($" active={menu.gameObject.activeSelf}");
-
-            for (int i = 1; i <= 8; i++)
-            {
-                var slot = menu.Find("Build Slot " + i) as RectTransform;
-                if (slot == null) continue;
-                var button = slot.GetComponent<Button>();
-                var icon = slot.Find("Icon")?.GetComponent<Image>();
-                var key = slot.Find("Key")?.GetComponent<Text>();
-                var stock = slot.Find("Stock")?.GetComponent<Text>();
-                var iconName = icon != null ? SpriteName(icon.sprite) : "missing";
-                var keyText = key != null ? key.text : "missing";
-                var stockText = stock != null ? stock.text : "missing";
-                report.Append($"- slot {i}");
-                AppendRect(report, slot);
-                report.Append($" button={(button != null)} icon={iconName}");
-                report.Append($" key={keyText} stock={stockText}");
-                report.AppendLine();
-            }
-
-            AppendNamedChild(report, menu, "Build Status Panel");
-            AppendNamedChild(report, menu, "Build Status");
-            AppendNamedChild(report, menu, "Test Add Wood Button");
-            AppendNamedChild(report, menu, "Test Add Stone Button");
-        }
-
-        static void AppendResourceHud(StringBuilder report, Transform hud)
-        {
-            report.AppendLine();
-            report.AppendLine("[Resource HUD]");
-            AppendNamedChild(report, hud, "Wood Resource");
-            AppendNamedChild(report, hud, "Wood Resource/Amount");
-            AppendNamedChild(report, hud, "Wood Resource/Icon");
-            AppendNamedChild(report, hud, "Stone Resource");
-            AppendNamedChild(report, hud, "Stone Resource/Amount");
-            AppendNamedChild(report, hud, "Stone Resource/Icon");
+            report.AppendLine("[Token HUD]");
             AppendNamedChild(report, hud, "Token Resource");
             AppendNamedChild(report, hud, "Token Resource/Amount");
             AppendNamedChild(report, hud, "Token Resource/Icon");

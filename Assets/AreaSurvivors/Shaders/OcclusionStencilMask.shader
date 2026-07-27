@@ -20,6 +20,11 @@ Shader "AreaSurvivors/OcclusionStencilMask"
         }
         Pass
         {
+            // Stencil-only draw. Keep both guards inside the concrete pass so an override
+            // CommandBuffer draw can never replace the already-rendered building color.
+            ColorMask 0
+            Blend Zero One
+
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag

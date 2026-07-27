@@ -121,6 +121,7 @@ MonoBehaviour:
   sortingOrder: 7220
   anchorBottomCenter: 0
   verticalFill: 1
+  flipHorizontal: 0
 --- !u!1 &8176750643719323012
 GameObject:
   m_ObjectHideFlags: 0

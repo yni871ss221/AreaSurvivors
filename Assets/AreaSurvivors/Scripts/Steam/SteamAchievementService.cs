@@ -24,21 +24,28 @@ namespace AreaSurvivors
 
         public bool IsReady => ready;
 
-        public void InitializeFromSteam()
+        public bool InitializeFromSteam(bool logReadFailures = true)
         {
+            ready = false;
             unlocked.Clear();
+            bool allAchievementsRead = true;
             foreach (var definition in SteamAchievementCatalog.Definitions)
             {
                 if (!backend.TryGetAchievement(definition.ApiName, out bool isUnlocked))
                 {
-                    Debug.LogWarning("Steam achievement could not be read: " + definition.ApiName);
+                    if (logReadFailures)
+                    {
+                        Debug.LogWarning("Steam achievement could not be read: " + definition.ApiName);
+                    }
+                    allAchievementsRead = false;
                     continue;
                 }
 
                 if (isUnlocked) unlocked.Add(definition.ApiName);
             }
 
-            ready = true;
+            ready = allAchievementsRead;
+            return ready;
         }
 
         public int EvaluateAndStore(SaveData data, int effectiveTotalKills = -1)

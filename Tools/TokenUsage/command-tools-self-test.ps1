@@ -8,16 +8,27 @@ $scripts = @(
     "safe-read-batch.ps1",
     "scoped-diff-check.ps1",
     "safe-status.ps1",
+    "game-manager-responsibility-report.ps1",
+    "project-cleanliness-report.ps1",
+    "migration-inventory-report.ps1",
+    "run-unity-report.ps1",
     "Get-TokenReportSummary.ps1",
     "start-task-token-check.ps1",
     "safe-unity.ps1",
+    "combat-performance-probe.ps1",
+    "performance-session-report.ps1",
+    "performance-stage-detail-report.ps1",
+    "performance-matrix-report.ps1",
     "Invoke-AreaSafeUnity.ps1",
     "invoke-unity-editor-runner.ps1",
     "rule-router.ps1",
     "safe-search.ps1",
+    "safe-graphify-pilot.ps1",
     "focused-search.ps1",
     "append-vault-note.ps1",
     "normalize-vault-note-eof.ps1",
+    "text-file-byte-report.ps1",
+    "normalize-text-line-endings.ps1",
     "temp-file-presence-report.ps1",
     "copy-generated-image-batch.ps1",
     "invoke-menu-validator.ps1",
@@ -41,6 +52,115 @@ foreach ($scriptName in $scripts) {
     }
 }
 
+$gameManagerReporterText = Get-Content -LiteralPath (Join-Path $PSScriptRoot "game-manager-responsibility-report.ps1") -Raw -Encoding UTF8
+foreach ($requiredSentinel in @(
+    'Get-ChildItem -LiteralPath $gameScriptsRoot -Recurse',
+    '$candidates.Count -ne 1',
+    'Expected exactly one GameManager.cs')) {
+    if (-not $gameManagerReporterText.Contains($requiredSentinel)) {
+        throw "game-manager-responsibility-report.ps1 must resolve the current GameManager.cs uniquely: $requiredSentinel"
+    }
+}
+if ($gameManagerReporterText.Contains('Assets/AreaSurvivors/Scripts/Game/GameManager.cs')) {
+    throw "game-manager-responsibility-report.ps1 must not restore the legacy pre-Runtime GameManager path."
+}
+
+$projectCleanlinessCommand = Get-Command (Join-Path $PSScriptRoot "project-cleanliness-report.ps1")
+foreach ($requiredParameter in @("Top", "Json", "SummaryOnly", "SelfTest")) {
+    if (-not $projectCleanlinessCommand.Parameters.ContainsKey($requiredParameter)) {
+        throw "project-cleanliness-report.ps1 formal contract is missing -$requiredParameter."
+    }
+}
+$projectCleanlinessOutput = @(& (Join-Path $PSScriptRoot "project-cleanliness-report.ps1") -SelfTest) -join "`n"
+if (-not $projectCleanlinessOutput.Contains("project_cleanliness_self_test: passed")) {
+    throw "project-cleanliness-report.ps1 generic collection conversion self-test failed."
+}
+$performanceSessionCommand = Get-Command (Join-Path $PSScriptRoot "performance-session-report.ps1")
+foreach ($requiredParameter in @("SessionPath", "Top", "Json", "SelfTest")) {
+    if (-not $performanceSessionCommand.Parameters.ContainsKey($requiredParameter)) {
+        throw "performance-session-report.ps1 formal contract is missing -$requiredParameter."
+    }
+}
+$performanceSessionOutput = @(& (Join-Path $PSScriptRoot "performance-session-report.ps1") -SelfTest) -join "`n"
+if (-not $performanceSessionOutput.Contains("performance_session_report_self_test: passed")) {
+    throw "performance-session-report.ps1 self-test failed."
+}
+$performanceStageDetailCommand = Get-Command (
+    Join-Path $PSScriptRoot "performance-stage-detail-report.ps1")
+foreach ($requiredParameter in @("SessionPath", "Stage", "TopFrames", "SelfTest")) {
+    if (-not $performanceStageDetailCommand.Parameters.ContainsKey($requiredParameter)) {
+        throw "performance-stage-detail-report.ps1 formal contract is missing -$requiredParameter."
+    }
+}
+$performanceStageDetailOutput = @(
+    & (Join-Path $PSScriptRoot "performance-stage-detail-report.ps1") -SelfTest) -join "`n"
+if (-not $performanceStageDetailOutput.Contains(
+        "performance_stage_detail_report_self_test: passed")) {
+    throw "performance-stage-detail-report.ps1 self-test failed."
+}
+$textByteReportCommand = Get-Command (Join-Path $PSScriptRoot "text-file-byte-report.ps1")
+if (-not $textByteReportCommand.Parameters.ContainsKey("Path")) {
+    throw "text-file-byte-report.ps1 formal contract is missing -Path."
+}
+$normalizeLineEndingsCommand = Get-Command (Join-Path $PSScriptRoot "normalize-text-line-endings.ps1")
+foreach ($requiredParameter in @("Path", "ExpectedSha256", "LineEnding")) {
+    if (-not $normalizeLineEndingsCommand.Parameters.ContainsKey($requiredParameter)) {
+        throw "normalize-text-line-endings.ps1 formal contract is missing -$requiredParameter."
+    }
+}
+$normalizeLineEndingsText = Get-Content -LiteralPath (
+    Join-Path $PSScriptRoot "normalize-text-line-endings.ps1") -Raw -Encoding UTF8
+foreach ($requiredSentinel in @(
+    "Path must remain inside the project",
+    "File changed after inspection",
+    "Line-ending normalization is not allowed for extension")) {
+    if (-not $normalizeLineEndingsText.Contains($requiredSentinel)) {
+        throw "normalize-text-line-endings.ps1 guard is missing: $requiredSentinel"
+    }
+}
+$projectCleanlinessText = Get-Content -LiteralPath (Join-Path $PSScriptRoot "project-cleanliness-report.ps1") -Raw -Encoding UTF8
+foreach ($requiredSentinel in @(
+    "Get-NormalizedMetaHash",
+    "ImporterSettingsEqual",
+    "ground-variant-semantic-preserved",
+    '$_.Category -notmatch ''-preserved$'''
+)) {
+    if (-not $projectCleanlinessText.Contains($requiredSentinel)) {
+        throw "project-cleanliness-report.ps1 importer comparison is missing: $requiredSentinel"
+    }
+}
+
+$migrationInventoryCommand = Get-Command (Join-Path $PSScriptRoot "migration-inventory-report.ps1")
+foreach ($requiredParameter in @("ProjectRoot", "Json")) {
+    if (-not $migrationInventoryCommand.Parameters.ContainsKey($requiredParameter)) {
+        throw "migration-inventory-report.ps1 formal contract is missing -$requiredParameter."
+    }
+}
+
+$unityReportCommand = Get-Command (Join-Path $PSScriptRoot "run-unity-report.ps1")
+if (-not $unityReportCommand.Parameters.ContainsKey("Report")) {
+    throw "run-unity-report.ps1 formal contract is missing -Report."
+}
+
+$safeReadPath = Join-Path $PSScriptRoot "safe-read.ps1"
+$safeReadCommand = Get-Command $safeReadPath
+foreach ($requiredParameter in @("Path", "Pattern", "Context", "MaxMatches", "PrintOutput")) {
+    if (-not $safeReadCommand.Parameters.ContainsKey($requiredParameter)) {
+        throw "safe-read.ps1 formal contract is missing -$requiredParameter."
+    }
+}
+$safeReadText = Get-Content -LiteralPath $safeReadPath -Raw -Encoding UTF8
+foreach ($requiredSentinel in @(
+    "safe-read auto-clamps -Context",
+    "safe-read auto-clamps -MaxMatches",
+    '$suggestedMaxMatches = [Math]::Max(1, [Math]::Floor($maxInteractiveOutputLines / $linesPerMatch))',
+    "guard_code: 45"
+)) {
+    if (-not $safeReadText.Contains($requiredSentinel)) {
+        throw "safe-read.ps1 interactive pattern auto-clamp is missing: $requiredSentinel"
+    }
+}
+
 $safeReadBatchCommand = Get-Command (Join-Path $PSScriptRoot "safe-read-batch.ps1")
 foreach ($requiredParameter in @("Path", "Ranges")) {
     if (-not $safeReadBatchCommand.Parameters.ContainsKey($requiredParameter)) {
@@ -52,6 +172,12 @@ foreach ($invalidRememberedParameter in @("Requests", "File")) {
         throw "safe-read-batch.ps1 must keep one formal contract; unexpected parameter: -$invalidRememberedParameter"
     }
 }
+$safeReadBatchText = Get-Content -LiteralPath (Join-Path $PSScriptRoot "safe-read-batch.ps1") -Raw -Encoding UTF8
+foreach ($requiredSentinel in @('$AllowMany -and -not $PrintOutput', 'if ($AllowMany -and -not $PrintOutput) { $arguments.AllowMany = $true }', "-split '[;,]'")) {
+    if (-not $safeReadBatchText.Contains($requiredSentinel)) {
+        throw "safe-read-batch.ps1 must preserve 80-line interactive chunking even when -AllowMany is present."
+    }
+}
 
 $safeSearchCommand = Get-Command (Join-Path $PSScriptRoot "safe-search.ps1")
 foreach ($requiredParameter in @("Pattern", "Path", "First")) {
@@ -59,8 +185,32 @@ foreach ($requiredParameter in @("Pattern", "Path", "First")) {
         throw "safe-search.ps1 formal contract is missing -$requiredParameter."
     }
 }
+foreach ($requiredAlias in @("MaxMatches", "MaxResults", "Limit")) {
+    if ($safeSearchCommand.Parameters["First"].Aliases -notcontains $requiredAlias) {
+        throw "safe-search.ps1 must accept -$requiredAlias as a compatibility alias for -First."
+    }
+}
 if ($safeSearchCommand.Parameters.ContainsKey("Context")) {
     throw "safe-search.ps1 must not accept -Context. Use focused-search.ps1 when surrounding lines are required."
+}
+
+$graphifyPilotPath = Join-Path $PSScriptRoot "safe-graphify-pilot.ps1"
+$graphifyPilotCommand = Get-Command $graphifyPilotPath
+foreach ($requiredParameter in @("Action", "Question", "Source", "Target", "Budget", "Depth", "Context", "MaxWorkers", "MinimumRetainedRatio", "UsageCategory", "AffectedDisplayLimit", "AffectedTokenLimit", "ShowFullAffected", "AllowGraphShrink")) {
+    if (-not $graphifyPilotCommand.Parameters.ContainsKey($requiredParameter)) {
+        throw "safe-graphify-pilot.ps1 formal contract is missing -$requiredParameter."
+    }
+}
+$graphifyPilotText = Get-Content -LiteralPath $graphifyPilotPath -Raw -Encoding UTF8
+foreach ($requiredSentinel in @("--code-only", "--no-cluster", "--no-viz", "--no-label", "--force", "refresh-extract", "guard_code: 61", "guard_code: 62", "guard_code: 63", "Assert-ClusteredGraph", "Get-RawGraphInspection", "nativeErrorActionPreference", "graphify-pilot-0.9.26", "EnsureFresh", "Get-GraphFreshness", "graphify-pilot-usage.jsonl", "graphify_verification_required", "TrackUsage", "usage_category", "[AllowEmptyString()]", "[AllowEmptyCollection()]", "missing-source-path", "affected_output_limited", "fallback_recommended", "full_capture_path", "GraphifyFallbackId")) {
+    if (-not $graphifyPilotText.Contains($requiredSentinel)) {
+        throw "safe-graphify-pilot.ps1 is missing required pilot guard: $requiredSentinel"
+    }
+}
+foreach ($forbiddenInstaller in @("codex install", "hook install", "watch")) {
+    if ($graphifyPilotText.Contains($forbiddenInstaller)) {
+        throw "safe-graphify-pilot.ps1 must not install or run always-on Graphify integration: $forbiddenInstaller"
+    }
 }
 
 $menuValidatorPath = Join-Path $PSScriptRoot "invoke-menu-validator.ps1"
@@ -98,6 +248,32 @@ foreach ($requiredPidGuardToken in @(
 }
 
 & (Join-Path $PSScriptRoot "validate-unicli-worker-guard.ps1") | Out-Null
+
+$combatProbeCommand = Get-Command (Join-Path $PSScriptRoot "combat-performance-probe.ps1")
+foreach ($requiredParameter in @("Action", "PrintOutput")) {
+    if (-not $combatProbeCommand.Parameters.ContainsKey($requiredParameter)) {
+        throw "combat-performance-probe.ps1 formal contract is missing -$requiredParameter."
+    }
+}
+$combatProbeText = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot "combat-performance-probe.ps1"))
+foreach ($requiredMenuToken in @(
+    "Start Baseline (10s)",
+    "Start Without Damage Popups (10s)",
+    "Start Without Hit Flash (10s)",
+    "Start Without Damage Feedback (10s)",
+    "Prepare Excalibur Sustained Baseline",
+    "Prepare Excalibur Sustained Without Damage Feedback",
+    "Prepare Excalibur Kill Burst Baseline",
+    "Prepare Excalibur Kill Burst Without Damage Feedback",
+    "combat-performance-probe-last.txt")) {
+    if (-not $combatProbeText.Contains($requiredMenuToken)) {
+        throw "combat-performance-probe.ps1 is missing required contract token: $requiredMenuToken"
+    }
+}
+$combatProbeEditorText = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot "..\..\Assets\AreaSurvivors\Editor\CombatPerformanceProbeCommands.cs"))
+if ($combatProbeEditorText -match '(?s)\[MenuItem\([^\r\n]+,\s*true\)\]\s*\r?\n\s*\[MenuItem\(') {
+    throw "CombatPerformanceProbeCommands must keep one validation MenuItem attribute per method. Unity Menu.List rejects stacked attributes of the same type."
+}
 
 $appendVaultCommand = Get-Command (Join-Path $PSScriptRoot "append-vault-note.ps1")
 foreach ($requiredParameter in @("VaultRoot", "RelativePath", "ContentPath")) {
@@ -152,6 +328,9 @@ if (-not $safeReadPathGuarded) {
 $safeReadCommand = Get-Command (Join-Path $PSScriptRoot "safe-read.ps1")
 if (-not $safeReadCommand.Parameters.ContainsKey("AllowHighOutput")) {
     throw "safe-read formal contract is missing -AllowHighOutput."
+}
+if ($safeReadCommand.Parameters["Last"].Aliases -notcontains "Tail") {
+    throw "safe-read must accept -Tail as a compatibility alias for -Last."
 }
 $safeReadOutputGuarded = $false
 try {
@@ -238,6 +417,16 @@ if (-not $assetPathGuarded) {
     throw "Asset path traversal was not rejected before Unity access."
 }
 
+$assetDirectoryGuarded = $false
+try {
+    & "$PSScriptRoot\Invoke-AreaSafeUnity.ps1" -Action AssetImport -AssetPath "Assets/AreaSurvivors/Scripts"
+} catch {
+    $assetDirectoryGuarded = $_.Exception.Message.Contains("guard_code: 47")
+}
+if (-not $assetDirectoryGuarded) {
+    throw "AssetImport directory path was not rejected before Unity access."
+}
+
 $screenshotPathGuarded = $false
 try {
     & "$PSScriptRoot\Invoke-AreaSafeUnity.ps1" -Action Screenshot -ScreenshotPath "../unsafe.png"
@@ -270,6 +459,17 @@ if (-not $editorRunnerText.Contains('[switch]$Concise') -or
     -not $editorRunnerText.Contains('if (-not $Concise)')) {
     throw "Editor runner concise mode must suppress successful step payloads and preserve bounded failure evidence."
 }
+if (-not $editorRunnerText.Contains('[switch]$BatchRefresh') -or
+    -not $editorRunnerText.Contains('if ($BatchRefresh)') -or
+    -not $editorRunnerText.Contains('Invoke-SafeUnityStep -Action "AssetRefresh"')) {
+    throw "Editor runner must provide an explicit batch refresh path for serialized layout changes."
+}
+if (-not $editorRunnerText.Contains('Assert-AssembliesCurrentBeforeCleanup') -or
+    -not $editorRunnerText.Contains('RegisterAndRun -DependencyScriptPaths first') -or
+    -not $editorRunnerText.Contains('BatchRefresh is for serialized asset changes') -or
+    -not [regex]::IsMatch($editorRunnerText, 'Assert-AssembliesCurrentBeforeCleanup\s+Write-Output "\[editor-runner-cleanup\] 1/2 AssetDatabase refresh"')) {
+    throw "RefreshAfterRemoval must reject additional unimported C# edits before changing Unity state."
+}
 
 $tokenSummaryText = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot "Get-TokenReportSummary.ps1"))
 if (-not $tokenSummaryText.Contains('timeout_seconds = $record.timeout_seconds') -or
@@ -285,6 +485,11 @@ if (-not $startTaskText.Contains('$startArgs = @{ Note = $Task }')) {
 }
 
 $safeUnityText = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot "Invoke-AreaSafeUnity.ps1"))
+if (-not $safeUnityText.Contains('$menuList = $captured | ConvertFrom-Json') -or
+    -not $safeUnityText.Contains('[System.StringComparison]::Ordinal') -or
+    $safeUnityText.Contains('$menuPattern =')) {
+    throw "MenuExists must compare parsed JSON item paths so escaped characters such as \\u002B cannot cause false negatives."
+}
 if (-not $safeUnityText.Contains("guard_code: 26") -or -not $safeUnityText.Contains("capture_path")) {
     throw "Named-pipe access denial must emit guard_code: 26 and a capture path."
 }
@@ -422,6 +627,17 @@ if (-not $safeSearchInvalidRegexGuarded) {
     throw "safe-search must reject invalid regular expressions before invoking rg."
 }
 
+$safeSearchDoubleQuoteGuarded = $false
+try {
+    $doubleQuotePattern = "MenuItem\(" + [char]34
+    & "$PSScriptRoot\safe-search.ps1" -Pattern $doubleQuotePattern -Path $PSScriptRoot -FilesOnly | Out-Null
+} catch {
+    $safeSearchDoubleQuoteGuarded = $_.Exception.Message.Contains("guard_code: 45")
+}
+if (-not $safeSearchDoubleQuoteGuarded) {
+    throw "safe-search must reject double quotes before the Windows PowerShell 5.1/native rg boundary."
+}
+
 $codexRoot = Join-Path $env:USERPROFILE ".codex"
 if (Test-Path -LiteralPath $codexRoot) {
     $safeSearchCodexRootGuarded = $false
@@ -474,6 +690,11 @@ try {
 $focusedSearchText = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot "focused-search.ps1"))
 if (-not $focusedSearchText.Contains('exit 0') -or -not $focusedSearchText.Contains('Each -Path item must exist')) {
     throw "focused-search must validate paths and normalize no-match results."
+}
+foreach ($requiredSentinel in @("GraphifyFallbackId", "GraphifyUsageCategory", 'action = "Fallback"', "fallback_executed")) {
+    if (-not $focusedSearchText.Contains($requiredSentinel)) {
+        throw "focused-search must record actual Graphify fallback use: $requiredSentinel"
+    }
 }
 if (-not $focusedSearchText.Contains('[Alias("First")]')) {
     throw "focused-search must accept -First as an alias for -TopFiles to match safe-search usage."
@@ -566,8 +787,9 @@ if ($unsafeDirectEvalScripts.Count -gt 0) {
 }
 
 $safeReadText = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot "safe-read.ps1"))
-if (-not $safeReadText.Contains('suggested_max_matches=') -or -not $safeReadText.Contains('$maxInteractiveOutputLines / $linesPerMatch')) {
-    throw "safe-read output guard must provide a calculated suggested_max_matches value."
+if (-not $safeReadText.Contains('safe-read auto-clamps -MaxMatches') -or
+    -not $safeReadText.Contains('$suggestedMaxMatches = [Math]::Max(1, [Math]::Floor($maxInteractiveOutputLines / $linesPerMatch))')) {
+    throw "safe-read output guard must automatically clamp oversized interactive pattern reads."
 }
 if (-not $safeReadText.Contains('suggested_first=$maxInteractiveOutputLines')) {
     throw "safe-read output guard must provide suggested_first for oversized -First reads."
@@ -576,11 +798,17 @@ if (-not $safeReadText.Contains('suggested_end_line=$suggestedEndLine') -or
     -not $safeReadText.Contains('use_safe_read_batch=1')) {
     throw "safe-read output guard must route oversized line ranges to safe-read-batch."
 }
+$focusedSearchText = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot "focused-search.ps1"))
+if (-not $focusedSearchText.Contains('$maxInteractiveMatches') -or
+    -not $focusedSearchText.Contains('$MaxMatchesPerFile = $maxInteractiveMatches')) {
+    throw "focused-search must cap delegated safe-read output before invoking it."
+}
 
 Write-Output "command_tools_self_test: passed"
 Write-Output ("parsed_scripts: {0}" -f $scripts.Count)
 Write-Output "eval_quote_guard: passed"
 Write-Output "asset_path_guard: passed"
+Write-Output "asset_import_file_only_guard: passed"
 Write-Output "screenshot_path_guard: passed"
 Write-Output "editor_runner_preflight_guard: passed"
 Write-Output "editor_runner_dependency_import_guard: passed"
@@ -603,10 +831,11 @@ Write-Output "search_codex_root_guard: passed"
 Write-Output "search_files_only_limit_guard: passed"
 Write-Output "focused_search_path_guard: passed"
 Write-Output "focused_search_first_alias_guard: passed"
+Write-Output "focused_search_output_cap_guard: passed"
 Write-Output "scoped_diff_path_guard: passed"
 Write-Output "search_no_match_guard: passed"
 Write-Output "safe_read_tail_guard: passed"
-Write-Output "safe_read_output_suggestion_guard: passed"
+Write-Output "safe_read_output_auto_clamp_guard: passed"
 Write-Output "safe_search_utf8_guard: passed"
 Write-Output "unity_search_no_eval_guard: passed"
 Write-Output "unity_search_concurrency_guard: passed"

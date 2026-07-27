@@ -5,6 +5,11 @@ namespace AreaSurvivors
 {
     public sealed class GameTestLaunchScreen : MonoBehaviour
     {
+        public const string GameEndDefeatTestButtonName = "Game End Defeat Test Button";
+        public const string GameEndStageClearTestButtonName = "Game End Stage Clear Test Button";
+        public const string GameEndStageFourClearTestButtonName = "Game End Stage 4 Clear Test Button";
+        public const string GameEndAllDifficultyFiveClearTestButtonName = "Game End All Difficulty 5 Clear Test Button";
+
         static readonly Color RelicOwnedButtonColor = new Color(0.34f, 0.39f, 0.14f, 0.98f);
         static readonly Color RelicUnownedButtonColor = new Color(0.055f, 0.075f, 0.07f, 0.94f);
         static readonly Color StageClearedButtonColor = new Color(0.25f, 0.38f, 0.16f, 0.98f);
@@ -45,6 +50,10 @@ namespace AreaSurvivors
             BindButton("Start Stage 3 Test Button", () => StartGameFromStageForTesting(3));
             BindButton("Start Stage 4 Test Button", () => StartGameFromStageForTesting(4));
             BindButton("Opening Story Test Button", StartOpeningStoryTest);
+            BindButton(GameEndDefeatTestButtonName, () => StartGameEndTest(GameEndTestOutcome.Defeat));
+            BindButton(GameEndStageClearTestButtonName, () => StartGameEndTest(GameEndTestOutcome.StageClear));
+            BindButton(GameEndStageFourClearTestButtonName, () => StartGameEndTest(GameEndTestOutcome.StageFourClear));
+            BindButton(GameEndAllDifficultyFiveClearTestButtonName, () => StartGameEndTest(GameEndTestOutcome.AllStagesDifficultyFiveClear));
             foreach (var weaponType in WeaponCatalog.TestableWeapons)
             {
                 var capturedType = weaponType;
@@ -106,6 +115,52 @@ namespace AreaSurvivors
         {
             RunState.RequestOpeningStoryTest();
             navigator.LoadTitle();
+        }
+
+        void StartGameEndTest(GameEndTestOutcome outcome)
+        {
+            bool gameClear = outcome != GameEndTestOutcome.Defeat;
+            bool normalStageClear = outcome == GameEndTestOutcome.StageClear;
+            bool allDifficultyFiveClear = outcome == GameEndTestOutcome.AllStagesDifficultyFiveClear;
+            int reachedStage = normalStageClear ? 1 : gameClear ? 4 : 2;
+
+            var result = new RunResult
+            {
+                kills = gameClear ? 1480 : 735,
+                damageDealt = gameClear ? 925400 : 312600,
+                level = gameClear ? 48 : 27,
+                tokensEarned = gameClear ? 320 : 145,
+                reachedStage = reachedStage,
+                survivedSeconds = gameClear ? 480f : 287f,
+                gameClear = gameClear,
+                clearedStage = gameClear ? reachedStage : 0,
+                unlockedStage = normalStageClear ? 2 : 0,
+                allStagesDifficultyFiveCleared = allDifficultyFiveClear,
+                clearMessage = string.Empty
+            };
+            result.acquiredRelics.Add("テストレリックA");
+            result.acquiredRelics.Add("テストレリックB");
+            result.damageReport.Add(new RunDamageReportEntry
+            {
+                label = "中央タワー",
+                totalDamage = gameClear ? 520000 : 185000,
+                activeSeconds = result.survivedSeconds,
+                visible = true,
+                sourceKind = RunDamageSourceKind.Building,
+                building = RunDamageBuildingSource.CenterTower
+            });
+            result.damageReport.Add(new RunDamageReportEntry
+            {
+                label = "テスト武器",
+                totalDamage = gameClear ? 405400 : 127600,
+                activeSeconds = result.survivedSeconds,
+                visible = true,
+                sourceKind = RunDamageSourceKind.None
+            });
+
+            RunResult.Last = result;
+            Debug.Log("[Game End Test] outcome=" + outcome + ", gameClear=" + gameClear + ", clearedStage=" + result.clearedStage);
+            navigator.LoadGameEnd();
         }
 
         void StartStageOneBossTest()
@@ -402,6 +457,14 @@ namespace AreaSurvivors
         public static string RelicToggleButtonName(RelicType relicType)
         {
             return "Toggle Relic " + relicType + " Button";
+        }
+
+        enum GameEndTestOutcome
+        {
+            Defeat,
+            StageClear,
+            StageFourClear,
+            AllStagesDifficultyFiveClear
         }
     }
 }

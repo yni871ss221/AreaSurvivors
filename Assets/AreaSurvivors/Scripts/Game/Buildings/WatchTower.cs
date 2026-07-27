@@ -210,11 +210,11 @@ namespace AreaSurvivors
 
                 var health = enemy.GetComponent<Health>();
                 if (health == null || health.IsDead || damagedTargets.Contains(health)) continue;
-                if (!IsWorldPointInAutoPaintEllipse(enemy.transform.position)) continue;
+                if (!IsWorldPointInAutoPaintEllipse(enemy.AttackTargetPosition)) continue;
 
                 damagedTargets.Add(health);
                 int creditedDamage = health.DamageAmount(damage);
-                health.Damage(damage, enemy.transform.position);
+                health.Damage(damage, enemy.AttackTargetPosition);
                 GameManager.Instance?.RegisterBuildingDamage(RunDamageBuildingSource.WatchTower, creditedDamage);
                 if (creditedDamage > 0) dealtDamage = true;
             }
@@ -300,7 +300,7 @@ namespace AreaSurvivors
             breaking = true;
             SetRangeVisualVisible(false);
             var cell = hasRegisteredCell ? registeredCell : grid != null ? grid.WorldToCell(transform.position) : OriginCell;
-            if (BuildingPersistentState.TryMarkDestroyed(gameObject, grid, cell)) return;
+            if (BuildingRevivalState.TryHandleDestroyed(gameObject, grid, cell)) return;
             if (grid != null) grid.ClearObject(cell);
             Destroy(gameObject);
         }
@@ -330,7 +330,7 @@ namespace AreaSurvivors
         {
             var target = GetComponent<BuildingUpgradeTarget>();
             if (target == null) target = gameObject.AddComponent<BuildingUpgradeTarget>();
-            target.Configure(BuildingUpgradeKind.WatchTower, 20, 50, "WatchTowerUpgrade", 100, 0, 5);
+            target.Configure(BuildingUpgradeKind.WatchTower, "WatchTowerUpgrade", 200, 0, 5);
         }
 
         PaperMeshVisual CreateSpriteVisual(string objectName, Color color, int sortingOrder)

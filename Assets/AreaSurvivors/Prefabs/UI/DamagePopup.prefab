@@ -70,6 +70,7 @@ MonoBehaviour:
   - {fileID: 2670148973292225217}
   - {fileID: 8884130344207921507}
   - {fileID: 2681880475786508156}
+  textOutline: {fileID: 3428010546547839247}
   lifetime: 0.9
 --- !u!1 &1179979523292346084
 GameObject:
@@ -179,6 +180,8 @@ GameObject:
   - component: {fileID: 1156138006796660755}
   - component: {fileID: 1924680190522091671}
   - component: {fileID: 6730585074504029472}
+  - component: {fileID: 3428010546547839247}
+  - component: {fileID: 5864207376107768573}
   m_Layer: 0
   m_Name: Text
   m_TagString: Untagged
@@ -221,7 +224,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 10100, guid: 0000000000000000e000000000000000, type: 0}
+  - {fileID: 2100000, guid: 635965177f4953544b1747a1d5814469, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -265,6 +268,34 @@ TextMesh:
   m_Color:
     serializedVersion: 2
     rgba: 4294967295
+--- !u!114 &3428010546547839247
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5829438119488874133}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4e5a756a6a17594da18a9a79d711da6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  faceColor: {r: 1, g: 1, b: 1, a: 1}
+  outlineColor: {r: 0, g: 0, b: 0, a: 1}
+  outlinePixels: 2
+  sharedOutlineMaterial: {fileID: 2100000, guid: 635965177f4953544b1747a1d5814469, type: 2}
+--- !u!114 &5864207376107768573
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5829438119488874133}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9167c3774fdc4614190c02354ec8c039, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &7489141418191655318
 GameObject:
   m_ObjectHideFlags: 0

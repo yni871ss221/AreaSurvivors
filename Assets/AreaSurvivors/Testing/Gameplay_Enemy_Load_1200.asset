@@ -1,0 +1,227 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ff4efad9b94e2b4ca9cd09cca12394d, type: 3}
+  m_Name: Gameplay_Enemy_Load_1200
+  m_EditorClassIdentifier: 
+  systems:
+    buildGrid: 1
+    enableGameManager: 0
+    enableEnemySpawner: 0
+    enableScenePlayer: 0
+    enableSceneTower: 0
+    clearExistingEnemies: 1
+  configOverrides: []
+  targetCellOffset: {x: 0, y: 0}
+  enemies:
+  - kind: 2
+    cellOffset: {x: -20, y: -15}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: -14}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: -13}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: -12}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: -11}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: -10}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: -9}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: -8}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: -7}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: -6}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: -5}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: -4}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: -3}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: -2}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: -1}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: 0}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: 1}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: 2}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: 3}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: 4}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: 5}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: 6}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: 7}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: 8}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: 9}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: 10}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: 11}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: 12}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: 13}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: 14}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  prefabs: []
+  scheduledActions: []
+  useFixedRandomSeed: 1
+  randomSeed: 12345
+  focusCameraOnSetup: 1
+  cameraFocusCellOffset: {x: 0, y: 0}
+  simulationTimeScale: 1
+  testDurationSeconds: 30
+  reachDistance: 1.25
+  stallSeconds: 2.5
+  stallMovementThreshold: 0.08
+  pauseOnComplete: 0
+  autoExitPlayModeOnComplete: 0
+  runPerformanceProbe: 1
+  performanceProbeMode: 0
+  performanceProbeDurationSeconds: 6
+  assertions:
+  - type: 2
+    expectedCount: 1200
+    expectedValue: 0
+    tolerance: 0.001
+    objectName: 
+    fieldName: 

@@ -25,7 +25,12 @@ namespace AreaSurvivors
                 }
 
                 data = JsonUtility.FromJson<SaveData>(json);
-                if (data != null) return true;
+                if (data != null)
+                {
+                    data.endingCreditsViewedWasSerialized =
+                        json.IndexOf("\"endingCreditsViewed\"", StringComparison.Ordinal) >= 0;
+                    return true;
+                }
 
                 error = "Save JSON did not contain progression data: " + path;
                 return false;

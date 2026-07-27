@@ -9,8 +9,6 @@ namespace AreaSurvivors
         public float defense;
         public float xpGainMultiplier;
         public int autoRegen;
-        public float workSpeedMultiplier;
-        public int resourceGainBonus;
     }
 
     public struct WeaponStatBlock

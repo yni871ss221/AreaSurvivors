@@ -15,12 +15,6 @@ namespace AreaSurvivors
         public Transform slashOrigin;
         public const int MaxEquippedWeapons = 3;
         const float FireballProjectileVisualScale = 0.38f;
-        public const float SlashRangeUpgradeAmount = 0.2f;
-        public const float SlashKnockbackUpgradeAmount = 1f;
-        public const float ProjectileRangeUpgradeAmount = 0.75f;
-        public const float FireballExplosionUpgradeAmount = 0.25f;
-        public const float ShieldKnockbackUpgradeAmount = 1f;
-        public const float ShieldRotationSpeedUpgradeAmount = 20f;
         public const int EvolutionTestUpgradeCount = 2;
         public const float ExcaliburBaseRangeMultiplier = 1f;
         GameConfig config;
@@ -34,6 +28,9 @@ namespace AreaSurvivors
         AdvancedWeaponRuntime advancedRuntime;
         bool runtimeStopped;
         float nextArrowVolleyAt;
+        float cachedAreaControlRatio;
+        float cachedAreaControlRangeMultiplier = 1f;
+        float nextAreaControlRangeEvaluationAt;
         readonly HashSet<WeaponType> evolvedWeapons = new HashSet<WeaponType>();
         int slashLevel = 1;
         int arrowLevel;
@@ -112,11 +109,11 @@ namespace AreaSurvivors
             player = owner;
             grid = FindObjectOfType<TileGrid>();
             if (config != null) config.EnsureWeaponLevelDefaults();
-            slashLevel = ProgressionStore.IsUnlocked(UpgradeType.RemoveStartingSlash)
-                ? 0
-                : Mathf.Clamp(1 + ProgressionStore.GetLevel(UpgradeType.StartingWeaponLevel), 1, GameConfig.MaxWeaponLevel);
-            arrowLevel = 0;
-            fireballLevel = 0;
+            var selectedCharacter = player != null ? player.characterType : CharacterType.Knight;
+            int startingWeaponLevelBonus = ProgressionStore.GetLevel(UpgradeType.StartingWeaponLevel);
+            slashLevel = CharacterLoadoutCatalog.InitialWeaponLevel(selectedCharacter, WeaponType.Slash, startingWeaponLevelBonus);
+            arrowLevel = CharacterLoadoutCatalog.InitialWeaponLevel(selectedCharacter, WeaponType.Arrow, startingWeaponLevelBonus);
+            fireballLevel = CharacterLoadoutCatalog.InitialWeaponLevel(selectedCharacter, WeaponType.Fireball, startingWeaponLevelBonus);
             shieldLevel = 0;
             evolvedWeapons.Clear();
             advancedWeaponLevels.Clear();
@@ -127,6 +124,10 @@ namespace AreaSurvivors
             if (advancedRuntime != null) advancedRuntime.Configure(this, owner, gameConfig);
             runtimeStopped = false;
             nextArrowVolleyAt = 0f;
+            cachedAreaControlRatio = 0f;
+            cachedAreaControlRangeMultiplier = 1f;
+            nextAreaControlRangeEvaluationAt = 0f;
+            RefreshAreaControlRangeCache(true);
             testStatLevelOverrides.Clear();
             acquiredWeaponOrder.Clear();
             WeaponType testStartingWeapon = default;
@@ -135,9 +136,9 @@ namespace AreaSurvivors
             {
                 ApplyTestStartingWeapon(testStartingWeapon);
             }
-            else if (SlashUnlocked)
+            else
             {
-                RegisterAcquiredWeapon(WeaponType.Slash);
+                RegisterAcquiredWeapon(CharacterLoadoutCatalog.StartingWeapon(selectedCharacter));
             }
             ResetRunWeaponUpgrades();
             if (hasTestStartingWeapon) ApplyTestStartingWeaponProfile(testStartingWeapon);
@@ -231,18 +232,37 @@ namespace AreaSurvivors
             {
                 case WeaponType.Slash:
                     int slashBaseFinalAttackPower = baseStats.attackPower + config.slashDamageBonus;
-                    stats.attackPower += Mathf.Max(0, config.swordRushBaseAttackPower) - slashBaseFinalAttackPower;
+                    int slashCurrentFinalAttackPower = stats.attackPower + config.slashDamageBonus;
+                    int swordRushFinalAttackPower = ResolveEvolutionAttackPower(
+                        slashCurrentFinalAttackPower,
+                        slashBaseFinalAttackPower,
+                        config.swordRushBaseAttackPower);
+                    stats.attackPower += swordRushFinalAttackPower - slashCurrentFinalAttackPower;
                     stats.range += Mathf.Max(0f, config.swordRushBaseRange) - baseStats.range;
                     break;
                 case WeaponType.Arrow:
-                    stats.attackPower += baseStats.attackPower;
+                    stats.attackPower = ResolveEvolutionAttackPower(
+                        stats.attackPower,
+                        baseStats.attackPower,
+                        config.goldenBowBaseAttackPower);
                     break;
                 case WeaponType.Fireball:
-                    stats.cooldownSeconds = ResolveEvolutionBaseCooldown(stats.cooldownSeconds,
-                        baseStats.cooldownSeconds, config.fireMissileBaseCooldownMultiplier);
+                    stats.attackPower = ResolveEvolutionAttackPower(
+                        stats.attackPower,
+                        baseStats.attackPower,
+                        config.fireMissileBaseAttackPower);
+                    stats.cooldownSeconds = ResolveEvolutionBaseCooldownSeconds(stats.cooldownSeconds,
+                        baseStats.cooldownSeconds, config.fireMissileBaseCooldownSeconds);
+                    stats.projectileSpeed = ResolveFireMissileProjectileSpeed(
+                        stats.projectileSpeed,
+                        config.fireMissileProjectileSpeedMultiplier);
                     stats.range += baseStats.range;
                     break;
                 case WeaponType.Shield:
+                    stats.attackPower = ResolveEvolutionAttackPower(
+                        stats.attackPower,
+                        baseStats.attackPower,
+                        config.dualShieldBaseAttackPower);
                     stats.projectileCount += Mathf.Max(1, baseStats.projectileCount);
                     stats.rotationSpeed += baseStats.rotationSpeed;
                     stats.range += baseStats.range;
@@ -253,17 +273,32 @@ namespace AreaSurvivors
             stats.cooldownSeconds = Mathf.Max(0.05f, stats.cooldownSeconds);
         }
 
-        public static float ResolveEvolutionBaseCooldown(float currentCooldown, float levelOneBaseCooldown,
-            float evolutionBaseMultiplier)
+        public static int ResolveEvolutionAttackPower(
+            int currentAttackPower,
+            int levelOneBaseAttackPower,
+            int evolutionBaseAttackPower)
+        {
+            int levelGrowth = Mathf.Max(0, currentAttackPower - Mathf.Max(0, levelOneBaseAttackPower));
+            return Mathf.Max(0, evolutionBaseAttackPower) + levelGrowth;
+        }
+
+        public static float ResolveEvolutionBaseCooldownSeconds(float currentCooldown, float levelOneBaseCooldown,
+            float evolutionBaseCooldownSeconds)
         {
             float baseCooldown = Mathf.Max(0.05f, levelOneBaseCooldown);
-            float evolvedBaseCooldown = Mathf.Max(0.05f, baseCooldown * Mathf.Max(0f, evolutionBaseMultiplier));
+            float evolvedBaseCooldown = Mathf.Max(0.05f, evolutionBaseCooldownSeconds);
             return Mathf.Max(0.05f, currentCooldown + evolvedBaseCooldown - baseCooldown);
+        }
+
+        public static float ResolveFireMissileProjectileSpeed(float currentProjectileSpeed, float speedMultiplier)
+        {
+            return Mathf.Max(0.01f, currentProjectileSpeed * Mathf.Max(0.01f, speedMultiplier));
         }
 
         void Update()
         {
             if (runtimeStopped) return;
+            RefreshAreaControlRangeCache();
             MarkActiveWeaponSlots();
             SyncShieldOrbit();
         }
@@ -606,7 +641,7 @@ namespace AreaSurvivors
         void ApplyUniformEvolutionTestUpgrades(WeaponType type, int upgradeCount)
         {
             int count = Mathf.Max(0, upgradeCount);
-            int attackBonus = Mathf.Max(1, config.runAttackPowerBonus) * count;
+            int attackBonus = config.GetRunAttackPowerBonus(type) * count;
             float cooldownMultiplier = Mathf.Pow(Mathf.Clamp(config.runAttackCooldownMultiplier, 0.05f, 1f), count);
 
             switch (type)
@@ -614,26 +649,26 @@ namespace AreaSurvivors
                 case WeaponType.Slash:
                     slashAttackBonus += attackBonus;
                     slashCooldownMultiplier *= cooldownMultiplier;
-                    slashKnockbackBonus += SlashKnockbackUpgradeAmount * count;
-                    slashRangeBonus += SlashRangeUpgradeAmount * count;
+                    slashKnockbackBonus += config.runWeaponKnockbackBonus * count;
+                    slashRangeBonus += config.runMediumRangeBonus * count;
                     return;
                 case WeaponType.Arrow:
                     arrowAttackBonus += attackBonus;
                     arrowCooldownMultiplier *= cooldownMultiplier;
-                    arrowProjectileCountBonus += count;
-                    arrowRangeBonus += ProjectileRangeUpgradeAmount * count;
+                    arrowProjectileCountBonus += config.runProjectileCountBonus * count;
+                    arrowRangeBonus += config.runProjectileRangeBonus * count;
                     return;
                 case WeaponType.Fireball:
                     fireballAttackBonus += attackBonus;
                     fireballCooldownMultiplier *= cooldownMultiplier;
-                    fireballExplosionRadiusBonus += FireballExplosionUpgradeAmount * count;
-                    fireballRangeBonus += ProjectileRangeUpgradeAmount * count;
+                    fireballExplosionRadiusBonus += config.runExplosionRadiusBonus * count;
+                    fireballRangeBonus += config.runProjectileRangeBonus * count;
                     return;
                 case WeaponType.Shield:
                     shieldAttackBonus += attackBonus;
-                    shieldCountBonus += count;
-                    shieldKnockbackBonus += ShieldKnockbackUpgradeAmount * count;
-                    shieldRotationSpeedBonus += ShieldRotationSpeedUpgradeAmount * count;
+                    shieldCountBonus += config.runProjectileCountBonus * count;
+                    shieldKnockbackBonus += config.runWeaponKnockbackBonus * count;
+                    shieldRotationSpeedBonus += config.runShieldRotationSpeedBonus * count;
                     return;
             }
 
@@ -642,39 +677,39 @@ namespace AreaSurvivors
             switch (type)
             {
                 case WeaponType.Flag:
-                    upgrade.rangeBonus += ProjectileRangeUpgradeAmount * count;
-                    upgrade.slowBonus += 0.05f * count;
+                    upgrade.rangeBonus += config.runAreaRangeBonus * count;
+                    upgrade.slowBonus += config.runSlowBonus * count;
                     upgrade.damageIntervalMultiplier *= cooldownMultiplier;
                     break;
                 case WeaponType.BoomerangSword:
-                    upgrade.projectileCountBonus += count;
-                    upgrade.rangeBonus += SlashRangeUpgradeAmount * count;
+                    upgrade.projectileCountBonus += config.runProjectileCountBonus * count;
+                    upgrade.rangeBonus += config.runMediumRangeBonus * count;
                     upgrade.cooldownMultiplier *= cooldownMultiplier;
                     break;
                 case WeaponType.AuraSword:
-                    upgrade.projectileCountBonus += count;
-                    upgrade.rangeBonus += ProjectileRangeUpgradeAmount * count;
-                    upgrade.distanceBonus += ProjectileRangeUpgradeAmount * count;
+                    upgrade.projectileCountBonus += config.runProjectileCountBonus * count;
+                    upgrade.rangeBonus += config.runAreaRangeBonus * count;
+                    upgrade.distanceBonus += config.runProjectileRangeBonus * count;
                     break;
                 case WeaponType.ArrowRain:
-                    upgrade.rangeBonus += ProjectileRangeUpgradeAmount * count;
-                    upgrade.durationBonus += 0.4f * count;
+                    upgrade.rangeBonus += config.runMediumRangeBonus * count;
+                    upgrade.durationBonus += config.runArrowRainDurationBonus * count;
                     upgrade.cooldownMultiplier *= cooldownMultiplier;
                     break;
                 case WeaponType.Gun:
                     upgrade.cooldownMultiplier *= cooldownMultiplier;
-                    upgrade.distanceBonus += ProjectileRangeUpgradeAmount * count;
-                    upgrade.projectileCountBonus += count;
+                    upgrade.distanceBonus += config.runProjectileRangeBonus * count;
+                    upgrade.projectileCountBonus += config.runProjectileCountBonus * count;
                     break;
                 case WeaponType.Frost:
-                    upgrade.rangeBonus += ProjectileRangeUpgradeAmount * count;
-                    upgrade.slowBonus += 0.05f * count;
+                    upgrade.rangeBonus += config.runAreaRangeBonus * count;
+                    upgrade.slowBonus += config.runSlowBonus * count;
                     upgrade.cooldownMultiplier *= cooldownMultiplier;
                     break;
                 case WeaponType.ThunderBall:
-                    upgrade.rangeBonus += ProjectileRangeUpgradeAmount * count;
-                    upgrade.projectileCountBonus += count;
-                    upgrade.durationBonus += 0.5f * count;
+                    upgrade.rangeBonus += config.runAreaRangeBonus * count;
+                    upgrade.projectileCountBonus += config.runProjectileCountBonus * count;
+                    upgrade.durationBonus += config.runThunderBallDurationBonus * count;
                     break;
             }
         }
@@ -891,7 +926,7 @@ namespace AreaSurvivors
                 if (player != null && !player.IsReviving && FireballUnlocked)
                 {
                     var displayType = GetDisplayWeaponType(WeaponType.Fireball);
-                    if (displayType == WeaponType.FireMissile) ShootFireMissileAtNearestTarget(fireMissilePrefab != null ? fireMissilePrefab : fireballPrefab, fireballStats);
+                    if (displayType == WeaponType.FireMissile) ShootFireMissile(fireMissilePrefab != null ? fireMissilePrefab : fireballPrefab, fireballStats);
                     else ShootForward(fireballPrefab, fireballStats);
                 }
                 yield return new WaitForSeconds(GetCooldown(fireballStats));
@@ -981,8 +1016,8 @@ namespace AreaSurvivors
                 var enemy = targets[i].enemy;
                 if (enemy == null) continue;
                 if (launchedCount == 0) AudioManager.PlaySfx(SfxTrack.ArrowShot);
-                var shotDirection = (Vector2)(enemy.transform.position - transform.position);
-                LaunchProjectile(prefab, false, effectiveStats, shotDirection.normalized, projectileSpeed, 0f, lifetime, displayType, enemy.transform);
+                var shotDirection = (Vector2)(enemy.AttackTargetPosition - transform.position);
+                LaunchProjectile(prefab, false, effectiveStats, shotDirection.normalized, projectileSpeed, 0f, lifetime, displayType, enemy);
                 launchedCount++;
             }
             return launchedCount;
@@ -994,38 +1029,57 @@ namespace AreaSurvivors
             return Mathf.Min(Mathf.Max(1, projectileCount), targetCount);
         }
 
-        void ShootFireMissileAtNearestTarget(GameObject prefab, WeaponStatBlock stats)
+        void ShootFireMissile(GameObject prefab, WeaponStatBlock stats)
         {
-            if (prefab == null) return;
             var effectiveStats = ApplyFireballSpecialEffect(stats);
             var targets = CollectArrowTargetsInRange(effectiveStats);
-            if (targets.Count <= 0 || targets[0].enemy == null) return;
-            var enemy = targets[0].enemy;
-            var direction = ResolveFireMissileLaunchDirection(UnityEngine.Random.Range(0f, 360f));
+            var launchDecision = ResolveFireMissileLaunchDecision(prefab != null, targets.Count);
+            if (!launchDecision.shouldLaunch) return;
+
+            var enemy = launchDecision.targetIndex >= 0 &&
+                        launchDecision.targetIndex < targets.Count
+                ? targets[launchDecision.targetIndex].enemy
+                : null;
+            var forward = player != null && player.Facing.sqrMagnitude > 0.01f
+                ? player.Facing.normalized
+                : Vector2.down;
+            float launchArc = config != null
+                ? Mathf.Clamp(config.fireMissileLaunchArcDegrees, 0f, 360f)
+                : 180f;
+            float launchAngleOffset = UnityEngine.Random.Range(-launchArc * 0.5f, launchArc * 0.5f);
+            var direction = ResolveFireMissileLaunchDirection(forward, launchAngleOffset, launchArc);
             float speed = Mathf.Max(0.01f, effectiveStats.projectileSpeed);
             float lifetime = Mathf.Max(0.05f, FireballFlightRange(effectiveStats) / speed);
             AudioManager.PlaySfx(SfxTrack.FireballCast);
-            LaunchProjectile(prefab, true, effectiveStats, direction, speed, Mathf.Max(0.05f, effectiveStats.explosionRadius), lifetime, WeaponType.FireMissile, enemy.transform);
+            LaunchProjectile(prefab, true, effectiveStats, direction, speed, Mathf.Max(0.05f, effectiveStats.explosionRadius), lifetime, WeaponType.FireMissile, enemy);
         }
 
-        public static Vector2 ResolveFireMissileLaunchDirection(float angleDegrees)
+        public static FireMissileLaunchDecision ResolveFireMissileLaunchDecision(bool prefabAvailable, int targetCount)
         {
-            float radians = angleDegrees * Mathf.Deg2Rad;
-            return new Vector2(Mathf.Cos(radians), Mathf.Sin(radians)).normalized;
+            return new FireMissileLaunchDecision(prefabAvailable, targetCount > 0 ? 0 : -1);
+        }
+
+        public static Vector2 ResolveFireMissileLaunchDirection(
+            Vector2 forward,
+            float angleOffsetDegrees,
+            float launchArcDegrees)
+        {
+            var normalizedForward = forward.sqrMagnitude > 0.001f ? forward.normalized : Vector2.down;
+            float halfArc = Mathf.Clamp(launchArcDegrees, 0f, 360f) * 0.5f;
+            float clampedOffset = Mathf.Clamp(angleOffsetDegrees, -halfArc, halfArc);
+            return ((Vector2)(Quaternion.Euler(0f, 0f, clampedOffset) * normalizedForward)).normalized;
         }
 
         List<ArrowTargetCandidate> CollectArrowTargetsInRange(WeaponStatBlock stats)
         {
             var targets = new List<ArrowTargetCandidate>();
-            var enemies = FindObjectsOfType<EnemyController>();
+            var enemies = EnemyController.ActiveEnemies;
             float range = Mathf.Max(0.01f, stats.range);
             float rangeSqr = range * range;
             foreach (var enemy in enemies)
             {
-                if (enemy == null) continue;
-                var health = enemy.GetComponent<Health>();
-                if (health == null || health.IsDead) continue;
-                float distanceSqr = (enemy.transform.position - transform.position).sqrMagnitude;
+                if (enemy == null || !enemy.IsAlive) continue;
+                float distanceSqr = (enemy.AttackTargetPosition - transform.position).sqrMagnitude;
                 if (distanceSqr > rangeSqr) continue;
                 targets.Add(new ArrowTargetCandidate(enemy, distanceSqr));
             }
@@ -1117,28 +1171,55 @@ namespace AreaSurvivors
             switch (type)
             {
                 case WeaponType.BoomerangSword:
+                    stats.attackPower = ResolveEvolutionAttackPower(
+                        stats.attackPower,
+                        baseStats.attackPower,
+                        config.bananaBaseAttackPower);
                     stats.range += Mathf.Max(0f, config.bananaBaseRange) - baseStats.range;
                     stats.projectileCount += Mathf.Max(0, config.bananaBaseProjectileCountBonus);
                     break;
                 case WeaponType.AuraSword:
+                    stats.attackPower = ResolveEvolutionAttackPower(
+                        stats.attackPower,
+                        baseStats.attackPower,
+                        config.excaliburBaseAttackPower);
                     stats.range += baseStats.range * (ExcaliburBaseRangeMultiplier - 1f);
                     stats.distance += baseStats.distance;
                     stats.damageIntervalSeconds = Mathf.Max(0.05f, config.excaliburDamageIntervalSeconds);
                     break;
                 case WeaponType.ArrowRain:
+                    stats.attackPower = ResolveEvolutionAttackPower(
+                        stats.attackPower,
+                        baseStats.attackPower,
+                        config.arrowShowerBaseAttackPower);
                     stats.range += Mathf.Max(0.05f, config.evolvedGroundStrikeRadius) - baseStats.range;
                     break;
                 case WeaponType.Gun:
+                    stats.attackPower = ResolveEvolutionAttackPower(
+                        stats.attackPower,
+                        baseStats.attackPower,
+                        config.machineGunBaseAttackPower);
                     stats.projectileCount += Mathf.Max(0, config.machineGunBaseAttackCountBonus);
                     break;
                 case WeaponType.Frost:
+                    stats.attackPower = ResolveEvolutionAttackPower(
+                        stats.attackPower,
+                        baseStats.attackPower,
+                        config.frostStormBaseAttackPower);
                     stats.range += Mathf.Max(0.05f, config.evolvedGroundStrikeRadius) - baseStats.range;
                     break;
                 case WeaponType.ThunderBall:
+                    stats.attackPower = ResolveEvolutionAttackPower(
+                        stats.attackPower,
+                        baseStats.attackPower,
+                        config.thunderStormBaseAttackPower);
                     stats.projectileCount += Mathf.Max(0, config.thunderStormOrbitCount);
                     break;
                 case WeaponType.Flag:
-                    stats.attackPower += baseStats.attackPower;
+                    stats.attackPower = ResolveEvolutionAttackPower(
+                        stats.attackPower,
+                        baseStats.attackPower,
+                        config.goddessBlessingBaseAttackPower);
                     break;
             }
             stats.range = Mathf.Max(0.05f, stats.range);
@@ -1154,23 +1235,24 @@ namespace AreaSurvivors
 
         WeaponStatBlock ApplyAdvancedSpecialEffect(WeaponType type, WeaponStatBlock stats)
         {
-            switch (type)
+            if (UsesAreaControlRangeScaling(type))
             {
-                case WeaponType.Flag:
-                case WeaponType.AuraSword:
-                case WeaponType.ArrowRain:
-                case WeaponType.Frost:
-                    if (IsPlayerAreaControlSpecialActive(0.5f)) stats.range += AreaPaintRangeBonus();
-                    break;
-                case WeaponType.BoomerangSword:
-                    if (IsPlayerAreaControlSpecialActive(0.7f)) stats.projectileCount *= 2;
-                    break;
-                case WeaponType.Gun:
-                    if (IsPlayerAreaControlSpecialActive(0.7f)) stats.attackPower *= 2;
-                    break;
-                case WeaponType.ThunderBall:
-                    if (IsPlayerAreaControlSpecialActive(0.7f)) stats.range *= 2f;
-                    break;
+                stats.range *= cachedAreaControlRangeMultiplier;
+            }
+            else
+            {
+                switch (type)
+                {
+                    case WeaponType.BoomerangSword:
+                        if (IsPlayerAreaControlSpecialActive(0.7f)) stats.projectileCount *= 2;
+                        break;
+                    case WeaponType.Gun:
+                        if (IsPlayerAreaControlSpecialActive(0.7f)) stats.attackPower *= 2;
+                        break;
+                    case WeaponType.ThunderBall:
+                        if (IsPlayerAreaControlSpecialActive(0.7f)) stats.range *= 2f;
+                        break;
+                }
             }
 
             return ApplyRelicConditionalWeaponBonuses(type, stats);
@@ -1184,11 +1266,12 @@ namespace AreaSurvivors
                 case WeaponType.Arrow:
                 case WeaponType.Fireball:
                 case WeaponType.Shield:
+                    return IsPlayerAreaControlSpecialActive(0.5f);
                 case WeaponType.Flag:
                 case WeaponType.AuraSword:
                 case WeaponType.ArrowRain:
                 case WeaponType.Frost:
-                    return IsPlayerAreaControlSpecialActive(0.5f);
+                    return cachedAreaControlRangeMultiplier > 1.0001f;
                 case WeaponType.BoomerangSword:
                 case WeaponType.Gun:
                 case WeaponType.ThunderBall:
@@ -1198,7 +1281,7 @@ namespace AreaSurvivors
             }
         }
 
-        void LaunchProjectile(GameObject prefab, bool explosive, WeaponStatBlock stats, Vector2 direction, float projectileSpeed, float radius, float lifetime, WeaponType displayType, Transform homingTarget)
+        void LaunchProjectile(GameObject prefab, bool explosive, WeaponStatBlock stats, Vector2 direction, float projectileSpeed, float radius, float lifetime, WeaponType displayType, EnemyController homingTarget)
         {
             var go = Instantiate(prefab, transform.position, Quaternion.identity);
             var projectile = go.GetComponent<Projectile>();
@@ -1230,6 +1313,53 @@ namespace AreaSurvivors
             return Mathf.Max(1f, config != null ? config.weaponSpecialEffectMultiplier : 2f);
         }
 
+        void RefreshAreaControlRangeCache(bool force = false)
+        {
+            if (!force && Time.time < nextAreaControlRangeEvaluationAt) return;
+
+            float interval = config != null
+                ? Mathf.Max(0.1f, config.areaControlRangeEvaluationIntervalSeconds)
+                : 1f;
+            nextAreaControlRangeEvaluationAt = Time.time + interval;
+            if (grid == null) grid = FindObjectOfType<TileGrid>();
+            cachedAreaControlRatio = grid != null ? grid.GetPlayerControlRatio() : 0f;
+            cachedAreaControlRangeMultiplier = CalculateAreaControlRangeMultiplier(
+                cachedAreaControlRatio,
+                config != null ? config.areaControlRangeScaleStartRatio : 0.5f,
+                config != null ? config.areaControlRangeScaleFullRatio : 1f,
+                config != null ? config.areaControlRangeScaleMaxMultiplier : 2f);
+        }
+
+        public static float CalculateAreaControlRangeMultiplier(
+            float controlRatio,
+            float startRatio,
+            float fullRatio,
+            float maxMultiplier)
+        {
+            controlRatio = Mathf.Clamp01(controlRatio);
+            startRatio = Mathf.Clamp01(startRatio);
+            fullRatio = Mathf.Clamp01(fullRatio);
+            maxMultiplier = Mathf.Max(1f, maxMultiplier);
+            if (controlRatio <= startRatio) return 1f;
+            if (fullRatio <= startRatio + 0.0001f) return maxMultiplier;
+            float progress = Mathf.InverseLerp(startRatio, fullRatio, controlRatio);
+            return Mathf.Lerp(1f, maxMultiplier, progress);
+        }
+
+        public static bool UsesAreaControlRangeScaling(WeaponType type)
+        {
+            switch (WeaponCatalog.BaseWeaponOf(type))
+            {
+                case WeaponType.Flag:
+                case WeaponType.AuraSword:
+                case WeaponType.ArrowRain:
+                case WeaponType.Frost:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
         bool IsPlayerAreaControlSpecialActive()
         {
             float threshold = Mathf.Clamp01(config != null ? config.weaponSpecialEffectControlThreshold : 0.5f);
@@ -1243,12 +1373,6 @@ namespace AreaSurvivors
             return grid.GetPlayerControlRatio() >= Mathf.Clamp01(threshold);
         }
 
-        float AreaPaintRangeBonus()
-        {
-            int radius = player != null ? player.PaintRadius : config != null ? config.paintRadius : 1;
-            return Mathf.Max(0, radius) * TileGrid.DefaultCellSize;
-        }
-
         readonly struct ArrowTargetCandidate
         {
             public readonly EnemyController enemy;
@@ -1258,6 +1382,18 @@ namespace AreaSurvivors
             {
                 this.enemy = enemy;
                 this.distanceSqr = distanceSqr;
+            }
+        }
+
+        public readonly struct FireMissileLaunchDecision
+        {
+            public readonly bool shouldLaunch;
+            public readonly int targetIndex;
+
+            public FireMissileLaunchDecision(bool shouldLaunch, int targetIndex)
+            {
+                this.shouldLaunch = shouldLaunch;
+                this.targetIndex = targetIndex;
             }
         }
 

@@ -21,7 +21,10 @@ $runCommands = @(
     [pscustomobject]@{ Report = "construction-menu-layout"; Command = "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/run-unity-report.ps1 -Report construction-menu-layout" },
     [pscustomobject]@{ Report = "skill-tree-layout"; Command = "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/run-unity-report.ps1 -Report skill-tree-layout" },
     [pscustomobject]@{ Report = "building-prefab-visuals"; Command = "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/run-unity-report.ps1 -Report building-prefab-visuals" },
-    [pscustomobject]@{ Report = "asset-references"; Command = "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/run-unity-report.ps1 -Report asset-references" }
+    [pscustomobject]@{ Report = "asset-references"; Command = "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/run-unity-report.ps1 -Report asset-references" },
+    [pscustomobject]@{ Report = "compact-project-snapshot"; Command = "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/run-unity-report.ps1 -Report compact-project-snapshot" },
+    [pscustomobject]@{ Report = "scene-prefab-overview"; Command = "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/run-unity-report.ps1 -Report scene-prefab-overview" },
+    [pscustomobject]@{ Report = "scene-prefab-structure"; Command = "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/run-unity-report.ps1 -Report scene-prefab-structure" }
 )
 
 $result = [pscustomobject]@{

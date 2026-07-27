@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace AreaSurvivors
@@ -6,9 +7,19 @@ namespace AreaSurvivors
     [RequireComponent(typeof(Rigidbody2D), typeof(Health))]
     public sealed class EnemyController : MonoBehaviour
     {
+        public const string EnemyLayerName = "Enemy";
+        public const float ContactDamageCooldownSeconds = 0.75f;
+
+        static readonly List<EnemyController> ActiveEnemyInstances = new List<EnemyController>(256);
+        static int cachedEnemyLayer = int.MinValue;
+
+        public static IReadOnlyList<EnemyController> ActiveEnemies => ActiveEnemyInstances;
+        public static int ActiveEnemyCount => ActiveEnemyInstances.Count;
+
         public GameConfig config;
         public TileGrid grid;
         public Transform target;
+        public Transform playerTarget;
         public GameObject xpOrbPrefab;
         public GameObject damagePopupPrefab;
         public DirectionalSpriteAnimator directionalAnimator;
@@ -34,8 +45,11 @@ namespace AreaSurvivors
         EnemySlowEffect slowEffect;
         EnemyHitFlash hitFlash;
         YSort ySort;
-        float contactTimer;
+        Health playerTargetHealth;
+        Vector2 playerAggroCellSize = Vector2.one * TileGrid.DefaultCellSize;
+        float nextContactDamageAt;
         float footProbeDistance = 0.24f;
+        float baseBodyMass = 1f;
         float speedMultiplier = 1f;
         float nextEnemyPaintTime;
         int nextEnemyPaintFrame;
@@ -73,6 +87,28 @@ namespace AreaSurvivors
         public static bool ProbeDisablePaint { get; set; }
         public static bool ProbeDisableAnimation { get; set; }
         public static bool ProbeDisableYSort { get; set; }
+        public bool IsAlive => health != null && !health.IsDead;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetActiveEnemyRegistry()
+        {
+            ActiveEnemyInstances.Clear();
+            cachedEnemyLayer = int.MinValue;
+        }
+
+        public static bool IsEnemyLayer(int layer)
+        {
+            if (cachedEnemyLayer < 0)
+            {
+                cachedEnemyLayer = LayerMask.NameToLayer(EnemyLayerName);
+            }
+            return cachedEnemyLayer >= 0 && layer == cachedEnemyLayer;
+        }
+
+        public static float CalculateNextContactDamageAt(float currentTime)
+        {
+            return currentTime + ContactDamageCooldownSeconds;
+        }
 
         public static void ResetPerformanceProbeOverrides()
         {
@@ -86,6 +122,7 @@ namespace AreaSurvivors
         void Awake()
         {
             body = GetComponent<Rigidbody2D>();
+            baseBodyMass = body != null ? body.mass : 1f;
             health = GetComponent<Health>();
             knockback = GetComponent<KnockbackReceiver>();
             if (knockback == null) knockback = gameObject.AddComponent<KnockbackReceiver>();
@@ -104,13 +141,25 @@ namespace AreaSurvivors
             outline = visual != null ? visual.GetComponent<RuntimeSpriteOutline>() : GetComponentInChildren<RuntimeSpriteOutline>();
             reveal = GetComponent<CharacterOcclusionReveal>();
             slowEffect = GetComponent<EnemySlowEffect>();
+            hitFlash = GetComponent<EnemyHitFlash>();
             ySort = GetComponent<YSort>();
             if (outline == null) Debug.LogError("Enemy prefab is missing RuntimeSpriteOutline on its visual.");
             if (reveal == null) Debug.LogError("Enemy prefab is missing CharacterOcclusionReveal on its root.");
+            if (hitFlash == null) Debug.LogError("Enemy prefab is missing EnemyHitFlash on its root.");
             if (reveal != null) reveal.silhouetteColor = new Color(1f, 0.52f, 0.28f, 0.56f);
             ApplyOutlineStyle();
             health.Damaged += OnDamaged;
             health.Died += OnDied;
+        }
+
+        void OnEnable()
+        {
+            if (!ActiveEnemyInstances.Contains(this)) ActiveEnemyInstances.Add(this);
+        }
+
+        void OnDisable()
+        {
+            ActiveEnemyInstances.Remove(this);
         }
 
         public void Configure(GameConfig gameConfig, TileGrid tileGrid, Transform chaseTarget, int hp, float speedScale)
@@ -118,11 +167,23 @@ namespace AreaSurvivors
             Configure(gameConfig, tileGrid, chaseTarget, gameConfig != null ? gameConfig.GetEnemyDefinition(EnemyKind.Boar) : null, hp, speedScale);
         }
 
-        public void Configure(GameConfig gameConfig, TileGrid tileGrid, Transform chaseTarget, EnemyDefinition definition, int hp, float speedScale)
+        public void Configure(
+            GameConfig gameConfig,
+            TileGrid tileGrid,
+            Transform chaseTarget,
+            EnemyDefinition definition,
+            int hp,
+            float speedScale,
+            Transform playerChaseTarget = null)
         {
             config = gameConfig;
             grid = tileGrid;
             target = chaseTarget;
+            playerTarget = playerChaseTarget;
+            playerTargetHealth = playerTarget != null ? playerTarget.GetComponent<Health>() : null;
+            playerAggroCellSize = grid != null
+                ? grid.WorldCellSize()
+                : Vector2.one * TileGrid.DefaultCellSize;
             if (definition == null && config != null) definition = config.GetEnemyDefinition(EnemyKind.Boar);
             ApplyDefinition(definition);
             health.SetMax(hp);
@@ -132,6 +193,14 @@ namespace AreaSurvivors
 
         public bool IsActionLocked => actionLocked;
         public Vector2 FacingDirection => facingDirection.sqrMagnitude > 0.001f ? facingDirection : Vector2.down;
+        public Vector3 AttackTargetPosition
+        {
+            get
+            {
+                if (footprint == null) footprint = GetComponent<CharacterFootprint>();
+                return footprint != null ? footprint.SamplePosition : transform.position;
+            }
+        }
 
         public void SetActionLocked(bool locked, Vector2 direction)
         {
@@ -150,6 +219,15 @@ namespace AreaSurvivors
             return true;
         }
 
+        public bool ForceStageTransitionDefeat()
+        {
+            if (boss || dying || health == null || health.IsDead) return false;
+            stageTransitionDefeatQueued = true;
+            SetActionLocked(true, FacingDirection);
+            ApplyStageTransitionLethalDamage();
+            return true;
+        }
+
         IEnumerator StageTransitionDefeatRoutine(float hitDelaySeconds)
         {
             float elapsed = 0f;
@@ -160,6 +238,12 @@ namespace AreaSurvivors
             }
 
             if (dying || health == null || health.IsDead) yield break;
+            ApplyStageTransitionLethalDamage();
+        }
+
+        void ApplyStageTransitionLethalDamage()
+        {
+            if (dying || health == null || health.IsDead) return;
             suppressDamageFeedback = true;
             int defenseAllowance = Mathf.CeilToInt(Mathf.Max(0f, health.defense));
             int lethalDamage = health.currentHp > int.MaxValue - defenseAllowance
@@ -176,6 +260,7 @@ namespace AreaSurvivors
                 xpValue = config != null ? config.xpPerEnemy : 1;
                 attackDamage = config != null ? config.enemyDamage : 3;
                 if (knockback != null) knockback.weight = 1f;
+                if (body != null) body.mass = ResolveCollisionMass(false, baseBodyMass, 0f);
                 transform.localScale = Vector3.one * (config != null ? Mathf.Max(0.1f, config.enemyVisualScale) : 1f);
                 ConfigureFootCollider(1f);
                 return;
@@ -194,6 +279,11 @@ namespace AreaSurvivors
             boss = definition.boss;
             attackDamage = Mathf.Max(0, Mathf.RoundToInt((config != null ? config.enemyDamage : 3) * Mathf.Max(0f, definition.damageMultiplier)));
             if (knockback != null) knockback.weight = KnockbackWeight(definition);
+            if (body != null)
+            {
+                float bossMass = config != null ? config.bossEnemyCollisionMass : 1000000f;
+                body.mass = ResolveCollisionMass(definition.boss, baseBodyMass, bossMass);
+            }
             float visualScale = config != null ? Mathf.Max(0.1f, config.enemyVisualScale) : 1f;
             float cellScale = Mathf.Max(0.1f, definition.cellSize);
             transform.localScale = Vector3.one * visualScale * cellScale;
@@ -225,6 +315,12 @@ namespace AreaSurvivors
         static float ConfiguredWeight(float value, float fallback)
         {
             return value > 0f ? value : fallback;
+        }
+
+        public static float ResolveCollisionMass(bool isBoss, float baseMass, float bossMass)
+        {
+            float safeBaseMass = Mathf.Max(0.0001f, baseMass);
+            return isBoss ? Mathf.Max(1f, bossMass) : safeBaseMass;
         }
 
         static bool IsAdvancedNormalEnemy(EnemyKind kind)
@@ -316,18 +412,22 @@ namespace AreaSurvivors
             if (dying || target == null) return;
             if (actionLocked)
             {
+                if (!ProbeDisableContactCheck) TryHandleGridObjectContact(FacingDirection);
                 body.velocity = Vector2.zero;
                 PaintEnemyTerritory(MovementSamplePosition());
                 return;
             }
+
+            var direction = (MovementTargetPosition() - (Vector2)transform.position).normalized;
+            if (direction.sqrMagnitude > 0.001f) facingDirection = direction;
             if (knockback != null && knockback.Active)
             {
                 if (!ProbeDisableAnimation) TickEnemyAnimation(Vector2.down, true);
                 return;
             }
-            var direction = ((Vector2)(target.position - transform.position)).normalized;
-            if (direction.sqrMagnitude > 0.001f) facingDirection = direction;
-            if (!ProbeDisableContactCheck && TryHandleGridObjectContact(direction))
+
+            bool blockingGridObject = !ProbeDisableContactCheck && TryHandleGridObjectContact(direction);
+            if (blockingGridObject)
             {
                 body.velocity = Vector2.zero;
                 if (!ProbeDisableAnimation) TickEnemyAnimation(direction, false);
@@ -341,6 +441,51 @@ namespace AreaSurvivors
             body.velocity = direction * config.enemyBaseSpeed * slow * speedMultiplier * weaponSlow;
             if (!ProbeDisableAnimation) TickEnemyAnimation(direction, body.velocity.sqrMagnitude > 0.01f);
             PaintEnemyTerritory(movementSample);
+        }
+
+        Vector2 MovementTargetPosition()
+        {
+            Vector2 towerPosition = target.position;
+            bool playerAvailable = playerTarget != null &&
+                playerTarget.gameObject.activeInHierarchy &&
+                (playerTargetHealth == null || !playerTargetHealth.IsDead);
+            if (!playerAvailable) return towerPosition;
+
+            Vector2 playerPosition = playerTarget.position;
+            float aggroRangeCells = config != null ? config.normalEnemyPlayerAggroRangeCells : 5f;
+            return ShouldChasePlayer(
+                    boss,
+                    elite,
+                    transform.position,
+                    playerPosition,
+                    towerPosition,
+                    playerAggroCellSize,
+                    aggroRangeCells)
+                ? playerPosition
+                : towerPosition;
+        }
+
+        public static bool ShouldChasePlayer(
+            bool isBoss,
+            bool isElite,
+            Vector2 enemyPosition,
+            Vector2 playerPosition,
+            Vector2 towerPosition,
+            Vector2 worldCellSize,
+            float aggroRangeCells)
+        {
+            if (isBoss || isElite || aggroRangeCells <= 0f) return false;
+
+            Vector2 playerDelta = playerPosition - enemyPosition;
+            float cellWidth = Mathf.Max(0.01f, Mathf.Abs(worldCellSize.x));
+            float cellHeight = Mathf.Max(0.01f, Mathf.Abs(worldCellSize.y));
+            float cellDistanceSqr =
+                playerDelta.x * playerDelta.x / (cellWidth * cellWidth) +
+                playerDelta.y * playerDelta.y / (cellHeight * cellHeight);
+            if (cellDistanceSqr > aggroRangeCells * aggroRangeCells) return false;
+
+            Vector2 towerDelta = towerPosition - enemyPosition;
+            return playerDelta.sqrMagnitude < towerDelta.sqrMagnitude;
         }
 
         void TickEnemyAnimation(Vector2 direction, bool moving)
@@ -477,40 +622,41 @@ namespace AreaSurvivors
         void DamageGridObject(GridObjectRecord record, Vector3 hitPoint)
         {
             if (record == null || record.instance == null) return;
-            contactTimer -= Time.deltaTime;
-            if (contactTimer > 0f) return;
+            if (Time.time < nextContactDamageAt) return;
             var otherHealth = record.instance.GetComponentInParent<Health>();
             if (otherHealth == null) return;
             int dealt = otherHealth.Damage(attackDamage, hitPoint);
             if (dealt > 0) DamagePopup.Show(damagePopupPrefab, hitPoint + Vector3.up * 0.18f, dealt, Color.red);
-            contactTimer = 0.75f;
+            nextContactDamageAt = CalculateNextContactDamageAt(Time.time);
         }
 
         void OnCollisionStay2D(Collision2D collision)
         {
-            if (dying) return;
-            contactTimer -= Time.deltaTime;
-            if (contactTimer > 0f) return;
-            var otherHealth = collision.collider.GetComponentInParent<Health>();
+            if (dying || collision == null || collision.collider == null) return;
+            var otherCollider = collision.collider;
+            if (IsEnemyLayer(otherCollider.gameObject.layer)) return;
+            if (Time.time < nextContactDamageAt) return;
+            var otherHealth = otherCollider.GetComponentInParent<Health>();
             if (otherHealth == null) return;
-            var barrier = collision.collider.GetComponentInParent<WoodenBarrier>();
-            var ballista = collision.collider.GetComponentInParent<BallistaTower>();
-            var watchTower = collision.collider.GetComponentInParent<WatchTower>();
-            if (collision.collider.GetComponentInParent<PlayerController>() == null &&
-                collision.collider.GetComponentInParent<TowerController>() == null &&
+            var barrier = otherCollider.GetComponentInParent<WoodenBarrier>();
+            var ballista = otherCollider.GetComponentInParent<BallistaTower>();
+            var watchTower = otherCollider.GetComponentInParent<WatchTower>();
+            if (otherCollider.GetComponentInParent<PlayerController>() == null &&
+                otherCollider.GetComponentInParent<TowerController>() == null &&
                 (barrier == null || !barrier.IsBuilt) &&
                 (ballista == null || !ballista.IsBuilt) &&
                 (watchTower == null || !watchTower.IsBuilt)) return;
             Vector3 hitPoint = collision.contactCount > 0
                 ? collision.GetContact(0).point
-                : collision.collider.ClosestPoint(transform.position);
+                : otherCollider.ClosestPoint(transform.position);
             int dealt = otherHealth.Damage(attackDamage, hitPoint);
             if (dealt > 0) DamagePopup.Show(damagePopupPrefab, hitPoint + Vector3.up * 0.18f, dealt, Color.red);
-            contactTimer = 0.75f;
+            nextContactDamageAt = CalculateNextContactDamageAt(Time.time);
         }
 
         void OnDamaged(Health damagedHealth, int amount)
         {
+            CombatPerformanceDiagnostics.RecordDamageFeedbackEvent();
             if (suppressDamageFeedback) return;
             if (amount > 0) AudioManager.PlaySfx(SfxTrack.EnemyHit);
             if (amount > 0) PlayHitFlash();
@@ -519,8 +665,13 @@ namespace AreaSurvivors
 
         void PlayHitFlash()
         {
+            if (CombatPerformanceDiagnostics.SuppressHitFlash)
+            {
+                CombatPerformanceDiagnostics.RecordHitFlashPlayRequest();
+                return;
+            }
             if (hitFlash == null) hitFlash = GetComponent<EnemyHitFlash>();
-            if (hitFlash == null) hitFlash = gameObject.AddComponent<EnemyHitFlash>();
+            if (hitFlash == null) return;
             hitFlash.Play(visual);
         }
 
@@ -532,6 +683,7 @@ namespace AreaSurvivors
 
         IEnumerator DeathRoutine()
         {
+            CombatPerformanceDiagnostics.RecordEnemyDeath();
             dying = true;
             body.velocity = Vector2.zero;
             foreach (var col in colliders) col.enabled = false;
@@ -586,6 +738,7 @@ namespace AreaSurvivors
             if (xpOrbPrefab != null && xpValue > 0)
             {
                 var orb = Instantiate(xpOrbPrefab, transform.position, Quaternion.identity);
+                CombatPerformanceDiagnostics.RecordXpOrbSpawn();
                 var experience = orb.GetComponent<ExperienceOrb>();
                 if (experience != null) experience.value = xpValue;
             }

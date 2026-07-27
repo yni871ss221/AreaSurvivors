@@ -8,6 +8,7 @@ param(
     [int]$ImportTimeoutSeconds = 60,
     [int]$CompileTimeoutSeconds = 120,
     [int]$MenuTimeoutSeconds = 60,
+    [switch]$BatchRefresh,
     [switch]$Concise
 )
 
@@ -50,6 +51,27 @@ function Wait-ForCompileCooldown {
     Start-Sleep -Seconds $remainingSeconds
 }
 
+function Assert-AssembliesCurrentBeforeCleanup {
+    $preflightOutput = @()
+    $preflightSucceeded = $true
+    try {
+        $preflightOutput = @(& "$PSScriptRoot\verify-unity-script-compilation.ps1" -WaitTimeoutSeconds 0 2>&1)
+    } catch {
+        $preflightSucceeded = $false
+        $preflightOutput += $_.Exception.Message
+    }
+
+    if ($preflightSucceeded) { return }
+
+    if (-not $Concise) {
+        $preflightOutput | Write-Output
+    } else {
+        Write-Output "[editor-runner-cleanup] preflight failure evidence (last 10 lines)"
+        $preflightOutput | Select-Object -Last 10 | Write-Output
+    }
+    throw "RefreshAfterRemoval requires current Runtime and Editor assemblies before cleanup. Import every additional C# edit with RegisterAndRun -DependencyScriptPaths first; BatchRefresh is for serialized asset changes and does not replace explicit C# import."
+}
+
 function Normalize-ProjectScriptPath {
     param([Parameter(Mandatory = $true)][string]$Value)
     $normalized = $Value.Replace("\", "/").Trim()
@@ -87,9 +109,14 @@ switch ($Phase) {
             }
         }
 
-        Write-Output ("[editor-runner] 1/4 import {0} script(s)" -f $importScriptPaths.Count)
-        foreach ($importScriptPath in $importScriptPaths) {
-            Invoke-SafeUnityStep -Action "AssetImport" -Arguments @{ AssetPath = $importScriptPath; TimeoutSeconds = $ImportTimeoutSeconds }
+        if ($BatchRefresh) {
+            Write-Output ("[editor-runner] 1/4 batch refresh for {0} script(s)" -f $importScriptPaths.Count)
+            Invoke-SafeUnityStep -Action "AssetRefresh" -Arguments @{ TimeoutSeconds = $ImportTimeoutSeconds }
+        } else {
+            Write-Output ("[editor-runner] 1/4 import {0} script(s)" -f $importScriptPaths.Count)
+            foreach ($importScriptPath in $importScriptPaths) {
+                Invoke-SafeUnityStep -Action "AssetImport" -Arguments @{ AssetPath = $importScriptPath; TimeoutSeconds = $ImportTimeoutSeconds }
+            }
         }
         Write-Output "[editor-runner] 2/4 compile"
         Wait-ForCompileCooldown
@@ -108,6 +135,7 @@ switch ($Phase) {
             throw "Cleanup is blocked because the Editor runner meta still exists: $normalizedScriptPath.meta"
         }
 
+        Assert-AssembliesCurrentBeforeCleanup
         Write-Output "[editor-runner-cleanup] 1/2 AssetDatabase refresh"
         Invoke-SafeUnityStep -Action "AssetRefresh" -Arguments @{ TimeoutSeconds = $ImportTimeoutSeconds }
         Write-Output "[editor-runner-cleanup] 2/2 compile"

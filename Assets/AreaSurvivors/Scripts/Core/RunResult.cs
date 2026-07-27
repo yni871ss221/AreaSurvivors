@@ -20,13 +20,12 @@ namespace AreaSurvivors
         public int damageDealt;
         public int level;
         public int tokensEarned;
-        public int woodEarned;
-        public int stoneEarned;
         public int reachedStage;
         public float survivedSeconds;
         public bool gameClear;
         public int clearedStage;
         public int unlockedStage;
+        public bool allStagesDifficultyFiveCleared;
         public string clearMessage;
         public List<string> upgrades = new List<string>();
         public List<string> acquiredRelics = new List<string>();
@@ -113,8 +112,6 @@ namespace AreaSurvivors
         public float nextElapsedTokenRewardSeconds;
         public int paintAreaTokenThreshold;
         public int paintAreaTokenRemainder;
-        public int woodEarned;
-        public int stoneEarned;
         public string reachedStageSummary;
         public string bossClearSummary;
         public List<RunStageLogEntry> reachedStages = new List<RunStageLogEntry>();

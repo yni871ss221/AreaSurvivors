@@ -1,11 +1,5 @@
 namespace AreaSurvivors
 {
-    public enum MapSessionMode
-    {
-        Game,
-        Build
-    }
-
     public enum BossTestSpawnSide
     {
         Up,

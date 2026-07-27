@@ -56,12 +56,12 @@ namespace AreaSurvivors
             float range = config != null ? Mathf.Max(0.1f, config.towerCannonRange) : 10f;
             float best = range * range;
             EnemyController nearest = null;
-            var enemies = FindObjectsOfType<EnemyController>();
+            var enemies = EnemyController.ActiveEnemies;
             var origin = transform.position;
             foreach (var enemy in enemies)
             {
                 if (enemy == null || !enemy.gameObject.activeInHierarchy) continue;
-                float d = (enemy.transform.position - origin).sqrMagnitude;
+                float d = (enemy.AttackTargetPosition - origin).sqrMagnitude;
                 if (d > best) continue;
                 best = d;
                 nearest = enemy;
@@ -74,7 +74,7 @@ namespace AreaSurvivors
         {
             if (target == null) return;
             var origin = transform.position + muzzleOffset;
-            var direction = ((Vector2)(target.transform.position - origin)).normalized;
+            var direction = ((Vector2)(target.AttackTargetPosition - origin)).normalized;
             if (direction.sqrMagnitude < 0.001f) direction = Vector2.down;
 
             if (projectilePrefab == null)

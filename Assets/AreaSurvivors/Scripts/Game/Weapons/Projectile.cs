@@ -28,7 +28,7 @@ namespace AreaSurvivors
         bool resolved;
         RunDamageSource damageSource;
         WeaponType weaponType = WeaponType.Arrow;
-        Transform homingTarget;
+        EnemyController homingTarget;
         float homingSearchRange;
         float homingTurnSpeedDegrees = 180f;
         float nextHomingSearchAt;
@@ -99,7 +99,7 @@ namespace AreaSurvivors
             damageSource = source;
         }
 
-        public void ConfigureWeaponBehavior(WeaponType type, Transform target, float turnSpeedDegrees = 180f)
+        public void ConfigureWeaponBehavior(WeaponType type, EnemyController target, float turnSpeedDegrees = 180f)
         {
             weaponType = type;
             homingTarget = target;
@@ -148,7 +148,7 @@ namespace AreaSurvivors
             if (homingTarget == null) return;
             var body = GetComponent<Rigidbody2D>();
             if (body == null) return;
-            var desired = ((Vector2)(homingTarget.position - transform.position)).normalized;
+            var desired = ((Vector2)(homingTarget.AttackTargetPosition - transform.position)).normalized;
             if (desired.sqrMagnitude < 0.001f) return;
             float speed = Mathf.Max(0.1f, body.velocity.magnitude);
             var current = body.velocity.sqrMagnitude > 0.001f ? body.velocity.normalized : desired;
@@ -176,32 +176,29 @@ namespace AreaSurvivors
             return new Vector2(Mathf.Cos(nextAngle), Mathf.Sin(nextAngle)).normalized;
         }
 
-        static bool IsLivingHomingTarget(Transform target)
+        static bool IsLivingHomingTarget(EnemyController target)
         {
             if (target == null) return false;
-            var enemy = target.GetComponentInParent<EnemyController>();
-            var health = enemy != null ? enemy.GetComponent<Health>() : null;
+            var health = target.GetComponent<Health>();
             return health != null && !health.IsDead;
         }
 
-        Transform FindNearestHomingTarget()
+        EnemyController FindNearestHomingTarget()
         {
             EnemyController nearest = null;
             float nearestDistanceSqr = Mathf.Max(0.05f, homingSearchRange);
             nearestDistanceSqr *= nearestDistanceSqr;
-            var enemies = FindObjectsOfType<EnemyController>();
-            for (int i = 0; i < enemies.Length; i++)
+            var enemies = EnemyController.ActiveEnemies;
+            for (int i = 0; i < enemies.Count; i++)
             {
                 var enemy = enemies[i];
-                if (enemy == null) continue;
-                var health = enemy.GetComponent<Health>();
-                if (health == null || health.IsDead) continue;
-                float distanceSqr = (enemy.transform.position - transform.position).sqrMagnitude;
+                if (enemy == null || !enemy.IsAlive) continue;
+                float distanceSqr = (enemy.AttackTargetPosition - transform.position).sqrMagnitude;
                 if (distanceSqr >= nearestDistanceSqr) continue;
                 nearest = enemy;
                 nearestDistanceSqr = distanceSqr;
             }
-            return nearest != null ? nearest.transform : null;
+            return nearest;
         }
 
         void Expire()

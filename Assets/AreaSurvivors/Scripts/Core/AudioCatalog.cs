@@ -6,7 +6,8 @@ namespace AreaSurvivors
         LobbyUpgrades,
         OpeningStory,
         GameNormal,
-        GameBoss
+        GameBoss,
+        EndingCredits
     }
 
     public enum SfxTrack
@@ -59,6 +60,8 @@ namespace AreaSurvivors
                     return "Audio/BGM/game_normal";
                 case BgmTrack.GameBoss:
                     return "Audio/BGM/game_boss";
+                case BgmTrack.EndingCredits:
+                    return "Audio/BGM/yuusou";
                 default:
                     return string.Empty;
             }

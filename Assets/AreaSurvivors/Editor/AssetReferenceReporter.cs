@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using UnityEditor;
 using UnityEngine;
 
@@ -12,20 +13,21 @@ namespace AreaSurvivors.Editor
     {
         const string GeneratedCatalogPath = "Assets/AreaSurvivors/Resources/GeneratedSpriteCatalog.asset";
         const string GeneratedSpritesPath = "Assets/AreaSurvivors/Sprites/Generated";
+        const string ExternalSpritesPath = "Assets/AreaSurvivors/Sprites/External";
 
         static readonly string[] CandidateRoots =
         {
-            "Assets/AreaSurvivors/Sprites/Generated",
-            "Assets/AreaSurvivors/Sprites/External",
-            "Assets/AreaSurvivors/Prefabs",
-            "Assets/AreaSurvivors/Resources",
+            "Assets/AreaSurvivors",
+        };
+
+        static readonly string[] MonitoredCleanupRoots =
+        {
+            "Assets/AreaSurvivors/TilePalette",
         };
 
         static readonly string[] ReferenceRoots =
         {
-            "Assets/AreaSurvivors/Scenes",
-            "Assets/AreaSurvivors/Prefabs",
-            "Assets/AreaSurvivors/Resources",
+            "Assets/AreaSurvivors",
         };
 
         static readonly string[] TextExtensions =
@@ -34,6 +36,11 @@ namespace AreaSurvivors.Editor
             ".prefab",
             ".asset",
             ".cs",
+            ".mat",
+            ".anim",
+            ".controller",
+            ".overrideController",
+            ".physicsMaterial2D",
         };
 
         [MenuItem("Area Survivors/Reports/Asset References")]
@@ -45,26 +52,104 @@ namespace AreaSurvivors.Editor
 
         static string BuildReport()
         {
-            var report = new StringBuilder(16384);
+            var report = new StringBuilder(131072);
             var catalog = AssetDatabase.LoadAssetAtPath<GeneratedSpriteCatalog>(GeneratedCatalogPath);
             var catalogSprites = BuildCatalogSpriteSet(catalog);
             var generatedSpriteNames = BuildGeneratedSpriteNameSet();
-            var referenceFiles = GetReferenceFiles();
-            var candidates = GetCandidateAssets(24);
+            var referenceTexts = LoadTextFiles(GetReferenceFiles());
+            var codeTexts = LoadTextFiles(GetCodeFiles());
+            var candidates = GetCandidateAssets();
 
             report.AppendLine("AreaSurvivors Asset Reference Report");
             report.AppendLine($"GeneratedSpriteCatalog: {(catalog != null ? "yes" : "no")}");
             report.AppendLine($"Catalog sprite refs: {catalogSprites.Count}");
             report.AppendLine($"Generated sprite names: {generatedSpriteNames.Count}");
-            report.AppendLine($"Reference files scanned: {referenceFiles.Count}");
+            report.AppendLine($"Reference files scanned: {referenceTexts.Count}");
+            report.AppendLine($"Code files scanned: {codeTexts.Count}");
             report.AppendLine($"Candidate assets scanned: {candidates.Count}");
+            AppendIntegritySummary(report, referenceTexts);
+            AppendExternalDependencySummary(report);
 
             foreach (var candidate in candidates)
             {
-                AppendCandidate(report, candidate, catalogSprites, generatedSpriteNames, referenceFiles);
+                AppendCandidate(report, candidate, catalogSprites, generatedSpriteNames, referenceTexts, codeTexts);
             }
 
             return report.ToString();
+        }
+
+        static void AppendExternalDependencySummary(StringBuilder report)
+        {
+            var dependents = MonitoredCleanupRoots.ToDictionary(
+                root => root,
+                _ => new HashSet<string>(StringComparer.Ordinal),
+                StringComparer.Ordinal);
+
+            foreach (var path in AssetDatabase.GetAllAssetPaths())
+            {
+                if (!path.StartsWith("Assets/AreaSurvivors/", StringComparison.Ordinal)) continue;
+                foreach (var dependency in AssetDatabase.GetDependencies(path, false))
+                {
+                    foreach (var root in MonitoredCleanupRoots)
+                    {
+                        if (path.StartsWith(root + "/", StringComparison.Ordinal) || path == root) continue;
+                        if (dependency.StartsWith(root + "/", StringComparison.Ordinal) || dependency == root)
+                            dependents[root].Add(path);
+                    }
+                }
+            }
+
+            foreach (var root in MonitoredCleanupRoots)
+            {
+                report.AppendLine($"External dependents [{root}]: {dependents[root].Count}");
+                foreach (var path in dependents[root].OrderBy(path => path, StringComparer.Ordinal))
+                    report.AppendLine($"- externalDependent: {path}");
+            }
+        }
+
+        static void AppendIntegritySummary(StringBuilder report, Dictionary<string, string> referenceTexts)
+        {
+            var unresolvedGuidFiles = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+            foreach (var entry in referenceTexts)
+            {
+                foreach (Match match in Regex.Matches(entry.Value, @"guid:\s*([0-9a-fA-F]{32})"))
+                {
+                    var guid = match.Groups[1].Value.ToLowerInvariant();
+                    if (guid.StartsWith("0000000000000000", StringComparison.Ordinal)) continue;
+                    if (!string.IsNullOrEmpty(AssetDatabase.GUIDToAssetPath(guid))) continue;
+                    if (!unresolvedGuidFiles.TryGetValue(guid, out var paths))
+                    {
+                        paths = new HashSet<string>(StringComparer.Ordinal);
+                        unresolvedGuidFiles.Add(guid, paths);
+                    }
+                    paths.Add(entry.Key);
+                }
+            }
+
+            var missingScriptPrefabs = new List<string>();
+            foreach (var prefabGuid in AssetDatabase.FindAssets("t:Prefab", new[] { "Assets/AreaSurvivors" }))
+            {
+                var path = AssetDatabase.GUIDToAssetPath(prefabGuid);
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                if (prefab == null) continue;
+                var missingCount = 0;
+                foreach (var transform in prefab.GetComponentsInChildren<Transform>(true))
+                {
+                    missingCount += GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(transform.gameObject);
+                }
+                if (missingCount > 0) missingScriptPrefabs.Add($"{path} ({missingCount})");
+            }
+
+            report.AppendLine($"Unresolved serialized GUIDs: {unresolvedGuidFiles.Count}");
+            foreach (var entry in unresolvedGuidFiles.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+            {
+                report.AppendLine($"- unresolvedGuid: {entry.Key}");
+                foreach (var path in entry.Value.OrderBy(path => path, StringComparer.Ordinal))
+                    report.AppendLine($"  - {path}");
+            }
+            report.AppendLine($"Prefabs with missing scripts: {missingScriptPrefabs.Count}");
+            foreach (var path in missingScriptPrefabs.OrderBy(path => path, StringComparer.Ordinal))
+                report.AppendLine($"- missingScriptPrefab: {path}");
         }
 
         static void AppendCandidate(
@@ -72,13 +157,14 @@ namespace AreaSurvivors.Editor
             AssetCandidate candidate,
             HashSet<string> catalogSprites,
             HashSet<string> generatedSpriteNames,
-            List<string> referenceFiles)
+            Dictionary<string, string> referenceTexts,
+            Dictionary<string, string> codeTexts)
         {
-            var guidRefs = CountGuidReferences(candidate.Guid, candidate.AssetPath, referenceFiles);
-            var codeNameRefs = CountCodeNameReferences(candidate.AssetName);
+            var guidRefs = CountGuidReferences(candidate.Guid, candidate.AssetPath, referenceTexts);
+            var codeNameRefs = CountCodeNameReferences(candidate.AssetName, codeTexts);
             var inCatalog = catalogSprites.Contains(candidate.AssetPath);
             var generatedNameMatch = generatedSpriteNames.Contains(candidate.AssetName);
-            var status = BuildStatus(candidate, inCatalog, generatedNameMatch, guidRefs, codeNameRefs);
+            var status = BuildStatus(candidate, inCatalog, guidRefs, codeNameRefs);
 
             report.AppendLine();
             report.AppendLine($"[Asset] {candidate.AssetPath}");
@@ -91,12 +177,14 @@ namespace AreaSurvivors.Editor
             report.AppendLine($"- status: {status}");
         }
 
-        static string BuildStatus(AssetCandidate candidate, bool inCatalog, bool generatedNameMatch, int guidRefs, int codeNameRefs)
+        static string BuildStatus(AssetCandidate candidate, bool inCatalog, int guidRefs, int codeNameRefs)
         {
             if (guidRefs > 0) return "referenced-by-guid";
             if (inCatalog) return "referenced-by-catalog";
             if (codeNameRefs > 0) return "referenced-by-code-name";
-            if (candidate.AssetPath.StartsWith(GeneratedSpritesPath, StringComparison.Ordinal) && generatedNameMatch) return "generated-name-known";
+            if (candidate.AssetPath.IndexOf("/Archive/", StringComparison.OrdinalIgnoreCase) >= 0) return "archive-review-candidate";
+            if (candidate.AssetPath.StartsWith(ExternalSpritesPath, StringComparison.Ordinal)
+                && candidate.AssetName.EndsWith("Source", StringComparison.Ordinal)) return "source-original-preserved";
             return "review-candidate";
         }
 
@@ -146,7 +234,26 @@ namespace AreaSurvivors.Editor
             return files;
         }
 
-        static List<AssetCandidate> GetCandidateAssets(int topPerRoot)
+        static Dictionary<string, string> LoadTextFiles(IEnumerable<string> paths)
+        {
+            var result = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var path in paths)
+            {
+                result[path] = File.ReadAllText(path);
+            }
+            return result;
+        }
+
+        static List<string> GetCodeFiles()
+        {
+            var root = Path.GetFullPath("Assets/AreaSurvivors");
+            return Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories)
+                .Select(ToAssetPath)
+                .OrderBy(path => path, StringComparer.Ordinal)
+                .ToList();
+        }
+
+        static List<AssetCandidate> GetCandidateAssets()
         {
             var byPath = new Dictionary<string, AssetCandidate>(StringComparer.Ordinal);
             foreach (var root in CandidateRoots)
@@ -157,8 +264,7 @@ namespace AreaSurvivors.Editor
                 var files = Directory.EnumerateFiles(fullRoot, "*.*", SearchOption.AllDirectories)
                     .Where(IsCandidateAsset)
                     .Select(path => new FileInfo(path))
-                    .OrderByDescending(info => info.Length)
-                    .Take(topPerRoot);
+                    .OrderByDescending(info => info.Length);
 
                 foreach (var file in files)
                 {
@@ -183,29 +289,26 @@ namespace AreaSurvivors.Editor
                 .ToList();
         }
 
-        static int CountGuidReferences(string guid, string assetPath, List<string> referenceFiles)
+        static int CountGuidReferences(string guid, string assetPath, Dictionary<string, string> referenceTexts)
         {
             if (string.IsNullOrEmpty(guid)) return 0;
 
             int count = 0;
-            foreach (var referencePath in referenceFiles)
+            foreach (var entry in referenceTexts)
             {
-                if (referencePath == assetPath) continue;
-                var text = File.ReadAllText(referencePath);
-                if (text.IndexOf(guid, StringComparison.Ordinal) >= 0) count++;
+                if (entry.Key == assetPath) continue;
+                if (entry.Value.IndexOf(guid, StringComparison.Ordinal) >= 0) count++;
             }
             return count;
         }
 
-        static int CountCodeNameReferences(string assetName)
+        static int CountCodeNameReferences(string assetName, Dictionary<string, string> codeTexts)
         {
             if (string.IsNullOrEmpty(assetName)) return 0;
 
             int count = 0;
-            var fullRoot = Path.GetFullPath("Assets/AreaSurvivors");
-            foreach (var file in Directory.EnumerateFiles(fullRoot, "*.cs", SearchOption.AllDirectories))
+            foreach (var text in codeTexts.Values)
             {
-                var text = File.ReadAllText(file);
                 if (text.IndexOf(assetName, StringComparison.Ordinal) >= 0) count++;
             }
             return count;

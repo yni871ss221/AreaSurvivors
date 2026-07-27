@@ -14,11 +14,27 @@ namespace AreaSurvivors
         MeshFilter sourceFilter;
         MeshRenderer sourceRenderer;
         RuntimeSpriteOutline sourceOutline;
-        MeshFilter overlayFilter;
-        MeshRenderer overlayRenderer;
-        Material overlayMaterial;
+        [SerializeField] MeshFilter overlayFilter;
+        [SerializeField] MeshRenderer overlayRenderer;
+        [SerializeField] Material sharedOverlayMaterial;
+        MaterialPropertyBlock propertyBlock;
         float remainingSeconds;
+        int lastPlayFrame = -1;
+        bool countedActive;
+        static int activeFlashCount;
         static readonly Dictionary<FlashMeshCacheKey, FlashMeshData> FlashMeshCache = new Dictionary<FlashMeshCacheKey, FlashMeshData>();
+        static readonly int MainTextureId = Shader.PropertyToID("_MainTex");
+        static readonly int ColorId = Shader.PropertyToID("_Color");
+        static readonly int SpriteRectId = Shader.PropertyToID("_SpriteRect");
+        static readonly int OutlineUvId = Shader.PropertyToID("_OutlineUv");
+        static readonly int AlphaThresholdId = Shader.PropertyToID("_AlphaThreshold");
+
+        public static int ActiveFlashCount => activeFlashCount;
+        public bool HasPrefabReferences =>
+            overlayFilter != null &&
+            overlayRenderer != null &&
+            sharedOverlayMaterial != null;
+        public Material SharedOverlayMaterial => sharedOverlayMaterial;
 
         sealed class FlashMeshData
         {
@@ -57,57 +73,129 @@ namespace AreaSurvivors
             }
         }
 
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetRuntimeState()
+        {
+            activeFlashCount = 0;
+            FlashMeshCache.Clear();
+        }
+
+        void Awake()
+        {
+            ResolveReferences(null);
+            if (overlayRenderer != null) overlayRenderer.enabled = false;
+            enabled = false;
+        }
+
+        public void ConfigurePrefabReferences(
+            PaperMeshVisual visual,
+            MeshFilter flashFilter,
+            MeshRenderer flashRenderer,
+            Material flashMaterial)
+        {
+            sourceVisual = visual;
+            overlayFilter = flashFilter;
+            overlayRenderer = flashRenderer;
+            sharedOverlayMaterial = flashMaterial;
+            ResolveReferences(visual);
+            if (overlayRenderer != null) overlayRenderer.enabled = false;
+        }
+
         public void Play(PaperMeshVisual sourceVisual)
         {
+            CombatPerformanceDiagnostics.RecordHitFlashPlayRequest();
+            if (CombatPerformanceDiagnostics.SuppressHitFlash) return;
             if (sourceVisual == null || !sourceVisual.visible) return;
-            this.sourceVisual = sourceVisual;
-            sourceFilter = sourceVisual.GetComponent<MeshFilter>();
-            sourceRenderer = sourceVisual.GetComponent<MeshRenderer>();
-            sourceOutline = sourceVisual.GetComponent<RuntimeSpriteOutline>();
+            ResolveReferences(sourceVisual);
             if (sourceFilter == null || sourceRenderer == null || sourceFilter.sharedMesh == null) return;
-
-            EnsureOverlay(sourceVisual.transform);
-            if (overlayFilter == null || overlayRenderer == null || overlayMaterial == null) return;
+            if (overlayFilter == null || overlayRenderer == null || sharedOverlayMaterial == null) return;
 
             remainingSeconds = FlashSeconds;
+            if (!countedActive)
+            {
+                countedActive = true;
+                activeFlashCount++;
+            }
+            enabled = true;
             overlayRenderer.enabled = true;
+            if (lastPlayFrame == Time.frameCount)
+            {
+                CombatPerformanceDiagnostics.RecordHitFlashCoalescedRequest();
+                return;
+            }
+            lastPlayFrame = Time.frameCount;
             SyncOverlay(1f);
         }
 
-        void EnsureOverlay(Transform sourceTransform)
+        void ResolveReferences(PaperMeshVisual requestedVisual)
         {
-            if (overlayRenderer != null) return;
-            var go = new GameObject("Enemy Hit Flash");
-            go.transform.SetParent(sourceTransform, false);
-            overlayFilter = go.AddComponent<MeshFilter>();
-            overlayRenderer = go.AddComponent<MeshRenderer>();
-            var shader = Shader.Find("AreaSurvivors/SpriteAlphaOutline");
-            if (shader == null) shader = Shader.Find("Sprites/Default");
-            overlayMaterial = new Material(shader)
+            if (requestedVisual != null && sourceVisual != requestedVisual)
             {
-                name = "Enemy Hit Flash",
-                hideFlags = HideFlags.HideAndDontSave
-            };
-            overlayRenderer.sharedMaterial = overlayMaterial;
-            overlayRenderer.enabled = false;
+                sourceVisual = requestedVisual;
+                sourceFilter = null;
+                sourceRenderer = null;
+                sourceOutline = null;
+            }
+            if (sourceVisual == null) sourceVisual = GetComponentInChildren<PaperMeshVisual>();
+            if (sourceVisual != null)
+            {
+                if (sourceFilter == null) sourceFilter = sourceVisual.GetComponent<MeshFilter>();
+                if (sourceRenderer == null) sourceRenderer = sourceVisual.GetComponent<MeshRenderer>();
+                if (sourceOutline == null) sourceOutline = sourceVisual.GetComponent<RuntimeSpriteOutline>();
+                if (overlayRenderer == null)
+                {
+                    var child = sourceVisual.transform.Find("Enemy Hit Flash");
+                    if (child != null)
+                    {
+                        overlayFilter = child.GetComponent<MeshFilter>();
+                        overlayRenderer = child.GetComponent<MeshRenderer>();
+                    }
+                }
+            }
+            if (sharedOverlayMaterial == null && overlayRenderer != null)
+                sharedOverlayMaterial = overlayRenderer.sharedMaterial;
+            if (propertyBlock == null) propertyBlock = new MaterialPropertyBlock();
+            if (overlayRenderer != null &&
+                sharedOverlayMaterial != null &&
+                overlayRenderer.sharedMaterial != sharedOverlayMaterial)
+            {
+                overlayRenderer.sharedMaterial = sharedOverlayMaterial;
+            }
         }
 
         void LateUpdate()
         {
             if (remainingSeconds <= 0f)
             {
-                if (overlayRenderer != null) overlayRenderer.enabled = false;
+                enabled = false;
                 return;
             }
 
             remainingSeconds = Mathf.Max(0f, remainingSeconds - Time.deltaTime);
             float alphaScale = Mathf.Clamp01(remainingSeconds / FlashSeconds);
             SyncOverlay(alphaScale);
+            if (remainingSeconds <= 0f) enabled = false;
+        }
+
+        void OnDisable()
+        {
+            if (overlayRenderer != null) overlayRenderer.enabled = false;
+            if (!countedActive) return;
+            countedActive = false;
+            activeFlashCount = Mathf.Max(0, activeFlashCount - 1);
         }
 
         void SyncOverlay(float alphaScale)
         {
-            if (sourceVisual == null || sourceFilter == null || sourceRenderer == null || overlayRenderer == null || overlayMaterial == null) return;
+            if (sourceVisual == null ||
+                sourceFilter == null ||
+                sourceRenderer == null ||
+                overlayRenderer == null ||
+                sharedOverlayMaterial == null ||
+                propertyBlock == null)
+            {
+                return;
+            }
             if (!sourceVisual.visible || sourceFilter.sharedMesh == null)
             {
                 overlayRenderer.enabled = false;
@@ -116,11 +204,16 @@ namespace AreaSurvivors
 
             var flashData = EnsureFlashMesh(sourceFilter.sharedMesh);
             overlayFilter.sharedMesh = flashData != null && flashData.mesh != null ? flashData.mesh : sourceFilter.sharedMesh;
-            overlayMaterial.mainTexture = sourceRenderer.sharedMaterial != null ? sourceRenderer.sharedMaterial.mainTexture : null;
             var color = FlashColor;
             color.a *= alphaScale;
-            overlayMaterial.color = color;
-            ApplySpriteRectProperties(flashData);
+            propertyBlock.Clear();
+            var texture = sourceRenderer.sharedMaterial != null
+                ? sourceRenderer.sharedMaterial.mainTexture
+                : null;
+            if (texture != null) propertyBlock.SetTexture(MainTextureId, texture);
+            propertyBlock.SetColor(ColorId, color);
+            ApplySpriteRectProperties(flashData, propertyBlock);
+            overlayRenderer.SetPropertyBlock(propertyBlock);
             overlayRenderer.sortingLayerID = sourceRenderer.sortingLayerID;
             overlayRenderer.sortingOrder = sourceRenderer.sortingOrder + 80;
             overlayRenderer.enabled = alphaScale > 0.001f;
@@ -184,12 +277,14 @@ namespace AreaSurvivors
             return data;
         }
 
-        void ApplySpriteRectProperties(FlashMeshData data)
+        static void ApplySpriteRectProperties(
+            FlashMeshData data,
+            MaterialPropertyBlock properties)
         {
-            if (data == null || overlayMaterial == null) return;
-            overlayMaterial.SetVector("_SpriteRect", data.spriteRect);
-            overlayMaterial.SetVector("_OutlineUv", data.outlineUv);
-            overlayMaterial.SetFloat("_AlphaThreshold", 0.05f);
+            if (data == null || properties == null) return;
+            properties.SetVector(SpriteRectId, data.spriteRect);
+            properties.SetVector(OutlineUvId, data.outlineUv);
+            properties.SetFloat(AlphaThresholdId, 0.05f);
         }
 
         float EffectiveFlashThickness()
@@ -204,9 +299,9 @@ namespace AreaSurvivors
 
         void OnDestroy()
         {
-            if (overlayMaterial == null) return;
-            if (Application.isPlaying) Destroy(overlayMaterial);
-            else DestroyImmediate(overlayMaterial);
+            if (!countedActive) return;
+            countedActive = false;
+            activeFlashCount = Mathf.Max(0, activeFlashCount - 1);
         }
     }
 }

@@ -1,0 +1,291 @@
+# Current Task
+
+## Goal
+
+2026-07-27までのゲーム完成直前対応を締め、検証結果、残作業、外部記憶、Git状態を次回へ引き継ぐ。
+
+## Latest Completed Work (2026-07-27 Fixed Boss HP)
+
+- 通常の時間指定ボス生成`SpawnOne`を、召喚生成と同じ`EnemyHp(definition)`へ統一した。
+- `EnemySpawner.CalculateEnemyHp`を共通の純粋計算入口とし、一般敵とボスの両方で難易度によるHP倍率を適用しない固定仕様にした。
+- 全難易度のボスHPを、オークキング1,120、ゴブリンロード4,480、リッチ8,960、ドラゴン17,920へ設定した。
+- HP14あたりXP1を維持し、リッチXPを640、ドラゴンXPを1,280へ変更した。
+- `July25GameplayBugFixValidator`へ、全4ボスの固定HP、全敵の固定HP計算、HP/14 XP、`SpawnOne`の共通計算使用を追加した。
+- 固定仕様への訂正2件を個別AssetImportし、Unity Compile 1回成功。
+- `Area Survivors/Validate/July 25 Gameplay Bug Fixes`がfresh success markerを生成して成功。
+- Unity Console Errorは`logs: []`、`displayedCount: 0`。
+- Play Modeは開始していない。
+- TODO: ユーザーが実機で全難易度のボスHPが同じであることを確認する。
+- Blockerなし。
+
+## Constraints
+
+- 既存の未コミット変更を戻さない。
+- Externalの`*Source.png`原本は参照0だけで削除しない。
+- Scene/Prefab/assetはUnity Reporterを正とし、Play Modeは開始しない。
+- 削除はGUID参照、コード名参照、AssetDatabase依存、既存差分を確認できた対象に限定する。
+
+## Current Status
+
+- ユーザーがTilePalette修復後のステージ1を実機確認し、地面・塗り・建造物タイルを含め違和感なしと確認済み。
+- `project-cleanliness-report.ps1`を追加し、missing meta、orphan meta、未解決GUID、重複ハッシュ、旧版フォルダ、TODO/FIXME/HACKを全件監査できるようにした。
+- `AssetReferenceReporter`を各ルート上位24件からAreaSurvivors全626候補の走査へ拡張し、570 serialized/code reference files、全Prefab Missing Script、AssetDatabase外部依存を確認できるようにした。
+- `game-manager-responsibility-report.ps1`の旧`Scripts/Game/GameManager.cs`固定パスを廃止し、現行`Scripts/Game/Runtime/GameManager.cs`を一意解決するよう修正した。
+- 不要物として以下を削除した。
+  - OpeningStoryの`Archive`、`PreviousHighDetail`、`PreviousComical`（旧画像15枚とmeta、約14.5MB）。
+  - 未追跡のArcher足修正用中間画像2枚とmeta（約0.2MB）。
+  - `Spine/PlayerExperimental`と`ThirdParty/Spine`一式。外部依存は実験フォルダ内2件だけで、本番Scripts/Scenes/Prefabsから参照0（約2.1MB、約579ファイル）。
+  - 参照0・marker不在の旧`MissingScriptCleaner.cs`とmeta。
+  - ThirdParty削除後に不要になった`.graphifyignore`。
+- TilePaletteは05_Gameから依存されていたため削除していない。旧GUID欠損5件を`Repair Tile Palette References`で再生成・修復し、未解決GUIDを0件にした。WatchTower tileも再生成対象へ水平展開した。
+- 削除・整理後のディスク監査はpayload 953、meta 1046、missing meta 0、orphan meta 0、未解決GUID 0、旧版フォルダ0、TODO/FIXME/HACK 0。
+- 最終Asset Reference Reportは候補605件、review-candidate 0、archive-review-candidate 0、Unresolved serialized GUID 0、全Prefab Missing Script 0。
+- 05_Gameは864 objects、Missing Script 0。全44 PrefabもMissing Script 0。
+- `ProjectileImpact.prefab`のnull `PaperMeshVisual.sprite` 1件は、`ProjectileImpactFlash.Play(Sprite, ...)`で発生時に設定する仕様のため意図通り。
+- GeneratedSpriteCatalogは566 entries、null sprite 0、duplicate name 0。Legacy `Resources/Generated` folderは存在しない。
+- Build Settingsは本番9 Sceneが有効で、`90_GameplayTest`はBuild対象外。
+- 分割前のGameManager基準値は3,389行・method-like entry 220件。
+- 完全一致重複は33 group／約30.6MBだが、全件を用途別に確認済み。External原本とGenerated版、地面variantの意味別名と出現比率、stand/walk中央フレーム、用途別SE、Importerが異なる地面chunkとして保持し、未分類のreview重複は0件。
+- Editor配下のMigration 16本は`migration-inventory-report.ps1`でMenu入口、外部参照、対Validator、生成対象を棚卸しした。全件が現行Scene/Prefab/Configの再構築または検証経路を持ち、削除可能な旧一回限り処理は0件。
+- `project-cleanliness-report.ps1`へGUID・timeCreatedを除いたImporter設定比較と、意図的な意味別重複の分類を追加した。地面variantは`TileGrid`がSprite名でpath/dirt/grassへ分類し、同一画像の別名数も出現比率へ影響するため統合しない。
+- GameManager責務分割の第一段階として、同一ファイルに同居していた`GameHudController`を専用ファイルへ物理分離した。クラス内容、Scene参照、`GameManager.gameHud`の型と初期化経路は変更していない。
+- RuntimeのProfilerRecorder、Scene遷移前オブジェクト／Material集計を`RuntimeResourceDiagnostics`へ抽出した。GameManagerは開始、破棄、Snapshot要求だけを担当する。
+- 旧`ResourceRuntimeService`からWood／Stone所持・加算・消費・永続化を削除し、トークン会計専用の`TokenRuntimeService`へ改名した。
+- 前回は建造在庫、手動配置、旧セーブ互換ID、木・岩の配置／撤去を誤って維持した。ユーザー訂正により、これらは完全削除対象へ変更した。
+- 現行固定建造物は、旧`BuildPlacementController`の保存／復元流用を廃止し、`FixedBuildingLayoutService`によるスキル解放連動の直接自動配置へ移行完了。
+- ボス撃破時の建造物復活は、旧保存データ依存を外した`BuildingRevivalState`へ移行完了。壁復活時のプレイヤー衝突回避処理は維持した。
+- 参照0を確認した`WoodIcon`、`StoneIcon`、`StatResource`の画像・meta・GeneratedSpriteCatalog登録と`HarvestResourcePopup`を削除した。
+- `LegacyFeatureRemovalValidator`を追加し、旧型／API／設定／画像／Catalog登録／HUD名／旧serialized fieldの不在と新サービスの存在を固定した。
+- GameManagerファイルは3,389行・method-like 220件から2,157行・136件へ縮小した（1,232行、84件削減）。
+- `game-manager-responsibility-report.ps1`へ抽出済みComponentと残る分割候補を表示するよう更新した。
+- Graphifyの空行出力バインドとSource欠落ノードの正常扱いを修正し、空行許可と`missing-source-path` fallback判定を自己テストへ追加した。
+- `TemporaryLegacyConstructionRemovalRunner`によるScene移行は成功marker確認済み。`05_Game.unity`の`Game Manager`へ`FixedBuildingLayoutService`を1件配置し、`BuildPlacementController`、`NaturalLandmarkSpawner`、`Build Preview Tilemap`はScene/Prefabとも0件になった。
+- 手動建造メニュー／配置／在庫／永続配置、木・岩の自然物生成・撤去、Wood/Stone経済に関するRuntime型、Editor経路、Save型、UpgradeType、Config field、GameplayTest field、画像、Sceneの旧serialized fieldを削除した。
+- 固定建造物のスキル解放連動自動配置は`FixedBuildingLayoutService`、ボス撃破時復活と壁スタック回避は`BuildingRevivalState`へ分離して維持した。
+- `LegacyFeatureRemovalValidator`へ、旧型／API／設定／画像／Scene object名の不在と新サービスの存在確認を集約した。
+- `RefreshAfterRemoval`へAssembly-current事前ガードを追加し、`-BatchRefresh`はserialized asset専用、外部変更C#は`DependencyScriptPaths`で明示Importする規約へ修正した。
+
+## Verification
+
+- Unity Compile 5回すべて成功。最終Runtime/Editor assembly current。
+- Console Error表示0件。
+- `Area Survivors/Validate/HUD Layout Mutation Guard`成功marker確認。
+- `command-tools-self-test.ps1`: 31 scripts parse/guard成功。
+- 続行後のProject Cleanliness: missing meta 0、orphan meta 0、未解決GUID 0、review duplicate 0、historical group 0、code debt file 0。
+- ユーザー実機確認: TilePalette修復後のステージ1をプレイし、違和感なし。
+- GameManager分割: Unity Compile成功4回。AssetImport直後の重複Compile要求1回は`guard_code: 35`でUnity接続前に停止し、規定クールダウン後の検証は成功。
+- `Area Survivors/Validate/Token Runtime Service`: fresh success marker確認。キル閾値、30秒報酬、10トークン攻撃段階、獲得元内訳、重複レリック内訳、次回報酬時刻を検証。
+- `Area Survivors/Validate/Legacy Resource Removal`: fresh success marker確認。
+- `Area Survivors/Validate/Stage Transition Enemy Defeat`: success marker確認。
+- `Area Survivors/Validate/HUD Layout Mutation Guard`: fresh success marker確認。
+- 旧資源削除後のUnity Compile成功。初回は未Import guard、次は削除漏れ5件のC#エラーをログで確定して限定修正し、最終RunnerでImport→Compile→Menu検証まで成功。
+- 最終Console Error表示0件。
+- `command-tools-self-test.ps1`: 31 scripts parse/guard成功。Graphify空行・Source欠落の再発防止を含む。
+- 責務分割後のProject Cleanliness: payload 957、meta 1050、missing meta 0、orphan meta 0、未解決GUID 0、review duplicate 0、historical group 0、code debt file 0。
+- 旧資源画像削除後のProject Cleanliness: payload 954、meta 1047、missing meta 0、orphan meta 0、未解決GUID 0、review duplicate 0、historical group 0、code debt file 0。
+- Asset Reference Report: `TokenReports/UnityReports/asset-references-20260726-220222.md`。
+- Compact Project Snapshot: `TokenReports/UnityReports/compact-project-snapshot-20260726-220344.md`。
+- Scene/Prefab Overview: `TokenReports/UnityReports/scene-prefab-overview-20260726-220433.md`。
+- Play Modeは開始していない。
+- 完全削除移行のUnity Compile 1回目は`BuildingPersistentState`改名前参照8件で停止。原因をScene移行順序と確定した。
+- 2回目は一時互換型の静的API不足を`July25GameplayBugFixValidator`が検出して停止。現行参照を`BuildingRevivalState`へ移行した。
+- ユーザー許可後の3回目CompileとScene移行Menuは成功。marker `TokenReports/UnityMarkers/legacy-construction-scene-migration.success`を確認した。
+- 完全削除後の`RefreshAfterRemoval`は、追加C#が未Importのため`guard_code: 41`でCompile前停止した。これを受けてcleanup前のAssembly-current guardを追加した。
+- 続く`RegisterAndRun -BatchRefresh`はAssetRefreshが60秒timeout。Editor.logでは39 asset import完了、Runtime Assemblyはstale。後続の明示AssetImportは`Server is busy executing 'unknown'`で停止したため、それ以降Unityコマンドは実行していない。
+- `command-tools-self-test.ps1`: 31 scripts成功。cleanup preflight、BatchRefresh/C# Import境界、focused-search出力上限を含む。
+- Unity再起動後のCompile Errorは、`StatIconCatalog`の削除済み`Work` fallback 1件と、`AreaSurvivorsBootstrap.PrefabSet.watchTower`のfield追加漏れ1件。限定修正後、Runtime Assembly current、Editor Assembly current（Bee artifact hash一致）。
+- `Area Survivors/Validate/Legacy Feature Removal`: fresh success marker `2026-07-27T00:29:44.2425020Z`確認。
+- `Area Survivors/Validate/July 25 Gameplay Bug Fixes`: fresh success marker確認。壁復活時のcollision grace／recoveryを検証。
+- `Area Survivors/Validate/Token Runtime Service`: fresh success marker確認。
+- `Area Survivors/Validate/Stage Transition Enemy Defeat`: fresh success marker確認。
+- `Area Survivors/Validate/HUD Layout Mutation Guard`: fresh success marker確認。
+- 最終Console Error表示0件。
+- 旧型／旧設定／旧画像／旧serialized field検索は`LegacyFeatureRemovalValidator`内の不在検証文字列だけが残り、Runtime／Scene／Prefab／asset実体は0件。
+- 最終Project Cleanliness: payload 948、meta 1041、missing meta 0、orphan meta 0、未解決GUID 0、review duplicate 0、historical group 0、code debt file 0。
+- `git diff --check`はUnity保存の新規Component空scalar`m_Name: `／`m_EditorClassIdentifier: `だけを既知例外として検出。Scene以外のtask対象はwhitespace error 0件。
+- ユーザー実機確認: スキル解放時の固定建造物自動配置と、ボス撃破時の破壊建造物復活に問題なし。旧資源・手動建造機能の完全削除作業は完了。
+- ユーザー要望: 体感や手動報告に依存せず、高負荷状態の自動検知と該当処理の修正・再計測を行える仕組みを希望。
+- ユーザー要望: 通常の手動プレイテスト中も軽量監視を常駐させ、負荷Spikeの前後、ゲーム状態、関連counterを自動保存し、プレイ終了後に原因分析・再現Scenario化できるようにする。
+- 既存基盤: `RuntimePerformanceProbe`はavg／p95／max frame ms、33/50/100ms超過、GC回数、managed memory差分、敵・演出・範囲・弾数を記録する。`CombatPerformanceDiagnostics`は攻撃範囲query、candidate、damage、paint、Excalibur shape、popup、hit flash、death、XP orbを記録する。
+- 既存Scenario: Excalibur sustained／kill burst、Frost sustained、enemy crowdがあり、popup、hit flash、damage feedback、enemy controller/contact/paint/animation/YSort/collision、occlusion、physics multithreadingのA/Bモードを持つ。
+- 直近保存済みBaseline: enemies 128、avg 27.43ms、p95 38.70ms、max 1140.31ms、33ms超66 frame、GC各85回。単発結果上書きで、履歴・複数回中央値・基準比較・自動合否は未実装。
+- `RuntimePerformanceSentinel`を05_GameのGame ManagerへScene-authored Componentとして配置した。Editor／Development Buildだけで動作し、Release Buildでは無効化する。
+- 通常プレイ中は固定長rolling bufferへframe/main thread、GC alloc／collection、used memory、敵数、area/projectile query/candidate、damage feedback、popup、hit flash、death、XP orb counterを保存する。
+- 10秒warmup後、100ms超frame、p95の絶対／baseline比悪化、GC pressureを1秒間隔で評価する。非focus、pause、focus復帰直後は検知しない。
+- 検知時は前5秒＋後10秒、stage/time、character、武器level、upgrade／relic、player位置、敵・弾・範囲・演出・orb数を`TokenReports/PerformanceSessions/<session>/incident-###.json`へ保存する。
+- session単位の`session.json`／`session-summary.md`、最新sessionポインタを出力し、監視自体の通常時avg/max µsとincident書込時間も自己計測する。
+- `performance-session-report.ps1`を追加し、最新または指定sessionをp95/max順に要約できるようにした。
+- Runtime Performance Sentinelの明示Import→Unity Compile→Scene Setupが1回で成功。Runtime／Editor Assembly current、専用ValidatorとHUD Layout Mutation Guardのfresh marker、Console Error表示0件を確認した。
+- `command-tools-self-test.ps1`: 32 scripts成功。session reporterのparameter contractとfixture自己テストを含む。
+- task対象C#／PowerShell／ctxの`git diff --check`成功。改行コード変換警告のみでwhitespace error 0件。
+- 初回確認時にユーザー側RTK直下の存在しない`safe-read.ps1`とWindows PATHにない`ls`を指定して失敗した。根本原因はWrapper実在確認の不足で、以後はプロジェクト内`Tools/TokenUsage`と存在確認済み`powershell.exe`をRTK経由で使用した。
+- ユーザーがドラゴン討伐まで約21分プレイし、`InvalidOperationException: Collection was modified`が発生した。完全スタックは`GameClearRoutine`→`EnemySpawner.StopAndClearEnemies`で、`EnemyController.ActiveEnemies`を直接`foreach`中に`Destroy`が`OnDisable`経由で同registryから要素を削除したことを示した。
+- `StopAndClearEnemies`はactive-enemy registryのsnapshotを先に作り、snapshotを列挙して破棄するよう修正した。ドラゴン以外の同メソッド呼び出しでも同じ安全性を持つ。
+- `StageTransitionEnemyDefeatValidator`へ、最終敵cleanupがlive registryを直接列挙せずsnapshotを使用する静的契約を追加した。
+- 修正後の明示Import→Unity Compile成功。Runtime／Editor Assembly current、`Area Survivors/Validate/Stage Transition Enemy Defeat` fresh marker、Console Error 0件、task対象`git diff --check`成功。
+- 初回自動計測session `20260727-013143-632-024e9a`: 21分、incident 20件、baseline p95 38.63ms、Sentinel通常時平均7.52µs／最大1.75ms、最大書込33.93ms。Stage 3の最大incidentはp95 109.47ms／max 205.60ms／敵396体。
+- Stage 4のincident #17〜#20をフレーム単位で解析した。終盤#20はp95 69.98ms（約14fps）、max 143.39ms（約7fps）、188 enemies、781 DamagePopup、125 EnemyHitFlash、101 XP orbだった。
+- Stage 4区間の重複frameを除いた120秒では、遅い上位10%は軽い側50%に対し、main thread 4.87倍、敵数5.25倍、Excalibur系projectile candidate 10.44倍、damage feedback／hit flash 66.99倍、popup spawn 50.08倍、GC alloc 4.64倍だった。
+- #20の最遅143.39ms frameは191 enemies、185 damage feedback、186 popup spawn、185 hit flash request、約1.87MB GC alloc。main thread 142.99msで、GPU待ちではなくCPU main-thread側のstallだった。
+- `EnemyController.OnDamaged`は全hitごとにSFX要求、HitFlash、`DamagePopup.Show`を実行する。`DamagePopup.Show`は毎回PrefabをInstantiateし、各Popupは独自Materialを持つ`RuntimeTextMeshOutline.LateUpdate`と`DamagePopup.Update`を持つため、大量hit時に生成、Material更新、描画、GCを同時増幅する。
+- Excaliburは0.05秒ごとに広域`OverlapCircleNonAlloc`し、#20では302 query／45,899 collider candidate（平均約152 candidate/query）。各candidateへComponent取得、最大3回のClosestPoint／sector判定を行い、大量hit feedbackの入力源にもなる。
+- Bananaは9本まで増えておりTrigger callback経由でhitを追加し得るが、SentinelのFrameSampleに`projectileTriggerCallbacks`とweapon別hit数が未収集のため、ExcaliburとBananaの寄与分離は未確定。
+- 一部slow frameはdamage feedback 0でも発生しており、敵AI／Physics／YSort／Collision／描画の残留負荷が副次要因。既存A/B modeでのStage 4再現計測が必要。
+- Sentinelのringは「5秒」ではなく最大1200 frameを保持するため、低fps時のincidentが28.9〜51.6秒へ伸び、隣接incidentが重複していた。集計ではsessionSecondsで重複除去したが、保存上限20件の早期到達にも影響している。
+- XP orb／token orbの通常接近時とボス討伐時の吸い込みが固定6 units/sだったため、高速化したPlayerへ追従できなかった。
+- `PickupAttractionMotion`を追加し、吸い込み速度を毎frame `max(既存最低速度, Player.CurrentMoveSpeed + 2)`で共通計算するよう変更した。低速時は従来の6を維持し、高速時だけPlayerより2 units/s速くなる。
+- ボス討伐時のtimeout見積もりは、停止中の距離／固定速度ではなく、Playerが反対方向へ動き続ける最悪条件の相対追従速度で計算する。
+- `StageTransitionEnemyDefeatValidator`へ、XP／tokenの通常・ボス両経路がPlayer相対速度を使うこと、低速時の最低速度維持、高速Player 12に対して吸い込み14、相対速度による所要時間を検証する契約を追加した。
+- 新規Script Import直後の明示Compileは既知の非同期compile重複guard `35`でUnity接続前停止。24秒cooldown後の同一Compileは成功し、Runtime／Editor Assembly current、Stage Transition Enemy Defeat fresh marker、Console Error 0件を確認した。
+- ユーザー実機で、高移動速度時の通常接近吸い込みとボス討伐時の全体吸い込みがPlayerへ追従して吸収されることを確認済み。
+- `DamagePopup`はper-hit Instantiate／Destroyを廃止し、Prefab別最大96個の再利用poolと1frame最大32表示のrate limitへ変更した。生成、再利用、drop、active数をSentinelで記録する。
+- `RuntimeTextMeshOutline`は個別Material生成と常時`LateUpdate`を廃止し、Prefab保存済み共有Material＋`MaterialPropertyBlock`を表示更新時だけ適用する。
+- `EnemyHitFlash`は被弾時のComponent／GameObject／Material生成を廃止し、Enemy Prefabへ保存した非表示Meshと共有Materialを再利用する。同一frameの重複hitは1回のvisual同期へ集約する。
+- `AdvancedWeaponProjectile`のExcalibur走査は固定20Hzから武器の`damageIntervalSeconds`へ統合した。標準0.25秒なら20回/秒から4回/秒へ80%削減し、swept sectorで走査間に通過した範囲は維持する。
+- Excalibur候補処理へCollider→Enemy／Enemy→Health cache、damage cooldown先行判定、Boundsによるradial／angular早期rejectを追加し、不要な`GetComponentInParent`と`ClosestPoint`を削減した。
+- Sentinelのprebufferは最大1200 frameだけでなく`sessionSeconds`で実5秒へtrimする。低fps時に30〜50秒分を保持してincidentが重複する問題を解消した。
+- Sentinelへprojectile trigger、weapon別projectile hit（Excalibur／Banana／other）、popup request/create/reuse/drop/active peak、hit flash coalesced/active peakを追加し、`performance-session-report.ps1`から確認できるようにした。
+- `CombatFeedbackPerformanceMigration`でEnemy／DamagePopup Prefabと共有Materialを保存し、Bootstrap再生成経路にも同じ構成を反映した。
+- 性能対応の明示Import→Unity Compileは2回成功。Migration、Combat Performance Probe Validator、Runtime Performance Sentinel Validator、Combat Visual Rotation Guardはいずれもfresh marker確認済み。Play Modeは開始していない。
+- `command-tools-self-test.ps1`は34 scripts成功、`performance-session-report.ps1 -SelfTest`成功、task対象`git diff --check`は改行変換warningのみでwhitespace error 0件。
+- Play Modeは開始していない。
+- ユーザーが性能修正後session `20260727-051655-045-832e4b`でStage 4まで実機プレイした。ドラゴンは未討伐。Stage 3終盤で強いカクつきを確認した。
+- 最新sessionは13分54秒、incident 20件、baseline p95 37.51ms、Sentinel通常時平均8.61µs。Stage 3 worst incident #18は実15秒、p95 362.69ms、max 424.42ms、peak enemies 445。
+- Stage 3 boss時間は360.28秒で停止したまま、incident #14〜#18のactive enemiesが156→220→268→361→436へ増加し、active XP orbも114→58→235→698→1056へ増加した。
+- リッチは5秒cooldown＋0.5秒cast＋0.15秒recoverごとにSkeleton 10体＋SkeletonKnight 10体を召喚する。通常spawnは`MaxAliveEnemiesForDifficulty`を守るが、`SpawnSummonedEnemy`は上限確認を通らず、召喚敵に寿命／専用上限もない。
+- Stage 3 #18ではProjectile Triggerが46,422回/秒、Banana hitが156回/秒。最遅frameは最大35,880 callback、別frameでは71,040 callbackかつdamage hit 0だった。Banana等の長寿命Triggerが`OnTriggerStay2D`で全接触を毎Physics step処理している。
+- Enemy／BananaProjectile／ExperienceOrbはすべてLayer 0。Projectile callbackは敵だけでなくXP orb、token、建造物等の不要Colliderにも発生し、敵damage cooldown中も`OnTriggerStay2D`とComponent解決が走る。
+- Fixed Timestep 0.02秒、Maximum Allowed Timestep 0.333秒のため、低fpsになるほど1表示frame内のPhysics catch-up stepが増え、Trigger Stay増加→さらに低fpsとなるspiralが起きる。
+- #18にはTrigger 0、damage feedback 0でも336ms、enemy 445のframeがあり、根底の負荷は密集したDynamic Rigidbody2D敵同士のPhysics／各Enemy Update。Banana Triggerはその上へ重なる増幅要因。
+- Stage 4移行直後incident #19はStage 3 prebufferのpeak enemies 550を含みmax 566msだが、cleanup後はactive enemies 5。Stage 4 #20はpeak enemies 94、active XP 62、p95 34.27msまで回復しており、Stage 3の無制限蓄積が主因であることを裏付ける。
+- Popup poolはStage 3 #12〜#18で新規生成0、#18はpopup reuse 962／drop 2024。修正前Stage 3 worstに対しPopup表示64.3回/秒、GC 13.91MB/秒まで低下しており、今回の424ms stallの主因ではない。
+- `performance-stage-detail-report.ps1`を追加し、最新sessionのstage指定incident、実時間rate、capture時object数、重複除去top frameを単一入口で出力するようにした。fixture自己テストと全35 scriptの`command-tools-self-test`成功。
+- `AttractablePickup`と`PickupAttractionRegistry`を追加し、XPオーブ／トークンの値、通常回収、ステージ遷移予約、速度解決、移動処理を共通化した。
+- 待機中Pickupは共通registryへ登録し、`PlayerController`が0.1秒間隔で前回位置から現在位置までの移動線分に近いPickupだけを吸引開始する。高速移動で吸引範囲を通過しても取りこぼさない。
+- XPオーブ／トークン個別の`Update`と毎frame `Vector2.Distance`を削除した。吸引開始後はPlayerが保持する単一リストだけを毎frame移動し、待機中PickupにはUpdate dispatchが発生しない。
+- Player管理側が到達時に直接回収するためPickupのPhysics triggerを廃止した。`ExperienceOrb.prefab`のCollider2DをMigrationで除去し、`TokenOrb.Spawn`もColliderを生成しない。大量PickupがProjectile／EnemyとのTrigger pairを作らない。
+- ボス討伐後の全回収は`FindObjectsOfType<ExperienceOrb/TokenOrb>`を廃止し、共通registryのsnapshotから全Pickupを同じPlayer管理リストへ登録する。報酬予約、unscaled time演出、timeout後の強制完了、XP／tokenのまとめ付与は維持した。
+- Sentinelへ`pickupProximityScans`、`pickupScanCandidates`、`pickupAttractionsStarted`、`pickupMovementTicks`を追加し、`performance-session-report.ps1`からincident単位で確認できるようにした。
+- Edit Mode Validatorの`AddComponent`では通常MonoBehaviourのPlay時`OnEnable`登録が走らず、初回プローブが`registered=0`となった。Editor条件付きの明示登録／解除入口と`finally` cleanupを追加し、Runtimeと同じregistry走査を検証するよう修正した。
+- Pickup吸引移行後のUnity Compileは上限5回すべて成功。最終Migration後も`Stage Transition Enemy Defeat`と`Runtime Performance Sentinel`のfresh marker、ExperienceOrb PrefabのCollider 0件、Console Error表示0件を確認した。
+- `performance-session-report.ps1 -SelfTest`と全35 scriptの`command-tools-self-test`が成功した。Play Modeは開始していない。
+- 読み取り時に`safe-read -PrintOutput`の80行ガードを複数回踏んだため、以後のコード読取を`safe-read-batch`へ統一した。Obsidian `Knowledge/safe-read-output-guard.md`と`Knowledge/area-survivors-execute-always-ui-state.md`へ原因・入口ルールを追記した。
+- `EnemySpawner.RemainingAliveEnemyCapacity`を追加し、通常spawnとリッチ召喚が同じ`maxAliveEnemies × stage difficulty`上限を使用するよう統一した。`SpawnSummonedEnemy`自体も上限0なら生成しないため、呼び出し側を迂回しても無制限増加しない。
+- リッチは召喚要求20体を残枠へ按分し、Skeleton／SkeletonKnightの比率を保ちながら残枠分だけ生成する。上限到達時は召喚Visualを維持しつつ敵生成を0件にする。
+- Bananaは0.25秒間隔のNonAllocカプセル走査へ移行した。前回走査位置から現在位置までを覆うため、低fps／高速移動でも通過した敵を取りこぼさない。
+- BananaのPrefab Collider形状から攻撃半径を取得した直後にColliderを無効化し、`OnTriggerEnter2D`／`OnTriggerStay2D`はBananaを明示除外した。Bananaは敵・建造物・他ProjectileとのPhysics trigger pairを作らない。
+- Sentinelへ`bananaOverlapQueries`／`bananaColliderCandidates`／`summonedEnemySpawnAttempts`／`summonedEnemySpawns`／`summonedEnemyCapBlocked`を追加し、session reportとstage detail reportへ出力した。
+- Unity Compileは3回成功。`Combat Performance Probe`、`Banana Evolution`、`Runtime Performance Sentinel`のfresh marker、Console Error表示0件を確認した。Play Modeは開始していない。
+- Banana Validatorへfresh markerを追加した。現行進化条件は「武器Lv.10＋ゲームプレイ中300撃破」で、旧「武器Lv.10のみ」固定値を現行`WeaponCatalog`へ同期した。
+- `performance-session-report.ps1 -SelfTest`、`performance-stage-detail-report.ps1 -SelfTest`、全35 scriptの`command-tools-self-test`が成功した。
+- ユーザー実機session `20260727-063304-121-3713fe`（14分16秒、難易度5）を修正前 `20260727-051655-045-832e4b` と比較した。
+- Stage 3の同等敵数比較（修正前peak 445／修正後peak 440）では、p95 362.69→159.09ms（56.13%改善）、max 424.42→178.93ms（57.84%改善）、Projectile Trigger 46,422回/秒→0、projectile candidate 1,131→872回/秒（22.94%削減）だった。Banana／PickupのPhysics pair除去は有効。
+- 一方、修正後Stage 3は敵775体まで増え、最悪p95 379.09ms、max 502.31msとなった。修正前最悪値比でp95 4.52%悪化、max 18.35%悪化、敵peak 74.16%増加。
+- 現在のalive上限は`GameConfig.maxAliveEnemies=160 × ProgressionStore.GetStageDifficulty`。実機saveのStage 3難易度は5のため上限800体となり、775体時点でも召喚attempt／spawnは同数、cap-blocked 0だった。召喚上限処理は動作しているが、性能上限として800体は高すぎる。
+- 修正後Stage 3最遅frameは700体超、Projectile Trigger 0、damage 0～少数でも411～502msで、残る主因は大量Dynamic Rigidbody2D敵のPhysics／Enemy Update。Banana走査そのものではない。
+- Stage 4通常区間はp95 34.27→35.41ms（3.34%悪化）、max 60.81→59.72ms（1.79%改善）で概ね同等。Projectile Triggerは18,105回/秒→0で、低～中敵数では機能回帰を伴う性能悪化は見られない。
+- Sentinel通常監視は平均8.61→9.11µsで、引き続き通常プレイへの影響は極小。
+- 前回の「Banana／PickupのPhysics pair除去が効いた」は両変更を含む合算結果で、Banana単独の寄与には分離できない。Pickupは個別Update、距離計算、Colliderを廃止しており、同敵数での改善にはPickup移行も寄与している。
+- Enemy PrefabはLayer 0、Dynamic Rigidbody2D、非Trigger BoxCollider2Dで、全layerとのcallback送受信が有効。密集時は敵同士のPhysics contact／solver pairと`OnCollisionStay2D`が増える。callback内はenemy同士でもHealth取得後、Barrier／Ballista／WatchTower／Player／Towerの`GetComponentInParent`を行ってからreturnする。
+- 敵1体ごとに少なくとも`EnemyController.Update`、`EnemyController.LateUpdate`、`EnemyBounceAnimation.LateUpdate`、`RuntimeSpriteOutline.LateUpdate`、`CharacterOcclusionReveal.LateUpdate`が毎render frame dispatchされ、`KnockbackReceiver.FixedUpdate`が毎physics step dispatchされる。775体なら最低3,875 managed frame callback／render frameに加え、固定step 0.02秒で38,750 FixedUpdate callback／秒となる。
+- `EnemyController.Update`は全敵でtarget方向、Player aggro距離、Grid object contact、territory slow、weapon slow、Rigidbody velocity、animation schedule、territory paint scheduleを処理する。
+- 通常敵のterritory paintは0.2秒／最低6 frame間隔で、radius 1の複数cellを更新する。`TileGrid.UpdatePaintTransitions`自体も毎frame全grid cellを走査し、敵数増加でdirty cellのVisual更新が増える。
+- `EnemyController.LateUpdate`は全敵でYSort scheduleを確認し、通常敵は概ね4 frame間隔でRenderer列挙、Component確認、sortingOrder更新を行う。
+- `EnemyBounceAnimation`は全敵で毎frame SmoothStep計算とVisual TransformのScale／Position書き換えを行う。
+- `RuntimeSpriteOutline`は全敵で毎framesource Mesh／Material／Texture／Color／sorting stateを比較する。敵ごとに専用Materialと追加Outline Rendererを持ち、YSort／animation変更時は同期書き込みが走るため、CPU、Renderer、draw-callの全てが敵数比例する。
+- `CharacterOcclusionReveal`は全敵で毎frameresource／timer／transform状態を確認する。通常敵の実Occlusion判定は24件／frameへ制限済みだが、0.18秒ごとに`FindObjectsOfType<Renderer>()`で全Rendererを再走査し、各敵がMaterial／CommandBufferを保持する。
+- Pickup移行後はidle orbにUpdate／Colliderはない。Playerが0.1秒ごとに全idle PickupをHashSetからListへコピーして線分距離判定するためO(Pickup数)、吸引中はPlayerの1 Updateから全吸引対象をMoveTowardsするためO(吸引中数)。各orbのGameObject／Transform／Rendererは残る。
+- 最新Stage 3 #18ではPickup scan 48,924候補／15.18秒、active XP 984。以前の1,000個別Update／Collider pairより軽いが、全件scanと約1,000 Rendererは次の集約候補。
+- 攻撃範囲query、Popup、HitFlashは敵数・命中数に比例するが、最新最遅frameは700体超、Projectile Trigger 0、damage 0～少数でも411～502msだったため、現在の第一原因ではなくPhysics／Enemy Update群へ追加される増幅要因。
+- `OnCollisionStay2D`冒頭で衝突相手を除外する早期returnは有効。現在は相手分類前に`contactTimer -= Time.deltaTime`を実行し、敵同士でもHealth取得後にBarrier／Ballista／WatchTower／Player／Towerを順次検索するため、敵判定を先頭へ移すだけでもmanaged component lookupを削減できる。
+- 現在のTagManagerはcustom tag／layerが空で、Enemy PrefabはDefault Layer。短期対応は相手Collider直下の`EnemyController`を1回確認してreturn、根本対応はEnemy専用Layerとcontact-damage対象LayerMaskを追加し、Enemy×EnemyをPhysics2D Collision Matrixで無効化する。
+- 冒頭returnだけではbroadphase／contact manifold／solver／Rigidbodyの押し合い／managed callback dispatchは残る。Enemy×EnemyのLayer衝突無効化がPhysics負荷削減の本体。
+- `contactTimer`をcollision callbackごとに減算する現仕様は、無関係な敵同士の接触数でcooldownが早く進む。`nextContactDamageAt`絶対時刻へ変更するか、timer減算を1体1回のUpdateへ移し、許可対象との接触時だけ判定する必要がある。
+- Enemy専用Layerの追加だけでは衝突挙動は変わらない。Collision MatrixのEnemy×EnemyをOFFにした場合だけ、敵同士は押し合わず重なれる。これはゲーム挙動変更なので、ユーザーの明示了承なしに実施しない。
+- 敵同士の物理衝突を維持する場合は、Enemy×Enemy collisionをONのまま、Enemy Layerで`OnCollisionStay2D`を先頭returnする。可能ならCollider2Dのcallback対象LayerをPlayer／建造物だけへ絞り、enemy同士のsolver／押し合いは維持しながらmanaged collision callbackを抑止する。
+- ユーザー判断: Enemy専用Layerへの分離は許可するが、敵同士の物理衝突／押し合いは維持する。
+- `EnemyController`へEnemy Layer定数とcacheを追加し、`OnCollisionStay2D`は相手ColliderがEnemy LayerならHealth等のComponent検索前に即returnする。
+- 建造物セル接触とPhysics接触で共有していた`contactTimer -= Time.deltaTime`を廃止し、`nextContactDamageAt = Time.time + 0.75f`の絶対時刻方式へ統一した。敵同士や複数接触数でcooldownが早く進まない。
+- `EnemyCollisionLayerMigration`を追加し、TagManagerのuser layer 8へ`Enemy`を登録、Enemy Prefab全階層4 GameObjectをLayer 8へ移行した。
+- Physics2D Layer Collision Matrixは全組み合わせ有効のまま。専用Validatorで`Physics2D.GetIgnoreLayerCollision(enemyLayer, enemyLayer)==false`、Dynamic Rigidbody2D、非Trigger Collider、Prefab全階層Layer一致を確認する。
+- `CombatPerformanceProbeValidator`へEnemy Layer、Enemy×Enemy collision維持、absolute contact cooldown、早期return、旧contactTimer不在、Migration契約を追加した。
+- 新規Editor ScriptのAssetImport直後Compileは非同期compile重複guard `35`でUnity接続前停止。20秒cooldown後の2回目Compileは成功し、Runtime／Editor Assembly current。
+- `Area Survivors/Migrate/Enemy Collision Layer`はfresh `combat-performance-probe-validator.ok` markerを生成し成功。最終Console Error表示0件。Play Modeは開始していない。
+- 最終`scoped-diff-check`は、Unity再保存Prefabの空欄フィールド`m_Name: `／`m_EditorClassIdentifier: `を末尾空白として検出して停止した。専用ValidatorでPrefab全階層Layer、Dynamic Rigidbody2D、非Trigger Collider、Enemy×Enemy collision有効を確認済みのため、Unity YAMLを手整形せず既知例外として扱う。
+- ボス後の全Pickup吸引は、予約値を全Pickup終了後に合算付与する方式を廃止し、各XP Orb／Token Orbがプレイヤーへ到着した時点で予約値を即時付与する方式へ変更した。timeout時だけ残存Pickupをプレイヤー位置へ移して同じ到着処理を完了する。
+- 通常XPで複数レベル上昇した場合は`pendingRunLevelUps`へ上昇回数を蓄積し、表示中パネルの選択完了後に残数ぶん次のパネルを順次表示する。例としてLv.18→22なら強化選択は4回行う。
+- `StageTransitionEnemyDefeatValidator`へ、Pickup到着前付与、遷移後のXP／Token合算経路不在、複数レベル選択キュー、SceneのlevelUpPanel参照を追加した。
+- 初回Compile検証は外部編集C#未Importの`guard_code: 41`でUnity接続前停止。3本を明示ImportしたCompileは成功した。初回ValidatorはAddExperienceの境界が後方Helperまで含んで誤検出したため、直後の`QueueRunLevelUps`宣言を終端へ修正し、再Import／Compile後にfresh marker成功。HUD Layout Mutation Guardもfresh marker成功、最終Console Error表示0件。Play Modeは開始していない。
+- Enemy Layer早期return前セッション`20260727-063304-121-3713fe`と修正後`20260727-074507-915-1c2c70`を比較した。Stage 2の近似敵数では254体p95 57.87ms→253体55.40ms（4.3%改善）、321体82.04ms→308体65.04ms（20.7%改善）。Stage 3高密度帯では440体159.09ms→517体108.41ms（31.9%改善）、661体379.09ms→628体149.35ms（60.6%改善）、775体363.62ms／max 502.31ms→800体worst p95 248.39ms／max 282.96ms（31.7%／43.7%改善）。
+- 修正後も800体ではp95 248.39ms、max 282.96msで実用上重い。最遅帯はProjectile Trigger 0、damage 0のframeでも249～260msのため、攻撃命中よりEnemy Physics solver／個別Update／Visual群が第一原因。active XP Orbは最大2,345、GCは最大29.6MB/sで二次的な増幅要因。
+- 修正前後で武器Lv、Projectile候補数、Pickup数が完全一致しないため、上記をEnemy Layer早期return単独の厳密な効果率とは扱わない。監視overheadは平均9.11us→8.61us、最大incident write 36.16ms→35.14msでp95悪化の主因ではない。
+- 固定負荷GameplayTestとして`Gameplay_Enemy_Load_200/400/800.asset`を追加した。全Scenarioはseed `20260727`、敵数の10%を同一点へ密集、残りを同一規則で配置し、1秒warmup＋6秒計測＋0.5秒遷移で12モードを自動実行する。Baselineを先頭・末尾で再計測し、途中はcontact check、move multiplier、paint、animation、YSort、occlusion、outline、Enemy同士collision、Physics multithreading、EnemyController全停止を個別A/Bする。
+- `RuntimePerformanceProbeMatrix`は各モード前にEnemy Transform／Rigidbody位置・速度を初期状態へ戻し、`Library/AreaSafeUnity/combat-performance-matrix-last.txt`とtimestamp付きarchiveへ結果を保存する。Enemy collision OFFはO(N^2)のCollider pair列挙を廃止し、Enemy専用Layerのcollision設定を一時変更して終了時に元設定へ復元する。
+- `combat-performance-probe.ps1`へ`PrepareEnemyLoad200Matrix`、`PrepareEnemyLoad400Matrix`、`PrepareEnemyLoad800Matrix`、`LastMatrixResult`を追加した。C#6本の明示Import／Compileは1回で成功し、Scenario生成marker、Combat Performance Probe Validator marker、Console Error表示0件を確認した。Play Modeによる実測は未実施。
+- 200体Matrixを実測した。archiveは`Library/AreaSafeUnity/combat-performance-matrix-20260727-084751-Gameplay_Enemy_Load_200.txt`。Baseline p95は19.12ms→17.67ms（-7.6%、stable）。平均Baseline 18.40ms基準でEnemyController全停止9.38ms（49.0%改善）、Outline停止13.06ms（29.0%）、Enemy同士collision停止13.66ms（25.7%）が上位。その他の個別停止は9.6～17.7%だった。
+- 800体Matrixを実測した。archiveは`Library/AreaSafeUnity/combat-performance-matrix-20260727-085212-Gameplay_Enemy_Load_800.txt`。先頭Baseline p95 109.72ms／max 316.17ms、末尾Baseline p95 173.86ms／max 244.70msで、p95 driftは+58.5%（high-drift）。Enemy同士collision停止はp95 46.13ms、EnemyController全停止51.26ms、Outline停止80.88msまで低下した。Physics multithreadingは109.61msで先頭Baselineと実質同じ。物理solverが最大、Outlineが第二の拡大要因と判断できるが、高driftのため他の数%～20%差は厳密比較に使わない。
+- `performance-matrix-report.ps1`を追加し、最新archiveの先頭／末尾Baseline drift判定とA/B順位を自動出力するようにした。`command-tools-self-test.ps1`は36本parse成功。
+- 800体準備後の選択状態確認で引用符付きinline Evalが既存`guard_code: 25`によりUnity接続前停止した。ガード指定どおり同じEvalを再試行せず、永続`GameplayTestSelectionReporter`を追加した。Reporter markerで`Gameplay_Enemy_Load_800.asset`と`90_GameplayTest.unity`を確認し、2回目Compileは成功した。
+- 今回のPlay Modeは200体・800体の2回を使用して終了した。400体は上限に従い未実測。
+- 追加許可後に400体Matrixを実測した。archiveは`Library/AreaSafeUnity/combat-performance-matrix-20260727-090049-Gameplay_Enemy_Load_400.txt`。Baseline p95は33.32ms→33.84ms（+1.6%、stable）。EnemyController全停止16.96ms（49.5%改善）、Enemy同士collision停止21.41ms（36.2%）、Outline停止22.38ms（33.4%）。400体は敵だけで約30fpsの境界となり、武器・Pickupを含む本番上限には不適切と確定した。
+- 固定200／400／800の結果を基に、`EnemySpawner.PerformanceSafeAbsoluteMaxAliveEnemies = 200`を追加した。難易度1は従来どおり160体、難易度2～5は最大200体。通常spawn、リッチ召喚、時限エリートは共通capを通し、ボスだけは出現保証のため上限時に最大201体を許容する。敵同士の物理衝突と押し合いは変更していない。
+- `RuntimePerformanceSentinel`のsession／incident JSONとMarkdownへ`stageDifficulty`と実際の`maxAliveEnemies`を追加した。次回実プレイでは推測せずcap適用状態をレポート単体で確認できる。
+- alive cap実装はC#3本の明示Import／Compile成功後、時限spawn水平対応を含むC#2本の再Import／Compileも成功。Combat Performance Probe Validator fresh marker成功、Console Error表示0件。
+- ユーザー実機session `20260727-090857-879-b13c45`（19分16秒、難易度5）で、体感がかなり改善したことを確認した。session metadataは`stageDifficulty=5`、`maxAliveEnemies=200`で、Stage 1～3のincident上の敵peakは最大200だった。
+- 敵上限前session `20260727-074507-915-1c2c70`との最悪値比較では、Stage 1 p95 73.13→54.75ms（25.1%改善）／max 137.30→65.80ms（52.1%改善）、Stage 2 p95 74.50→66.79ms（10.3%改善）／max 167.90→93.13ms（44.5%改善）、Stage 3 p95 248.39→68.83ms（72.3%改善）／max 282.96→146.98ms（48.1%改善）だった。
+- Stage 3のリッチ召喚では、記録されたincident内でspawn 114件に対してcap-blocked 106件となり、200体到達後の超過召喚が遮断された。従来の800体まで増える状態は解消した。
+- 最新sessionはStage 3終了時点でincident上限20件に到達したため、Stage 4以降の定量記録はない。Stage 3の200体帯でも最悪p95 68.83msが残り、GC pressure incidentは16～23MB/s程度、Damage Feedback／HitFlash／Popupが重なる区間は次の改善候補。
+- ユーザー実機で、Pickup到着時のXP獲得と、複数レベル上昇時に上昇回数ぶんレベルアップ選択が順番に表示されることを確認済み。
+- エンドロールが毎回表示される原因は、`GameOverScreen`が`RunResult.allStagesDifficultyFiveCleared`だけを見ており、表示済み状態を永続化していなかったため。
+- `SaveData.endingCreditsViewed`、`ProgressionStore.HasViewedEndingCredits`、`TryMarkEndingCreditsViewed()`を追加した。全ステージ難易度5・Stage 4クリア・未表示・Scene参照ありの場合だけ、再生開始前に表示済みを保存してエンドロールを開始する。
+- 旧セーブはJSONに新fieldが存在するかを非永続markerで判定する。新fieldなしで既に全Stage難易度5クリア済みなら、従来版で表示済みだった履歴として自動移行し、更新後の再クリアで再表示しない。未達成の旧セーブと新規セーブは初回達成時だけ表示する。
+- `ResetStageClearStateForTesting()`はエンドロール表示済み状態も解除し、テスト用の初回条件を再現できる。
+- 初回Compile要求は外部編集C#未Importの`guard_code: 41`でUnity接続前停止。変更5本を`RegisterAndRun`で明示Import後、Compile成功、Ending Credits Validator fresh marker成功、HUD Layout Mutation Guard fresh marker成功、Console Error表示0件、対象5ファイルの`git diff --check`成功。Play Modeは開始していない。
+- Graphify Pilotの実運用再集計後、`Affected`へ既定20件／推定500 tokenの会話表示上限を追加した。全件は`full_capture_path`へ保持し、上限超過はverification対象としてDepth 1再絞り込みまたはfallbackを提示する。
+- Graphifyが提示する`focused-search`へ`GraphifyFallbackId`を渡し、実際にfallbackが完了した場合だけ`TokenReports/graphify-pilot-usage.jsonl`へ`action: Fallback`を追記する。これにより推奨回数と実利用回数を分離集計できる。
+- 評価実行では`ProgressionStore` Affectedが126件／推定2,980 tokenに対し表示20件へ制限され、full capture保存、共通fallback IDによるAffected→Fallback相関を確認した。`command-tools-self-test.ps1`は36 script成功。Unity Compile／Play Modeは実行していない。
+- `EnsureFresh`は実際にGraphifyを使う直前の1回だけとし、grep/readだけの作業や同じfresh graphを続けて読む間は再実行しないルールへ更新した。
+
+## Closeout Snapshot (2026-07-27)
+
+- ユーザー実機確認済み: 整理後のStage 1表示、Stage 4到達までの性能改善、XP到着時取得、複数レベルアップ選択、セーブ単位のエンドロール一度限り表示。
+- 直近のUnity検証: Compile成功、Ending Credits Validator成功、HUD Layout Mutation Guard成功、Console Error 0件。
+- プロジェクト清掃: Missing meta 0、Orphan meta 0、未解決GUID 0、レビュー対象重複0、旧版フォルダ0、TODO/FIXME/HACK 0。
+- 性能計測: 難易度5、敵上限200。Stage 3 p95は248.39msから68.83msへ72.3%改善。Incident上限20件によりStage 4定量記録は未取得。
+- 廃止済みWood/Stone資源、手動建造、自然木・岩、旧保存・UI・アセットは完全削除済み。現行建造物は`FixedBuildingLayoutService`、復活は`BuildingRevivalState`、トークンは`TokenRuntimeService`が担当する。
+- 締め作業中、`safe-read.ps1`をユーザーディレクトリ配下と誤認した呼び出しが終了コード1で停止した。正式入口`Tools/TokenUsage/safe-read.ps1`と既定Windows PowerShellの固定経路を確認し、限定自己テスト成功後に再開した。既存のCommand Failure Playbookに同一原因と防止策が記録済み。
+- Blockerなし。
+
+## TODO / Blocker
+
+- TODO: 次の責務分割候補は`RunStageController`（stage timer、boss、round transition）。
+- TODO: その後の候補は`FixedBuildingLayoutService`（固定建造物slot定義）と`LevelUpController`（XP、選択肢、reroll/skip、panel）。
+- TODO: `GameHudController`内のPlayer/Tower panel分割は、独立保守が必要になった場合だけ行う。
+- ユーザー実機でStage 4まで再プレイし、体感の大幅改善を確認済み。定量比較は敵上限前sessionとのStage 1～3比較まで完了。
+- 敵絶対上限修正後の難易度5・Stage 3リッチ戦再計測は完了。enemy peak 200、cap-blocked 106、最悪p95 68.83ms／max 146.98msを確認した。
+- TODO: 200体／400体／800体A/B matrixは実測済み。Bounceは独立モード未実装のため、Outline／collision対応後も原因が残る場合だけ追加する。
+- TODO: ユーザー実機で通常敵同士が従来通り押し合うこと、Player／塔／壁への接触ダメージが0.75秒間隔で継続すること、ボス重量挙動、武器命中に違和感がないことを確認する。
+- TODO: 次回Performance Sessionで同等敵数のp95／maxを比較する。Physics solver負荷は維持されるため、今回削減されるのは主にEnemy×Enemy `OnCollisionStay2D`内のmanaged Component検索と誤ったcooldown進行。
+- TODO: 同一武器・同一敵数のGameplayTest A/BでEnemy Layer早期returnの単独効果を確定する。実プレイ比較では高密度帯31.7～60.6%改善したが、条件差が残る。
+- TODO: Collider2D callback layer filteringは今回未適用。Layer早期returnの効果測定後、solver／押し合いを維持したままmanaged callback dispatch自体も抑止できるか限定検証する。
+- TODO: 根本対応の第二候補は通常敵の個別Update／LateUpdate／FixedUpdateを`EnemySimulationSystem`へ集約し、近距離／画面内だけ高頻度、遠距離敵は低頻度で時分割更新すること。
+- TODO: VisualはOutlineを共有Material／change-driven同期またはmain shader統合、Bounceを中央batch／shader化、YSortをcell変化時だけ、OcclusionをPlayer／Boss優先の中央managerへ集約する。
+- TODO: Enemy territory paintは敵ごとではなく、中央managerがoccupied cellを重複排除して一定間隔で1回だけpaintする。
+- TODO: Pickupは必要ならworld cell別spatial bucketと近接orbのvalue集約／pool化で、全idle scanと1,000 Rendererを減らす。
+- TODO: ユーザー実機で召喚演出、Skeleton／SkeletonKnight生成、Banana命中感に違和感がないことを確認する。
+- TODO: Tokenの通常吸引、高速移動で吸引範囲を通過した場合、Stage 1～3ボス後のToken全体吸引を明示確認する。XP獲得はユーザー確認済み。
+- TODO: Tokenについても到着時点で値が増えることを明示確認する。XP到着時加算と複数レベルアップ選択キューはユーザー確認済み。
+- TODO: Pickup移行後のcounterは取得済み。敵絶対上限後も1000個超のPickupが残る場合、scan candidatesとmovement ticksを再比較する。
+- TODO: registry移行後も1000個超のPickup本体・Rendererが残る負荷が大きい場合だけ、value集約poolまたはactive上限を追加検討する。
+- TODO: 初回sessionはStage 4途中でincident上限20件へ到達した。実5秒prebuffer化後も終盤前に上限へ達する場合だけ、同種incidentの集約または上限／保存間隔を追加調整する。
+- TODO: object急増の検知は毎秒の全Object走査を避けるため未実装。実測で必要性が出た場合は対象型へ軽量registryを追加して差分検知する。
+- TODO: Scenario matrixを各敵数で複数回実行し、固定baselineとの絶対budget／相対回帰率で合否判定する。現時点は1Play内のA/B自動実行までで、200→400→800のPlay Mode連続起動は未自動化。
+- TODO: 800体は同一Play内でもBaseline p95が+58.5% driftした。厳密なA/B採用判定には、各modeをfresh Playで個別実行するか、敵再生成とPhysics contact state初期化を含む分離Runnerへ更新する。
+- TODO: A/Bモードの効果量から原因候補をランキングし、関連counter／Profiler marker／コードsymbolを報告する。
+- TODO: Codexの限定修正→Compile/Validator→同一Scenario再計測→改善時だけ採用、を単一Wrapperへ統合する。
+- TODO: incidentからGameplayTest再現Scenarioを自動生成する機能とRNG seed記録は未実装。
+- ユーザー実機で、全Stage難易度5クリア済みセーブのStage 4再クリア時にエンドロールが再表示されず、結果画面へ進むことを確認済み。セーブ単位の一度限り表示対応は完了。
+
+## Next Action
+
+- エンドロールのセーブ単位一度限り表示は実機確認まで完了。さらに性能改善を続ける場合は、incidentの同種集約または記録上限調整でStage 4以降も欠落なく採取できるようにする。

@@ -1,0 +1,113 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ff4efad9b94e2b4ca9cd09cca12394d, type: 3}
+  m_Name: Gameplay_Enemy_Load_400
+  m_EditorClassIdentifier: 
+  systems:
+    buildGrid: 1
+    enableGameManager: 0
+    enableEnemySpawner: 0
+    enableScenePlayer: 0
+    enableSceneTower: 0
+    clearExistingEnemies: 1
+  configOverrides: []
+  targetCellOffset: {x: 0, y: 0}
+  enemies:
+  - kind: 2
+    cellOffset: {x: 0, y: 18}
+    count: 40
+    spacing: {x: 0, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: -4}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: -3}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: -2}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: -1}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: 0}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: 1}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: 2}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: 3}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  - kind: 2
+    cellOffset: {x: -20, y: 4}
+    count: 40
+    spacing: {x: 1, y: 0}
+    monitorForStall: 0
+    requireReachTarget: 0
+  prefabs: []
+  scheduledActions: []
+  useFixedRandomSeed: 1
+  randomSeed: 20260727
+  focusCameraOnSetup: 1
+  cameraFocusCellOffset: {x: 0, y: 0}
+  simulationTimeScale: 1
+  testDurationSeconds: 110
+  reachDistance: 1.25
+  stallSeconds: 2.5
+  stallMovementThreshold: 0.08
+  pauseOnComplete: 0
+  autoExitPlayModeOnComplete: 0
+  runPerformanceProbe: 0
+  performanceProbeMode: 0
+  runPerformanceProbeMatrix: 1
+  performanceProbeMatrixModes: 00000000050000000600000007000000080000000900000001000000020000000d0000000e0000000400000000000000
+  performanceProbeWarmupSeconds: 1
+  performanceProbeDurationSeconds: 6
+  performanceProbeTransitionSeconds: 0.5
+  overrideStartingWeapon: 0
+  startingWeapon: 0
+  assertions:
+  - type: 2
+    expectedCount: 400
+    expectedValue: 0
+    tolerance: 0.001
+    objectName: 
+    fieldName: 

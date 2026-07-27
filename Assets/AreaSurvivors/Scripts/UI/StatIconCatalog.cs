@@ -20,8 +20,8 @@ namespace AreaSurvivors
         public const string Defense = Prefix + "StatDefense";
         public const string Xp = Prefix + "StatXp";
         public const string Regen = Prefix + "StatRegen";
-        public const string Work = Prefix + "StatWork";
-        public const string Resource = Prefix + "StatResource";
+        public const string CharacterArcher = "Characters/Archer";
+        public const string CharacterMage = "Characters/Mage";
         public const string SkillPlayerFireball = SkillPrefix + "SkillPlayerFireball";
         public const string SkillWoodenWall = SkillPrefix + "SkillWoodenWall";
         public const string SkillWoodenWallHp = SkillPrefix + "SkillWoodenWallHp";
@@ -42,6 +42,7 @@ namespace AreaSurvivors
         public const string SkillEliteBoar = SkillPrefix + "SkillEliteBoar";
         public const string SkillTowerUpgrade = SkillPrefix + "SkillTowerUpgrade";
         public const string SkillOpeningLevelUp = SkillPrefix + "SkillOpeningLevelUp";
+        public const string SkillReroll = SkillPrefix + "SkillReroll";
         public const string TreasureChest = "TreasureChest";
 
         public static Sprite Load(string resource)
@@ -65,8 +66,6 @@ namespace AreaSurvivors
                 case "Defense Text": return Defense;
                 case "Xp Gain Text": return Xp;
                 case "Regen Text": return Regen;
-                case "Work Text": return Work;
-                case "Resource Text": return Resource;
                 default: return null;
             }
         }
@@ -76,8 +75,8 @@ namespace AreaSurvivors
             switch (type)
             {
                 case UpgradeType.StartingWeaponLevel: return WeaponLevel;
-                case UpgradeType.UnlockArrow: return Projectile;
-                case UpgradeType.UnlockFireball: return SkillPlayerFireball;
+                case UpgradeType.UnlockArcher: return CharacterArcher;
+                case UpgradeType.UnlockMage: return CharacterMage;
                 case UpgradeType.UnlockShield: return "Shield";
                 case UpgradeType.UnlockArrowRain: return "ArrowRain";
                 case UpgradeType.UnlockGun: return "Gun";
@@ -86,7 +85,7 @@ namespace AreaSurvivors
                 case UpgradeType.UnlockFlag: return "Flag";
                 case UpgradeType.UnlockBoomerangSword: return "BoomerangSword";
                 case UpgradeType.UnlockAuraSword: return "AuraSword";
-                case UpgradeType.RemoveStartingSlash: return "Slash_0";
+                case UpgradeType.LevelUpRerollCount: return SkillReroll;
                 case UpgradeType.MoveSpeed: return MoveSpeed;
                 case UpgradeType.MoveSpeedAdvanced: return MoveSpeed;
                 case UpgradeType.MovePenaltyReduction: return MoveSpeed;
@@ -105,12 +104,6 @@ namespace AreaSurvivors
                 case UpgradeType.XpGain: return Xp;
                 case UpgradeType.AutoRegen: return Regen;
                 case UpgradeType.TowerAutoRegen: return SkillTowerRegen;
-                case UpgradeType.WorkSpeed:
-                    return Work;
-                case UpgradeType.ResourceGain:
-                case UpgradeType.StartingWood:
-                case UpgradeType.StartingStone:
-                    return Resource;
                 case UpgradeType.UnlockWall:
                     return SkillWoodenWall;
                 case UpgradeType.UnlockBallista:
