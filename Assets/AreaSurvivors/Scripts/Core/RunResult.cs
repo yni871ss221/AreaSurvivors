@@ -68,12 +68,96 @@ namespace AreaSurvivors
         public int kills;
         public int level;
         public int runTokens;
+        public int bossMaxHp;
+        public float bossFightSeconds;
+        public int playerDamageTakenDuringFight;
+        public int buildingDamageTakenDuringFight;
+    }
+
+    [Serializable]
+    public sealed class RunLevelLogEntry
+    {
+        public int level;
+        public int stage;
+        public float reachedSeconds;
+        public string reachedTime;
+        public int kills;
+        public int currentXp;
+        public int xpToNext;
+        public int baseExperienceCollected;
+        public int appliedExperienceGained;
+        public float xpMultiplier;
+        public string source;
+    }
+
+    [Serializable]
+    public sealed class RunUpgradeLogEntry
+    {
+        public int level;
+        public int stage;
+        public float acquiredSeconds;
+        public string acquiredTime;
+        public string label;
+    }
+
+    [Serializable]
+    public sealed class RunEnemyKindLogEntry
+    {
+        public int stage;
+        public int difficulty;
+        public string enemyKind;
+        public string displayName;
+        public bool elite;
+        public bool boss;
+        public int maxHp;
+        public int attackDamage;
+        public int xpValue;
+        public int spawned;
+        public int killed;
+    }
+
+    [Serializable]
+    public sealed class RunBuildingLogEntry
+    {
+        public string buildingType;
+        public int instanceCount;
+        public int totalMaxHp;
+        public int totalCurrentHp;
+        public int damageTaken;
+        public int destroyedCount;
+        public int currentDestroyedCount;
+    }
+
+    [Serializable]
+    public sealed class RunDifficultyCheckpoint
+    {
+        public string eventType;
+        public int stage;
+        public int difficulty;
+        public float elapsedSeconds;
+        public string elapsedTime;
+        public int level;
+        public int currentXp;
+        public int xpToNext;
+        public int kills;
+        public int baseExperienceCollected;
+        public int appliedExperienceGained;
+        public int playerCurrentHp;
+        public int playerDamageTaken;
+        public int buildingDamageTaken;
+        public int buildingDestroyedCount;
+        public int enemySpawned;
+        public int enemyKilled;
+        public int peakAliveEnemies;
+        public string bossName;
+        public int bossMaxHp;
+        public float bossFightSeconds;
     }
 
     [Serializable]
     public sealed class TokenRunLogEntry
     {
-        public int schemaVersion = 2;
+        public int schemaVersion = 3;
         public string sessionId;
         public string timestampLocal;
         public string timestampUtc;
@@ -118,6 +202,34 @@ namespace AreaSurvivors
         public List<RunBossClearLogEntry> bossClears = new List<RunBossClearLogEntry>();
         public List<string> upgrades = new List<string>();
         public List<string> acquiredRelics = new List<string>();
+        public int currentXp;
+        public int xpToNext;
+        public int baseExperienceCollected;
+        public int appliedExperienceGained;
+        public float currentXpMultiplier;
+        public int playerCurrentHp;
+        public int playerMaxHp;
+        public int playerMinimumHp;
+        public int playerDamageTaken;
+        public int playerHitCount;
+        public int playerHealingReceived;
+        public int playerDeaths;
+        public float playerDefense;
+        public float playerMoveSpeed;
+        public int playerPaintRadius;
+        public int playerAutoRegen;
+        public int buildingDamageTaken;
+        public int buildingDestroyedCount;
+        public int buildingRevivedCount;
+        public int enemySpawned;
+        public int enemyKilled;
+        public int peakAliveEnemies;
+        public List<RunLevelLogEntry> levelUps = new List<RunLevelLogEntry>();
+        public List<RunUpgradeLogEntry> upgradeHistory = new List<RunUpgradeLogEntry>();
+        public List<RunEnemyKindLogEntry> enemyStats = new List<RunEnemyKindLogEntry>();
+        public List<RunBuildingLogEntry> buildingStats = new List<RunBuildingLogEntry>();
+        public List<RunDifficultyCheckpoint> difficultyCheckpoints = new List<RunDifficultyCheckpoint>();
+        public List<RunDamageReportEntry> damageReport = new List<RunDamageReportEntry>();
     }
 
     public static class TokenRunLogger

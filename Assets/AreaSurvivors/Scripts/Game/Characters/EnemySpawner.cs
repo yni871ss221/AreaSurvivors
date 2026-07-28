@@ -231,6 +231,7 @@ namespace AreaSurvivors
             int hp = EnemyHp(definition);
             enemy.Configure(config, grid, target, definition, hp, SpeedScaleForCurrentStage(definition), playerTarget);
             activeEnemies.Add(enemy);
+            GameManager.Instance?.RegisterEnemySpawn(enemy);
             if (definition.boss)
             {
                 var directionFromTarget = (Vector2)(spawnPosition - target.position);
@@ -268,6 +269,7 @@ namespace AreaSurvivors
             int hp = EnemyHp(definition);
             enemy.Configure(config, grid, target, definition, hp, SpeedScaleForCurrentStage(definition), playerTarget);
             activeEnemies.Add(enemy);
+            GameManager.Instance?.RegisterEnemySpawn(enemy);
             CombatPerformanceDiagnostics.RecordSummonedEnemySpawned();
             return enemy;
         }

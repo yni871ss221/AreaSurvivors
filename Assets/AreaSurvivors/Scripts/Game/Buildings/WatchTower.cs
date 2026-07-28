@@ -125,6 +125,13 @@ namespace AreaSurvivors
             CompleteBuild();
         }
 
+        public void RestoreAfterRevive()
+        {
+            breaking = false;
+            completed = true;
+            ApplyVisuals();
+        }
+
         public void AutoPaintNearestCell()
         {
             if (!completed || grid == null || grid.groundTilemap == null) return;

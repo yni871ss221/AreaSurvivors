@@ -703,6 +703,7 @@ namespace AreaSurvivors.Editor
             projectile.lifetime = config.projectileLifetime;
             projectile.visualScale = resolvedLaunchScale;
             projectile.applyLaunchScale = applyLaunchScale;
+            projectile.showExplosionRangeVisual = name == "Fireball" || name == "FireMissile";
             return go;
         }
 

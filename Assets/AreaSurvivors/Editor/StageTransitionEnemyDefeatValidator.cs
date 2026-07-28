@@ -14,6 +14,7 @@ namespace AreaSurvivors.Editor
         const string GameScenePath = "Assets/AreaSurvivors/Scenes/05_Game.unity";
         const string GameManagerSourcePath = "Assets/AreaSurvivors/Scripts/Game/Runtime/GameManager.cs";
         const string EnemySpawnerSourcePath = "Assets/AreaSurvivors/Scripts/Game/Characters/EnemySpawner.cs";
+        const string EnemyControllerSourcePath = "Assets/AreaSurvivors/Scripts/Game/Characters/EnemyController.cs";
         const string PlayerControllerSourcePath = "Assets/AreaSurvivors/Scripts/Game/Characters/PlayerController.cs";
         const string AttractablePickupSourcePath = "Assets/AreaSurvivors/Scripts/Game/Pickups/AttractablePickup.cs";
         const string ExperienceOrbSourcePath = "Assets/AreaSurvivors/Scripts/Game/Pickups/ExperienceOrb.cs";
@@ -51,7 +52,7 @@ namespace AreaSurvivors.Editor
                 WriteSuccessMarker();
                 Debug.Log(
                     "Stage transition enemy defeat validation passed. " +
-                    "Screen flash, reward-preserving enemy defeat, arrival-time pickup rewards, queued multi-level choices, " +
+                    "Screen flash, reward-preserving enemy defeat, spatial XP aggregation, arrival-time pickup rewards, queued multi-level choices, " +
                     "repeat Dragon relic acquisition, and mutation-safe final enemy cleanup are configured.");
             }
             finally
@@ -220,10 +221,21 @@ namespace AreaSurvivors.Editor
                 failures.Add(
                     "Player-owned pickup proximity scans must run at the configured 0.1-second interval.");
             }
+            if (!Mathf.Approximately(
+                    PickupAttractionRegistry.ExperienceMergeCellSize,
+                    TileGrid.DefaultCellSize))
+            {
+                failures.Add(
+                    "Idle XP rewards must aggregate on the map-cell scale.");
+            }
+
+            ValidateExperienceOrbSpatialMerge(failures);
 
             var playerObject = new GameObject("Stage Transition Attraction Player Probe");
             var experienceObject = new GameObject("Stage Transition Experience Probe");
             var tokenObject = new GameObject("Stage Transition Token Probe");
+            int stageAttractionCountBefore =
+                PickupAttractionRegistry.StageTransitionAttractionCount;
             try
             {
                 var player = playerObject.AddComponent<PlayerController>();
@@ -296,6 +308,12 @@ namespace AreaSurvivors.Editor
                 {
                     failures.Add("A reserved pickup must attract once and must not be awarded twice.");
                 }
+                if (PickupAttractionRegistry.StageTransitionAttractionCount !=
+                    stageAttractionCountBefore + 2)
+                {
+                    failures.Add(
+                        "Stage-transition pickup completion must use the dedicated active-count registry.");
+                }
 
                 Vector3 xpStep = ExperienceOrb.MoveTowardsTarget(
                     experienceObject.transform.position,
@@ -339,6 +357,51 @@ namespace AreaSurvivors.Editor
                 UnityEngine.Object.DestroyImmediate(experienceObject);
                 UnityEngine.Object.DestroyImmediate(playerObject);
             }
+            if (PickupAttractionRegistry.StageTransitionAttractionCount !=
+                stageAttractionCountBefore)
+            {
+                failures.Add(
+                    "Stage-transition pickup registry must remove disabled or destroyed pickups.");
+            }
+        }
+
+        static void ValidateExperienceOrbSpatialMerge(List<string> failures)
+        {
+            var probeObject = new GameObject("Spatial XP Merge Probe");
+            float cellSize = PickupAttractionRegistry.ExperienceMergeCellSize;
+            probeObject.transform.position = new Vector3(
+                (1234f + 0.5f) * cellSize,
+                (-987f + 0.5f) * cellSize,
+                0f);
+            try
+            {
+                var experience = probeObject.AddComponent<ExperienceOrb>();
+                experience.value = 3;
+                PickupAttractionRegistry.RegisterForValidation(experience);
+                var activeBefore = new List<AttractablePickup>();
+                PickupAttractionRegistry.CopyActiveTo(activeBefore);
+
+                bool merged = PickupAttractionRegistry.TryMergeExperienceReward(
+                    probeObject.transform.position + new Vector3(0.05f, 0.05f, 0f),
+                    4);
+                var activeAfter = new List<AttractablePickup>();
+                PickupAttractionRegistry.CopyActiveTo(activeAfter);
+                if (!merged ||
+                    experience.value != 7 ||
+                    activeAfter.Count != activeBefore.Count)
+                {
+                    failures.Add(
+                        "XP rewards in the same map cell must merge without creating another pickup. " +
+                        $"merged={merged}, value={experience.value}, " +
+                        $"activeBefore={activeBefore.Count}, activeAfter={activeAfter.Count}.");
+                }
+            }
+            finally
+            {
+                var experience = probeObject.GetComponent<ExperienceOrb>();
+                PickupAttractionRegistry.UnregisterForValidation(experience);
+                UnityEngine.Object.DestroyImmediate(probeObject);
+            }
         }
 
         static void ValidatePickupAttractionSourceContract(List<string> failures)
@@ -349,7 +412,8 @@ namespace AreaSurvivors.Editor
                 PlayerControllerSourcePath,
                 ExperienceOrbSourcePath,
                 TokenOrbSourcePath,
-                GameManagerSourcePath
+                GameManagerSourcePath,
+                EnemyControllerSourcePath
             };
             for (int i = 0; i < requiredPaths.Length; i++)
             {
@@ -365,6 +429,7 @@ namespace AreaSurvivors.Editor
             string experienceSource = File.ReadAllText(ExperienceOrbSourcePath);
             string tokenSource = File.ReadAllText(TokenOrbSourcePath);
             string managerSource = File.ReadAllText(GameManagerSourcePath);
+            string enemySource = File.ReadAllText(EnemyControllerSourcePath);
             if (!pickupSource.Contains("PickupAttractionRegistry") ||
                 !pickupSource.Contains("ResolveAttractionSpeed(player)") ||
                 !pickupSource.Contains("Time.unscaledDeltaTime") &&
@@ -398,6 +463,19 @@ namespace AreaSurvivors.Editor
             {
                 failures.Add(
                     "Stage-transition reward attraction must use the shared pickup registry instead of a scene-wide object search.");
+            }
+            if (!pickupSource.Contains("TryMergeExperienceReward") ||
+                !experienceSource.Contains("SpawnOrMerge") ||
+                !enemySource.Contains("ExperienceOrb.SpawnOrMerge"))
+            {
+                failures.Add(
+                    "Enemy XP rewards must use cell-based idle-orb aggregation before instantiating another pickup.");
+            }
+            if (!pickupSource.Contains("StageTransitionAttractionCount") ||
+                managerSource.Contains("HasActiveStageTransitionAttraction"))
+            {
+                failures.Add(
+                    "Stage-transition completion must use the registry count instead of rescanning every pickup each frame.");
             }
             int completeIndex = pickupSource.IndexOf(
                 "public void CompleteStageTransitionAttraction",

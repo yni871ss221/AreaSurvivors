@@ -15,7 +15,7 @@ $commands = @(
     "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/guarded-command.ps1 -Command 'git diff'",
     "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-search.ps1 -Pattern 'BuildMode' -Path Assets/AreaSurvivors/Scripts",
     "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-read.ps1 -Path AGENTS.md -First 80",
-    "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/token-report-summary.ps1 -Days 1 -Top 5 -ExcludeBenchmark"
+    "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/token-report-summary.ps1 -Days 1 -Top 5"
 )
 
 if ($IncludeUnity) {

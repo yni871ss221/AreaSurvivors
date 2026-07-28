@@ -64,7 +64,10 @@ namespace AreaSurvivors
         readonly List<RunRelicReportEntry> runRelicEntries = new List<RunRelicReportEntry>();
         readonly List<RunStageLogEntry> runReachedStages = new List<RunStageLogEntry>();
         readonly List<RunBossClearLogEntry> runBossClears = new List<RunBossClearLogEntry>();
+        readonly List<AttractablePickup> stageTransitionPickups =
+            new List<AttractablePickup>(512);
         readonly RunDamageTracker runDamageTracker = new RunDamageTracker();
+        readonly RunDifficultyTelemetry runDifficultyTelemetry = new RunDifficultyTelemetry();
         readonly TokenRuntimeService tokenRuntime = new TokenRuntimeService();
         const int LevelUpSkipLimit = 3;
         const int InitialTowerTerritoryRadius = 10;
@@ -78,6 +81,8 @@ namespace AreaSurvivors
         int remainingLevelUpSkips;
         int remainingLevelUpRerolls;
         int lastLevelUpActionFrame;
+        int activeRelicAcquisitionModalCount;
+        int levelUpInputBlockedThroughFrame = -1;
         string runSessionId;
         static readonly Color UpgradeNormalColor = new Color(0.12f, 0.20f, 0.16f, 0.94f);
         static readonly Color UpgradeHoverColor = new Color(0.106f, 0.353f, 0.216f, 0.98f);
@@ -104,6 +109,7 @@ namespace AreaSurvivors
             AudioManager.PlayBgm(BgmTrack.GameNormal);
 
             runDamageTracker.Reset();
+            runDifficultyTelemetry.Reset();
             runRelics.Clear();
             runRelicEntries.Clear();
             runReachedStages.Clear();
@@ -158,6 +164,7 @@ namespace AreaSurvivors
                 : CharacterType.Knight;
             RunState.SelectedCharacter = selectedCharacter;
             Player.Configure(config, grid, selectedCharacter);
+            runDifficultyTelemetry.Bind(Player);
 
             PolishHud();
             ConfigureGameHud();
@@ -192,6 +199,7 @@ namespace AreaSurvivors
         {
             if (Instance == this) Instance = null;
             if (grid != null) grid.PlayerCellsPainted -= OnPlayerCellsPainted;
+            runDifficultyTelemetry.Dispose();
             runtimeResourceDiagnostics.Dispose();
         }
 
@@ -252,13 +260,20 @@ namespace AreaSurvivors
             }
 
             hudElapsed = elapsed;
+            runDifficultyTelemetry.UpdatePeakAliveEnemies(EnemyController.ActiveEnemyCount);
             UpdateLevelUpButtonHover();
             UpdateHud();
         }
 
-        public void RegisterKill()
+        public void RegisterEnemySpawn(EnemyController enemy)
+        {
+            runDifficultyTelemetry.RecordEnemySpawn(enemy, currentStage);
+        }
+
+        public void RegisterKill(EnemyController enemy = null)
         {
             kills++;
+            runDifficultyTelemetry.RecordEnemyKill(enemy, currentStage);
             SteamAchievementRuntime.ReportTotalKills(ProgressionStore.Data.totalKills + kills);
             if (kills % 100 == 0) CombatModifiersChanged?.Invoke();
             AwardKillTokens();
@@ -341,8 +356,10 @@ namespace AreaSurvivors
         public void AddExperience(int amount)
         {
             float multiplier = Player != null ? Mathf.Max(0f, Player.Stats.xpGainMultiplier) : 1f;
-            xpRemainder += Mathf.Max(1, amount) * multiplier;
+            int baseAmount = Mathf.Max(1, amount);
+            xpRemainder += baseAmount * multiplier;
             int gained = Mathf.FloorToInt(xpRemainder);
+            runDifficultyTelemetry.RecordExperience(baseAmount, gained);
             if (gained <= 0) return;
             xpRemainder -= gained;
             xp += gained;
@@ -354,6 +371,15 @@ namespace AreaSurvivors
                 gainedLevels++;
                 ApplyPlayerLevelStatBonus();
                 xpToNext = CalculateNextXpRequirement(xpToNext, level);
+                runDifficultyTelemetry.RecordLevelUp(
+                    level,
+                    currentStage,
+                    elapsed,
+                    kills,
+                    xp,
+                    xpToNext,
+                    multiplier,
+                    "experience");
             }
             QueueRunLevelUps(gainedLevels);
             UpdateHud();
@@ -370,6 +396,7 @@ namespace AreaSurvivors
         {
             if (pendingRunLevelUps <= 0 ||
                 pendingOpeningLevelUps > 0 ||
+                activeRelicAcquisitionModalCount > 0 ||
                 Player == null ||
                 levelUpPanel == null ||
                 levelUpPanel.activeInHierarchy)
@@ -428,6 +455,15 @@ namespace AreaSurvivors
             xpRemainder = 0f;
             ApplyPlayerLevelStatBonus();
             xpToNext = CalculateNextXpRequirement(xpToNext, level);
+            runDifficultyTelemetry.RecordLevelUp(
+                level,
+                currentStage,
+                elapsed,
+                kills,
+                xp,
+                xpToNext,
+                Player != null ? Mathf.Max(0f, Player.Stats.xpGainMultiplier) : 1f,
+                "opening_bonus");
             UpdateHud();
             ShowLevelUp();
         }
@@ -540,6 +576,8 @@ namespace AreaSurvivors
 
         void SelectFirstLevelUpButton()
         {
+            if (IsLevelUpInputBlockedByFrontModal()) return;
+
             var first = UiSelectionUtility.FirstSelectable(ActiveLevelUpButtons());
             if (first == null) return;
 
@@ -623,32 +661,64 @@ namespace AreaSurvivors
             choices.Add(RunUpgradeChoice.Evolution(evolutionType, () => weapon.EvolveWeapon(sourceType)));
         }
 
+        RunUpgradeChoice CreateDiminishingAdditiveChoice(
+            WeaponController weapon,
+            WeaponType sourceType,
+            WeaponType displayType,
+            RunWeaponUpgradeStat stat,
+            string label,
+            float currentValue,
+            float baseAmount,
+            string iconResource,
+            Func<float, string> formatter,
+            Action<float> apply)
+        {
+            float amount = weapon.GetDiminishedAdditiveUpgrade(sourceType, stat, baseAmount);
+            return new RunUpgradeChoice(
+                displayType,
+                label + formatter(currentValue) + ">" + formatter(currentValue + amount),
+                iconResource,
+                () => apply(amount),
+                stat);
+        }
+
+        RunUpgradeChoice CreateDiminishingCooldownChoice(
+            WeaponController weapon,
+            WeaponType sourceType,
+            WeaponType displayType,
+            string label,
+            float currentValue,
+            float baseMultiplier,
+            Action<float> apply)
+        {
+            float multiplier = weapon.GetDiminishedCooldownMultiplier(sourceType, baseMultiplier);
+            return new RunUpgradeChoice(
+                displayType,
+                label + Seconds(currentValue) + ">" + Seconds(currentValue * multiplier),
+                StatIconCatalog.Cooldown,
+                () => apply(multiplier),
+                RunWeaponUpgradeStat.Cooldown);
+        }
+
         void AddSlashUpgradeChoices(List<RunUpgradeChoice> pool, WeaponController weapon)
         {
             var stats = weapon.SlashStats;
             var displayType = weapon.GetDisplayWeaponType(WeaponType.Slash);
             int attackBonus = config.GetRunAttackPowerBonus(WeaponType.Slash);
-            float cooldownMultiplier = Mathf.Clamp(config.runAttackCooldownMultiplier, 0.05f, 1f);
             pool.Add(new RunUpgradeChoice(
                 displayType,
                 "攻撃力 " + weapon.SlashAttackPower + ">" + (weapon.SlashAttackPower + attackBonus),
                 StatIconCatalog.Attack,
                 () => weapon.AddSlashAttack(attackBonus)));
-            pool.Add(new RunUpgradeChoice(
-                displayType,
-                "攻撃間隔 " + Seconds(stats.cooldownSeconds) + ">" + Seconds(stats.cooldownSeconds * cooldownMultiplier),
-                StatIconCatalog.Cooldown,
-                () => weapon.MultiplySlashCooldown(cooldownMultiplier)));
-            pool.Add(new RunUpgradeChoice(
-                displayType,
-                "ノックバック " + Number(stats.knockback) + ">" + Number(stats.knockback + config.runWeaponKnockbackBonus),
-                StatIconCatalog.Knockback,
-                () => weapon.AddSlashKnockback(config.runWeaponKnockbackBonus)));
-            pool.Add(new RunUpgradeChoice(
-                displayType,
-                "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + config.runMediumRangeBonus),
-                StatIconCatalog.Range,
-                () => weapon.AddSlashRange(config.runMediumRangeBonus)));
+            pool.Add(CreateDiminishingCooldownChoice(
+                weapon, WeaponType.Slash, displayType, "攻撃間隔 ",
+                stats.cooldownSeconds, config.runAttackCooldownMultiplier, weapon.MultiplySlashCooldown));
+            pool.Add(CreateDiminishingAdditiveChoice(
+                weapon, WeaponType.Slash, displayType, RunWeaponUpgradeStat.Knockback, "ノックバック ",
+                stats.knockback, config.runWeaponKnockbackBonus, StatIconCatalog.Knockback, Number, weapon.AddSlashKnockback));
+            pool.Add(CreateDiminishingAdditiveChoice(
+                weapon, WeaponType.Slash, displayType, RunWeaponUpgradeStat.Range, "攻撃範囲 ",
+                stats.range, config.runMediumRangeBonus, StatIconCatalog.Range, Number, weapon.AddSlashRange));
         }
 
         void AddArrowUpgradeChoices(List<RunUpgradeChoice> pool, WeaponController weapon)
@@ -656,27 +726,22 @@ namespace AreaSurvivors
             var stats = weapon.ArrowStats;
             var displayType = weapon.GetDisplayWeaponType(WeaponType.Arrow);
             int attackBonus = config.GetRunAttackPowerBonus(WeaponType.Arrow);
-            float cooldownMultiplier = Mathf.Clamp(config.runAttackCooldownMultiplier, 0.05f, 1f);
             pool.Add(new RunUpgradeChoice(
                 displayType,
                 "攻撃力 " + stats.attackPower + ">" + (stats.attackPower + attackBonus),
                 StatIconCatalog.Attack,
                 () => weapon.AddArrowAttack(attackBonus)));
-            pool.Add(new RunUpgradeChoice(
-                displayType,
-                "攻撃間隔 " + Seconds(stats.cooldownSeconds) + ">" + Seconds(stats.cooldownSeconds * cooldownMultiplier),
-                StatIconCatalog.Cooldown,
-                () => weapon.MultiplyArrowCooldown(cooldownMultiplier)));
+            pool.Add(CreateDiminishingCooldownChoice(
+                weapon, WeaponType.Arrow, displayType, "攻撃間隔 ",
+                stats.cooldownSeconds, config.runAttackCooldownMultiplier, weapon.MultiplyArrowCooldown));
             pool.Add(new RunUpgradeChoice(
                 displayType,
                 "矢の本数 " + stats.projectileCount + ">" + (stats.projectileCount + config.runProjectileCountBonus),
                 StatIconCatalog.Projectile,
                 () => weapon.AddArrowProjectileCount(config.runProjectileCountBonus)));
-            pool.Add(new RunUpgradeChoice(
-                displayType,
-                "射程 " + Number(stats.range) + ">" + Number(stats.range + config.runProjectileRangeBonus),
-                StatIconCatalog.Range,
-                () => weapon.AddArrowRange(config.runProjectileRangeBonus)));
+            pool.Add(CreateDiminishingAdditiveChoice(
+                weapon, WeaponType.Arrow, displayType, RunWeaponUpgradeStat.ProjectileRange, "射程 ",
+                stats.range, config.runProjectileRangeBonus, StatIconCatalog.Range, Number, weapon.AddArrowRange));
         }
 
         void AddFireballUpgradeChoices(List<RunUpgradeChoice> pool, WeaponController weapon)
@@ -684,27 +749,20 @@ namespace AreaSurvivors
             var stats = weapon.FireballStats;
             var displayType = weapon.GetDisplayWeaponType(WeaponType.Fireball);
             int attackBonus = config.GetRunAttackPowerBonus(WeaponType.Fireball);
-            float cooldownMultiplier = Mathf.Clamp(config.runAttackCooldownMultiplier, 0.05f, 1f);
             pool.Add(new RunUpgradeChoice(
                 displayType,
                 "攻撃力 " + stats.attackPower + ">" + (stats.attackPower + attackBonus),
                 StatIconCatalog.Attack,
                 () => weapon.AddFireballAttack(attackBonus)));
-            pool.Add(new RunUpgradeChoice(
-                displayType,
-                "攻撃間隔 " + Seconds(stats.cooldownSeconds) + ">" + Seconds(stats.cooldownSeconds * cooldownMultiplier),
-                StatIconCatalog.Cooldown,
-                () => weapon.MultiplyFireballCooldown(cooldownMultiplier)));
-            pool.Add(new RunUpgradeChoice(
-                displayType,
-                "爆発範囲 " + Number(stats.explosionRadius) + ">" + Number(stats.explosionRadius + config.runExplosionRadiusBonus),
-                StatIconCatalog.Range,
-                () => weapon.AddFireballExplosionRadius(config.runExplosionRadiusBonus)));
-            pool.Add(new RunUpgradeChoice(
-                displayType,
-                "射程 " + Number(weapon.FireballRange) + ">" + Number(weapon.FireballRange + config.runProjectileRangeBonus),
-                StatIconCatalog.Range,
-                () => weapon.AddFireballRange(config.runProjectileRangeBonus)));
+            pool.Add(CreateDiminishingCooldownChoice(
+                weapon, WeaponType.Fireball, displayType, "攻撃間隔 ",
+                stats.cooldownSeconds, config.runAttackCooldownMultiplier, weapon.MultiplyFireballCooldown));
+            pool.Add(CreateDiminishingAdditiveChoice(
+                weapon, WeaponType.Fireball, displayType, RunWeaponUpgradeStat.ExplosionRange, "爆発範囲 ",
+                stats.explosionRadius, config.runExplosionRadiusBonus, StatIconCatalog.Range, Number, weapon.AddFireballExplosionRadius));
+            pool.Add(CreateDiminishingAdditiveChoice(
+                weapon, WeaponType.Fireball, displayType, RunWeaponUpgradeStat.ProjectileRange, "射程 ",
+                weapon.FireballRange, config.runProjectileRangeBonus, StatIconCatalog.Range, Number, weapon.AddFireballRange));
         }
 
         void AddShieldUpgradeChoices(List<RunUpgradeChoice> pool, WeaponController weapon)
@@ -722,11 +780,9 @@ namespace AreaSurvivors
                 "シールド数 " + stats.projectileCount + ">" + (stats.projectileCount + config.runProjectileCountBonus),
                 StatIconCatalog.Defense,
                 () => weapon.AddShieldCount(config.runProjectileCountBonus)));
-            pool.Add(new RunUpgradeChoice(
-                displayType,
-                "ノックバック " + Number(stats.knockback) + ">" + Number(stats.knockback + config.runWeaponKnockbackBonus),
-                StatIconCatalog.Knockback,
-                () => weapon.AddShieldKnockback(config.runWeaponKnockbackBonus)));
+            pool.Add(CreateDiminishingAdditiveChoice(
+                weapon, WeaponType.Shield, displayType, RunWeaponUpgradeStat.Knockback, "ノックバック ",
+                stats.knockback, config.runWeaponKnockbackBonus, StatIconCatalog.Knockback, Number, weapon.AddShieldKnockback));
             pool.Add(new RunUpgradeChoice(
                 displayType,
                 "回転速度 " + Number(stats.rotationSpeed) + ">" + Number(stats.rotationSpeed + config.runShieldRotationSpeedBonus),
@@ -739,7 +795,6 @@ namespace AreaSurvivors
             var stats = weapon.GetWeaponStatsFor(type);
             var displayType = weapon.GetDisplayWeaponType(type);
             int attackBonus = config.GetRunAttackPowerBonus(type);
-            float cooldownMultiplier = Mathf.Clamp(config.runAttackCooldownMultiplier, 0.05f, 1f);
             pool.Add(new RunUpgradeChoice(
                 displayType,
                 "攻撃力 " + stats.attackPower + ">" + (stats.attackPower + attackBonus),
@@ -749,37 +804,82 @@ namespace AreaSurvivors
             switch (type)
             {
                 case WeaponType.Flag:
-                    pool.Add(new RunUpgradeChoice(displayType, "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + config.runAreaRangeBonus), StatIconCatalog.Range, () => weapon.AddWeaponRange(type, config.runAreaRangeBonus)));
-                    pool.Add(new RunUpgradeChoice(displayType, "速度低下 " + Percent(stats.slowAmount) + ">" + Percent(stats.slowAmount + config.runSlowBonus), StatIconCatalog.MoveSpeed, () => weapon.AddWeaponSlow(type, config.runSlowBonus)));
-                    pool.Add(new RunUpgradeChoice(displayType, "攻撃間隔 " + Seconds(stats.damageIntervalSeconds) + ">" + Seconds(stats.damageIntervalSeconds * cooldownMultiplier), StatIconCatalog.Cooldown, () => weapon.MultiplyWeaponDamageInterval(type, cooldownMultiplier)));
+                    pool.Add(CreateDiminishingAdditiveChoice(
+                        weapon, type, displayType, RunWeaponUpgradeStat.Range, "攻撃範囲 ",
+                        stats.range, config.runAreaRangeBonus, StatIconCatalog.Range, Number,
+                        amount => weapon.AddWeaponRange(type, amount)));
+                    pool.Add(CreateDiminishingAdditiveChoice(
+                        weapon, type, displayType, RunWeaponUpgradeStat.Slow, "速度低下 ",
+                        stats.slowAmount, config.runSlowBonus, StatIconCatalog.MoveSpeed, Percent,
+                        amount => weapon.AddWeaponSlow(type, amount)));
+                    pool.Add(CreateDiminishingCooldownChoice(
+                        weapon, type, displayType, "攻撃間隔 ",
+                        stats.damageIntervalSeconds, config.runAttackCooldownMultiplier,
+                        multiplier => weapon.MultiplyWeaponDamageInterval(type, multiplier)));
                     break;
                 case WeaponType.BoomerangSword:
                     pool.Add(new RunUpgradeChoice(displayType, "剣本数 " + stats.projectileCount + ">" + (stats.projectileCount + config.runProjectileCountBonus), StatIconCatalog.Projectile, () => weapon.AddWeaponCount(type, config.runProjectileCountBonus)));
-                    pool.Add(new RunUpgradeChoice(displayType, "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + config.runMediumRangeBonus), StatIconCatalog.Range, () => weapon.AddWeaponRange(type, config.runMediumRangeBonus)));
-                    pool.Add(new RunUpgradeChoice(displayType, "攻撃間隔 " + Seconds(stats.cooldownSeconds) + ">" + Seconds(stats.cooldownSeconds * cooldownMultiplier), StatIconCatalog.Cooldown, () => weapon.MultiplyWeaponCooldown(type, cooldownMultiplier)));
+                    pool.Add(CreateDiminishingAdditiveChoice(
+                        weapon, type, displayType, RunWeaponUpgradeStat.Range, "攻撃範囲 ",
+                        stats.range, config.runMediumRangeBonus, StatIconCatalog.Range, Number,
+                        amount => weapon.AddWeaponRange(type, amount)));
+                    pool.Add(CreateDiminishingCooldownChoice(
+                        weapon, type, displayType, "攻撃間隔 ",
+                        stats.cooldownSeconds, config.runAttackCooldownMultiplier,
+                        multiplier => weapon.MultiplyWeaponCooldown(type, multiplier)));
                     break;
                 case WeaponType.AuraSword:
                     pool.Add(new RunUpgradeChoice(displayType, "攻撃回数 " + stats.projectileCount + ">" + (stats.projectileCount + config.runProjectileCountBonus), StatIconCatalog.Projectile, () => weapon.AddWeaponCount(type, config.runProjectileCountBonus)));
-                    pool.Add(new RunUpgradeChoice(displayType, "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + config.runAreaRangeBonus), StatIconCatalog.Range, () => weapon.AddWeaponRange(type, config.runAreaRangeBonus)));
-                    pool.Add(new RunUpgradeChoice(displayType, "攻撃距離 " + Number(stats.distance) + ">" + Number(stats.distance + config.runProjectileRangeBonus), StatIconCatalog.Range, () => weapon.AddWeaponDistance(type, config.runProjectileRangeBonus)));
+                    pool.Add(CreateDiminishingAdditiveChoice(
+                        weapon, type, displayType, RunWeaponUpgradeStat.Range, "攻撃範囲 ",
+                        stats.range, config.runAreaRangeBonus, StatIconCatalog.Range, Number,
+                        amount => weapon.AddWeaponRange(type, amount)));
+                    pool.Add(CreateDiminishingAdditiveChoice(
+                        weapon, type, displayType, RunWeaponUpgradeStat.ProjectileRange, "攻撃距離 ",
+                        stats.distance, config.runProjectileRangeBonus, StatIconCatalog.Range, Number,
+                        amount => weapon.AddWeaponDistance(type, amount)));
                     break;
                 case WeaponType.ArrowRain:
-                    pool.Add(new RunUpgradeChoice(displayType, "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + config.runMediumRangeBonus), StatIconCatalog.Range, () => weapon.AddWeaponRange(type, config.runMediumRangeBonus)));
+                    pool.Add(CreateDiminishingAdditiveChoice(
+                        weapon, type, displayType, RunWeaponUpgradeStat.Range, "攻撃範囲 ",
+                        stats.range, config.runMediumRangeBonus, StatIconCatalog.Range, Number,
+                        amount => weapon.AddWeaponRange(type, amount)));
                     pool.Add(new RunUpgradeChoice(displayType, "攻撃時間 " + Seconds(stats.durationSeconds) + ">" + Seconds(stats.durationSeconds + config.runArrowRainDurationBonus), StatIconCatalog.Cooldown, () => weapon.AddWeaponDuration(type, config.runArrowRainDurationBonus)));
-                    pool.Add(new RunUpgradeChoice(displayType, "攻撃間隔 " + Seconds(stats.cooldownSeconds) + ">" + Seconds(stats.cooldownSeconds * cooldownMultiplier), StatIconCatalog.Cooldown, () => weapon.MultiplyWeaponCooldown(type, cooldownMultiplier)));
+                    pool.Add(CreateDiminishingCooldownChoice(
+                        weapon, type, displayType, "攻撃間隔 ",
+                        stats.cooldownSeconds, config.runAttackCooldownMultiplier,
+                        multiplier => weapon.MultiplyWeaponCooldown(type, multiplier)));
                     break;
                 case WeaponType.Gun:
-                    pool.Add(new RunUpgradeChoice(displayType, "攻撃間隔 " + Seconds(stats.cooldownSeconds) + ">" + Seconds(stats.cooldownSeconds * cooldownMultiplier), StatIconCatalog.Cooldown, () => weapon.MultiplyWeaponCooldown(type, cooldownMultiplier)));
-                    pool.Add(new RunUpgradeChoice(displayType, "攻撃距離 " + Number(stats.distance) + ">" + Number(stats.distance + config.runProjectileRangeBonus), StatIconCatalog.Range, () => weapon.AddWeaponDistance(type, config.runProjectileRangeBonus)));
+                    pool.Add(CreateDiminishingCooldownChoice(
+                        weapon, type, displayType, "攻撃間隔 ",
+                        stats.cooldownSeconds, config.runAttackCooldownMultiplier,
+                        multiplier => weapon.MultiplyWeaponCooldown(type, multiplier)));
+                    pool.Add(CreateDiminishingAdditiveChoice(
+                        weapon, type, displayType, RunWeaponUpgradeStat.ProjectileRange, "攻撃距離 ",
+                        stats.distance, config.runProjectileRangeBonus, StatIconCatalog.Range, Number,
+                        amount => weapon.AddWeaponDistance(type, amount)));
                     pool.Add(new RunUpgradeChoice(displayType, "攻撃回数 " + stats.projectileCount + ">" + (stats.projectileCount + config.runProjectileCountBonus), StatIconCatalog.Projectile, () => weapon.AddWeaponCount(type, config.runProjectileCountBonus)));
                     break;
                 case WeaponType.Frost:
-                    pool.Add(new RunUpgradeChoice(displayType, "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + config.runAreaRangeBonus), StatIconCatalog.Range, () => weapon.AddWeaponRange(type, config.runAreaRangeBonus)));
-                    pool.Add(new RunUpgradeChoice(displayType, "速度低下 " + Percent(stats.slowAmount) + ">" + Percent(stats.slowAmount + config.runSlowBonus), StatIconCatalog.MoveSpeed, () => weapon.AddWeaponSlow(type, config.runSlowBonus)));
-                    pool.Add(new RunUpgradeChoice(displayType, "攻撃間隔 " + Seconds(stats.cooldownSeconds) + ">" + Seconds(stats.cooldownSeconds * cooldownMultiplier), StatIconCatalog.Cooldown, () => weapon.MultiplyWeaponCooldown(type, cooldownMultiplier)));
+                    pool.Add(CreateDiminishingAdditiveChoice(
+                        weapon, type, displayType, RunWeaponUpgradeStat.Range, "攻撃範囲 ",
+                        stats.range, config.runAreaRangeBonus, StatIconCatalog.Range, Number,
+                        amount => weapon.AddWeaponRange(type, amount)));
+                    pool.Add(CreateDiminishingAdditiveChoice(
+                        weapon, type, displayType, RunWeaponUpgradeStat.Slow, "速度低下 ",
+                        stats.slowAmount, config.runSlowBonus, StatIconCatalog.MoveSpeed, Percent,
+                        amount => weapon.AddWeaponSlow(type, amount)));
+                    pool.Add(CreateDiminishingCooldownChoice(
+                        weapon, type, displayType, "攻撃間隔 ",
+                        stats.cooldownSeconds, config.runAttackCooldownMultiplier,
+                        multiplier => weapon.MultiplyWeaponCooldown(type, multiplier)));
                     break;
                 case WeaponType.ThunderBall:
-                    pool.Add(new RunUpgradeChoice(displayType, "攻撃範囲 " + Number(stats.range) + ">" + Number(stats.range + config.runAreaRangeBonus), StatIconCatalog.Range, () => weapon.AddWeaponRange(type, config.runAreaRangeBonus)));
+                    pool.Add(CreateDiminishingAdditiveChoice(
+                        weapon, type, displayType, RunWeaponUpgradeStat.Range, "攻撃範囲 ",
+                        stats.range, config.runAreaRangeBonus, StatIconCatalog.Range, Number,
+                        amount => weapon.AddWeaponRange(type, amount)));
                     pool.Add(new RunUpgradeChoice(displayType, "弾数 " + stats.projectileCount + ">" + (stats.projectileCount + config.runProjectileCountBonus), StatIconCatalog.Projectile, () => weapon.AddWeaponCount(type, config.runProjectileCountBonus)));
                     pool.Add(new RunUpgradeChoice(displayType, "持続時間 " + Seconds(stats.durationSeconds) + ">" + Seconds(stats.durationSeconds + config.runThunderBallDurationBonus), StatIconCatalog.Cooldown, () => weapon.AddWeaponDuration(type, config.runThunderBallDurationBonus)));
                     break;
@@ -806,11 +906,16 @@ namespace AreaSurvivors
             if (choice == null || !TryBeginLevelUpAction()) return;
 
             choice.apply();
+            if (choice.hasDiminishingStat && Player != null && Player.weapon != null)
+            {
+                Player.weapon.RegisterRunUpgradeSelection(choice.weaponType, choice.diminishingStat);
+            }
             if (!choice.isNewWeapon && !choice.isEvolution && choice.hasWeaponType && Player != null && Player.weapon != null)
             {
                 Player.weapon.RegisterRunWeaponUpgrade(choice.weaponType);
             }
             runUpgrades.Add(choice.sourceLabel);
+            runDifficultyTelemetry.RecordUpgrade(level, currentStage, elapsed, choice.sourceLabel);
             Player.ApplyCurrentStats(false);
             CombatModifiersChanged?.Invoke();
             CompleteCurrentLevelUp();
@@ -834,7 +939,13 @@ namespace AreaSurvivors
 
         bool TryBeginLevelUpAction()
         {
-            if (levelUpPanel == null || !levelUpPanel.activeInHierarchy || lastLevelUpActionFrame == Time.frameCount) return false;
+            if (levelUpPanel == null ||
+                !levelUpPanel.activeInHierarchy ||
+                IsLevelUpInputBlockedByFrontModal() ||
+                lastLevelUpActionFrame == Time.frameCount)
+            {
+                return false;
+            }
 
             lastLevelUpActionFrame = Time.frameCount;
             return true;
@@ -1004,7 +1115,13 @@ namespace AreaSurvivors
 
         void UpdateLevelUpButtonHover()
         {
-            if (levelUpPanel == null || !levelUpPanel.activeSelf) return;
+            if (levelUpPanel == null ||
+                !levelUpPanel.activeSelf ||
+                IsLevelUpInputBlockedByFrontModal())
+            {
+                return;
+            }
+
             var candidates = ActiveLevelUpButtons();
             if (UiSelectionUtility.TickControllerSubmit(candidates)) return;
             UiSelectionUtility.EnsureSelection(candidates);
@@ -1110,11 +1227,13 @@ namespace AreaSurvivors
         public void BossSpawned(EnemyController boss)
         {
             if (boss == null) return;
+            runDifficultyTelemetry.RecordBossSpawn(boss);
             bossActive = true;
             AudioManager.PlayBgm(BgmTrack.GameBoss);
             if (timerText != null) timerText.color = Color.red;
             gameHud?.ShowBoss(boss);
             ShowAnnouncement(spawner != null ? spawner.CurrentBossAnnouncement : config.bossAnnouncement);
+            RecordDifficultyCheckpoint("boss_spawn");
         }
 
         public void BossDefeated(EnemyController boss)
@@ -1162,6 +1281,7 @@ namespace AreaSurvivors
             UnlockNextDifficultyForBossClear(currentStage, defeatedDifficulty);
             RecordBossClear(boss, firstClear, unlockedNextStage, unlockedNextStage ? currentStage + 1 : 0);
             ReviveBuildingsOnBossDefeat();
+            RecordDifficultyCheckpoint("boss_clear");
             if (firstClear)
             {
                 yield return FirstBossClearRewardRoutine(bossTokenReward);
@@ -1195,7 +1315,8 @@ namespace AreaSurvivors
         void ReviveBuildingsOnBossDefeat()
         {
             if (!ProgressionStore.IsUnlocked(UpgradeType.ReviveBuildingsOnBossDefeat)) return;
-            BuildingRevivalState.ReviveDestroyedBuildings(grid, 0.5f);
+            int revived = BuildingRevivalState.ReviveDestroyedBuildings(grid, 0.5f);
+            runDifficultyTelemetry.RecordBuildingRevives(revived);
         }
 
         IEnumerator GameClearRoutine(
@@ -1246,16 +1367,25 @@ namespace AreaSurvivors
                 yield break;
             }
 
-            if (!ProgressionStore.UnlockRelic(definition.type))
+            if (!RelicCatalog.TryAcquireReward(
+                    definition,
+                    out bool newlyUnlocked,
+                    out int duplicateTokenReward))
             {
                 ShowAnnouncement(LocalizationService.Text("レリックが見つかりません", "No relic found"));
                 yield break;
             }
 
-            Player?.StatsSource?.Refresh();
-            Player?.ApplyCurrentStats(false);
+            if (newlyUnlocked)
+            {
+                Player?.StatsSource?.Refresh();
+                Player?.ApplyCurrentStats(false);
+            }
             bool closed = false;
-            ShowRelicAcquisition(definition, 0, () => closed = true);
+            ShowRelicAcquisition(
+                definition,
+                duplicateTokenReward,
+                () => closed = true);
             while (!closed) yield return null;
         }
 
@@ -1333,13 +1463,12 @@ namespace AreaSurvivors
         {
             if (Player == null) yield break;
 
-            var pickups = new List<AttractablePickup>();
-            PickupAttractionRegistry.CopyActiveTo(pickups);
+            PickupAttractionRegistry.CopyActiveTo(stageTransitionPickups);
             float longestEstimatedTravelSeconds = 0f;
 
-            for (int i = 0; i < pickups.Count; i++)
+            for (int i = 0; i < stageTransitionPickups.Count; i++)
             {
-                var pickup = pickups[i];
+                var pickup = stageTransitionPickups[i];
                 if (pickup == null) continue;
                 longestEstimatedTravelSeconds = Mathf.Max(
                     longestEstimatedTravelSeconds,
@@ -1353,30 +1482,20 @@ namespace AreaSurvivors
                 StageTransitionPickupAttractionTimeoutPaddingSeconds;
             float elapsedSeconds = 0f;
             while (elapsedSeconds < timeoutSeconds &&
-                   HasActiveStageTransitionAttraction(pickups))
+                   PickupAttractionRegistry.StageTransitionAttractionCount > 0)
             {
                 elapsedSeconds += Time.unscaledDeltaTime;
                 yield return null;
             }
 
-            for (int i = 0; i < pickups.Count; i++)
+            for (int i = 0; i < stageTransitionPickups.Count; i++)
             {
-                if (pickups[i] != null) pickups[i].CompleteStageTransitionAttraction();
-            }
-        }
-
-        static bool HasActiveStageTransitionAttraction(
-            List<AttractablePickup> pickups)
-        {
-            for (int i = 0; i < pickups.Count; i++)
-            {
-                if (pickups[i] != null &&
-                    pickups[i].IsStageTransitionAttracting)
+                if (stageTransitionPickups[i] != null)
                 {
-                    return true;
+                    stageTransitionPickups[i].CompleteStageTransitionAttraction();
                 }
             }
-            return false;
+            stageTransitionPickups.Clear();
         }
 
         public void ShowAnnouncement(string message)
@@ -1424,14 +1543,45 @@ namespace AreaSurvivors
                 return;
             }
 
+            BeginRelicAcquisitionModal();
             var panel = Instantiate(relicAcquisitionPanelPrefab);
             panel.Show(definition, duplicateTokenReward, () =>
             {
+                EndRelicAcquisitionModal();
                 ShowAnnouncement(duplicateTokenReward > 0
                     ? LocalizationService.Format("レリック変換: トークン +{0}", "Relic converted: +{0} tokens", duplicateTokenReward)
                     : LocalizationService.Format("レリック獲得: {0}", "Relic acquired: {0}", definition.displayName));
                 onClosed?.Invoke();
             });
+        }
+
+        void BeginRelicAcquisitionModal()
+        {
+            activeRelicAcquisitionModalCount++;
+            levelUpInputBlockedThroughFrame = Mathf.Max(levelUpInputBlockedThroughFrame, Time.frameCount);
+            ClearLevelUpSelection();
+        }
+
+        void EndRelicAcquisitionModal()
+        {
+            activeRelicAcquisitionModalCount = Mathf.Max(0, activeRelicAcquisitionModalCount - 1);
+            levelUpInputBlockedThroughFrame = Mathf.Max(levelUpInputBlockedThroughFrame, Time.frameCount);
+            ClearLevelUpSelection();
+            if (activeRelicAcquisitionModalCount == 0) TryShowNextRunLevelUp();
+        }
+
+        bool IsLevelUpInputBlockedByFrontModal()
+        {
+            return activeRelicAcquisitionModalCount > 0 ||
+                   Time.frameCount <= levelUpInputBlockedThroughFrame;
+        }
+
+        void ClearLevelUpSelection()
+        {
+            if (levelUpPanel == null || EventSystem.current == null) return;
+            GameObject selected = EventSystem.current.currentSelectedGameObject;
+            if (selected == null || !selected.transform.IsChildOf(levelUpPanel.transform)) return;
+            EventSystem.current.SetSelectedGameObject(null);
         }
 
         void EndRun(bool clear)
@@ -1534,8 +1684,11 @@ namespace AreaSurvivors
             int tokenBalanceBeforeEndReward,
             int tokenBalanceAfterEndReward)
         {
+            RecordDifficultyCheckpoint("run_end");
             var localNow = DateTime.Now;
             var utcNow = DateTime.UtcNow;
+            var playerHealth = Player != null ? Player.GetComponent<Health>() : null;
+            var playerStats = Player != null ? Player.Stats : default;
             var entry = new TokenRunLogEntry
             {
                 sessionId = string.IsNullOrEmpty(runSessionId) ? Guid.NewGuid().ToString("N") : runSessionId,
@@ -1581,7 +1734,35 @@ namespace AreaSurvivors
                 reachedStages = new List<RunStageLogEntry>(runReachedStages),
                 bossClears = new List<RunBossClearLogEntry>(runBossClears),
                 upgrades = new List<string>(runUpgrades),
-                acquiredRelics = new List<string>(runRelics)
+                acquiredRelics = new List<string>(runRelics),
+                currentXp = xp,
+                xpToNext = xpToNext,
+                baseExperienceCollected = runDifficultyTelemetry.BaseExperienceCollected,
+                appliedExperienceGained = runDifficultyTelemetry.AppliedExperienceGained,
+                currentXpMultiplier = playerStats.xpGainMultiplier,
+                playerCurrentHp = playerHealth != null ? playerHealth.currentHp : 0,
+                playerMaxHp = playerHealth != null ? playerHealth.maxHp : 0,
+                playerMinimumHp = runDifficultyTelemetry.PlayerMinimumHp,
+                playerDamageTaken = runDifficultyTelemetry.PlayerDamageTaken,
+                playerHitCount = runDifficultyTelemetry.PlayerHitCount,
+                playerHealingReceived = runDifficultyTelemetry.PlayerHealingReceived,
+                playerDeaths = runDifficultyTelemetry.PlayerDeaths,
+                playerDefense = playerStats.defense,
+                playerMoveSpeed = playerStats.moveSpeed,
+                playerPaintRadius = playerStats.paintRadius,
+                playerAutoRegen = playerStats.autoRegen,
+                buildingDamageTaken = runDifficultyTelemetry.BuildingDamageTaken,
+                buildingDestroyedCount = runDifficultyTelemetry.BuildingDestroyedCount,
+                buildingRevivedCount = runDifficultyTelemetry.BuildingRevivedCount,
+                enemySpawned = runDifficultyTelemetry.TotalEnemySpawned,
+                enemyKilled = runDifficultyTelemetry.TotalEnemyKilled,
+                peakAliveEnemies = runDifficultyTelemetry.PeakAliveEnemies,
+                levelUps = runDifficultyTelemetry.BuildLevelUps(),
+                upgradeHistory = runDifficultyTelemetry.BuildUpgradeHistory(),
+                enemyStats = runDifficultyTelemetry.BuildEnemyStats(),
+                buildingStats = runDifficultyTelemetry.BuildBuildingStats(),
+                difficultyCheckpoints = runDifficultyTelemetry.BuildCheckpoints(),
+                damageReport = runDamageTracker.BuildReport()
             };
 
             TokenRunLogger.Append(entry);
@@ -1662,6 +1843,7 @@ namespace AreaSurvivors
                     Player != null ? Player.transform : null);
             }
             gameHud?.SetStage(currentStage);
+            RecordDifficultyCheckpoint("stage_start");
         }
 
         void RecordStageReached(int stage, bool startStage)
@@ -1678,7 +1860,7 @@ namespace AreaSurvivors
 
         void RecordBossClear(EnemyController boss, bool firstClear, bool unlockedNextStage, int unlockedStage)
         {
-            runBossClears.Add(new RunBossClearLogEntry
+            var entry = new RunBossClearLogEntry
             {
                 stage = currentStage,
                 difficulty = ProgressionStore.GetStageDifficulty(currentStage),
@@ -1692,7 +1874,22 @@ namespace AreaSurvivors
                 kills = kills,
                 level = level,
                 runTokens = RunTokens
-            });
+            };
+            runDifficultyTelemetry.ApplyBossClearMetrics(entry);
+            runBossClears.Add(entry);
+        }
+
+        void RecordDifficultyCheckpoint(string eventType)
+        {
+            runDifficultyTelemetry.RecordCheckpoint(
+                eventType,
+                currentStage,
+                ProgressionStore.GetStageDifficulty(currentStage),
+                elapsed,
+                level,
+                xp,
+                xpToNext,
+                kills);
         }
 
         static string FormatRunTime(float seconds)
@@ -1765,6 +1962,8 @@ namespace AreaSurvivors
             public readonly WeaponType weaponType;
             public readonly bool hasAttributeType;
             public readonly WeaponAttributeType attributeType;
+            public readonly bool hasDiminishingStat;
+            public readonly RunWeaponUpgradeStat diminishingStat;
             public readonly Action apply;
 
             public RunUpgradeChoice(string label, string iconResource, Action apply)
@@ -1782,9 +1981,16 @@ namespace AreaSurvivors
                 this.apply = apply;
                 hasAttributeType = false;
                 attributeType = WeaponAttributeType.None;
+                hasDiminishingStat = false;
+                diminishingStat = RunWeaponUpgradeStat.None;
             }
 
-            public RunUpgradeChoice(WeaponType weaponType, string upgradeText, string iconResource, Action apply)
+            public RunUpgradeChoice(
+                WeaponType weaponType,
+                string upgradeText,
+                string iconResource,
+                Action apply,
+                RunWeaponUpgradeStat diminishingStat = RunWeaponUpgradeStat.None)
             {
                 this.weaponType = weaponType;
                 hasWeaponType = true;
@@ -1799,6 +2005,8 @@ namespace AreaSurvivors
                 isNewWeapon = false;
                 isEvolution = false;
                 hasAttributeType = this.attributeType != WeaponAttributeType.None;
+                this.diminishingStat = diminishingStat;
+                hasDiminishingStat = diminishingStat != RunWeaponUpgradeStat.None;
             }
 
             RunUpgradeChoice(WeaponType weaponType, bool newWeapon, Action apply)
@@ -1816,6 +2024,8 @@ namespace AreaSurvivors
                 isNewWeapon = newWeapon;
                 isEvolution = false;
                 hasAttributeType = attributeType != WeaponAttributeType.None;
+                hasDiminishingStat = false;
+                diminishingStat = RunWeaponUpgradeStat.None;
             }
 
             RunUpgradeChoice(WeaponType evolutionType, Action apply, byte evolutionMarker)
@@ -1833,6 +2043,8 @@ namespace AreaSurvivors
                 isNewWeapon = false;
                 isEvolution = true;
                 hasAttributeType = attributeType != WeaponAttributeType.None;
+                hasDiminishingStat = false;
+                diminishingStat = RunWeaponUpgradeStat.None;
             }
 
             public static RunUpgradeChoice NewWeapon(WeaponType weaponType, Action apply)

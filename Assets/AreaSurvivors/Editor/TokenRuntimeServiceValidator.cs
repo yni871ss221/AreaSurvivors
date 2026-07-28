@@ -65,9 +65,65 @@ namespace AreaSurvivors.EditorTools
                     90f),
                 "Elapsed reward schedule changed.");
 
+            ValidateDifficultyTelemetry();
+
             Directory.CreateDirectory(Path.GetDirectoryName(SuccessMarkerPath));
             File.WriteAllText(SuccessMarkerPath, DateTime.UtcNow.ToString("O"));
             Debug.Log("Token runtime service validation: passed.");
+        }
+
+        static void ValidateDifficultyTelemetry()
+        {
+            var telemetryType = typeof(GameManager).Assembly.GetType("AreaSurvivors.RunDifficultyTelemetry", true);
+            var telemetry = Activator.CreateInstance(telemetryType, true);
+            Invoke(telemetryType, telemetry, "Reset");
+            Invoke(telemetryType, telemetry, "RecordExperience", 14, 35);
+            Invoke(
+                telemetryType,
+                telemetry,
+                "RecordLevelUp",
+                2,
+                1,
+                12f,
+                4,
+                1,
+                8,
+                2.5f,
+                "experience");
+            Invoke(telemetryType, telemetry, "RecordUpgrade", 2, 1, 12f, "Validator Upgrade");
+
+            Require(Property<int>(telemetryType, telemetry, "BaseExperienceCollected") == 14,
+                "Difficulty telemetry base XP aggregation changed.");
+            Require(Property<int>(telemetryType, telemetry, "AppliedExperienceGained") == 35,
+                "Difficulty telemetry applied XP aggregation changed.");
+            var levels = (System.Collections.IList)Invoke(telemetryType, telemetry, "BuildLevelUps");
+            var upgrades = (System.Collections.IList)Invoke(telemetryType, telemetry, "BuildUpgradeHistory");
+            Require(levels.Count == 1, "Difficulty telemetry level history changed.");
+            Require(upgrades.Count == 1, "Difficulty telemetry upgrade history changed.");
+
+            var logEntry = new TokenRunLogEntry();
+            string json = JsonUtility.ToJson(logEntry);
+            Require(logEntry.schemaVersion == 3, "Token run log schema version changed.");
+            Require(json.Contains("\"difficultyCheckpoints\""), "Difficulty checkpoint JSON field is missing.");
+            Require(json.Contains("\"enemyStats\""), "Enemy stats JSON field is missing.");
+            Require(json.Contains("\"buildingStats\""), "Building stats JSON field is missing.");
+            Require(json.Contains("\"damageReport\""), "Damage report JSON field is missing.");
+
+            RequireSourceContains(
+                "Assets/AreaSurvivors/Scripts/Game/Characters/EnemySpawner.cs",
+                "RegisterEnemySpawn(enemy);");
+            RequireSourceContains(
+                "Assets/AreaSurvivors/Scripts/Game/Characters/EnemyController.cs",
+                "RegisterKill(this);");
+            RequireSourceContains(
+                "Assets/AreaSurvivors/Scripts/Game/Runtime/GameManager.cs",
+                "RecordDifficultyCheckpoint(\"boss_spawn\")");
+            RequireSourceContains(
+                "Assets/AreaSurvivors/Scripts/Game/Runtime/GameManager.cs",
+                "difficultyCheckpoints = runDifficultyTelemetry.BuildCheckpoints()");
+            RequireSourceContains(
+                "Assets/AreaSurvivors/Scripts/Game/Characters/Health.cs",
+                "LastDamageDealt = dealt;");
         }
 
         static object Invoke(Type type, object target, string methodName, params object[] arguments)
@@ -95,6 +151,13 @@ namespace AreaSurvivors.EditorTools
                 BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             if (field == null) throw new InvalidOperationException("Field is missing: " + fieldName);
             return (T)field.GetValue(target);
+        }
+
+        static void RequireSourceContains(string path, string sentinel)
+        {
+            Require(File.Exists(path), "Telemetry source is missing: " + path);
+            string source = File.ReadAllText(path);
+            Require(source.Contains(sentinel), "Telemetry wiring is missing: " + sentinel);
         }
 
         static void Require(bool condition, string message)

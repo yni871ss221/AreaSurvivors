@@ -40,6 +40,7 @@ namespace AreaSurvivors.Testing
             public int activeHitFlashes;
             public long enemyDeaths;
             public long xpOrbSpawns;
+            public long xpOrbMerges;
             public long pickupProximityScans;
             public long pickupScanCandidates;
             public long pickupAttractionsStarted;
@@ -57,6 +58,7 @@ namespace AreaSurvivors.Testing
             public int incidentIndex;
             public string fileName;
             public string reason;
+            public string reasonCategory;
             public float triggeredAtSeconds;
             public int stage;
             public int stageDifficulty;
@@ -93,6 +95,7 @@ namespace AreaSurvivors.Testing
             public int peakActiveHitFlashes;
             public long enemyDeaths;
             public long xpOrbSpawns;
+            public long xpOrbMerges;
             public long pickupProximityScans;
             public long pickupScanCandidates;
             public long pickupAttractionsStarted;
@@ -102,6 +105,15 @@ namespace AreaSurvivors.Testing
             public long summonedEnemySpawnAttempts;
             public long summonedEnemySpawns;
             public long summonedEnemyCapBlocked;
+        }
+
+        [Serializable]
+        public sealed class StageIncidentCoverage
+        {
+            public int stage;
+            public int capturedIncidents;
+            public int suppressedEvaluationWindowsByStageLimit;
+            public int suppressedIncidentsByRepeatedReason;
         }
 
         [Serializable]
@@ -148,12 +160,20 @@ namespace AreaSurvivors.Testing
             public float preCaptureSeconds;
             public float postCaptureSeconds;
             public float baselineP95Ms;
+            public int maxIncidentsPerSession;
+            public int maxIncidentsPerStage;
+            public int maxIncidentsPerReasonPerStage;
+            public int suppressedEvaluationWindowsBySessionLimit;
+            public List<StageIncidentCoverage> stageCoverage = new List<StageIncidentCoverage>();
             public float normalSentinelAverageMicroseconds;
             public float normalSentinelMaxMicroseconds;
             public float maxIncidentWriteMilliseconds;
             public int normalSentinelSamples;
             public List<IncidentSummary> incidents = new List<IncidentSummary>();
         }
+
+        const int FirstGameplayStage = 1;
+        const int LastGameplayStage = 4;
 
         [Header("Monitoring")]
         [SerializeField] bool monitoringEnabled = true;
@@ -162,6 +182,8 @@ namespace AreaSurvivors.Testing
         [SerializeField, Min(1f)] float postCaptureSeconds = 10f;
         [SerializeField, Min(1f)] float evaluationIntervalSeconds = 1f;
         [SerializeField, Min(1)] int maxIncidentsPerSession = 20;
+        [SerializeField, Min(1)] int maxIncidentsPerStage = 5;
+        [SerializeField, Min(1)] int maxIncidentsPerReasonPerStage = 2;
         [SerializeField, Range(30, 480)] int maxTrackedFramesPerSecond = 240;
 
         [Header("Detection")]
@@ -180,6 +202,11 @@ namespace AreaSurvivors.Testing
         List<FrameSample> activeIncidentSamples;
         readonly List<IncidentSummary> incidentSummaries = new List<IncidentSummary>();
         string activeIncidentReason;
+        string activeIncidentReasonCategory;
+        int activeIncidentStage;
+        int activeIncidentStageDifficulty;
+        int activeIncidentMaxAliveEnemies;
+        float activeIncidentGameElapsedSeconds;
         float activeIncidentTriggeredAt;
         float activeIncidentEndAt;
         float sessionStartRealtime;
@@ -198,6 +225,9 @@ namespace AreaSurvivors.Testing
         double sentinelUpdateMicrosecondsMax;
         int sentinelUpdateSamples;
         double maxIncidentWriteMilliseconds;
+        readonly int[] suppressedEvaluationWindowsByStageLimit = new int[LastGameplayStage + 1];
+        readonly int[] suppressedIncidentsByRepeatedReason = new int[LastGameplayStage + 1];
+        int suppressedEvaluationWindowsBySessionLimit;
         long lastManagedBytes;
         float nextManagedMemorySampleAt;
         int lastGc0;
@@ -219,6 +249,8 @@ namespace AreaSurvivors.Testing
         public float RelativeP95Multiplier => relativeP95Multiplier;
         public int MinimumSlowFramesInWindow => minimumSlowFramesInWindow;
         public int MaxIncidentsPerSession => maxIncidentsPerSession;
+        public int MaxIncidentsPerStage => maxIncidentsPerStage;
+        public int MaxIncidentsPerReasonPerStage => maxIncidentsPerReasonPerStage;
 
         void Awake()
         {
@@ -287,6 +319,22 @@ namespace AreaSurvivors.Testing
                 7200);
             ringSamples = new FrameSample[ringCapacity];
             percentileScratch = new float[ringCapacity];
+            incidentSummaries.Clear();
+            Array.Clear(
+                suppressedEvaluationWindowsByStageLimit,
+                0,
+                suppressedEvaluationWindowsByStageLimit.Length);
+            Array.Clear(
+                suppressedIncidentsByRepeatedReason,
+                0,
+                suppressedIncidentsByRepeatedReason.Length);
+            suppressedEvaluationWindowsBySessionLimit = 0;
+            activeIncidentReason = null;
+            activeIncidentReasonCategory = null;
+            activeIncidentStage = 0;
+            activeIncidentStageDifficulty = 0;
+            activeIncidentMaxAliveEnemies = 0;
+            activeIncidentGameElapsedSeconds = 0f;
             sessionStartRealtime = Time.realtimeSinceStartup;
             nextEvaluationAt = sessionStartRealtime + warmupSeconds;
             suppressDetectionUntil = sessionStartRealtime + warmupSeconds;
@@ -373,6 +421,7 @@ namespace AreaSurvivors.Testing
                 activeHitFlashes = EnemyHitFlash.ActiveFlashCount,
                 enemyDeaths = PositiveDelta(combatSnapshot.enemyDeaths, lastCombatSnapshot.enemyDeaths),
                 xpOrbSpawns = PositiveDelta(combatSnapshot.xpOrbSpawns, lastCombatSnapshot.xpOrbSpawns),
+                xpOrbMerges = PositiveDelta(combatSnapshot.xpOrbMerges, lastCombatSnapshot.xpOrbMerges),
                 pickupProximityScans = PositiveDelta(combatSnapshot.pickupProximityScans, lastCombatSnapshot.pickupProximityScans),
                 pickupScanCandidates = PositiveDelta(combatSnapshot.pickupScanCandidates, lastCombatSnapshot.pickupScanCandidates),
                 pickupAttractionsStarted = PositiveDelta(combatSnapshot.pickupAttractionsStarted, lastCombatSnapshot.pickupAttractionsStarted),
@@ -400,10 +449,25 @@ namespace AreaSurvivors.Testing
             nextEvaluationAt = now + evaluationIntervalSeconds;
             if (now < suppressDetectionUntil ||
                 now < nextIncidentAllowedAt ||
-                incidentSummaries.Count >= maxIncidentsPerSession ||
                 Time.timeScale <= 0f ||
                 !Application.isFocused)
             {
+                return;
+            }
+
+            int currentStage = ResolveCurrentStage();
+            if (currentStage < FirstGameplayStage || currentStage > LastGameplayStage) return;
+            int capturedInCurrentStage = CountCapturedIncidentsForStage(currentStage);
+            if (!HasReservedStageIncidentCapacity(
+                    incidentSummaries.Count,
+                    capturedInCurrentStage,
+                    maxIncidentsPerSession,
+                    maxIncidentsPerStage))
+            {
+                if (incidentSummaries.Count >= maxIncidentsPerSession)
+                    suppressedEvaluationWindowsBySessionLimit++;
+                else
+                    suppressedEvaluationWindowsByStageLimit[currentStage]++;
                 return;
             }
 
@@ -449,7 +513,88 @@ namespace AreaSurvivors.Testing
                 }
             }
 
-            if (!string.IsNullOrEmpty(reason)) BeginIncident(reason, now);
+            if (string.IsNullOrEmpty(reason)) return;
+            string reasonCategory = ResolveIncidentReasonCategory(reason);
+            int capturedForReason =
+                CountCapturedIncidentsForStageAndReason(currentStage, reasonCategory);
+            if (!HasRepeatedReasonIncidentCapacity(
+                    capturedForReason,
+                    maxIncidentsPerReasonPerStage))
+            {
+                suppressedIncidentsByRepeatedReason[currentStage]++;
+                nextIncidentAllowedAt = now + incidentCooldownSeconds;
+                return;
+            }
+
+            BeginIncident(reason, reasonCategory, currentStage, now);
+        }
+
+        public static bool HasReservedStageIncidentCapacity(
+            int capturedInSession,
+            int capturedInStage,
+            int sessionLimit,
+            int stageLimit)
+        {
+            return sessionLimit > 0 &&
+                   stageLimit > 0 &&
+                   capturedInSession >= 0 &&
+                   capturedInStage >= 0 &&
+                   capturedInSession < sessionLimit &&
+                   capturedInStage < stageLimit;
+        }
+
+        public static bool HasRepeatedReasonIncidentCapacity(
+            int capturedForReason,
+            int reasonLimit)
+        {
+            return reasonLimit > 0 &&
+                   capturedForReason >= 0 &&
+                   capturedForReason < reasonLimit;
+        }
+
+        static int ResolveCurrentStage()
+        {
+            var manager = GameManager.Instance;
+            return manager != null ? manager.CurrentStage : 0;
+        }
+
+        int CountCapturedIncidentsForStage(int stage)
+        {
+            int count = 0;
+            for (int i = 0; i < incidentSummaries.Count; i++)
+            {
+                if (incidentSummaries[i].stage == stage) count++;
+            }
+            return count;
+        }
+
+        int CountCapturedIncidentsForStageAndReason(int stage, string reasonCategory)
+        {
+            int count = 0;
+            for (int i = 0; i < incidentSummaries.Count; i++)
+            {
+                var incident = incidentSummaries[i];
+                if (incident.stage == stage &&
+                    string.Equals(
+                        incident.reasonCategory,
+                        reasonCategory,
+                        StringComparison.Ordinal))
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        static string ResolveIncidentReasonCategory(string reason)
+        {
+            if (reason.StartsWith("critical-frame", StringComparison.Ordinal))
+                return "critical-frame";
+            if (reason.StartsWith("sustained-slow", StringComparison.Ordinal))
+                return "sustained-slow";
+            if (reason.StartsWith("gc-pressure", StringComparison.Ordinal))
+                return "gc-pressure";
+            return "other";
         }
 
         void PushRingSample(FrameSample sample)
@@ -472,9 +617,19 @@ namespace AreaSurvivors.Testing
             return ringSamples[(oldestIndex + logicalIndex) % ringSamples.Length];
         }
 
-        void BeginIncident(string reason, float now)
+        void BeginIncident(string reason, string reasonCategory, int stage, float now)
         {
+            var manager = GameManager.Instance;
+            var spawner = manager != null ? manager.spawner : null;
             activeIncidentReason = reason;
+            activeIncidentReasonCategory = reasonCategory;
+            activeIncidentStage = stage;
+            activeIncidentStageDifficulty =
+                spawner != null ? spawner.CurrentStageDifficulty : 0;
+            activeIncidentMaxAliveEnemies =
+                spawner != null ? spawner.CurrentMaxAliveEnemies : 0;
+            activeIncidentGameElapsedSeconds =
+                manager != null ? manager.ElapsedSeconds : 0f;
             activeIncidentTriggeredAt = now - sessionStartRealtime;
             activeIncidentEndAt = now + postCaptureSeconds;
             activeIncidentSamples = new List<FrameSample>(
@@ -491,6 +646,12 @@ namespace AreaSurvivors.Testing
             if (activeIncidentSamples == null || activeIncidentSamples.Count == 0)
             {
                 activeIncidentSamples = null;
+                activeIncidentReason = null;
+                activeIncidentReasonCategory = null;
+                activeIncidentStage = 0;
+                activeIncidentStageDifficulty = 0;
+                activeIncidentMaxAliveEnemies = 0;
+                activeIncidentGameElapsedSeconds = 0f;
                 return;
             }
 
@@ -506,6 +667,11 @@ namespace AreaSurvivors.Testing
             incidentSummaries.Add(summary);
             activeIncidentSamples = null;
             activeIncidentReason = null;
+            activeIncidentReasonCategory = null;
+            activeIncidentStage = 0;
+            activeIncidentStageDifficulty = 0;
+            activeIncidentMaxAliveEnemies = 0;
+            activeIncidentGameElapsedSeconds = 0f;
             nextIncidentAllowedAt = Time.realtimeSinceStartup + incidentCooldownSeconds;
             WriteSessionReport(false);
             double writeMilliseconds = ElapsedMilliseconds(writeStartedTicks);
@@ -545,6 +711,7 @@ namespace AreaSurvivors.Testing
             int peakActiveHitFlashes = 0;
             long enemyDeaths = 0;
             long xpOrbSpawns = 0;
+            long xpOrbMerges = 0;
             long pickupProximityScans = 0;
             long pickupScanCandidates = 0;
             long pickupAttractionsStarted = 0;
@@ -586,6 +753,7 @@ namespace AreaSurvivors.Testing
                 peakActiveHitFlashes = Mathf.Max(peakActiveHitFlashes, sample.activeHitFlashes);
                 enemyDeaths += sample.enemyDeaths;
                 xpOrbSpawns += sample.xpOrbSpawns;
+                xpOrbMerges += sample.xpOrbMerges;
                 pickupProximityScans += sample.pickupProximityScans;
                 pickupScanCandidates += sample.pickupScanCandidates;
                 pickupAttractionsStarted += sample.pickupAttractionsStarted;
@@ -597,17 +765,16 @@ namespace AreaSurvivors.Testing
                 summonedEnemyCapBlocked += sample.summonedEnemyCapBlocked;
             }
             Array.Sort(values);
-            var manager = GameManager.Instance;
-            var spawner = manager != null ? manager.spawner : null;
             return new IncidentSummary
             {
                 incidentIndex = incidentIndex,
                 reason = activeIncidentReason,
+                reasonCategory = activeIncidentReasonCategory,
                 triggeredAtSeconds = activeIncidentTriggeredAt,
-                stage = manager != null ? manager.CurrentStage : 0,
-                stageDifficulty = spawner != null ? spawner.CurrentStageDifficulty : 0,
-                maxAliveEnemies = spawner != null ? spawner.CurrentMaxAliveEnemies : 0,
-                gameElapsedSeconds = manager != null ? manager.ElapsedSeconds : 0f,
+                stage = activeIncidentStage,
+                stageDifficulty = activeIncidentStageDifficulty,
+                maxAliveEnemies = activeIncidentMaxAliveEnemies,
+                gameElapsedSeconds = activeIncidentGameElapsedSeconds,
                 frameCount = frameCount,
                 averageFrameMs = frameCount > 0 ? sum / frameCount : 0f,
                 p95FrameMs = Percentile(values, 0.95f),
@@ -639,6 +806,7 @@ namespace AreaSurvivors.Testing
                 peakActiveHitFlashes = peakActiveHitFlashes,
                 enemyDeaths = enemyDeaths,
                 xpOrbSpawns = xpOrbSpawns,
+                xpOrbMerges = xpOrbMerges,
                 pickupProximityScans = pickupProximityScans,
                 pickupScanCandidates = pickupScanCandidates,
                 pickupAttractionsStarted = pickupAttractionsStarted,
@@ -681,6 +849,25 @@ namespace AreaSurvivors.Testing
             };
         }
 
+        List<StageIncidentCoverage> BuildStageCoverage()
+        {
+            var coverage = new List<StageIncidentCoverage>(
+                LastGameplayStage - FirstGameplayStage + 1);
+            for (int stage = FirstGameplayStage; stage <= LastGameplayStage; stage++)
+            {
+                coverage.Add(new StageIncidentCoverage
+                {
+                    stage = stage,
+                    capturedIncidents = CountCapturedIncidentsForStage(stage),
+                    suppressedEvaluationWindowsByStageLimit =
+                        suppressedEvaluationWindowsByStageLimit[stage],
+                    suppressedIncidentsByRepeatedReason =
+                        suppressedIncidentsByRepeatedReason[stage]
+                });
+            }
+            return coverage;
+        }
+
         void WriteSessionReport(bool ended)
         {
             if (string.IsNullOrEmpty(sessionDirectory)) return;
@@ -705,6 +892,12 @@ namespace AreaSurvivors.Testing
                 preCaptureSeconds = preCaptureSeconds,
                 postCaptureSeconds = postCaptureSeconds,
                 baselineP95Ms = baselineP95Ms,
+                maxIncidentsPerSession = maxIncidentsPerSession,
+                maxIncidentsPerStage = maxIncidentsPerStage,
+                maxIncidentsPerReasonPerStage = maxIncidentsPerReasonPerStage,
+                suppressedEvaluationWindowsBySessionLimit =
+                    suppressedEvaluationWindowsBySessionLimit,
+                stageCoverage = BuildStageCoverage(),
                 normalSentinelAverageMicroseconds = sentinelUpdateSamples > 0
                     ? (float)(sentinelUpdateMicrosecondsTotal / sentinelUpdateSamples)
                     : 0f,
@@ -736,8 +929,26 @@ namespace AreaSurvivors.Testing
             builder.AppendLine($"- Baseline p95: `{report.baselineP95Ms:0.00} ms`");
             builder.AppendLine($"- Incidents: `{report.incidents.Count}`");
             builder.AppendLine(
+                $"- Incident budget: session `{report.maxIncidentsPerSession}`, " +
+                $"per stage `{report.maxIncidentsPerStage}`, " +
+                $"per reason/stage `{report.maxIncidentsPerReasonPerStage}`");
+            builder.AppendLine(
+                $"- Evaluation windows suppressed by session limit: " +
+                $"`{report.suppressedEvaluationWindowsBySessionLimit}`");
+            builder.AppendLine(
                 $"- Sentinel normal overhead: avg `{report.normalSentinelAverageMicroseconds:0.00} us`, " +
                 $"max `{report.normalSentinelMaxMicroseconds:0.00} us`");
+            builder.AppendLine();
+            builder.AppendLine("## Stage Coverage");
+            builder.AppendLine();
+            for (int i = 0; i < report.stageCoverage.Count; i++)
+            {
+                var coverage = report.stageCoverage[i];
+                builder.AppendLine(
+                    $"- Stage {coverage.stage}: captured `{coverage.capturedIncidents}`, " +
+                    $"stage-limit windows `{coverage.suppressedEvaluationWindowsByStageLimit}`, " +
+                    $"repeated-reason incidents `{coverage.suppressedIncidentsByRepeatedReason}`");
+            }
             builder.AppendLine();
             builder.AppendLine("## Incidents");
             builder.AppendLine();
@@ -750,7 +961,8 @@ namespace AreaSurvivors.Testing
             {
                 var incident = report.incidents[i];
                 builder.AppendLine(
-                    $"- #{incident.incidentIndex}: `{incident.reason}` — Stage {incident.stage}, " +
+                    $"- #{incident.incidentIndex}: `{incident.reason}` " +
+                    $"(`{incident.reasonCategory}`) — Stage {incident.stage}, " +
                     $"difficulty `{incident.stageDifficulty}`, max alive `{incident.maxAliveEnemies}`, " +
                     $"avg `{incident.averageFrameMs:0.00} ms`, p95 `{incident.p95FrameMs:0.00} ms`, " +
                     $"p99 `{incident.p99FrameMs:0.00} ms`, max `{incident.maxFrameMs:0.00} ms`, " +

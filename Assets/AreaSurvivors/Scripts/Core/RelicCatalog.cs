@@ -318,7 +318,7 @@ namespace AreaSurvivors
 
         public static bool TryPickRandom(out RelicDefinition definition)
         {
-            var eligibleDefinitions = GetDropEligibleDefinitions(
+            var eligibleDefinitions = GetRandomDropPoolDefinitions(
                 ProgressionStore.OwnedRelicCount(),
                 ProgressionStore.HasRelic);
             if (eligibleDefinitions.Length == 0)
@@ -329,6 +329,29 @@ namespace AreaSurvivors
 
             RelicRarity rarity = PickAvailableRarity(eligibleDefinitions);
             return TryPickRandomByRarity(eligibleDefinitions, rarity, out definition);
+        }
+
+        public static RelicDefinition[] GetRandomDropPoolDefinitions(
+            int ownedRelicCount,
+            Predicate<RelicType> isOwned)
+        {
+            var eligibleDefinitions = GetDropEligibleDefinitions(
+                ownedRelicCount,
+                isOwned);
+            if (eligibleDefinitions.Length > 0) return eligibleDefinitions;
+            return AreAllRelicsOwned(isOwned)
+                ? (RelicDefinition[])Definitions.Clone()
+                : eligibleDefinitions;
+        }
+
+        public static bool AreAllRelicsOwned(Predicate<RelicType> isOwned)
+        {
+            if (isOwned == null || Definitions.Length == 0) return false;
+            for (int i = 0; i < Definitions.Length; i++)
+            {
+                if (!isOwned(Definitions[i].type)) return false;
+            }
+            return true;
         }
 
         public static bool TryGetFirstUnowned(out RelicDefinition definition)
@@ -374,6 +397,59 @@ namespace AreaSurvivors
                    definition.type != RelicType.SolitaryBlade;
         }
 
+        public static bool TryAcquireReward(
+            RelicDefinition definition,
+            out bool newlyUnlocked,
+            out int duplicateTokenReward)
+        {
+            newlyUnlocked = false;
+            duplicateTokenReward = 0;
+            if (definition == null) return false;
+
+            newlyUnlocked = ProgressionStore.UnlockRelic(definition.type);
+            if (newlyUnlocked) return true;
+            if (!ProgressionStore.HasRelic(definition.type)) return false;
+
+            duplicateTokenReward = GetDuplicateTokenReward(definition.rarity);
+            if (duplicateTokenReward <= 0) return false;
+            ProgressionStore.AddTokens(duplicateTokenReward);
+            return true;
+        }
+
+        public static int GetDuplicateTokenReward(RelicRarity rarity)
+        {
+            switch (rarity)
+            {
+                case RelicRarity.Common:
+                    return 5;
+                case RelicRarity.Uncommon:
+                    return 10;
+                case RelicRarity.Rare:
+                    return 30;
+                case RelicRarity.Legendary:
+                    return 50;
+                default:
+                    return 0;
+            }
+        }
+
+        public static int GetDropWeight(RelicRarity rarity)
+        {
+            switch (rarity)
+            {
+                case RelicRarity.Common:
+                    return CommonDropWeight;
+                case RelicRarity.Uncommon:
+                    return UncommonDropWeight;
+                case RelicRarity.Rare:
+                    return RareDropWeight;
+                case RelicRarity.Legendary:
+                    return LegendaryDropWeight;
+                default:
+                    return 0;
+            }
+        }
+
         public static string GetRarityDisplayName(RelicRarity rarity)
         {
             string japanese;
@@ -400,10 +476,18 @@ namespace AreaSurvivors
 
         static RelicRarity PickAvailableRarity(RelicDefinition[] eligibleDefinitions)
         {
-            int commonWeight = CountByRarity(eligibleDefinitions, RelicRarity.Common) > 0 ? CommonDropWeight : 0;
-            int uncommonWeight = CountByRarity(eligibleDefinitions, RelicRarity.Uncommon) > 0 ? UncommonDropWeight : 0;
-            int rareWeight = CountByRarity(eligibleDefinitions, RelicRarity.Rare) > 0 ? RareDropWeight : 0;
-            int legendaryWeight = CountByRarity(eligibleDefinitions, RelicRarity.Legendary) > 0 ? LegendaryDropWeight : 0;
+            int commonWeight = CountByRarity(eligibleDefinitions, RelicRarity.Common) > 0
+                ? GetDropWeight(RelicRarity.Common)
+                : 0;
+            int uncommonWeight = CountByRarity(eligibleDefinitions, RelicRarity.Uncommon) > 0
+                ? GetDropWeight(RelicRarity.Uncommon)
+                : 0;
+            int rareWeight = CountByRarity(eligibleDefinitions, RelicRarity.Rare) > 0
+                ? GetDropWeight(RelicRarity.Rare)
+                : 0;
+            int legendaryWeight = CountByRarity(eligibleDefinitions, RelicRarity.Legendary) > 0
+                ? GetDropWeight(RelicRarity.Legendary)
+                : 0;
             int totalWeight = commonWeight + uncommonWeight + rareWeight + legendaryWeight;
             if (totalWeight <= 0) return RelicRarity.Common;
 

@@ -13,6 +13,7 @@ namespace AreaSurvivors
         public event Action<Health, int> Healed;
         public event Action<Health> Died;
         public Vector3 LastDamagePoint { get; private set; }
+        public int LastDamageDealt { get; private set; }
 
         public float Normalized => maxHp <= 0 ? 0f : Mathf.Clamp01((float)currentHp / maxHp);
         public bool IsDead => currentHp <= 0;
@@ -40,12 +41,14 @@ namespace AreaSurvivors
 
         public int Damage(int value, Vector3 worldPoint)
         {
+            LastDamageDealt = 0;
             if (IsDead || invincible) return 0;
             LastDamagePoint = worldPoint;
             int amount = DamageAmount(value);
             int before = currentHp;
             currentHp = Mathf.Max(0, currentHp - amount);
             int dealt = before - currentHp;
+            LastDamageDealt = dealt;
             Damaged?.Invoke(this, amount);
             if (currentHp <= 0) Died?.Invoke(this);
             return dealt;

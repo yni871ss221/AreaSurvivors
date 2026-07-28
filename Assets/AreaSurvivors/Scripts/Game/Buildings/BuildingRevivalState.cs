@@ -33,6 +33,7 @@ namespace AreaSurvivors
         PlayerController revivePlayer;
         TileGrid reviveGrid;
         int reviveStableFixedUpdates;
+        public bool IsDestroyed => destroyed;
 
         public void Configure(Vector3Int buildingOriginCell, bool isUpgraded)
         {
@@ -138,14 +139,14 @@ namespace AreaSurvivors
             }
 
             destroyed = false;
-            ApplyDestroyedVisual(false);
-
             var health = GetComponent<Health>();
             if (health != null)
             {
                 health.currentHp = Mathf.Clamp(Mathf.RoundToInt(health.maxHp * Mathf.Clamp01(healthRatio)), 1, health.maxHp);
             }
 
+            ApplyDestroyedVisual(false);
+            GetComponent<IBuildableConstruction>()?.RestoreAfterRevive();
             return true;
         }
 

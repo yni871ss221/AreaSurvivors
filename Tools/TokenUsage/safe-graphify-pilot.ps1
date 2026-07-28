@@ -167,10 +167,16 @@ function Write-GraphifyUsageRecord {
         [string]$FallbackId = "",
         [bool]$OutputLimited = $false,
         [int]$DisplayedResultCount = 0,
+        [int]$DisplayedEstimatedTokens = -1,
         [AllowEmptyString()]
         [string]$CapturePath = ""
     )
 
+    $effectiveDisplayedEstimatedTokens = if ($DisplayedEstimatedTokens -ge 0) {
+        $DisplayedEstimatedTokens
+    } else {
+        [int]$Signals.EstimatedTokens
+    }
     $record = [ordered]@{
         timestamp = (Get-Date).ToString("o")
         graphify_version = "0.9.26"
@@ -189,6 +195,8 @@ function Write-GraphifyUsageRecord {
         fallback_id = $FallbackId
         output_limited = $OutputLimited
         displayed_result_count = $DisplayedResultCount
+        displayed_estimated_tokens = $effectiveDisplayedEstimatedTokens
+        measurement_scope = "graphify-command-output"
         full_capture_path = $CapturePath
     }
     $jsonLine = $record | ConvertTo-Json -Compress -Depth 4
@@ -235,8 +243,27 @@ function Invoke-GraphifyCommand {
     } else {
         [int]$signals.ResultCount
     }
+    $visibleCommandOutput = if ($exitCode -ne 0) {
+        @($commandOutput | Select-Object -Last 20)
+    } elseif ($outputLimited) {
+        @(
+            @($commandOutput | Where-Object { $_ -notmatch '^\s*-\s+' } | Select-Object -First 12)
+            @($commandOutput | Where-Object { $_ -match '^\s*-\s+' } | Select-Object -First $AffectedDisplayLimit)
+            "affected_output_limited: true"
+            ("shown_results: {0}" -f $displayedResultCount)
+            ("total_results: {0}" -f $signals.ResultCount)
+            ("estimated_full_output_tokens: {0}" -f $signals.EstimatedTokens)
+            ("full_capture_path: {0}" -f $capturePath)
+        )
+    } elseif ($ShowAll -or $PrintOutput) {
+        @($commandOutput)
+    } else {
+        @($commandOutput | Select-Object -Last 12)
+    }
+    $visibleCommandText = $visibleCommandOutput -join [Environment]::NewLine
+    $displayedEstimatedTokens = [int][Math]::Ceiling($visibleCommandText.Length / 4.0)
     if ($TrackUsage) {
-        Write-GraphifyUsageRecord -RecordedAction $Action -ElapsedMilliseconds $elapsedMilliseconds -ExitCode $exitCode -Signals $signals -FallbackId $fallbackId -OutputLimited $outputLimited -DisplayedResultCount $displayedResultCount -CapturePath $capturePath
+        Write-GraphifyUsageRecord -RecordedAction $Action -ElapsedMilliseconds $elapsedMilliseconds -ExitCode $exitCode -Signals $signals -FallbackId $fallbackId -OutputLimited $outputLimited -DisplayedResultCount $displayedResultCount -DisplayedEstimatedTokens $displayedEstimatedTokens -CapturePath $capturePath
     }
 
     if ($exitCode -ne 0) {
@@ -244,23 +271,11 @@ function Invoke-GraphifyCommand {
         Write-Output ("exit_code: {0}" -f $exitCode)
         Write-Output ("elapsed_ms: {0}" -f $elapsedMilliseconds)
         Write-Output ("capture_path: {0}" -f $capturePath)
-        $commandOutput | Select-Object -Last 20
+        $visibleCommandOutput
         exit $exitCode
     }
 
-    if ($outputLimited) {
-        @($commandOutput | Where-Object { $_ -notmatch '^\s*-\s+' } | Select-Object -First 12)
-        @($commandOutput | Where-Object { $_ -match '^\s*-\s+' } | Select-Object -First $AffectedDisplayLimit)
-        Write-Output "affected_output_limited: true"
-        Write-Output ("shown_results: {0}" -f $displayedResultCount)
-        Write-Output ("total_results: {0}" -f $signals.ResultCount)
-        Write-Output ("estimated_full_output_tokens: {0}" -f $signals.EstimatedTokens)
-        Write-Output ("full_capture_path: {0}" -f $capturePath)
-    } elseif ($ShowAll -or $PrintOutput) {
-        $commandOutput
-    } else {
-        $commandOutput | Select-Object -Last 12
-    }
+    $visibleCommandOutput
     if ($TrackUsage) {
         Write-GraphifyFallbackRecommendation -Signals $signals -OutputText $signals.OutputText -FallbackId $fallbackId
     }

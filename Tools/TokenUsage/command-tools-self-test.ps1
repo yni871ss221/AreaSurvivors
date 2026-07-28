@@ -13,6 +13,8 @@ $scripts = @(
     "migration-inventory-report.ps1",
     "run-unity-report.ps1",
     "Get-TokenReportSummary.ps1",
+    "closeout-token-report.ps1",
+    "Run-TokenDailyHealth.ps1",
     "start-task-token-check.ps1",
     "safe-unity.ps1",
     "combat-performance-probe.ps1",
@@ -202,7 +204,7 @@ foreach ($requiredParameter in @("Action", "Question", "Source", "Target", "Budg
     }
 }
 $graphifyPilotText = Get-Content -LiteralPath $graphifyPilotPath -Raw -Encoding UTF8
-foreach ($requiredSentinel in @("--code-only", "--no-cluster", "--no-viz", "--no-label", "--force", "refresh-extract", "guard_code: 61", "guard_code: 62", "guard_code: 63", "Assert-ClusteredGraph", "Get-RawGraphInspection", "nativeErrorActionPreference", "graphify-pilot-0.9.26", "EnsureFresh", "Get-GraphFreshness", "graphify-pilot-usage.jsonl", "graphify_verification_required", "TrackUsage", "usage_category", "[AllowEmptyString()]", "[AllowEmptyCollection()]", "missing-source-path", "affected_output_limited", "fallback_recommended", "full_capture_path", "GraphifyFallbackId")) {
+foreach ($requiredSentinel in @("--code-only", "--no-cluster", "--no-viz", "--no-label", "--force", "refresh-extract", "guard_code: 61", "guard_code: 62", "guard_code: 63", "Assert-ClusteredGraph", "Get-RawGraphInspection", "nativeErrorActionPreference", "graphify-pilot-0.9.26", "EnsureFresh", "Get-GraphFreshness", "graphify-pilot-usage.jsonl", "graphify_verification_required", "TrackUsage", "usage_category", "[AllowEmptyString()]", "[AllowEmptyCollection()]", "missing-source-path", "affected_output_limited", "fallback_recommended", "full_capture_path", "GraphifyFallbackId", "displayed_estimated_tokens", 'measurement_scope = "graphify-command-output"')) {
     if (-not $graphifyPilotText.Contains($requiredSentinel)) {
         throw "safe-graphify-pilot.ps1 is missing required pilot guard: $requiredSentinel"
     }
@@ -475,8 +477,37 @@ $tokenSummaryText = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot "Get-
 if (-not $tokenSummaryText.Contains('timeout_seconds = $record.timeout_seconds') -or
     -not $tokenSummaryText.Contains('timed_out = [bool]$record.timed_out') -or
     -not $tokenSummaryText.Contains('capture_path = $record.capture_path') -or
-    -not $tokenSummaryText.Contains('if ($FailedOnly)')) {
+    -not $tokenSummaryText.Contains('if ($FailedOnly)') -or
+    -not $tokenSummaryText.Contains('displayed_capture_estimated_tokens') -or
+    -not $tokenSummaryText.Contains('displayed_estimated_tokens') -or
+    -not $tokenSummaryText.Contains('current_schema_gap') -or
+    -not $tokenSummaryText.Contains('measurement_coverage_percent') -or
+    -not $tokenSummaryText.Contains('"graphify"')) {
     throw "Token report summary JSON must preserve timeout and capture evidence for failed command diagnosis."
+}
+
+$safeCommandText = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot "Safe-Command.ps1"))
+foreach ($requiredSentinel in @(
+    'schema_version = 2',
+    'displayed_capture_estimated_tokens',
+    'hidden_capture_estimated_tokens',
+    'measurement_scope = "captured-command-output-only"',
+    '$callerScript'
+)) {
+    if (-not $safeCommandText.Contains($requiredSentinel)) {
+        throw "Safe-Command.ps1 must record visible/captured token separation: $requiredSentinel"
+    }
+}
+
+$dailyHealthText = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot "Run-TokenDailyHealth.ps1"))
+if ($dailyHealthText.Contains("-ExcludeBenchmark")) {
+    throw "Run-TokenDailyHealth.ps1 must use the current token-report-summary contract."
+}
+
+$closeoutTokenReportPath = Join-Path $PSScriptRoot "closeout-token-report.ps1"
+$closeoutTokenReportOutput = @(& $closeoutTokenReportPath -SelfTest)
+if ($LASTEXITCODE -ne 0 -or $closeoutTokenReportOutput -notcontains "closeout_token_report_self_test: passed") {
+    throw "closeout-token-report.ps1 self-test failed."
 }
 
 $startTaskText = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot "start-task-token-check.ps1"))
@@ -691,7 +722,7 @@ $focusedSearchText = [System.IO.File]::ReadAllText((Join-Path $PSScriptRoot "foc
 if (-not $focusedSearchText.Contains('exit 0') -or -not $focusedSearchText.Contains('Each -Path item must exist')) {
     throw "focused-search must validate paths and normalize no-match results."
 }
-foreach ($requiredSentinel in @("GraphifyFallbackId", "GraphifyUsageCategory", 'action = "Fallback"', "fallback_executed")) {
+foreach ($requiredSentinel in @("GraphifyFallbackId", "GraphifyUsageCategory", 'action = "Fallback"', "fallback_executed", "displayed_estimated_tokens", 'measurement_scope = "focused-search-visible-output"')) {
     if (-not $focusedSearchText.Contains($requiredSentinel)) {
         throw "focused-search must record actual Graphify fallback use: $requiredSentinel"
     }

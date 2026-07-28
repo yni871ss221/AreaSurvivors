@@ -585,6 +585,8 @@ MonoBehaviour:
   requireExistingOutlineObject: 0
   blink: 0
   blinkSpeed: 5
+  safetySyncFrameInterval: 1
+  crowdOptimizedSampling: 0
 --- !u!1 &3112107152408375139
 GameObject:
   m_ObjectHideFlags: 0
@@ -727,6 +729,8 @@ MonoBehaviour:
   requireExistingOutlineObject: 0
   blink: 0
   blinkSpeed: 5
+  safetySyncFrameInterval: 1
+  crowdOptimizedSampling: 0
 --- !u!114 &8559967648755498923
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -988,6 +992,8 @@ MonoBehaviour:
   requireExistingOutlineObject: 0
   blink: 0
   blinkSpeed: 5
+  safetySyncFrameInterval: 1
+  crowdOptimizedSampling: 0
 --- !u!114 &7961164042749164995
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1178,6 +1184,8 @@ MonoBehaviour:
   requireExistingOutlineObject: 0
   blink: 0
   blinkSpeed: 5
+  safetySyncFrameInterval: 1
+  crowdOptimizedSampling: 0
 --- !u!114 &4620349414022132662
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1332,6 +1340,8 @@ MonoBehaviour:
   requireExistingOutlineObject: 0
   blink: 0
   blinkSpeed: 5
+  safetySyncFrameInterval: 1
+  crowdOptimizedSampling: 0
 --- !u!114 &1810300956832906041
 MonoBehaviour:
   m_ObjectHideFlags: 0

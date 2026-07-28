@@ -25,6 +25,7 @@ function New-PerformanceSessionSummary {
                 [PSCustomObject]@{
                     incident_index = [int]$_.incidentIndex
                     reason = [string]$_.reason
+                    reason_category = [string]$_.reasonCategory
                     stage = [int]$_.stage
                     game_elapsed_seconds = [double]$_.gameElapsedSeconds
                     p95_frame_ms = [double]$_.p95FrameMs
@@ -65,6 +66,19 @@ function New-PerformanceSessionSummary {
                 }
             }
     )
+    $stageCoverage = @(
+        $Session.stageCoverage |
+            ForEach-Object {
+                [PSCustomObject]@{
+                    stage = [int]$_.stage
+                    captured_incidents = [int]$_.capturedIncidents
+                    suppressed_stage_limit_windows =
+                        [int]$_.suppressedEvaluationWindowsByStageLimit
+                    suppressed_repeated_reason_incidents =
+                        [int]$_.suppressedIncidentsByRepeatedReason
+                }
+            }
+    )
 
     return [PSCustomObject]@{
         report = "performance_session"
@@ -81,6 +95,12 @@ function New-PerformanceSessionSummary {
         target_frame_rate = [int]$Session.targetFrameRate
         baseline_p95_ms = [double]$Session.baselineP95Ms
         incident_count = $incidents.Count
+        max_incidents_per_session = [int]$Session.maxIncidentsPerSession
+        max_incidents_per_stage = [int]$Session.maxIncidentsPerStage
+        max_incidents_per_reason_per_stage = [int]$Session.maxIncidentsPerReasonPerStage
+        suppressed_session_limit_windows =
+            [int]$Session.suppressedEvaluationWindowsBySessionLimit
+        stage_coverage = $stageCoverage
         sentinel_average_microseconds = [double]$Session.normalSentinelAverageMicroseconds
         sentinel_max_microseconds = [double]$Session.normalSentinelMaxMicroseconds
         max_incident_write_ms = [double]$Session.maxIncidentWriteMilliseconds
@@ -104,6 +124,18 @@ if ($SelfTest) {
   "vSyncCount": 0,
   "targetFrameRate": 60,
   "baselineP95Ms": 16.7,
+  "maxIncidentsPerSession": 20,
+  "maxIncidentsPerStage": 5,
+  "maxIncidentsPerReasonPerStage": 2,
+  "suppressedEvaluationWindowsBySessionLimit": 3,
+  "stageCoverage": [
+    {
+      "stage": 3,
+      "capturedIncidents": 5,
+      "suppressedEvaluationWindowsByStageLimit": 8,
+      "suppressedIncidentsByRepeatedReason": 2
+    }
+  ],
   "normalSentinelAverageMicroseconds": 11.5,
   "normalSentinelMaxMicroseconds": 80.0,
   "maxIncidentWriteMilliseconds": 2.5,
@@ -113,6 +145,8 @@ if ($SelfTest) {
     {
       "incidentIndex": 2,
       "reason": "critical",
+      "reasonCategory": "critical-frame",
+      "stage": 3,
       "p95FrameMs": 80.0,
       "maxFrameMs": 120.0,
       "excaliburProjectileDamageHits": 42,
@@ -142,6 +176,8 @@ if ($SelfTest) {
     if ($summary.incident_count -ne 2 -or
         $summary.top_incidents.Count -ne 1 -or
         $summary.top_incidents[0].incident_index -ne 2 -or
+        $summary.top_incidents[0].reason_category -ne "critical-frame" -or
+        $summary.top_incidents[0].stage -ne 3 -or
         $summary.top_incidents[0].excalibur_damage_hits -ne 42 -or
         $summary.top_incidents[0].popup_reuses -ne 37 -or
         $summary.top_incidents[0].popup_drops -ne 3 -or
@@ -155,7 +191,15 @@ if ($SelfTest) {
         $summary.top_incidents[0].banana_collider_candidates -ne 480 -or
         $summary.top_incidents[0].summoned_enemy_spawn_attempts -ne 20 -or
         $summary.top_incidents[0].summoned_enemy_spawns -ne 5 -or
-        $summary.top_incidents[0].summoned_enemy_cap_blocked -ne 15) {
+        $summary.top_incidents[0].summoned_enemy_cap_blocked -ne 15 -or
+        $summary.max_incidents_per_session -ne 20 -or
+        $summary.max_incidents_per_stage -ne 5 -or
+        $summary.max_incidents_per_reason_per_stage -ne 2 -or
+        $summary.suppressed_session_limit_windows -ne 3 -or
+        $summary.stage_coverage.Count -ne 1 -or
+        $summary.stage_coverage[0].captured_incidents -ne 5 -or
+        $summary.stage_coverage[0].suppressed_stage_limit_windows -ne 8 -or
+        $summary.stage_coverage[0].suppressed_repeated_reason_incidents -ne 2) {
         throw "performance-session-report self-test failed."
     }
 
@@ -216,6 +260,21 @@ Write-Output ("environment: Unity {0}; {1}; {2}; quality={3}; screen={4}; vsync=
 Write-Output ("incidents: {0}; baseline_p95_ms={1:N2}" -f
     $result.incident_count,
     $result.baseline_p95_ms)
+Write-Output ("incident_budget: session={0}; per_stage={1}; per_reason_stage={2}; suppressed_session_windows={3}" -f
+    $result.max_incidents_per_session,
+    $result.max_incidents_per_stage,
+    $result.max_incidents_per_reason_per_stage,
+    $result.suppressed_session_limit_windows)
+if ($result.stage_coverage.Count -gt 0) {
+    Write-Output "stage_coverage:"
+    foreach ($coverage in $result.stage_coverage) {
+        Write-Output ("  stage={0} captured={1} suppressed_stage_windows={2} suppressed_repeated_reason={3}" -f
+            $coverage.stage,
+            $coverage.captured_incidents,
+            $coverage.suppressed_stage_limit_windows,
+            $coverage.suppressed_repeated_reason_incidents)
+    }
+}
 Write-Output ("sentinel_overhead: avg_us={0:N2}; max_us={1:N2}; samples={2}; max_write_ms={3:N2}" -f
     $result.sentinel_average_microseconds,
     $result.sentinel_max_microseconds,
@@ -229,9 +288,10 @@ if ($result.top_incidents.Count -eq 0) {
 
 Write-Output "top_incidents:"
 foreach ($incident in $result.top_incidents) {
-    Write-Output ("  #{0} reason={1} stage={2} elapsed={3:N1}s p95={4:N2}ms p99={5:N2}ms max={6:N2}ms over50={7} over100={8} enemies={9} gc_alloc={10} gc={11} area_candidates={12} projectile_candidates={13} feedback={14} deaths={15} file={16}" -f
+    Write-Output ("  #{0} reason={1} category={2} stage={3} elapsed={4:N1}s p95={5:N2}ms p99={6:N2}ms max={7:N2}ms over50={8} over100={9} enemies={10} gc_alloc={11} gc={12} area_candidates={13} projectile_candidates={14} feedback={15} deaths={16} file={17}" -f
         $incident.incident_index,
         $incident.reason,
+        $incident.reason_category,
         $incident.stage,
         $incident.game_elapsed_seconds,
         $incident.p95_frame_ms,

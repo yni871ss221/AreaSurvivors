@@ -452,6 +452,8 @@ MonoBehaviour:
   requireExistingOutlineObject: 0
   blink: 0
   blinkSpeed: 5
+  safetySyncFrameInterval: 1
+  crowdOptimizedSampling: 0
 --- !u!114 &8187773134616918120
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -606,6 +608,8 @@ MonoBehaviour:
   requireExistingOutlineObject: 0
   blink: 0
   blinkSpeed: 5
+  safetySyncFrameInterval: 1
+  crowdOptimizedSampling: 0
 --- !u!114 &4082279986649331312
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -835,6 +839,8 @@ MonoBehaviour:
   requireExistingOutlineObject: 0
   blink: 0
   blinkSpeed: 5
+  safetySyncFrameInterval: 1
+  crowdOptimizedSampling: 0
 --- !u!114 &1176726535698485192
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1422,6 +1428,8 @@ MonoBehaviour:
   requireExistingOutlineObject: 0
   blink: 0
   blinkSpeed: 5
+  safetySyncFrameInterval: 1
+  crowdOptimizedSampling: 0
 --- !u!114 &5517962249757076653
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1576,6 +1584,8 @@ MonoBehaviour:
   requireExistingOutlineObject: 0
   blink: 0
   blinkSpeed: 5
+  safetySyncFrameInterval: 1
+  crowdOptimizedSampling: 0
 --- !u!114 &8199758519896242976
 MonoBehaviour:
   m_ObjectHideFlags: 0

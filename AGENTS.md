@@ -53,6 +53,7 @@ AreaSurvivors リポジトリ全体に適用する低トークン運用の入口
 - 初手で `Assets/AreaSurvivors` 全体へ広域 `rg` をかけない。`safe-search.ps1 -FilesOnly`、`-HitSummary`、`focused-search.ps1` を先に使う。
 - 複数の明示Pathを生の `rg` / `rtk rg` へ同時に渡さない。既知の実在Pathは1回につき1つだけ検索し、候補または未知のPathは先に `safe-search.ps1 -FilesOnly` で実在確認する。既知Pathと推測Pathを同じコマンドへ混在させることを禁止する。
 - 読み取りは `safe-read.ps1 -Pattern <語> -Context <行数>` または `-StartLine` / `-EndLine` を優先する。
+- 行数不明のSkill、Markdown、ルール本文を最後まで読む場合は、推測した`-EndLine`を`safe-read.ps1 -PrintOutput`へ渡さず、最初から`safe-read-batch.ps1 -Ranges "1-<十分な上限>" -PrintOutput`を使う。`safe-read`の対話表示上限は80行であり、実ファイルが短くても指定範囲が80行を超えれば`guard_code: 39`で停止する。
 - RTK経由の同一PowerShell読み取りWrapperを並列起動しない。`safe-read-batch.ps1`は複数範囲を1回へまとめ、複数ファイルは直列実行して`-File`のWrapper境界と`-Path`対象を固定する。
 - `.unity` / `.prefab` / `.asset` は本文diffや全文読みを避け、`safe-diff -SummaryOnly`、`safe-unity-search.ps1`、Reporter/Validatorを先に使う。
 - プロジェクト肥大化や未参照候補を見る時は `project-weight-report.ps1`、GameManager分割候補は `game-manager-responsibility-report.ps1`、検証選択は `validation-preset.ps1` を使う。

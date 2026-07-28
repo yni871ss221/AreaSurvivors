@@ -189,3 +189,5 @@ MonoBehaviour:
   requireExistingOutlineObject: 0
   blink: 0
   blinkSpeed: 5
+  safetySyncFrameInterval: 1
+  crowdOptimizedSampling: 0

@@ -57,6 +57,27 @@
 - 対応: `await tools.apply_patch(patch); text("patch_submitted; verify sentinels")`のように送信完了だけを明示し、成功判定は`safe-read.ps1 -LiteralPattern`で各変更対象の固有sentinelを確認してから`scoped-diff-check.ps1`で確定する。
 - 禁止: 空戻り値をPatch失敗とみなして同じPatchを再適用すること、反映確認前に別編集方式へ切り替えること。
 
+### UTF-8 BOM付きskill metadataの先頭行patch
+
+- 症状: `SKILL.md`と`agents/openai.yaml`を同じ`apply_patch`へ含め、YAML先頭の`interface:`をcontextにしたところ、表示内容は一致していても`Failed to find expected lines`となり全patchが不適用になった。
+- 原因: `openai.yaml`先頭にUTF-8 BOMがあり、見た目に出ない文字のため先頭行contextが一致しなかった。複数ファイルpatchだったため、YAML側の検証失敗がSKILL.md側も停止させた。
+- 対応: skill本体は単独patchにする。`agents/openai.yaml`はskill-creatorの`generate_openai_yaml.py`で再生成し、BOM、改行、UI metadataを正規化する。既存YAMLを限定修正する場合も先頭行をpatch contextに含めない。
+- 禁止: 同じ複数ファイルpatchの再試行、BOMを無視した先頭行context、SKILL.md未反映のままmetadataだけを更新すること。
+
+### skill-creator Python群のWindows既定encoding
+
+- 症状: UTF-8日本語を含む`SKILL.md`へ`generate_openai_yaml.py`または`quick_validate.py`を実行すると、`Path.read_text()`がCP932を使い`UnicodeDecodeError`で停止する。
+- 原因: skill-creator付属Python群の`Path.read_text()`／`write_text()`にencoding指定がなく、Windows localeへ依存していた。
+- 対応: `generate_openai_yaml.py`と`quick_validate.py`の読み取りを`encoding="utf-8-sig"`、generatorと`init_skill.py`の書き込みを`encoding="utf-8"`へ固定する。日本語skillでgeneratorとquick validatorが成功することを確認する。
+- 禁止: 日本語を削って回避すること、手書きYAMLへ切り替えること、CP932でSKILL.mdを再保存すること。
+
+### 入れ子Python呼び出しのregex検証
+
+- 症状: encoding未指定の`write_text(...)`を探す正規表現が、`write_text(EXAMPLE.format(...), encoding="utf-8")`の内側`)`を外側呼び出し終端と誤認し、修正済み行をfalse positiveにした。
+- 原因: 正規表現だけでは入れ子括弧を持つPython呼び出し構文を正しく解析できない。
+- 対応: Python呼び出しの引数有無は実行fixture、AST、または既知call siteの限定読み取りで検証する。skill-creatorのUTF-8境界は日本語skillへのgenerator成功、BOMなしYAML、quick validator成功を根拠とする。
+- 禁止: 入れ子括弧を含むPythonコードの正しさを単純regexのno-matchだけで確定すること。
+
 ### functions.exec内のshell_command戻り値をJSON化すると空になる
 
 - 症状: `JSON.stringify(await tools.shell_command(...))` または戻り値の `.exit_code` / `.stdout` 参照が `{}` や未定義になり、実コマンドの成否と出力を会話側で確認できない。
@@ -118,6 +139,19 @@
 - 対応: 対象処理へ未到達であることを確認し、固定入口 `rtk C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe ...` とWrapperのparam定義をルール・自己テストへ固定する。
 - 禁止: 実体名や引数名を推測して手打ち再試行を重ねること。
 
+### リポジトリ内Wrapperをユーザー領域の同名パスと誤認する
+
+- 原因: `Tools/TokenUsage/*.ps1` がリポジトリ相対パスであることを確認せず、`C:\Users\<user>\.codex\Tools\TokenUsage` 配下に存在すると補完した。また、存在診断へWindows PowerShell 5.1非対応の三項演算子 `? :` を含めた。
+- 対応: Wrapperは先に `<project-root>\Tools\TokenUsage\<name>.ps1` の実在を単純な `Test-Path -LiteralPath` で確認する。診断式も固定入口のWindows PowerShell 5.1構文だけを使い、型や属性の追加確認は存在確認成功後に分離する。
+- 禁止: `.codex` 配下へプロジェクトWrapperのパスを補完すること、診断用の単発式にPowerShell 7専用構文や複数段の条件式を埋め込むこと。
+
+### 行数不明ファイルへ`safe-read -PrintOutput`の推測上限を渡す
+
+- 症状: 実ファイルが80行未満でも、`safe-read.ps1 -StartLine 1 -EndLine 150 -PrintOutput`のような指定が`guard_code: 39`で停止する。
+- 原因: `safe-read`の対話表示ガードは実際のEOFではなく指定範囲の推定行数を入口で判定する。Skill全文読取で十分大きい上限を指定し、`safe-read-batch`へ先にルーティングしなかった。
+- 対応: 行数不明のSkill、Markdown、ルール本文は最初から`safe-read-batch.ps1 -Ranges "1-<十分な上限>" -PrintOutput`で80行ずつ読む。80行以内と確定済みの範囲だけ`safe-read -PrintOutput`を使う。
+- 禁止: `safe-read`の`-EndLine`を80、120、150のように手探りで変更して再試行すること、EOFが短いはずという推測で80行超の指定を直接渡すこと。
+
 ### `safe-unity ConsoleErrors` の件数引数が見つからない
 
 - 原因: 検索・読み取りWrapperの `-First` と、Unity Console入口の正式契約 `-MaxCount` を混同した。
@@ -145,6 +179,30 @@
 - 対応: 1回目の`guard_code: 39`以降、その作業では行範囲指定の`safe-read.ps1`を使わない。読み取り対象や行数にかかわらず`safe-read-batch.ps1 -Ranges "<start>-<end>" -PrintOutput`へ固定し、自動80行分割へ任せる。
 - 検証: Guardは対象読取前に停止して状態変更0であること、`safe-read-batch`の限定読み取りと`command-tools-self-test.ps1`が成功することを確認する。
 - 禁止: 対象ファイルを変えて同じ`safe-read`形式を使うこと、`-AllowMany`で対話上限を迂回すること。
+
+### 複数のsafe-read出力を1回のShellへ合算してcontext超過
+
+- 症状: 個々の`safe-read-batch.ps1`は成功しているが、複数ファイル・複数範囲を同じShellで直列実行した結果、会話への合算出力が途中で切れる。
+- 原因: 各Wrapperの80行上限は個別呼び出し単位であり、外側Shellが返す合計出力量までは制限しない。
+- 対応: `-PrintOutput`付きの読み取りは1回のShellにつき1ファイル・1つの確認目的に限定する。次のファイルは前の結果を確認してから別コマンドで読む。
+- 検証: 対象ごとの限定Pattern読取が終了コード0で完了し、必要なsentinelとcapture pathを取得できることを確認する。
+- 禁止: 成功出力をセミコロン等で1つのShellへ合算すること、切れた同じ大規模コマンドを再発行すること。
+
+### 未確認contextを含む複数ファイルapply_patch
+
+- 症状: 複数ファイルPatchの末尾ファイルで`Failed to find expected lines`となり、先行ファイルを含む全変更が未適用になる。
+- 原因: 一部だけ読んだメソッドの末尾を推測し、実在確認していない行列をPatch anchorへ含めた。
+- 対応: 複数ファイルPatchは全anchorを事前に限定読取する。1件でも未確認contextを含む場合はファイル単位へ分け、失敗後はsentinelで全体未適用を確認してから正確な最小anchorで続行する。
+- 検証: 失敗Patchの先頭対象sentinelが旧状態のままであることと、修正版Patch後の各sentinelを個別に確認する。
+- 禁止: 一部一致を根拠に同じ複数ファイルPatchを再発行すること、未確認のメソッド末尾や隣接メソッド名をanchorに使うこと。
+
+### Runtime field削除後の裸シンボル参照漏れ
+
+- 症状: field宣言、代入、代表的な早期returnを削除して限定検索0件と判断したが、別メソッドの条件式に裸のfield参照が残りCompile Errorになる。
+- 原因: 削除対象シンボルそのものではなく、想定した利用パターンだけをOR検索した。
+- 対応: Runtime fieldを削除・改名する前後は、対象RuntimeファイルとEditor経路でシンボル名そのものを完全一致検索する。利用形別検索は補助に限定する。
+- 検証: 全対象で裸シンボル0件、Editor Validatorの旧field参照0件を確認してからCompileする。
+- 禁止: 宣言・代入・特定条件式だけの検索結果を全参照確認として扱うこと。
 
 ### Graphify出力の空行でMandatory string配列が停止する
 
@@ -244,10 +302,11 @@
 - 原因: 外側PowerShellの二重引用文字列内に `$variable` を含めると、内側へ渡る前に外側で展開される。
 - 対応: 長い調査式を `-Command` へ埋め込まない。`safe-read.ps1`、`focused-search.ps1`、またはapply_patchで作成した限定スクリプトを `-File` で呼ぶ。
 
-### safe-searchの件数制限でrgがbroken pipeになる
+### Native commandの件数制限でbroken pipeになる
 
-- 原因: `rg -l ... | Select-Object -First N` は、N件到達時にPowerShellが入力パイプを閉じ、`rg` が終了コード `-1` になる場合がある。
-- 対応: `rg` の全出力と終了コードを先に配列へ取得し、実エラーを伝播した後、配列へ `Select-Object -First N` を適用する。通常検索、`safe-search.ps1 -FilesOnly`、`focused-search.ps1` はすべてこの順序を固定する。終了コード1は一致なしとして正常な空結果へ正規化する。
+- 原因: `rg -l ... | Select-Object -First N`や`git show ... | Select-Object -First N`は、N件到達時にPowerShellが入力パイプを閉じ、Native command側が終了コード`-1`または`1`になる場合がある。要求行が表示されても、Native command完了前に切断されているため成功扱いにできない。
+- 対応: `rg`や`git show`の全出力と終了コードを先に配列へ取得し、実エラーを伝播した後、配列へ`Select-Object -Skip/-First`を適用する。通常検索、`safe-search.ps1 -FilesOnly`、`focused-search.ps1`はこの順序を固定する。履歴ファイルの限定読取も`$lines = @(git show <revision>:<path>); $gitExit = $LASTEXITCODE`を先に完了させてから範囲を抽出する。
+- 禁止: Native commandを`Select-Object -First`へ直接パイプすること、必要な標準出力が見えたことだけで非0終了を無視すること。
 
 ### Web資料検索の出力超過後に直接URLをopenして拒否される
 
@@ -634,3 +693,10 @@
 - 原因境界: JSON内の`+`が`\u002B`へエスケープされ、JSON生文字列に対する正規表現の完全一致では元のMenuPathと一致しない。
 - 対応: `Invoke-AreaSafeUnity.ps1`は`ConvertFrom-Json`後の`items[].path`をOrdinal比較する。guard後はTokenReportsから当該captureを読み、構造化済みpathの有無で原因を確定する。
 - 禁止: `+`を削った別MenuPathの手打ち試行、Evalでの代替確認、登録済みメニュー名をツール都合で変更すること。
+
+### RTKがstaged diff checkの違反本文を表示しない
+
+- 症状: `rtk git diff --cached --check`が終了コード1だけを返し、違反ファイル・行の本文を表示しない。
+- 原因境界: ステージ前の`git diff --check`は未追跡ファイルを検査しない。新規ファイルをステージした後に末尾空白が検出されても、RTKのcompact diff経路は`--cached --check`の診断本文と元の終了コード2を会話へ転送しない場合がある。
+- 対応: 締め作業のステージ後検査は`Tools/TokenUsage/staged-diff-check.ps1 [-PrintOutput]`へ固定する。内部で`Safe-Command.ps1`のcaptureと実終了コードを取得し、違反時は本文を表示して同じ終了コードで停止する。
+- 禁止: RTKの空出力を違反0件と扱うこと、ステージ前`git diff --check`だけで新規ファイルも検証済みと判断すること、診断なしにcommitすること。

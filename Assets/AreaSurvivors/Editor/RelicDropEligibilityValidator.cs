@@ -10,6 +10,12 @@ namespace AreaSurvivors.Editor
     {
         const string SuccessMarkerPath =
             "TokenReports/Validation/relic-drop-eligibility-validator.success";
+        const string RelicChestSourcePath =
+            "Assets/AreaSurvivors/Scripts/Game/Pickups/RelicChest.cs";
+        const string GameManagerSourcePath =
+            "Assets/AreaSurvivors/Scripts/Game/Runtime/GameManager.cs";
+        const string RelicPanelSourcePath =
+            "Assets/AreaSurvivors/Scripts/UI/RelicAcquisitionPanel.cs";
 
         [MenuItem("Area Survivors/Validate/Relic Drop Eligibility")]
         public static void ValidateFromMenu()
@@ -72,13 +78,17 @@ namespace AreaSurvivors.Editor
                 }
             }
 
-            var noCandidates = RelicCatalog.GetDropEligibleDefinitions(
+            var noUnownedCandidates = RelicCatalog.GetDropEligibleDefinitions(
                 RelicCatalog.All.Length,
                 _ => true);
-            if (noCandidates.Length != 0)
+            if (noUnownedCandidates.Length != 0)
             {
                 failures.Add("A fully owned relic catalog must produce no duplicate candidates.");
             }
+            ValidateFullOwnershipFallback(failures);
+            ValidateDuplicateTokenRewards(failures);
+            ValidateRewardConsumerContracts(failures);
+            ValidateRelicModalInputPriority(failures);
 
             if (failures.Count > 0)
             {
@@ -91,7 +101,95 @@ namespace AreaSurvivors.Editor
             Debug.Log(
                 "Relic drop eligibility validation passed. " +
                 "Owned relics are excluded, Legendary relics plus Solitary Blade unlock at 10 owned relics, " +
+                "full ownership restores the weighted duplicate pool, duplicate rarity tokens are configured, " +
                 "and Raincaller Plume range bonus is 0.35.");
+        }
+
+        static void ValidateFullOwnershipFallback(List<string> failures)
+        {
+            var lastUnownedType = RelicCatalog.All[0].type;
+            var oneRemainingPool = RelicCatalog.GetRandomDropPoolDefinitions(
+                RelicCatalog.All.Length - 1,
+                type => type != lastUnownedType);
+            if (oneRemainingPool.Length != 1 ||
+                oneRemainingPool[0].type != lastUnownedType)
+            {
+                failures.Add(
+                    "Duplicate relics must remain excluded while even one unowned relic remains.");
+            }
+
+            var fullyOwnedPool = RelicCatalog.GetRandomDropPoolDefinitions(
+                RelicCatalog.All.Length,
+                _ => true);
+            var uniqueTypes = new HashSet<RelicType>();
+            for (int i = 0; i < fullyOwnedPool.Length; i++)
+            {
+                uniqueTypes.Add(fullyOwnedPool[i].type);
+            }
+            if (fullyOwnedPool.Length != RelicCatalog.All.Length ||
+                uniqueTypes.Count != RelicCatalog.All.Length)
+            {
+                failures.Add(
+                    "After full ownership, every relic must return to the weighted duplicate pool exactly once.");
+            }
+
+            if (RelicCatalog.GetDropWeight(RelicRarity.Common) != 50 ||
+                RelicCatalog.GetDropWeight(RelicRarity.Uncommon) != 30 ||
+                RelicCatalog.GetDropWeight(RelicRarity.Rare) != 15 ||
+                RelicCatalog.GetDropWeight(RelicRarity.Legendary) != 5)
+            {
+                failures.Add(
+                    "The full-ownership duplicate pool must retain rarity weights 50/30/15/5.");
+            }
+        }
+
+        static void ValidateDuplicateTokenRewards(List<string> failures)
+        {
+            if (RelicCatalog.GetDuplicateTokenReward(RelicRarity.Common) != 5 ||
+                RelicCatalog.GetDuplicateTokenReward(RelicRarity.Uncommon) != 10 ||
+                RelicCatalog.GetDuplicateTokenReward(RelicRarity.Rare) != 30 ||
+                RelicCatalog.GetDuplicateTokenReward(RelicRarity.Legendary) != 50)
+            {
+                failures.Add(
+                    "Duplicate relic conversion must grant 5/10/30/50 tokens by rarity.");
+            }
+        }
+
+        static void ValidateRewardConsumerContracts(List<string> failures)
+        {
+            string[] requiredPaths =
+            {
+                RelicChestSourcePath,
+                GameManagerSourcePath,
+                RelicPanelSourcePath
+            };
+            for (int i = 0; i < requiredPaths.Length; i++)
+            {
+                if (!File.Exists(requiredPaths[i]))
+                {
+                    failures.Add($"Relic reward source is missing: {requiredPaths[i]}");
+                    return;
+                }
+            }
+
+            string chestSource = File.ReadAllText(RelicChestSourcePath);
+            string managerSource = File.ReadAllText(GameManagerSourcePath);
+            string panelSource = File.ReadAllText(RelicPanelSourcePath);
+            if (!chestSource.Contains("RelicCatalog.TryAcquireReward") ||
+                !chestSource.Contains("duplicateTokenReward") ||
+                !managerSource.Contains("RelicCatalog.TryAcquireReward") ||
+                !managerSource.Contains("duplicateTokenReward"))
+            {
+                failures.Add(
+                    "Field chests and direct boss relic rewards must share duplicate conversion handling.");
+            }
+            if (!panelSource.Contains("openButton.gameObject.SetActive(true)") ||
+                !panelSource.Contains("DuplicateMessageOrDescription") ||
+                !panelSource.Contains("変換トークン +"))
+            {
+                failures.Add(
+                    "Duplicate relics must still use the chest-open panel and show their token conversion.");
+            }
         }
 
         static void ValidateRaincallerPlume(List<string> failures)
@@ -112,6 +210,33 @@ namespace AreaSurvivors.Editor
             if (LocalizationTextCatalog.Translate(japaneseEffect, GameLanguage.English) != englishEffect)
             {
                 failures.Add("Raincaller Plume English effect text must match the 0.35 range bonus.");
+            }
+        }
+
+        static void ValidateRelicModalInputPriority(List<string> failures)
+        {
+            if (!File.Exists(GameManagerSourcePath) || !File.Exists(RelicPanelSourcePath))
+            {
+                failures.Add("Relic modal input-priority sources are missing.");
+                return;
+            }
+
+            string managerSource = File.ReadAllText(GameManagerSourcePath);
+            string panelSource = File.ReadAllText(RelicPanelSourcePath);
+            if (!managerSource.Contains("BeginRelicAcquisitionModal();") ||
+                !managerSource.Contains("EndRelicAcquisitionModal();") ||
+                !managerSource.Contains("IsLevelUpInputBlockedByFrontModal()") ||
+                !managerSource.Contains("Time.frameCount <= levelUpInputBlockedThroughFrame") ||
+                !managerSource.Contains("activeRelicAcquisitionModalCount > 0"))
+            {
+                failures.Add(
+                    "The relic panel must block level-up selection and actions until the front modal closes.");
+            }
+
+            if (!panelSource.Contains("Time.timeScale = Mathf.Max(0f, previousTimeScale);"))
+            {
+                failures.Add(
+                    "Closing a relic panel must restore an existing paused modal without unpausing it.");
             }
         }
 

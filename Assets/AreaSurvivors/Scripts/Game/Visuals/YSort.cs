@@ -42,9 +42,15 @@ namespace AreaSurvivors
                 if (renderer == null ||
                     renderer.GetComponent<PreserveSortingOrder>() != null ||
                     IsRuntimeOutlineRenderer(renderer)) continue;
-                renderer.sortingOrder = order;
                 var visual = renderer.GetComponent<PaperMeshVisual>();
-                if (visual != null) visual.order = order;
+                if (visual != null)
+                {
+                    if (visual.order != order || renderer.sortingOrder != order) visual.order = order;
+                }
+                else if (renderer.sortingOrder != order)
+                {
+                    renderer.sortingOrder = order;
+                }
             }
         }
 

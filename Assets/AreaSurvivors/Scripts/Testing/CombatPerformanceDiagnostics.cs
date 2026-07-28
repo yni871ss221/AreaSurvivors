@@ -41,6 +41,7 @@ namespace AreaSurvivors
             public long hitFlashOverlayCreates;
             public long enemyDeaths;
             public long xpOrbSpawns;
+            public long xpOrbMerges;
             public long pickupProximityScans;
             public long pickupScanCandidates;
             public long pickupAttractionsStarted;
@@ -70,6 +71,7 @@ namespace AreaSurvivors
                     $"flashRequests={hitFlashPlayRequests}; flashCoalesced={hitFlashCoalescedRequests}; " +
                     $"flashComponents={hitFlashComponentCreates}; " +
                     $"flashOverlays={hitFlashOverlayCreates}; deaths={enemyDeaths}; xpOrbs={xpOrbSpawns}; " +
+                    $"xpOrbMerges={xpOrbMerges}; " +
                     $"pickupScans={pickupProximityScans}; pickupCandidates={pickupScanCandidates}; " +
                     $"pickupStarts={pickupAttractionsStarted}; pickupMoves={pickupMovementTicks}; " +
                     $"bananaQueries={bananaOverlapQueries}; bananaCandidates={bananaColliderCandidates}; " +
@@ -271,6 +273,12 @@ namespace AreaSurvivors
         public static void RecordXpOrbSpawn()
         {
             if (ShouldRecord) counters.xpOrbSpawns++;
+        }
+
+        [Conditional("UNITY_EDITOR"), Conditional("DEVELOPMENT_BUILD")]
+        public static void RecordXpOrbMerge()
+        {
+            if (ShouldRecord) counters.xpOrbMerges++;
         }
 
         [Conditional("UNITY_EDITOR"), Conditional("DEVELOPMENT_BUILD")]

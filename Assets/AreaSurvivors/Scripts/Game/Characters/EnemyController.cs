@@ -80,6 +80,9 @@ namespace AreaSurvivors
         const int NormalEnemyYSortFrameInterval = 4;
         const int EliteEnemyYSortFrameInterval = 2;
         const int BossEnemyYSortFrameInterval = 1;
+        const int NormalEnemyOutlineSafetySyncFrameInterval = 8;
+        const int EliteEnemyOutlineSafetySyncFrameInterval = 4;
+        const int BossEnemyOutlineSafetySyncFrameInterval = 1;
         public const float NormalDeathDurationSeconds = 0.48f;
 
         public static bool ProbeDisableContactCheck { get; set; }
@@ -255,6 +258,7 @@ namespace AreaSurvivors
 
         void ApplyDefinition(EnemyDefinition definition)
         {
+            if (outline != null) outline.ConfigureCrowdPerformance(OutlineSafetySyncFrameInterval(definition));
             if (definition == null)
             {
                 xpValue = config != null ? config.xpPerEnemy : 1;
@@ -385,6 +389,13 @@ namespace AreaSurvivors
             return NormalEnemyYSortFrameInterval;
         }
 
+        static int OutlineSafetySyncFrameInterval(EnemyDefinition definition)
+        {
+            if (definition != null && definition.boss) return BossEnemyOutlineSafetySyncFrameInterval;
+            if (definition != null && definition.elite) return EliteEnemyOutlineSafetySyncFrameInterval;
+            return NormalEnemyOutlineSafetySyncFrameInterval;
+        }
+
         void RefreshCharacterSorting()
         {
             gridVisual?.ApplyCharacterYSortPivot();
@@ -402,7 +413,11 @@ namespace AreaSurvivors
         void ApplyOutlineStyle()
         {
             if (outline == null && visual != null) outline = visual.GetComponent<RuntimeSpriteOutline>();
-            if (outline != null) outline.outlineColor = desiredOutlineColor;
+            if (outline != null)
+            {
+                outline.outlineColor = desiredOutlineColor;
+                outline.RequestSync();
+            }
             if (reveal == null) reveal = GetComponent<CharacterOcclusionReveal>();
             if (reveal != null) reveal.outlineColor = boss ? Color.red : elite ? Color.yellow : Color.white;
         }
@@ -728,7 +743,7 @@ namespace AreaSurvivors
             }
 
             DropRewards(firstBossDefeatCutscene);
-            GameManager.Instance?.RegisterKill();
+            GameManager.Instance?.RegisterKill(this);
             if (boss) GameManager.Instance?.BossDefeated(this);
             Destroy(gameObject);
         }
@@ -737,10 +752,10 @@ namespace AreaSurvivors
         {
             if (xpOrbPrefab != null && xpValue > 0)
             {
-                var orb = Instantiate(xpOrbPrefab, transform.position, Quaternion.identity);
-                CombatPerformanceDiagnostics.RecordXpOrbSpawn();
-                var experience = orb.GetComponent<ExperienceOrb>();
-                if (experience != null) experience.value = xpValue;
+                ExperienceOrb.SpawnOrMerge(
+                    xpOrbPrefab,
+                    transform.position,
+                    xpValue);
             }
 
             if (tokenValue > 0 && !(deferBossTokenReward && boss))

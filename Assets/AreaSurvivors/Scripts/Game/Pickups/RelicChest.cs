@@ -23,7 +23,10 @@ namespace AreaSurvivors
             AudioManager.PlaySfx(SfxTrack.RelicChestPickup);
             if (RelicCatalog.TryPickRandom(out var definition))
             {
-                if (!ProgressionStore.UnlockRelic(definition.type))
+                if (!RelicCatalog.TryAcquireReward(
+                        definition,
+                        out bool newlyUnlocked,
+                        out int duplicateTokenReward))
                 {
                     GameManager.Instance?.ShowAnnouncement(
                         LocalizationService.Text("レリックが見つかりません", "No relic found"));
@@ -31,9 +34,14 @@ namespace AreaSurvivors
                     return;
                 }
 
-                player.StatsSource?.Refresh();
-                player.ApplyCurrentStats(false);
-                GameManager.Instance?.ShowRelicAcquisition(definition, 0);
+                if (newlyUnlocked)
+                {
+                    player.StatsSource?.Refresh();
+                    player.ApplyCurrentStats(false);
+                }
+                GameManager.Instance?.ShowRelicAcquisition(
+                    definition,
+                    duplicateTokenReward);
             }
             else
             {

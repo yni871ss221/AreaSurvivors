@@ -275,7 +275,7 @@ namespace AreaSurvivors
                 animationRoutine = null;
             }
 
-            Time.timeScale = previousTimeScale <= 0f ? 1f : previousTimeScale;
+            Time.timeScale = Mathf.Max(0f, previousTimeScale);
             if (EventSystem.current != null) EventSystem.current.SetSelectedGameObject(null);
             closeAction?.Invoke();
             Destroy(gameObject);

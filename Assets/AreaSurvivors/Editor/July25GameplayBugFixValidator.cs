@@ -11,7 +11,15 @@ namespace AreaSurvivors.EditorTools
         const string ConfigPath = "Assets/AreaSurvivors/Resources/Config/GameConfig.asset";
         const string EnemyControllerPath = "Assets/AreaSurvivors/Scripts/Game/Characters/EnemyController.cs";
         const string EnemySpawnerPath = "Assets/AreaSurvivors/Scripts/Game/Characters/EnemySpawner.cs";
+        const string BuildingRevivalStatePath = "Assets/AreaSurvivors/Scripts/Game/Buildings/BuildingRevivalState.cs";
+        const string BuildableConstructionPath = "Assets/AreaSurvivors/Scripts/Game/Buildings/IBuildableConstruction.cs";
         const string MarkerRelativePath = "Library/AreaSafeUnity/july-25-gameplay-bug-fixes.success";
+        static readonly string[] RevivableBuildingPaths =
+        {
+            "Assets/AreaSurvivors/Scripts/Game/Buildings/WoodenBarrier.cs",
+            "Assets/AreaSurvivors/Scripts/Game/Buildings/BallistaTower.cs",
+            "Assets/AreaSurvivors/Scripts/Game/Buildings/WatchTower.cs"
+        };
 
         static readonly EnemyKind[] BossKinds =
         {
@@ -35,6 +43,7 @@ namespace AreaSurvivors.EditorTools
             ValidateBossFixedHp(config, projectRoot);
             ValidateLockedContactDamageOrdering(projectRoot);
             ValidateRevivedBuildingCollisionGrace();
+            ValidateRevivedBuildingsCanBeDestroyedAgain(projectRoot);
             ValidateThunderBurstContract(config);
 
             Directory.CreateDirectory(Path.GetDirectoryName(markerPath));
@@ -230,6 +239,82 @@ namespace AreaSurvivors.EditorTools
             {
                 throw new InvalidOperationException(
                     "Recovery collision ignores must require two consecutive FixedUpdate-safe samples.");
+            }
+        }
+
+        static void ValidateRevivedBuildingsCanBeDestroyedAgain(string projectRoot)
+        {
+            string revivalSource = File.ReadAllText(Path.Combine(projectRoot, BuildingRevivalStatePath));
+            string constructionSource = File.ReadAllText(Path.Combine(projectRoot, BuildableConstructionPath));
+            if (!constructionSource.Contains("void RestoreAfterRevive();"))
+            {
+                throw new InvalidOperationException(
+                    "IBuildableConstruction must expose an explicit post-revival state restoration contract.");
+            }
+
+            int healthRestoreIndex = revivalSource.IndexOf("health.currentHp = Mathf.Clamp(", StringComparison.Ordinal);
+            int visualRestoreIndex = healthRestoreIndex >= 0
+                ? revivalSource.IndexOf(
+                    "ApplyDestroyedVisual(false);",
+                    healthRestoreIndex,
+                    StringComparison.Ordinal)
+                : -1;
+            int constructionRestoreIndex = visualRestoreIndex >= 0
+                ? revivalSource.IndexOf(
+                    "GetComponent<IBuildableConstruction>()?.RestoreAfterRevive();",
+                    visualRestoreIndex,
+                    StringComparison.Ordinal)
+                : -1;
+            if (healthRestoreIndex < 0 ||
+                visualRestoreIndex <= healthRestoreIndex ||
+                constructionRestoreIndex <= visualRestoreIndex)
+            {
+                throw new InvalidOperationException(
+                    "Building revival must restore positive Health, re-enable shared visuals and colliders, then reapply construction-specific visuals.");
+            }
+
+            for (int i = 0; i < RevivableBuildingPaths.Length; i++)
+            {
+                string buildingPath = RevivableBuildingPaths[i];
+                string source = File.ReadAllText(Path.Combine(projectRoot, buildingPath));
+                int restoreIndex = source.IndexOf("public void RestoreAfterRevive()", StringComparison.Ordinal);
+                int breakIndex = restoreIndex >= 0
+                    ? source.IndexOf("void Break()", restoreIndex, StringComparison.Ordinal)
+                    : -1;
+                if (restoreIndex < 0 || breakIndex <= restoreIndex)
+                {
+                    throw new InvalidOperationException(
+                        $"{buildingPath} does not implement its post-revival state restoration contract.");
+                }
+
+                string restoreSource = source.Substring(restoreIndex, breakIndex - restoreIndex);
+                string expectedVisualRestore = buildingPath.EndsWith("BallistaTower.cs", StringComparison.Ordinal)
+                    ? "ApplyBuildVisuals();"
+                    : "ApplyVisuals();";
+                if (!restoreSource.Contains("breaking = false;") ||
+                    !restoreSource.Contains("completed = true;") ||
+                    !restoreSource.Contains(expectedVisualRestore))
+                {
+                    throw new InvalidOperationException(
+                        $"{buildingPath} must reset its destruction latch and restore its active visuals after revival.");
+                }
+
+                if (buildingPath.EndsWith("WatchTower.cs", StringComparison.Ordinal) &&
+                    (!source.Contains("ApplyRangeFillVisual(rangeFillRenderer, rangeFillColor, visible);") ||
+                     !source.Contains("visual.color = color;")))
+                {
+                    throw new InvalidOperationException(
+                        "WatchTower revival must reapply its configured translucent range-fill color after shared visual restoration.");
+                }
+
+                string breakSource = source.Substring(breakIndex);
+                if (!breakSource.Contains("if (breaking) return;") ||
+                    !breakSource.Contains("breaking = true;") ||
+                    !breakSource.Contains("BuildingRevivalState.TryHandleDestroyed(gameObject, grid, cell)"))
+                {
+                    throw new InvalidOperationException(
+                        $"{buildingPath} must route every destruction cycle through BuildingRevivalState.");
+                }
             }
         }
 

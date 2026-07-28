@@ -422,6 +422,7 @@ MonoBehaviour:
   sortingOrder: 22002
   anchorBottomCenter: 1
   verticalFill: 1
+  flipHorizontal: 0
 --- !u!114 &3737938526302996265
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -440,6 +441,8 @@ MonoBehaviour:
   requireExistingOutlineObject: 0
   blink: 0
   blinkSpeed: 5
+  safetySyncFrameInterval: 1
+  crowdOptimizedSampling: 0
 --- !u!114 &2623634364024287738
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -882,6 +885,7 @@ MonoBehaviour:
   sortingOrder: 22030
   anchorBottomCenter: 0
   verticalFill: 1
+  flipHorizontal: 0
 --- !u!114 &5409067621654435212
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -912,6 +916,8 @@ MonoBehaviour:
   requireExistingOutlineObject: 0
   blink: 0
   blinkSpeed: 5
+  safetySyncFrameInterval: 1
+  crowdOptimizedSampling: 0
 --- !u!1 &5412208708769938020
 GameObject:
   m_ObjectHideFlags: 0
@@ -1035,6 +1041,7 @@ MonoBehaviour:
   sortingOrder: 1003
   anchorBottomCenter: 1
   verticalFill: 1
+  flipHorizontal: 0
 --- !u!114 &1997602515046131869
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1053,6 +1060,8 @@ MonoBehaviour:
   requireExistingOutlineObject: 0
   blink: 0
   blinkSpeed: 5
+  safetySyncFrameInterval: 1
+  crowdOptimizedSampling: 0
 --- !u!114 &4723648598947225355
 MonoBehaviour:
   m_ObjectHideFlags: 0

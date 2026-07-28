@@ -108,6 +108,7 @@ function New-StagePerformanceDetail {
                             active_hit_flashes = [int]$_.activeHitFlashes
                             enemy_deaths = [long]$_.enemyDeaths
                             xp_orb_spawns = [long]$_.xpOrbSpawns
+                            xp_orb_merges = [long]$_.xpOrbMerges
                         }
                     }
             }

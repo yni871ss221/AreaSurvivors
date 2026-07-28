@@ -244,5 +244,6 @@ MonoBehaviour:
   playImpactFlash: 1
   impactFlashPrefab: {fileID: 9102100000000000011, guid: 6c17f73d579a4c98b99180133263756c, type: 3}
   explosionHitboxPrefab: {fileID: 9102200000000000011, guid: 3bb23420c4d14f79b9dc2b3da31e2a5c, type: 3}
+  showExplosionRangeVisual: 1
   paintsTerritory: 1
   playTrailFlecks: 0

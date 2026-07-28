@@ -77,6 +77,10 @@
 - `.codex-global-state.json`のような1行圧縮JSONへ`Get-Content -TotalCount`や`Select-String`を使わない。会話履歴・状態全体を展開するため、JSON Parserで必要なキーだけを抽出し、プロファイル名の単純一致はprompt history中の文字列と区別する。
 - 未コミット差分が多数ある作業ツリーで広域 `git diff --check` を実行しない。C#や文書は今回所有する1ファイルずつ `Tools/TokenUsage/scoped-diff-check.ps1 -Path <file>` を使う。Unityが生成する`.unity` / `.prefab` / `.asset`は空の`m_Name: `等へ標準的な末尾空白を含むため`git diff --check`対象から外し、`safe-diff -SummaryOnly`と専用Reporter/Validatorで検証する。
 - TokenReportsの原因分析は `token-report-summary.ps1 -Recent <件数>` または `-SinceLastStart` を使う。
+- 締め作業では`closeout-token-report.ps1 -Days 1 -Top 8`を必ず実行する。`displayed_estimated_tokens`はモデルへ表示したcommand output部分、`capture_estimated_tokens`は非表示分を含むraw上限として分けて報告し、capture量を課金tokenと呼ばない。
+- `legacy_measurement_gap_records`はschema v2導入前の履歴不足、`current_schema_gap_records`は現行logger不良として区別する。current gapが1件でもあれば、締め作業を続ける前に該当loggerと自己テストを修正する。
+- `missing-session-coverage`が出た場合、Wrapper外tool、tool metadata、会話、推論はcommand output集計外と明記する。ユーザーまたは開始markerからUI開始率・終了率・budgetが揃う場合だけ`session-coverage.ps1 ... -Save`で差分推定し、不明値を推測しない。
+- `closeout-token-report.ps1`の`Recommendations`は締め報告で日本語化して必ず提示する。`high-visible-output`、`reduce-file-read`、`deduplicate-command`、`reduce-command-failures`を成功commitの陰に隠さない。
 - 作業開始時は `start-task-token-check.ps1 -Task "<依頼内容>" -UiPercent <開始%> [-BudgetTokens <推定枠tokens>]` を優先し、ルール選択と開始マーカーを同時に記録する。既に読むルールが明確な場合だけ `start-token-check.ps1 -UiPercent <開始%> -Note <作業名>` を直接使う。
 - 作業終了時は `end-token-check.ps1 -CurrentPercent <現在%>` を使う。Heavyベンチは明示時だけ実行する。
 - 長時間作業ではCodex UIの消費率を開始/終了で控え、`session-coverage.ps1 -CurrentPercent <現在%> -Save` でTokenReports外の消費を差分推定する。開始値は最新 `token_start_marker` から自動取得される。

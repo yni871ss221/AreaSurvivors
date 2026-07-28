@@ -63,18 +63,27 @@ if ($record.exit_code -ne 0) {
 $filesText = if (Test-Path -LiteralPath $record.capture_path) { Get-Content -LiteralPath $record.capture_path -Encoding UTF8 } else { @() }
 $files = @($filesText | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
 
-Write-Output "Focused files:"
-foreach ($file in $files) { Write-Output ("- {0}" -f $file) }
+$displayedParts = New-Object System.Collections.ArrayList
+[void]$displayedParts.Add("Focused files:")
+foreach ($file in $files) {
+    [void]$displayedParts.Add(("- {0}" -f $file))
+}
+$displayedParts | Write-Output
 
 foreach ($file in $files) {
-    Write-Output ""
-    Write-Output ("[focused-search] {0}" -f $file)
-    & "$PSScriptRoot\safe-read.ps1" -Path $file -Pattern $Pattern -Context $Context -MaxMatches $MaxMatchesPerFile -PrintOutput:$PrintOutput
+    $sectionHeader = @("", ("[focused-search] {0}" -f $file))
+    foreach ($line in $sectionHeader) { [void]$displayedParts.Add($line) }
+    $sectionHeader | Write-Output
+    $readOutput = @(& "$PSScriptRoot\safe-read.ps1" -Path $file -Pattern $Pattern -Context $Context -MaxMatches $MaxMatchesPerFile -PrintOutput:$PrintOutput)
+    foreach ($line in $readOutput) { [void]$displayedParts.Add([string]$line) }
+    $readOutput | Write-Output
 }
 
 if (-not [string]::IsNullOrWhiteSpace($GraphifyFallbackId)) {
     $projectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
     $usageLogPath = Join-Path $projectRoot "TokenReports\graphify-pilot-usage.jsonl"
+    $displayedText = @($displayedParts.ToArray()) -join [Environment]::NewLine
+    $displayedEstimatedTokens = [int][Math]::Ceiling($displayedText.Length / 4.0)
     $fallbackRecord = [ordered]@{
         timestamp = (Get-Date).ToString("o")
         graphify_version = "0.9.26"
@@ -86,6 +95,9 @@ if (-not [string]::IsNullOrWhiteSpace($GraphifyFallbackId)) {
         exit_code = 0
         fallback_id = $GraphifyFallbackId
         fallback_executed = $true
+        estimated_output_tokens = $displayedEstimatedTokens
+        displayed_estimated_tokens = $displayedEstimatedTokens
+        measurement_scope = "focused-search-visible-output"
     }
     $fallbackJsonLine = $fallbackRecord | ConvertTo-Json -Compress -Depth 3
     [System.IO.File]::AppendAllText(

@@ -2,7 +2,122 @@
 
 ## Goal
 
-2026-07-27までのゲーム完成直前対応を締め、検証結果、残作業、外部記憶、Git状態を次回へ引き継ぐ。
+武器レベルアップの逓減処理を入れた現行ビルドで再度通しプレイを行い、新しい`token_run_log.jsonl`を前回結果と比較して難易度調整を判断する。
+
+## Latest Decision (2026-07-28 Retest After Weapon Diminishing Returns)
+
+- 武器レベルアップの逓減処理により、主力武器の強化量と終盤火力が抑えられる見込み。
+- 前回ログから提示したXP終盤曲線、ドラゴンHP、武器選択weight／新武器保証、高難易度時の建造物復活率の調整案は、次の通しプレイ結果が出るまで保留する。
+- 次回ログでは、到達レベルとXP、各ステージ・ボスの所要時間、武器別ダメージ比率とDPS、プレイヤーの最低HP・被ダメージ・死亡、建造物の被ダメージ・破壊・復活・中心塔被害、敵の撃破数とpeak aliveを前回値と比較する。
+- 新しいログを確認するまでは追加の難易度変更を行わない。
+- TODO: 次回の通しプレイ後に新しい`token_run_log.jsonl`を受領し、前回ログとの差分から最終的な難易度調整を提案する。
+- Blockerなし。
+
+## Latest Investigation (2026-07-28 Difficulty Log Review)
+
+- 対象ログは14ラン。最終ランはS1 D4→S2 D3→S3 D2→S4 D2をクリアし、非ボス時間480.3秒＋ボス戦420.5秒＝実戦約15:01。5,444体出現、5,256体撃破、peak alive 200。
+- 最終ランはLv32、基礎XP 71,461、適用XP 85,753、XP倍率1.2。現行曲線でLv40にはLv4以降237,793 XP必要。同じ敵処理で倍率2.5でも178,653 XP、到達予測Lv37。
+- `xpRequirementGrowthEnd`を1.1→1.075へ下げるとLv4→40必要XPは178,329となり、同じ基礎XP・倍率2.5でLv40直後へ到達する。倍率1.2の同ランはLv34予測。Lv18以降の段差ではなく全体を連続的に緩和する。
+- ボス時間はオークキング63.0秒、ゴブリンロード80.5秒、リッチ86.1秒、ドラゴン191.0秒。前ランでもドラゴン168.2秒。ドラゴンHP17,920→13,440（リッチの1.5倍）なら単純比例で約126〜143秒を見込む。
+- 最終ランのダメージ構成は黄金の弓由来の「弓」1,226,788／89.1%、監視塔6.2%、フロスト2.4%、旗1.1%。前ランもソードラッシュ由来の「スラッシュ」93.8%。初期武器へ強化と進化が集中し、後発武器がほぼ育たない構造が共通。
+- 最終ランのプレイヤーは最大HP350、最低HP20、被ダメージ497、回復624、死亡0。個人耐久は十分に危険域へ入っており、敵攻撃力の全体強化は不要。
+- 建造物は被ダメージ24,608、破壊68、復活51だが、中心塔は最大HP900・被ダメージ0・終了時満タン。外壁128枚＋ボスごとの50%復活が高難易度でも中心塔への圧力をほぼ遮断している。
+- 調整優先度案: 1) XP終盤曲線、2) ドラゴンHP、3) 初期武器偏重の選択weight／新武器保証、4) 高難易度時だけ建造物復活率を下げる。敵攻撃力の一律強化は見送る。
+- ログ上の改善候補: JSONL先頭行にUTF-8 BOMがありstrict JSON parserで失敗する、`survivedSeconds`がボス中停止して総プレイ時間にならない、敗北理由fieldがなく塔破壊／プレイヤー死亡を建造物HPから推定する必要がある。
+- TODO: ユーザーが調整案の採否と優先順位を決める。今回は分析のみで実装変更なし。
+- Blockerなし。
+
+## Latest Completed Work (2026-07-28 Weapon Upgrade Diminishing Returns)
+
+- 武器ごと・強化項目ごとの選択回数を`WeaponController`へ保持し、当初の10%減少からユーザー確認後に20%減少へ調整した。1回目100%、2回目80%、3回目64%、4回目51.2%と強化量が逓減する。別武器と別項目の選択回数は互いに影響しない。
+- 対象項目は攻撃範囲、飛翔距離、爆発範囲、ノックバック、攻撃間隔、速度低下。攻撃力、攻撃回数、効果時間は従来どおり固定強化量を維持する。
+- 攻撃間隔は短縮率を逓減させる。基礎倍率0.9の場合、選択ごとの適用倍率は0.9、0.92、0.936となり、短縮量が10%、8%、6.4%へ減少する。
+- 進化後も進化前武器の同項目選択履歴を引き継ぐ。ラン開始時は全逓減履歴をリセットする。
+- 全16件の加算強化と全8件の攻撃間隔強化を共通逓減経路へ統一し、レベルアップパネルの変更後数値も実際に適用する逓減後の値を表示する。
+- 進化武器テスト開始プロファイルも、対象項目だけ逓減後の累積値を使うよう同期した。
+- `RunWeaponUpgradeDiminishingValidator`を追加し、逓減計算、武器／項目間の独立性、進化履歴引継ぎ、ランリセット、全選択肢の共通経路使用を検証する。
+- 初回の全進化武器Validatorは成功marker待機で停止した。原因はゲーム設定が確定仕様のエクスカリバー3秒である一方、既存Validatorだけが旧5秒を要求していたこと。ゲーム設定は変更せず、Validator期待値を3秒へ同期した。
+- 実装5 C#を明示Import後のUnity Compile成功。Validator同期後の2回目Compileも成功。`Area Survivors/Validate/Run Weapon Upgrade Diminishing Returns`と`Area Survivors/Validate/Weapon Evolution Batch`はいずれもfresh success marker確認済み。
+- 20%逓減への追調整は変更2 C#を明示Importし、Unity Compile 1回成功。専用逓減Validatorと全進化武器Validatorのfresh success markerを再確認した。
+- 読取診断では、最初に実行ラッパー内ツール名とユーザー領域のWrapperパスを誤認してコマンド開始前に停止した。利用可能ツールを`shell_command`、Wrapperをプロジェクト内`Tools/TokenUsage`へ確定し、以後その正式入口だけを使用した。Unity／ソースへの状態変更はなかった。
+- Play Modeは開始していない。Scene／Prefab／HUDレイアウトは変更していない。
+- TODO: ユーザー実機で、同じ武器の同じ対象項目を連続選択した際に表示上の増分が100%→80%→64%となり、別項目と別武器の初回増分は100%のままであることを確認する。
+- Blockerなし。
+
+## Latest Completed Work (2026-07-28 Fire Explosion Range Visual)
+
+- 共通の`ProjectileExplosionHitbox` Prefabへ、監視塔Range Fillと同じSprite／楕円Shape Spriteを使う薄赤のFillとOutlineを追加した。Area/Range VisualはRotation X/Y=0、`PaperBillboard`なし。
+- Fill色はRGBA `(1.00, 0.18, 0.14, 0.22)`、Outline色は`(1.00, 0.30, 0.24, 0.68)`。爆発半径をそのまま横半径／縦半径へ使い、PaperMeshVisual内部Shapeの縦横比だけ相殺して実ダメージのCircleCollider2Dと一致させる。
+- 爆発HitboxはFixedUpdate同期後にダメージを一度だけ処理し、Collider／Rigidbodyを無効化してから範囲Visualだけを爆発演出と同じ0.26秒まで保持する。
+- `Projectile.showExplosionRangeVisual`を追加し、Fireball／FireMissile PrefabだけONにした。共通Hitboxを参照するArrow、BallistaArrow、GoldenArrow、PlayerArrow、TowerCannonballはOFFのままなので表示対象は水平展開せず限定される。
+- `FireExplosionRangeVisualMigration`と`FireExplosionRangeVisualValidator`を追加し、Prefab参照、色、Sprite、Shape Sprite、初期非表示、Sorting Order、Rotation、Billboard不在、表示時間、対象2種だけの有効化を固定した。BootstrapでFireballを再生成する場合もフラグを復元する。
+- 変更5 C#を明示AssetImport後、Unity Compile成功。Unity保存時に新規Prefab Componentの空プロパティ4行へ末尾空白が付く既知境界を検出したため、Migrationへ保存後YAML正規化を追加し、2回目Compile／移行成功。
+- `Area Survivors/Validate/Fire Explosion Range Visual`と`Area Survivors/Validate/Combat Visual Rotation Guard`のfresh success marker確認、Console Error 0件、対象`git diff --check`成功。
+- ユーザー実機確認で、監視塔から流用したFillの元テクスチャに含まれる魔法陣模様まで赤く描画されていることを確認した。楕円Shape Sprite参照は維持し、`PaperMeshVisual.useTexture=false`の単色Fillへ変更して中央模様だけを除去した。Validatorへ単色描画契約を追加し、再Compile、Prefab移行、両Validator、Console Error 0件、対象差分検査まで成功。
+- 作業開始時の読取Wrapperパスを`.codex`配下と誤認した失敗と、Windows PowerShell 5.1非対応の三項演算子による診断式失敗を原因確定し、`command-failure-playbook.md`へ固定パス／PS5.1構文の再発防止を追加した。Unity／実装への状態変更前に解消済み。
+- Play Modeは開始していない。
+- TODO: ユーザー実機でFireball／FireMissileそれぞれを爆発させ、魔法陣模様がなく薄赤の楕円だけが約0.26秒表示され、見た目の外周が実際の巻き込み範囲と一致することを確認する。
+- Blockerなし。
+
+## Latest Completed Work (2026-07-28 WatchTower Revival Range Color)
+
+- ユーザー実機確認で、復活後の建物当たり判定／ダメージと、宝箱・レベルアップパネル競合の修正はいずれも問題なし。
+- 監視塔復活時、`WatchTower.RestoreAfterRevive`がRange Fillへ`rangeFillColor`を設定した後、`BuildingRevivalState.ApplyDestroyedVisual(false)`が全`PaperMeshVisual.color`を`Color.white`へ上書きしていた。
+- 復活順序を、Health復元→共通Visual／Collider復元→建造物固有`RestoreAfterRevive`へ変更した。監視塔の半透明Range Fill色が最終値となり、壁・バリスタの固有Visual復元も維持する。
+- `July25GameplayBugFixValidator`へ上記順序と、監視塔が`rangeFillColor`を再適用する契約を追加した。
+- 変更2 C#を明示AssetImport後、Unity Compile成功。`Area Survivors/Validate/July 25 Gameplay Bug Fixes`と`Area Survivors/Validate/Combat Visual Rotation Guard`のfresh success marker確認、Console Error 0件、対象`git diff --check`成功。
+- Play Modeは開始していない。Scene／Prefab／HUDレイアウト、監視塔Prefabの色・半径・Rotationは変更していない。
+- TODO: ユーザー実機で監視塔を破壊→ボス撃破で復活させ、攻撃範囲が通常時と同じ半透明色で表示されることを確認する。
+- Blockerなし。
+
+## Latest Completed Work (2026-07-28 Revived Building Damage)
+
+- 原因は、壁・バリスタ・監視塔の`breaking`破壊ラッチが初回破壊時の`true`のまま復活後も残っていたこと。
+- 復活時のHealth／Collider自体は戻っていたが、復活後にHPが再び0になると二度目の`Break`がラッチで中断された。この結果、見た目とColliderは残る一方でHealthは死亡済みとなり、リザードマン／ドラゴン接触とドラゴンブレスの両方が以後ダメージ0になった。
+- `IBuildableConstruction.RestoreAfterRevive`を追加し、`BuildingRevivalState.TryRevive`が正HP復元後、Collider再有効化前に各建造物の破壊ラッチ、完成状態、Visualを復元するよう変更した。
+- 壁は`ApplyVisuals`、バリスタは`ApplyBuildVisuals`、監視塔は`ApplyVisuals`を再適用する。監視塔は範囲表示も復活する。
+- `July25GameplayBugFixValidator`へ、復活順序、3実装のラッチ解除／完成状態／Visual復元、毎回`BuildingRevivalState`へ破壊を渡す契約を追加した。
+- 初回Compileは`WatchTower.ApplyRangeVisual`の裸の`breaking`参照1件を見落としてCS0103。capture `C:\Users\yni87\AppData\Local\Temp\safe-command-9c0bda648c75430591efeff472f6efe3.txt`、Bee ExitCode 3、Play Mode停止／Unity応答中。全シンボル検索後、ラッチを削除せず復活時に明示リセットする構成へ修正した。
+- 変更6 C#を再Import後、2回目Unity Compile成功。`Area Survivors/Validate/July 25 Gameplay Bug Fixes` fresh success marker確認、Console Error表示0件。
+- Play Modeは開始していない。Scene／Prefab／HUDレイアウトは変更していない。
+- ユーザー実機確認: 復活後の建物当たり判定／ダメージは正常になった。
+- Blockerなし。
+
+## Latest Completed Work (2026-07-28 Relic / Level-up Modal Priority)
+
+- 原因は、`RelicAcquisitionPanel.Update`と`GameManager.UpdateLevelUpButtonHover`が同じフレームのController Submitと`EventSystem`選択をそれぞれ処理し、宝箱を閉じる入力を背面のレベルアップも再消費できたこと。
+- 宝箱モーダル表示中は新しいXPレベルアップを待機列へ保持し、レベルアップパネルの選択、controller submit、Button actionを遮断するようにした。
+- 宝箱を閉じたフレームもレベルアップ入力を遮断し、同じSubmit／Clickが背面へ伝播しないようにした。待機中のレベルアップは宝箱終了後に通常表示する。
+- 既にポーズ中のレベルアップへ宝箱が重なった場合、宝箱終了時に`Time.timeScale`を1へ戻さず、元の0を維持するよう修正した。
+- `RelicDropEligibilityValidator`へ、モーダル遮断、同一フレーム入力防止、ポーズ復元の静的契約を追加した。
+- 変更3 C#を明示AssetImport後、Unity Compile成功。`Area Survivors/Validate/Relic Drop Eligibility` fresh success marker確認、Console Error 0件、対象`git diff --check`成功。
+- Play Modeは開始していない。Scene／Prefab／HUDレイアウトは変更していない。
+- ユーザー実機確認: 宝箱とレベルアップパネルの入力競合は解消した。
+- Blockerなし。
+
+## Latest Investigation (2026-07-28 First Clear vs Difficulty 1)
+
+- 難易度1では`DifficultySpawnCount`が1倍、最大同時生存敵数も基礎値の1倍。敵HP、攻撃力、移動速度、spawn intervalにはクリア済み状態による補正がない。
+- 初回クリア時は対象ステージのボス撃破で即座にSTAGE CLEARとなりランが終了する。
+- 同じステージをクリア後に難易度1で再プレイすると、ボス撃破後に次ステージへ移行する。以後、次の未クリアステージまたはステージ4まで継続するため、同じ敵性能でも勝利条件が長くなる。
+- 初回クリアで難易度2は解放されるが、保存中の選択難易度`difficulty`は自動で2へ変更されない。ロビー表示とEnemySpawnerは同じ`GetStageDifficulty`を参照する。
+- 難易度2を選んだ場合のみ、通常spawn batch、エリートtimed spawn count、最大同時生存敵数が2倍になる。HP、攻撃力、移動速度は難易度では変化しない。
+- TODO: ユーザーの敗北がボス前か、ボス撃破後の次ステージかを確認する。新ログの`startStageDifficulty`と`difficultyCheckpoints`で実選択難易度と敗北区間を確定できる。
+- Blockerなし。
+
+## Latest Completed Work (2026-07-28 Difficulty Tuning Log)
+
+- 既存の「1ラン＝JSONL 1行」を維持したまま、`TokenRunLogEntry`をschemaVersion 3へ拡張した。
+- `difficultyCheckpoints`へ、stage_start／boss_spawn／boss_clear／run_end時点のステージ、難易度、時間、レベル、XP、キル、被ダメージ、建造物損耗、敵数、ボスHP／戦闘時間を記録する。
+- 最終ログへ、基礎XP／倍率適用後XP、レベルアップ履歴、取得強化履歴、敵種別ごとの出現／撃破数・HP・攻撃力・XP、建造物種別ごとのHP／被ダメージ／破壊数、プレイヤー被ダメージ／回復／死亡／最終能力、peak alive enemies、既存武器・建造物別damage reportを追加した。
+- ボス撃破履歴へ、ボス最大HP、戦闘時間、ボス戦中のプレイヤー／建造物被ダメージを追加した。
+- `Health.LastDamageDealt`で残HPを超えたoverkillを除いた実被ダメージを集計し、`BuildingRevivalState.IsDestroyed`で復活後を含む現在破壊状態を記録する。
+- `TokenRuntimeServiceValidator`へschema、JSON field、XP履歴、取得強化履歴、敵spawn／kill、checkpoint、実被ダメージの配線検証を追加した。
+- 初回Compileは外部編集C#をImportしないverification-only入口を使ったため120秒timeout。capture `C:\Users\yni87\AppData\Local\Temp\safe-command-81fc16ad92984a42a56d6a13cdcd6d86.txt`、exit 124、timed_out true。原因確定後、変更8 scriptを`RegisterAndRun`で明示Importした。
+- 2回目のUnity Compile成功。Runtime／Editor Assembly current、`Area Survivors/Validate/Token Runtime Service` fresh success marker確認、Console Errorは`logs: []`／`displayedCount: 0`。
+- Play Modeは開始していない。
+- TODO: ユーザーがビルド後に全ステージを通しプレイし、新しい`logs/token_run_log.jsonl`を共有する。受領後にステージ別XP効率、ボス戦、被ダメージ、建造物損耗、敵処理率、武器DPSを集計する。
+- Blockerなし。
 
 ## Latest Completed Work (2026-07-27 Fixed Boss HP)
 
@@ -256,6 +371,49 @@
 - 締め作業中、`safe-read.ps1`をユーザーディレクトリ配下と誤認した呼び出しが終了コード1で停止した。正式入口`Tools/TokenUsage/safe-read.ps1`と既定Windows PowerShellの固定経路を確認し、限定自己テスト成功後に再開した。既存のCommand Failure Playbookに同一原因と防止策が記録済み。
 - Blockerなし。
 
+## 2026-07-27 継続作業開始時のCommand Failure
+
+- Stage 4性能Incident改善の詳細ルールを読む前に、未確認の`rtk wc -l Docs/AgentRules/core-files.md`を実行し、Windows PATH上に`wc`が存在しないため終了コード1で対象ファイル到達前に停止した。
+- 原因境界はCLI実行ファイル解決であり、プロジェクト・Unity・対象Markdownへの状態変更は0件。
+- AGENTS.mdとCommand Failure Playbookの既存規則どおり、別Shellや別Unixコマンドへ切り替えず、`safe-read-batch.ps1`の`param(...)`と実在を確認した。
+- `rtk C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe ... -File Tools/TokenUsage/safe-read-batch.ps1 -Path Docs/AgentRules/core-files.md -Ranges "1-20" -PrintOutput`の限定自己テストが終了コード0で成功した。
+- 外部記憶`Knowledge/rtk-codex-windows.md`へ、長さ不明ファイルを`wc`で測らず`safe-read-batch`へ十分な上限範囲を渡して読む規則を追記した。
+
+## 2026-07-27 Graphify Pilot 再集計
+
+- 前回production集計終端（20:41）以降は5記録。内訳は`EnsureFresh` 2、`Affected` 2、実行済み`Fallback` 1。
+- 新規`Affected`は合計179推定token、中央値89.5 token、合計1.548秒、中央値774ms。`RuntimeSpriteOutline`は3結果でそのまま採用し、`RuntimePerformanceSentinel`は0結果をverification対象としてfallbackへ移行した。
+- fallback推奨1件に対して実行1件で、共通`fallback_id`の一致を確認した。新規2件は小出力だったため表示制限発動0件。上限機能自体はevaluationの126結果で検証済み。
+- 新規`EnsureFresh`はfresh 1回（689ms）、rebuild 1回（40.186秒）。新規Graphify関連経過45.520秒のうち89.8%がfreshness処理で、問い合わせ本体は3.4%、fallbackは6.8%。
+- 累積productionはGraphify問い合わせ26件、推定7,356 token、中央値92 token、verification 8件（30.8%）。`EnsureFresh`は25回中20回rebuildで、累積経過時間の96.8%を占める。
+- 新規問い合わせ2件だけでは削減率の再判定に不足する。production問い合わせ20件程度まで継続蓄積し、表示制限率・fallback実利用率・Action別tokenを再評価する。
+
+## 2026-07-27 TokenReports 棚卸し
+
+- 既存の全体集計入口は`Tools/TokenUsage/token-report-summary.ps1`。前回のGraphify再集計では専用`graphify-pilot-usage.jsonl`だけを直接集計しており、この全体Reporterは参照していなかった。
+- 直近30日相当は`safe_command` 15,632件、capture全文ベース約9,973,399推定token。中央値258、p90 1,397、p95 2,019、p99 4,113。blocked 27、失敗245、timeout 7。
+- capture tokenの85.3%（約851万）はfile read。次いでgit diff 6.7%、content search 4.5%、Unity/Editor 2.0%。最大の削減対象はread回数とread範囲。
+- read上位は`GameManager.cs` 273回／約62.9万、`safe-read.ps1` 677回／約48.9万、`WeaponController.cs` 323回／約46.8万、`GameConfig.cs` 127回／約22.1万、`ctx/current.md` 158回／約16.5万。
+- 現Reporterはcapture全文を集計する一方、`PrintOutput`／実表示tokenを記録しないため、約997万は実クレジット消費ではなくraw capture上限。tool metadata、会話、推論、画像等も自動集計外。
+- `token_start_marker`は全期間5件、`token_coverage_snapshot` 0件、`manual_untracked_usage` 1件で、UI消費率とのcoverage計測は実運用されていない。
+- 日次baselineは2026-06-20のまま。`Run-TokenDailyHealth.ps1`は固定5コマンドの旧ベンチで、現Reporterにない`-ExcludeBenchmark`呼び出しが残る。`TokenReports/Archive`も空。
+- `token-report-summary.ps1`はGraphify JSONLをkind空欄66件として混在させ、旧ログparse error 14件も含む。全体scanは今回13.8秒で、長期継続にはschema分離・stream集計・retentionが必要。
+- 対策優先度は、(1) capture tokenと実表示tokenの分離記録、task/session ID追加、(2) Reporter schema修正とGraphify統合、(3) `ctx/current.md`短縮とWrapper param preflightのcompact contract化、(4) GameManager等の反復readをGraphify/focused rangeへ置換、(5) Compile/Console/marker確認のbatch化、(6) 旧daily baselineとArchive運用の更新。
+
+## 2026-07-27 締め作業トークン監査の高優先導入
+
+- `Safe-Command.ps1`をschema v2化し、capture全文token、モデルへ実表示したcapture部分、非表示部分、`PrintOutput`要求、blocked、呼び出しWrapperを分離記録するようにした。既存`estimate`は互換維持。
+- `safe-graphify-pilot.ps1`は表示制限後の実表示tokenを`displayed_estimated_tokens`へ記録し、`focused-search.ps1`のGraphify fallbackも実表示出力を同じusage JSONLへ記録する。
+- `Get-TokenReportSummary.ps1`はSafe-Command schema v2とGraphify schemaを統合し、capture／displayed、legacy gap／current schema gap、measurement coverageを分離する。Graphify JSONLがkind空欄として混入する旧集計を解消した。
+- `closeout-token-report.ps1`を追加。締め時の表示token、raw capture、計測coverage、legacy/current gap、失敗、family別消費、反復commandを集計し、`reduce-file-read`、`reduce-git-diff`、`deduplicate-command`、`reduce-command-failures`、`high-visible-output`等の対策を生成する。
+- `Run-TokenDailyHealth.ps1`の旧`-ExcludeBenchmark`呼び出しを現Reporter契約へ修正した。
+- `area-survivors-closeout`スキルへトークン監査を必須工程として追加。captureを課金tokenと呼ばず、high／measurement incomplete時は原因と対策を日本語で必ず提示し、現行logger欠落は締め続行前に修正する。
+- 最終実ログ監査は`high`。表示済みcommand output 23,974推定token、file read 22,403で主因。schema導入前legacy gap 2,004件、current schema gap 0件、session coverage snapshot 0件。raw capture 1,153,603は課金量ではない。
+- schema v2実記録77件、current gap 0件。表示ありはcapture=displayed、非表示はdisplayed=0／hidden=capture、caller script保存を確認した。
+- `missing-session-coverage`を追加し、Wrapper外tool、tool metadata、会話、推論がcommand output集計外であることを締め時に必ず明記する。UI開始率・終了率・budgetが揃う場合だけ`session-coverage.ps1 -Save`で差分推定し、不明値は推測しない。
+- `command-tools-self-test.ps1`は38 script成功。`closeout-token-report -SelfTest`はmeasured／legacy／current gap／Graphify fixture成功。更新後`area-survivors-closeout`は`quick_validate.py`成功。
+- Skill metadata更新中、UTF-8 BOM先頭行の複数file patch不一致、skill-creator Python群のCP932依存、入れ子Python呼び出しregexのfalse positiveを確定した。Playbook、`Knowledge/rtk-codex-windows.md`、generator／quick validator／init scriptのUTF-8固定へ反映済み。
+
 ## TODO / Blocker
 
 - TODO: 次の責務分割候補は`RunStageController`（stage timer、boss、round transition）。
@@ -269,7 +427,8 @@
 - TODO: 同一武器・同一敵数のGameplayTest A/BでEnemy Layer早期returnの単独効果を確定する。実プレイ比較では高密度帯31.7～60.6%改善したが、条件差が残る。
 - TODO: Collider2D callback layer filteringは今回未適用。Layer早期returnの効果測定後、solver／押し合いを維持したままmanaged callback dispatch自体も抑止できるか限定検証する。
 - TODO: 根本対応の第二候補は通常敵の個別Update／LateUpdate／FixedUpdateを`EnemySimulationSystem`へ集約し、近距離／画面内だけ高頻度、遠距離敵は低頻度で時分割更新すること。
-- TODO: VisualはOutlineを共有Material／change-driven同期またはmain shader統合、Bounceを中央batch／shader化、YSortをcell変化時だけ、OcclusionをPlayer／Boss優先の中央managerへ集約する。
+- Outline第一段階は完了。敵だけchange-driven同期＋8/4/1フレームの安全確認へ変更し、輪郭shader参照を13回から9回へ削減した。YSortも描画順が変わった場合だけ書き込む。
+- TODO: Outlineの共有Material／main shader統合は、今回の実機再計測後もOutline負荷が大きい場合だけ検討する。Bounce中央batch／shader化、OcclusionのPlayer／Boss優先中央manager化は未対応。
 - TODO: Enemy territory paintは敵ごとではなく、中央managerがoccupied cellを重複排除して一定間隔で1回だけpaintする。
 - TODO: Pickupは必要ならworld cell別spatial bucketと近接orbのvalue集約／pool化で、全idle scanと1,000 Rendererを減らす。
 - TODO: ユーザー実機で召喚演出、Skeleton／SkeletonKnight生成、Banana命中感に違和感がないことを確認する。
@@ -277,7 +436,7 @@
 - TODO: Tokenについても到着時点で値が増えることを明示確認する。XP到着時加算と複数レベルアップ選択キューはユーザー確認済み。
 - TODO: Pickup移行後のcounterは取得済み。敵絶対上限後も1000個超のPickupが残る場合、scan candidatesとmovement ticksを再比較する。
 - TODO: registry移行後も1000個超のPickup本体・Rendererが残る負荷が大きい場合だけ、value集約poolまたはactive上限を追加検討する。
-- TODO: 初回sessionはStage 4途中でincident上限20件へ到達した。実5秒prebuffer化後も終盤前に上限へ達する場合だけ、同種incidentの集約または上限／保存間隔を追加調整する。
+- Stage別Incident予約後のsessionでStage 4を5件取得し、総上限による欠落0件を確認した。同種集約とStage予約は完了。
 - TODO: object急増の検知は毎秒の全Object走査を避けるため未実装。実測で必要性が出た場合は対象型へ軽量registryを追加して差分検知する。
 - TODO: Scenario matrixを各敵数で複数回実行し、固定baselineとの絶対budget／相対回帰率で合否判定する。現時点は1Play内のA/B自動実行までで、200→400→800のPlay Mode連続起動は未自動化。
 - TODO: 800体は同一Play内でもBaseline p95が+58.5% driftした。厳密なA/B採用判定には、各modeをfresh Playで個別実行するか、敵再生成とPhysics contact state初期化を含む分離Runnerへ更新する。
@@ -288,4 +447,107 @@
 
 ## Next Action
 
-- エンドロールのセーブ単位一度限り表示は実機確認まで完了。さらに性能改善を続ける場合は、incidentの同種集約または記録上限調整でStage 4以降も欠落なく採取できるようにする。
+- Runtime Performance Sentinelの総上限20件をStage 1〜4へ各5件ずつ予約し、同一Stage・同一原因カテゴリの詳細保存を2件までに集約した。Incident開始時のStage／難易度／敵上限／経過時間を固定し、遷移後の誤分類も防止した。
+- `session.json`、`session-summary.md`、`performance-session-report.ps1`へStage別取得件数とquota抑制件数を追加した。
+- `performance-session-report.ps1 -SelfTest`、`command-tools-self-test.ps1`、scoped diff check成功。
+- Unity Compileは2回成功。Runtime Performance Sentinel ValidatorとCombat Performance Probe Validatorはfresh marker成功、Console Error表示0件。Play Modeは開始していない。
+- ユーザー実機session `20260727-125845-155-9cd397`（難易度5、16分51秒）を取得した。Stage coverageはStage 1=`2`、Stage 2=`5`、Stage 3=`5`、Stage 4=`5`、session上限抑制=`0`で、Stage 4記録欠落を解消した。
+- Stage 4最悪incidentは敵200体、p95 `87.20ms`、max `129.88ms`。敵198体の次incidentはp95 `74.37ms`、max `88.51ms`。
+- 敵135体ではp95 `34.78ms`、敵200体では`87.20ms`となり、敵数48%増に対してp95は約2.5倍へ非線形増加した。
+- XP Orb 1,077個のStage 3 incidentはp95 `66.65ms`、XP Orb 560個のStage 4 incidentは`87.20ms`のため、Pickup数は第一原因ではない。
+- GCはStage 3/4とも概ね`15.75～20.96MB/s`で、p95差を単独では説明しない。ただし敵200体の重いフレームでは1フレーム約`2～3MB`のallocationがあり、二次増幅要因として残る。
+- Stage 4の約90～100msフレームにはDamage Feedback 0件、Projectile Trigger 0件、Projectile Damage 0件のものが複数ある。大量ヒットだけでなく、Enemy Physics solver、個別Enemy Update/Visual、Outline等の基礎負荷が第一原因。
+- Damage Feedback 216件、Popup Drop 184件、Hit Flash 177体が重なるフレームも約100msであり、大量命中Visualは第二原因。PopupはPool生成0・再利用のみのためInstantiate問題は解消済みだが、active上限96体の更新・描画負荷は残る。
+- 次の改善優先度は、敵同士の押し合いを維持したまま、(1) Outlineのshader統合またはchange-driven同期、(2) Enemy個別Update/LateUpdateの中央時分割、(3) Hit Flash/Popupの描画・更新上限見直し、(4) GC allocation発生源の追加counter化。
+- 2026-07-27 Outline第一段階を実装した。`RuntimeSpriteOutline`はSprite／色／表示／描画順の変更要求を同一LateUpdateへ集約し、通常敵8・Elite4・Boss1フレームの安全確認だけ残す。`PaperMeshVisual`はOutline参照を一度だけ解決し、`YSort`は同値のsortingOrder書き込みを省いた。
+- 敵だけ`AREA_OUTLINE_CROWD_OPTIMIZED` shader variantを有効化し、center＋周囲12回だったtexture参照をcenter＋周囲8回へ削減した。建造物・UI等は従来の13回参照を維持する。
+- Unity Compile 1回成功。Combat Performance Probe Validatorはfresh marker成功、Console Error表示0件。Play Modeは開始していない。
+- ユーザー実機でOutline第一段階後の表示を確認し、通常プレイで違和感なし。黒Outlineの欠け、太さの揺れ、Sprite切替残像、YSortずれは報告されず、表示回帰確認は完了。
+- 最新session `20260727-133427-667-16a13e`はStage 1までの3分34秒。敵200体incidentはp95 `62.30ms`、max `77.32ms`、100ms超0件。baseline p95は`15.68ms`。
+- Outline第一段階後のStage 4到達session `20260727-134055-188-e98932`（難易度5、敵上限200、15分26秒）を測定。Stage 1=`3`、Stage 2=`4`、Stage 3=`4`、Stage 4=`3` incidentを取得し、session上限抑制0件。
+- session baseline p95は前回`36.74ms`から`31.42ms`へ14.5%改善。Sentinel平均負荷は`8.69us`から`8.64us`で同等。
+- Stage 3の高密度帯は新sessionの敵190～193体でp95 `51.69～69.46ms`、旧sessionの敵200体で`57.54～71.07ms`。高密度incident平均p95は`65.09ms`から`60.58ms`へ6.9%改善、最悪p95は2.3%改善。Stage全体maxは`111.10ms`から`102.48ms`へ7.8%改善。
+- Stage 4最悪p95は`87.20ms`から`58.93ms`へ32.4%改善、最悪maxは`129.88ms`から`86.29ms`へ33.6%改善。100ms超フレームは旧sessionの4件から0件になった。
+- ただしStage 4の敵peakは旧200体に対して新185体、武器は旧Slash/Frost/ArrowRain、新Slash/ThunderBall/Shield、XP Orb量も大きく異なる。Stage 4改善量の全てをOutline単独効果とは断定しない。
+- Stage 1ではXP Orb 1,448個・敵200体のincidentがp95 `79.95ms`、ボス遷移を含む次incidentがp95 `88.10ms`／max `169.03ms`。Stage 3/4改善後も、極端なPickup残留とボス遷移は別の高負荷条件として残る。
+- TODO: Outline単独の厳密な効果量は、同一GameplayTestシナリオのOutline有効／無効または旧／新shader variant A/Bで確定する。実プレイのエンドツーエンド改善と表示回帰なしは確認済み。
+- 調査中の停止記録: `safe-read -PrintOutput`へ150行を渡してguard 39、未確定の旧`CombatPerformanceDiagnostics.cs`パスを渡してguard 33、停止中ObsidianへCLI接続して終了コード1となった。コード変更前に各失敗境界を確定し、`safe-read-batch`限定自己テスト、`safe-search -FilesOnly`での実在パス確定、Obsidian Vault設定からのローカル編集へ固定した。`command-tools-self-test.ps1`は全項目成功。
+- 最終status確認時、外部記憶repoをworkdirにした同一ShellへAreaSurvivorsの`safe-status.ps1`を混在させ、先頭コマンドだけパス不在で停止した。repo境界の混在が原因で、AreaSurvivors rootからの限定再確認は成功した。以後はrepoごとにShellとworkdirを分離する。
+
+## 2026-07-27 Pickup残留・ボス遷移の根本負荷対策
+
+- 最新Stage 4 sessionの追加分析で、Stage 1にXP Orb 1,448個が残り、p95 `79.95ms`、ボス遷移時p95 `88.10ms`／max `169.03ms`となる独立した高負荷条件を確認した。
+- 同一`TileGrid`セル内に待機中XP Orbがある場合、新規Instantiateを行わず既存Orbの`value`へXPを加算する空間集約を追加した。XP総量、プレイヤー接近時／ボス後の吸引、到着時の経験値加算と複数レベルアップキューは維持する。
+- `PickupAttractionRegistry`へXPセルindexと遷移吸引中件数を追加した。吸引開始時はセルindexから外し、無効化／回収完了時は全registryから除去する。
+- `GameManager.AttractRemainingStageRewards`は一覧を再利用し、毎フレーム全Pickupを走査する`HasActiveStageTransitionAttraction`を廃止した。完了待ちは`StageTransitionAttractionCount`のO(1)判定へ変更した。
+- 性能counterへ`xpOrbMerges`を追加し、Runtime Performance Sentinelと`performance-stage-detail-report.ps1`へ伝播した。次回sessionでは物理生成数`xpOrbSpawns`と集約数`xpOrbMerges`を分離比較できる。
+- `Stage Transition Enemy Defeat Validator`へ、同一セルのXP値保持、Active件数不変、遷移吸引件数の登録／解除、旧毎フレーム走査の不在を追加した。
+- 検証中の最初のfixtureはEdit Modeで`AddComponent`後にRuntime `OnEnable`登録が走ると誤認し、`activeBefore=0`で失敗した。`RegisterForValidation`明示登録、セル中央座標、実測診断値へ修正し、外部記憶`Knowledge/rtk-codex-windows.md`へ再発防止を記録した。
+- Unity Compileは3回成功。最終`Stage Transition Enemy Defeat Validator` fresh marker成功、Console Error表示0件、`performance-stage-detail-report -SelfTest`と旧session読込成功、対象差分のwhitespace検査成功。Play Modeは開始していない。
+- TODO: ユーザー実機で通常時のXP Orb表示・接近吸引・ボス後吸引・経験値総量・複数レベルアップに違和感がないことを確認する。
+- TODO: 次回Stage 4到達sessionで、旧session `20260727-134055-188-e98932`のStage 1 XP Orb 1,448個、p95 `79.95ms`、遷移max `169.03ms`に対する`activeExperienceOrbs`、`xpOrbSpawns`、`xpOrbMerges`、`pickupScanCandidates`、`pickupMovementTicks`、p95／maxの改善量を比較する。
+
+## 2026-07-27 XP集約後の実機性能比較
+
+- ユーザー実機session `20260727-141616-256-9ef5d2`（難易度5、敵上限200、15分55秒）を取得。Stage 1=`4`、Stage 2=`5`、Stage 3=`3`、Stage 4=`3` incident、session上限抑制0件。
+- Stage 1の最大Active XP Orbは`1,448`から`471`へ67.5%減少。高密度帯のPickup scan候補平均は`1,457.7`から`418.6`へ71.3%、peakは`1,778`から`434`へ75.6%減少した。
+- Stage 1の敵190体以上を抽出した重複除外フレームでは、p95 `86.57ms`→`61.94ms`（28.4%改善）、max `134.70ms`→`109.15ms`（19.0%改善）。
+- Stage 1ボス後の敵0体・Pickup吸引中フレームでは、移動Pickup peak `1,980`→`567`（71.4%減）、平均フレーム`27.54ms`→`17.12ms`（37.8%改善）、p95 `53.04ms`→`26.71ms`（49.6%改善）、max `60.48ms`→`43.57ms`（28.0%改善）。
+- 新sessionのIncident区間では物理XP Orb生成`803`回に対して同一セル集約`987`回を記録した。記録範囲内のXP報酬要求の55.1%で新規Orb生成を回避している。
+- Stage 4は敵peakが旧`185`から新`200`へ増えた条件でも、最悪p95 `58.93ms`→`58.36ms`、最悪max `86.29ms`→`74.66ms`（13.5%改善）。Stage 4で100ms超フレームはない。
+- session baseline p95は`31.42ms`→`35.34ms`と12.5%高いため、全体比較は新sessionに不利な環境差を含む。それでもPickup局所指標と遷移フレームは大幅改善しており、XP空間集約とO(1)遷移完了判定の効果を確認できた。
+- 残課題はPickupと無関係な単発スパイク。Stage 3に`119.58ms`が1回あり、敵177体、XP生成1、集約0、Pickup走査0、移動0、Projectile Trigger 0、Damage Feedback 0、GC allocation約0.98MBだった。Enemy Physics／個別Enemy Visual・Update／GCの基礎負荷が次の調査対象。
+- ユーザー実機プレイ完了。XP Orb表示、通常吸引、ボス後吸引、経験値総量、複数レベルアップについて不具合報告は現時点でなし。
+
+## 2026-07-27 Graphify Pilot 再集計（22:20以降）
+
+- `TokenReports/graphify-pilot-usage.jsonl`は75行すべてJSON解析成功。内訳は明示production 61、evaluation 4、旧schemaのcategory未設定10。
+- 前回締切`2026-07-27T22:20:24.0003678+09:00`より後のproductionは9件。`EnsureFresh` 2件、`Affected` 4件、`Fallback` 3件。
+- 新規Graphify query 4件は中央値586ms、capture上限529 token、verification 3件（75%）。推奨されたfallback 3件はすべて同じ`fallback_id`で実行・照合できた。`output_limited`は0件。
+- 表示トークン計測導入後の最新5件は欠損0。Graphify本体（EnsureFresh＋Affected 2件）の表示は42 token、fallback 2件は2,146 tokenで、表示合計2,188 tokenの98.1%をfallbackが占めた。
+- 最新の`RelicCatalog.TryPickRandom`と`TryPickRandom`は`Affected`が0件となり、fallbackへ865／1,281 tokenを使用した。定義・実装確認のmethod symbolは`focused-search`を先に使い、Graphifyは正確なgraph nodeを確認できた影響調査または2 symbol間の`Path`へ限定する余地が大きい。
+- 新規9件の総経過76.995秒中、`EnsureFresh` 2回のrebuildが68.993秒（89.6%）。同じfresh graphを継続利用し、タスク単位でrebuildを1回へ抑える方針は引き続き最優先。
+- production累計は61件。Graphify query 30件、中央値625ms、capture上限7,885 token、verification 11件（36.7%）。`EnsureFresh` 27件中22件がrebuild、fallbackは4件すべて推奨IDと照合済み。
+- 表示トークンの正確な比較は最新5件から可能。締切後9件のうち先行4件は旧schemaで表示値がなく、capture値を実消費または課金tokenとして扱わない。
+- TODO: 次の実作業では、method symbolの定義確認を`focused-search`へルーティングし、Graphifyを使う場合は1回の`EnsureFresh`後に複数queryをまとめる。表示計測済みproductionを20件以上蓄積した時点で、Graphify成功queryとfallbackの表示token中央値を再評価する。
+
+## 2026-07-27 エクスカリバー間隔・全レリック取得後の重複変換
+
+- `GameConfig.excaliburCooldownSeconds`と`Resources/Config/GameConfig.asset`を`5秒`から`3秒`へ変更した。`AdvancedWeaponRuntime`と`WeaponController`の既存参照経路は維持した。
+- 未取得レリックが1つでも残る間は、取得済みを抽選候補から除外する現行仕様を維持した。最後の1つが残る場合もその未取得1種だけが候補になる。
+- 全34種を取得済みの場合だけ、全34種を抽選poolへ戻す。レア度抽選比は従来どおりコモン50／アンコモン30／レア15／レジェンダリー5、同一レア度内は均等抽選。
+- 重複時はコモン5／アンコモン10／レア30／レジェンダリー50トークンへ変換し、即時セーブする。
+- フィールド`RelicChest`とStage 4再クリア等の`AcquireRelicRewardRoutine`を`RelicCatalog.TryAcquireReward`へ統一した。新規取得時だけPlayer statsを更新し、重複時は既存`RelicAcquisitionPanel`の宝箱OPEN演出と変換トークン表示を通す。
+- `Relic Drop Eligibility Validator`へ、最後の未取得がある間の重複禁止、全取得後の全候補復帰、50/30/15/5抽選比、5/10/30/50変換値、2つの獲得経路、開封パネル継続を追加した。
+- `Excalibur Cooldown Validator`を追加し、GameConfig assetが3秒であることを検証する。
+- Unity Compile 1回成功。Relic Drop Eligibility ValidatorとExcalibur Cooldown Validatorはfresh marker成功、Console Error表示0件、対象差分のwhitespace検査成功。Play Modeは開始していない。
+- ユーザー実機で、エクスカリバーが約3秒間隔で発射されること、全レリック取得済みセーブで宝箱OPEN演出後に重複レリックと変換トークンが表示されることを確認済み。対応完了。
+- 調査中、`git show`を`Select-Object -First`へ直接パイプしてbroken pipe相当の終了コード1になった。本番変更前に停止し、Native command全般で全出力と終了コードを先に配列取得するルールへPlaybookと外部記憶を更新し、限定自己テストと`command-tools-self-test`成功後に再開した。
+
+## 2026-07-28 Steam実績の解除・表示タイミング調査
+
+- `SteamAchievementRuntime`はTitle Sceneへ1個配置する設計で、`Awake`時に`DontDestroyOnLoad`され、ゲーム中・結果画面・ロビーでも同じinstanceが動作し続ける。Title再読込時の重複instanceは無効化される。
+- 実績はタイトル復帰専用処理ではない。Steam stats初期化完了直後と、`ProgressionStore.Save()`成功後の`Saved` eventごとに、セーブデータから全13実績を再評価する。撃破数だけは敵撃破時にも未保存分を含めて評価する。
+- 条件成立時は`SteamUserStats.SetAchievement`を行い、成立した全実績をまとめて`SteamUserStats.StoreStats`する。ゲーム側の実績ポップアップUIはなく、`UserAchievementStored_t` callbackではConsole logだけを出す。
+- Stage clearはボス撃破routine冒頭の`ProgressionStore.MarkStageCleared`でSaveされるため、その時点でSteam送信が始まる。Steam client側の保存callback／Overlay通知は非同期なので、通知描画が結果画面やTitle/Lobbyへの遷移後に見える可能性がある。
+- 起動時にSteam未同期の解除条件を既存セーブが満たしている場合も、Title SceneでSteam初期化が完了した直後の再評価により解除・表示される。これはオフライン時の取りこぼし防止を意図した遡及同期。
+- TODO: 表示タイミングを厳密に実測・変更する場合は、実績API名・条件成立時刻・`StoreStats`呼出時刻・callback時刻・active sceneを記録する限定diagnosticを追加してSteam client上で確認する。現時点では挙動変更は未実施。
+
+## 2026-07-28 Steam実績の再テスト方法
+
+- Steam公式の開発用手段として、Steam client consoleの`achievement_clear 4980380 <API名>`で個別実績、`reset_all_stats 4980380`で当該アカウントの全統計・実績をリセットできる。APIでは`ClearAchievement`＋`StoreStats`、または`ResetAllStats(true)`が相当する。
+- AreaSurvivorsは起動時に既存セーブを遡及判定するため、Steam側だけ未解除へ戻してもセーブが条件を満たしていれば起動直後に再解除される。現在のセーブを保持したまま条件達成タイミングを再検証するには、別テストアカウント、バックアップした新規セーブ、または製品版に残らない開発専用テスト経路が必要。
+- ユーザーがゲーム内設定からプレイデータを初期化した後、Unity Play Mode停止・AreaSurvivors実行プロセス不在を確認してSteam Consoleで`reset_all_stats 4980380`を実行した。
+- Steam Console表示と`C:/Program Files (x86)/Steam/logs/console_log.txt`の両方で、`2026-07-28 09:33:38 reset_all_stats success for appid 4980380`を確認した。Steam側の全実績・統計リセットは成功。
+- TODO: 次回起動後、Steamライブラリで全13実績が未解除表示であることと、条件達成時のOverlay通知タイミングをユーザー実機で確認する。
+
+## 2026-07-28 Steam実績時系列診断ログ
+
+- `SteamAchievementRuntime`へイベント駆動のJSONL診断ログを追加した。実績判定・Steam送信順序・既存セーブ遡及判定は変更していない。
+- 保存先は`Application.persistentDataPath/SteamAchievementReports/steam-achievement-session-<UTC>-<suffix>.jsonl`。起動時にUnity Consoleへ絶対Pathを1回出力する。
+- 記録対象はRuntime/Steam初期化、stats ready/waiting、Scene遷移、`SetAchievement`結果、`StoreStats`受付結果、`UserStatsStored` callback、`UserAchievementStored` callback、解除件数、trigger、Scene、UTC、frame、realtime、累計撃破数、プレイ回数、最高クリアStage。
+- 毎Kill・毎Saveの未解除0件評価はファイルへ記録せず、実績解除やSteam callback等のイベント時だけ追記する。診断書込失敗時はゲーム処理を止めず、警告1回で診断だけを無効化する。
+- 最初のCompile検証は変更C#をAssetImportする前に実行したため、コードエラーではなくstale検出`guard_code: 41`で停止した。原因と正式順序を確認し、`command-tools-self-test`全項目成功後、Runtime C#を明示AssetImportして再開した。
+- 外部記憶`vault/Knowledge/area-survivors-token-usage-tools.md`へ、既存C#でもAssetImport→Compileの順を省略しないことと、Obsidian Vaultの実在ノートPathをFilesOnlyで確定することを追記した。
+- 最終CompileはRuntime／Editor Assemblyともcurrent。Steam Achievements Validator fresh marker成功、Console Error表示0件、対象C#のscoped diff check成功。Play Modeは開始していない。
+- TODO: ユーザー通しプレイ後、最新JSONL、Unity Player log、Steam `logs/stats_log.txt`を時系列比較し、Overlay通知が表示された画面の申告と照合する。

@@ -38,6 +38,7 @@ namespace AreaSurvivors
         int shieldLevel;
         readonly Dictionary<WeaponType, int> advancedWeaponLevels = new Dictionary<WeaponType, int>();
         readonly Dictionary<WeaponType, int> runWeaponDisplayLevels = new Dictionary<WeaponType, int>();
+        readonly Dictionary<long, int> runUpgradeDiminishingCounts = new Dictionary<long, int>();
         readonly Dictionary<WeaponType, WeaponRunUpgradeState> advancedWeaponUpgrades = new Dictionary<WeaponType, WeaponRunUpgradeState>();
         readonly List<WeaponType> acquiredWeaponOrder = new List<WeaponType>();
         int slashAttackBonus;
@@ -177,6 +178,7 @@ namespace AreaSurvivors
             shieldKnockbackBonus = 0f;
             shieldRotationSpeedBonus = 0f;
             advancedWeaponUpgrades.Clear();
+            runUpgradeDiminishingCounts.Clear();
         }
 
         public void RefreshFromStats()
@@ -441,6 +443,53 @@ namespace AreaSurvivors
             runWeaponDisplayLevels[type] = GetRunWeaponDisplayLevel(type) + 1;
         }
 
+        public int GetRunUpgradeSelectionCount(WeaponType type, RunWeaponUpgradeStat stat)
+        {
+            if (stat == RunWeaponUpgradeStat.None) return 0;
+            long key = RunUpgradeDiminishingKey(type, stat);
+            return runUpgradeDiminishingCounts.TryGetValue(key, out int count)
+                ? Mathf.Max(0, count)
+                : 0;
+        }
+
+        public float GetDiminishedAdditiveUpgrade(
+            WeaponType type,
+            RunWeaponUpgradeStat stat,
+            float baseAmount)
+        {
+            return RunWeaponUpgradeDiminishing.AdditiveAmount(
+                baseAmount,
+                GetRunUpgradeSelectionCount(type, stat));
+        }
+
+        public float GetDiminishedCooldownMultiplier(WeaponType type, float baseMultiplier)
+        {
+            return RunWeaponUpgradeDiminishing.CooldownMultiplier(
+                baseMultiplier,
+                GetRunUpgradeSelectionCount(type, RunWeaponUpgradeStat.Cooldown));
+        }
+
+        public void RegisterRunUpgradeSelection(WeaponType type, RunWeaponUpgradeStat stat)
+        {
+            if (stat == RunWeaponUpgradeStat.None) return;
+            SetRunUpgradeSelectionCount(
+                type,
+                stat,
+                GetRunUpgradeSelectionCount(type, stat) + 1);
+        }
+
+        void SetRunUpgradeSelectionCount(WeaponType type, RunWeaponUpgradeStat stat, int count)
+        {
+            if (stat == RunWeaponUpgradeStat.None) return;
+            runUpgradeDiminishingCounts[RunUpgradeDiminishingKey(type, stat)] = Mathf.Max(0, count);
+        }
+
+        static long RunUpgradeDiminishingKey(WeaponType type, RunWeaponUpgradeStat stat)
+        {
+            long normalizedType = (int)EvolutionSourceType(type);
+            return (normalizedType << 32) | (uint)stat;
+        }
+
         public WeaponType GetDisplayWeaponType(WeaponType type)
         {
             type = EvolutionSourceType(type);
@@ -642,33 +691,44 @@ namespace AreaSurvivors
         {
             int count = Mathf.Max(0, upgradeCount);
             int attackBonus = config.GetRunAttackPowerBonus(type) * count;
-            float cooldownMultiplier = Mathf.Pow(Mathf.Clamp(config.runAttackCooldownMultiplier, 0.05f, 1f), count);
+            float cooldownMultiplier = RunWeaponUpgradeDiminishing.CumulativeCooldownMultiplier(
+                config.runAttackCooldownMultiplier,
+                count);
 
             switch (type)
             {
                 case WeaponType.Slash:
                     slashAttackBonus += attackBonus;
                     slashCooldownMultiplier *= cooldownMultiplier;
-                    slashKnockbackBonus += config.runWeaponKnockbackBonus * count;
-                    slashRangeBonus += config.runMediumRangeBonus * count;
+                    slashKnockbackBonus += RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(config.runWeaponKnockbackBonus, count);
+                    slashRangeBonus += RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(config.runMediumRangeBonus, count);
+                    SetRunUpgradeSelectionCount(type, RunWeaponUpgradeStat.Cooldown, count);
+                    SetRunUpgradeSelectionCount(type, RunWeaponUpgradeStat.Knockback, count);
+                    SetRunUpgradeSelectionCount(type, RunWeaponUpgradeStat.Range, count);
                     return;
                 case WeaponType.Arrow:
                     arrowAttackBonus += attackBonus;
                     arrowCooldownMultiplier *= cooldownMultiplier;
                     arrowProjectileCountBonus += config.runProjectileCountBonus * count;
-                    arrowRangeBonus += config.runProjectileRangeBonus * count;
+                    arrowRangeBonus += RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(config.runProjectileRangeBonus, count);
+                    SetRunUpgradeSelectionCount(type, RunWeaponUpgradeStat.Cooldown, count);
+                    SetRunUpgradeSelectionCount(type, RunWeaponUpgradeStat.ProjectileRange, count);
                     return;
                 case WeaponType.Fireball:
                     fireballAttackBonus += attackBonus;
                     fireballCooldownMultiplier *= cooldownMultiplier;
-                    fireballExplosionRadiusBonus += config.runExplosionRadiusBonus * count;
-                    fireballRangeBonus += config.runProjectileRangeBonus * count;
+                    fireballExplosionRadiusBonus += RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(config.runExplosionRadiusBonus, count);
+                    fireballRangeBonus += RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(config.runProjectileRangeBonus, count);
+                    SetRunUpgradeSelectionCount(type, RunWeaponUpgradeStat.Cooldown, count);
+                    SetRunUpgradeSelectionCount(type, RunWeaponUpgradeStat.ExplosionRange, count);
+                    SetRunUpgradeSelectionCount(type, RunWeaponUpgradeStat.ProjectileRange, count);
                     return;
                 case WeaponType.Shield:
                     shieldAttackBonus += attackBonus;
                     shieldCountBonus += config.runProjectileCountBonus * count;
-                    shieldKnockbackBonus += config.runWeaponKnockbackBonus * count;
+                    shieldKnockbackBonus += RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(config.runWeaponKnockbackBonus, count);
                     shieldRotationSpeedBonus += config.runShieldRotationSpeedBonus * count;
+                    SetRunUpgradeSelectionCount(type, RunWeaponUpgradeStat.Knockback, count);
                     return;
             }
 
@@ -677,39 +737,54 @@ namespace AreaSurvivors
             switch (type)
             {
                 case WeaponType.Flag:
-                    upgrade.rangeBonus += config.runAreaRangeBonus * count;
-                    upgrade.slowBonus += config.runSlowBonus * count;
+                    upgrade.rangeBonus += RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(config.runAreaRangeBonus, count);
+                    upgrade.slowBonus += RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(config.runSlowBonus, count);
                     upgrade.damageIntervalMultiplier *= cooldownMultiplier;
+                    SetRunUpgradeSelectionCount(type, RunWeaponUpgradeStat.Range, count);
+                    SetRunUpgradeSelectionCount(type, RunWeaponUpgradeStat.Slow, count);
+                    SetRunUpgradeSelectionCount(type, RunWeaponUpgradeStat.Cooldown, count);
                     break;
                 case WeaponType.BoomerangSword:
                     upgrade.projectileCountBonus += config.runProjectileCountBonus * count;
-                    upgrade.rangeBonus += config.runMediumRangeBonus * count;
+                    upgrade.rangeBonus += RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(config.runMediumRangeBonus, count);
                     upgrade.cooldownMultiplier *= cooldownMultiplier;
+                    SetRunUpgradeSelectionCount(type, RunWeaponUpgradeStat.Range, count);
+                    SetRunUpgradeSelectionCount(type, RunWeaponUpgradeStat.Cooldown, count);
                     break;
                 case WeaponType.AuraSword:
                     upgrade.projectileCountBonus += config.runProjectileCountBonus * count;
-                    upgrade.rangeBonus += config.runAreaRangeBonus * count;
-                    upgrade.distanceBonus += config.runProjectileRangeBonus * count;
+                    upgrade.rangeBonus += RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(config.runAreaRangeBonus, count);
+                    upgrade.distanceBonus += RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(config.runProjectileRangeBonus, count);
+                    SetRunUpgradeSelectionCount(type, RunWeaponUpgradeStat.Range, count);
+                    SetRunUpgradeSelectionCount(type, RunWeaponUpgradeStat.ProjectileRange, count);
                     break;
                 case WeaponType.ArrowRain:
-                    upgrade.rangeBonus += config.runMediumRangeBonus * count;
+                    upgrade.rangeBonus += RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(config.runMediumRangeBonus, count);
                     upgrade.durationBonus += config.runArrowRainDurationBonus * count;
                     upgrade.cooldownMultiplier *= cooldownMultiplier;
+                    SetRunUpgradeSelectionCount(type, RunWeaponUpgradeStat.Range, count);
+                    SetRunUpgradeSelectionCount(type, RunWeaponUpgradeStat.Cooldown, count);
                     break;
                 case WeaponType.Gun:
                     upgrade.cooldownMultiplier *= cooldownMultiplier;
-                    upgrade.distanceBonus += config.runProjectileRangeBonus * count;
+                    upgrade.distanceBonus += RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(config.runProjectileRangeBonus, count);
                     upgrade.projectileCountBonus += config.runProjectileCountBonus * count;
+                    SetRunUpgradeSelectionCount(type, RunWeaponUpgradeStat.Cooldown, count);
+                    SetRunUpgradeSelectionCount(type, RunWeaponUpgradeStat.ProjectileRange, count);
                     break;
                 case WeaponType.Frost:
-                    upgrade.rangeBonus += config.runAreaRangeBonus * count;
-                    upgrade.slowBonus += config.runSlowBonus * count;
+                    upgrade.rangeBonus += RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(config.runAreaRangeBonus, count);
+                    upgrade.slowBonus += RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(config.runSlowBonus, count);
                     upgrade.cooldownMultiplier *= cooldownMultiplier;
+                    SetRunUpgradeSelectionCount(type, RunWeaponUpgradeStat.Range, count);
+                    SetRunUpgradeSelectionCount(type, RunWeaponUpgradeStat.Slow, count);
+                    SetRunUpgradeSelectionCount(type, RunWeaponUpgradeStat.Cooldown, count);
                     break;
                 case WeaponType.ThunderBall:
-                    upgrade.rangeBonus += config.runAreaRangeBonus * count;
+                    upgrade.rangeBonus += RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(config.runAreaRangeBonus, count);
                     upgrade.projectileCountBonus += config.runProjectileCountBonus * count;
                     upgrade.durationBonus += config.runThunderBallDurationBonus * count;
+                    SetRunUpgradeSelectionCount(type, RunWeaponUpgradeStat.Range, count);
                     break;
             }
         }

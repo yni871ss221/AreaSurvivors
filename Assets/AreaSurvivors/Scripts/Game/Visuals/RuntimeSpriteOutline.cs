@@ -8,12 +8,16 @@ namespace AreaSurvivors
     [DefaultExecutionOrder(1000)]
     public sealed class RuntimeSpriteOutline : MonoBehaviour
     {
+        const string CrowdOptimizedKeyword = "AREA_OUTLINE_CROWD_OPTIMIZED";
+
         public Color outlineColor = Color.black;
         public float thickness = 0.035f;
         public bool compensateTransformScale;
         public bool requireExistingOutlineObject;
         public bool blink;
         public float blinkSpeed = 5f;
+        [Min(1)] public int safetySyncFrameInterval = 1;
+        public bool crowdOptimizedSampling;
 
         MeshFilter sourceFilter;
         MeshRenderer sourceRenderer;
@@ -28,7 +32,10 @@ namespace AreaSurvivors
         bool lastSourceEnabled;
         int lastSortingLayerId;
         int lastSortingOrder;
+        bool lastCrowdOptimizedSampling;
         bool syncInitialized;
+        bool syncRequested = true;
+        int nextSafetySyncFrame;
         static readonly Dictionary<OutlineMeshCacheKey, OutlineMeshData> OutlineMeshCache = new Dictionary<OutlineMeshCacheKey, OutlineMeshData>();
 
         public MeshRenderer OutlineRenderer => outlineRenderer;
@@ -79,12 +86,31 @@ namespace AreaSurvivors
         {
             EnsureOutline();
             syncInitialized = false;
+            syncRequested = false;
             SyncOutline();
+            ScheduleNextSafetySync(true);
         }
 
         void LateUpdate()
         {
+            if (!blink && !syncRequested && Time.frameCount < nextSafetySyncFrame) return;
+
+            syncRequested = false;
             SyncOutline();
+            ScheduleNextSafetySync(false);
+        }
+
+        public void RequestSync()
+        {
+            syncRequested = true;
+        }
+
+        public void ConfigureCrowdPerformance(int frameInterval)
+        {
+            safetySyncFrameInterval = Mathf.Max(1, frameInterval);
+            crowdOptimizedSampling = true;
+            syncRequested = true;
+            ScheduleNextSafetySync(true);
         }
 
         void OnDestroy()
@@ -187,6 +213,7 @@ namespace AreaSurvivors
             Texture texture = sourceMaterial.mainTexture;
             bool visible = sourceRenderer.enabled && color.a > 0.001f && effectiveThickness > 0.001f;
             int desiredSortingOrder = sourceRenderer.sortingOrder - 1;
+            bool crowdKeywordEnabled = outlineMaterial.IsKeywordEnabled(CrowdOptimizedKeyword);
             bool changed =
                 !syncInitialized ||
                 blink ||
@@ -198,6 +225,8 @@ namespace AreaSurvivors
                 lastSourceEnabled != sourceRenderer.enabled ||
                 lastSortingLayerId != sourceRenderer.sortingLayerID ||
                 lastSortingOrder != sourceRenderer.sortingOrder ||
+                lastCrowdOptimizedSampling != crowdOptimizedSampling ||
+                crowdKeywordEnabled != crowdOptimizedSampling ||
                 outlineRenderer.sharedMaterial != outlineMaterial ||
                 outlineRenderer.sortingLayerID != sourceRenderer.sortingLayerID ||
                 outlineRenderer.sortingOrder != desiredSortingOrder ||
@@ -207,6 +236,8 @@ namespace AreaSurvivors
             var outlineData = EnsureOutlineMesh(sourceMesh, effectiveThickness);
             outlineMaterial.mainTexture = texture;
             outlineMaterial.color = color;
+            if (crowdOptimizedSampling) outlineMaterial.EnableKeyword(CrowdOptimizedKeyword);
+            else outlineMaterial.DisableKeyword(CrowdOptimizedKeyword);
             if (outlineData != null)
             {
                 outlineMaterial.SetVector("_SpriteRect", outlineData.spriteRect);
@@ -230,7 +261,15 @@ namespace AreaSurvivors
             lastSourceEnabled = sourceRenderer.enabled;
             lastSortingLayerId = sourceRenderer.sortingLayerID;
             lastSortingOrder = sourceRenderer.sortingOrder;
+            lastCrowdOptimizedSampling = crowdOptimizedSampling;
             syncInitialized = true;
+        }
+
+        void ScheduleNextSafetySync(bool stagger)
+        {
+            int interval = Mathf.Max(1, safetySyncFrameInterval);
+            int offset = stagger && interval > 1 ? Mathf.Abs(GetInstanceID()) % interval : interval;
+            nextSafetySyncFrame = Time.frameCount + Mathf.Max(1, offset);
         }
 
         void SetVisible(bool visible)

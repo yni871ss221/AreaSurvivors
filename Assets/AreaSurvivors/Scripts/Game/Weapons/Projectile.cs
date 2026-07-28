@@ -20,6 +20,7 @@ namespace AreaSurvivors
         public bool playImpactFlash = true;
         public GameObject impactFlashPrefab;
         public GameObject explosionHitboxPrefab;
+        public bool showExplosionRangeVisual;
         public bool paintsTerritory = true;
         [Tooltip("短い間隔でPixelBurstを生成するため、負荷調査後はデフォルト無効。必要な弾PrefabだけONにしてください。")]
         public bool playTrailFlecks;
@@ -220,7 +221,16 @@ namespace AreaSurvivors
             resolved = true;
             AudioManager.PlaySfx(SfxTrack.ExplosionHit);
             ImpactFlash();
-            ProjectileExplosionHitbox.Spawn(explosionHitboxPrefab, transform.position, explosionRadius, damage, knockback, knockbackDuration, paintsTerritory, damageSource);
+            ProjectileExplosionHitbox.Spawn(
+                explosionHitboxPrefab,
+                transform.position,
+                explosionRadius,
+                damage,
+                knockback,
+                knockbackDuration,
+                paintsTerritory,
+                showExplosionRangeVisual,
+                damageSource);
             Destroy(gameObject);
         }
 

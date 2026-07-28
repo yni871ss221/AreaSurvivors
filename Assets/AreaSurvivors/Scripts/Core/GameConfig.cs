@@ -216,7 +216,7 @@ namespace AreaSurvivors
         [Min(0)] public int bananaBaseProjectileCountBonus = 3;
         [Min(0.1f)] public float excaliburTravelSpeedCellsPerSecond = 10f;
         [Min(0.05f)] public float excaliburDamageIntervalSeconds = 0.2f;
-        [Min(0.05f)] public float excaliburCooldownSeconds = 5f;
+        [Min(0.05f)] public float excaliburCooldownSeconds = 3f;
         [Range(1f, 120f)] public float excaliburBaseArcDegrees = 30f;
         [Range(30f, 170f)] public float excaliburMaxArcDegrees = 150f;
         [Range(0.05f, 1f)] public float excaliburInitialRadiusCells = 0.25f;

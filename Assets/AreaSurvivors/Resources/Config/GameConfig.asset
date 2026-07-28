@@ -132,7 +132,7 @@ MonoBehaviour:
   bananaBaseProjectileCountBonus: 3
   excaliburTravelSpeedCellsPerSecond: 10
   excaliburDamageIntervalSeconds: 0.2
-  excaliburCooldownSeconds: 5
+  excaliburCooldownSeconds: 3
   excaliburBaseArcDegrees: 30
   excaliburMaxArcDegrees: 150
   excaliburInitialRadiusCells: 0.25

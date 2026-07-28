@@ -271,6 +271,13 @@ namespace AreaSurvivors
             CompleteBuild();
         }
 
+        public void RestoreAfterRevive()
+        {
+            breaking = false;
+            completed = true;
+            ApplyVisuals();
+        }
+
         void CompleteBuild()
         {
             completed = true;

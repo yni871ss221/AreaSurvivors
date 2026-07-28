@@ -26,6 +26,8 @@ namespace AreaSurvivors
 
         MeshFilter meshFilter;
         MeshRenderer meshRenderer;
+        RuntimeSpriteOutline outline;
+        bool outlineLookupComplete;
         Material material;
         static readonly Dictionary<MeshCacheKey, Mesh> MeshCache = new Dictionary<MeshCacheKey, Mesh>();
 #if UNITY_EDITOR
@@ -123,6 +125,7 @@ namespace AreaSurvivors
             get => tint;
             set
             {
+                if (tint == value && material != null) return;
                 tint = value;
                 ApplyMaterial();
             }
@@ -133,9 +136,11 @@ namespace AreaSurvivors
             get => sortingOrder;
             set
             {
+                if (sortingOrder == value && meshRenderer != null && meshRenderer.sortingOrder == value) return;
                 sortingOrder = value;
                 EnsureRenderer();
                 meshRenderer.sortingOrder = value;
+                RequestOutlineSync();
             }
         }
 
@@ -169,7 +174,9 @@ namespace AreaSurvivors
             set
             {
                 EnsureRenderer();
+                if (meshRenderer.enabled == value) return;
                 meshRenderer.enabled = value;
+                RequestOutlineSync();
             }
         }
 
@@ -396,6 +403,17 @@ namespace AreaSurvivors
 
             material.mainTexture = useSourceTexture && sourceSprite != null ? sourceSprite.texture : Texture2D.whiteTexture;
             material.color = tint;
+            RequestOutlineSync();
+        }
+
+        void RequestOutlineSync()
+        {
+            if (outline == null && (!outlineLookupComplete || !Application.isPlaying))
+            {
+                outline = GetComponent<RuntimeSpriteOutline>();
+                outlineLookupComplete = true;
+            }
+            outline?.RequestSync();
         }
 
         static void DestroyGenerated(UnityEngine.Object generated)

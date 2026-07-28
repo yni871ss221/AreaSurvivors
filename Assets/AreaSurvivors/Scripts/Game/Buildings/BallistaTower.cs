@@ -270,6 +270,13 @@ namespace AreaSurvivors
             CompleteBuild();
         }
 
+        public void RestoreAfterRevive()
+        {
+            breaking = false;
+            completed = true;
+            ApplyBuildVisuals();
+        }
+
         void ApplyBuildVisuals()
         {
             var upgradeTarget = GetComponent<BuildingUpgradeTarget>();

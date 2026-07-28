@@ -29,6 +29,7 @@ Shader "AreaSurvivors/SpriteAlphaOutline"
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
+            #pragma multi_compile_local __ AREA_OUTLINE_CROWD_OPTIMIZED
             #include "UnityCG.cginc"
 
             struct appdata
@@ -81,11 +82,13 @@ Shader "AreaSurvivors/SpriteAlphaOutline"
                 alpha = max(alpha, AlphaInSpriteRect(i.uv + float2( o.x, -o.y)));
                 alpha = max(alpha, AlphaInSpriteRect(i.uv + float2( o.x,  o.y)));
 
-                float2 halfO = o * 0.5;
-                alpha = max(alpha, AlphaInSpriteRect(i.uv + float2(-halfO.x, 0)));
-                alpha = max(alpha, AlphaInSpriteRect(i.uv + float2( halfO.x, 0)));
-                alpha = max(alpha, AlphaInSpriteRect(i.uv + float2(0, -halfO.y)));
-                alpha = max(alpha, AlphaInSpriteRect(i.uv + float2(0,  halfO.y)));
+                #if !defined(AREA_OUTLINE_CROWD_OPTIMIZED)
+                    float2 halfO = o * 0.5;
+                    alpha = max(alpha, AlphaInSpriteRect(i.uv + float2(-halfO.x, 0)));
+                    alpha = max(alpha, AlphaInSpriteRect(i.uv + float2( halfO.x, 0)));
+                    alpha = max(alpha, AlphaInSpriteRect(i.uv + float2(0, -halfO.y)));
+                    alpha = max(alpha, AlphaInSpriteRect(i.uv + float2(0,  halfO.y)));
+                #endif
 
                 fixed outlineAlpha = max(center, alpha);
                 clip(outlineAlpha - _AlphaThreshold);

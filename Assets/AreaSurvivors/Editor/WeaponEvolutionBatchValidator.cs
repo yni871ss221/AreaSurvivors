@@ -22,6 +22,7 @@ namespace AreaSurvivors.EditorTools
         const string MachineGunVisualMarkerRelativePath = "Library/AreaSafeUnity/machine-gun-bullet-visual-validator.ok";
         const string FireMissileCooldownMarkerRelativePath = "Library/AreaSafeUnity/fire-missile-cooldown-validator.ok";
         const string FireMissileHomingMarkerRelativePath = "Library/AreaSafeUnity/fire-missile-homing-validator.ok";
+        const string ExcaliburCooldownMarkerRelativePath = "Library/AreaSafeUnity/excalibur-cooldown-validator.ok";
 
         static string SuccessMarkerPath => Path.Combine(
             Path.GetDirectoryName(Application.dataPath),
@@ -312,6 +313,35 @@ namespace AreaSurvivors.EditorTools
             Debug.Log("Fire Missile cooldown validator: passed. base=0.5 seconds and prior upgrades are preserved.");
         }
 
+        [MenuItem("Area Survivors/Validate/Excalibur Cooldown")]
+        public static void ValidateExcaliburCooldownMenu()
+        {
+            string markerPath = Path.Combine(
+                Directory.GetParent(Application.dataPath).FullName,
+                ExcaliburCooldownMarkerRelativePath);
+            if (File.Exists(markerPath)) File.Delete(markerPath);
+
+            int errors = 0;
+            var config = AssetDatabase.LoadAssetAtPath<GameConfig>(
+                "Assets/AreaSurvivors/Resources/Config/GameConfig.asset");
+            if (config == null ||
+                !Mathf.Approximately(config.excaliburCooldownSeconds, 3f))
+            {
+                Error(
+                    "Excalibur cooldown must be exactly 3 seconds.",
+                    ref errors);
+            }
+
+            if (errors != 0)
+            {
+                throw new InvalidOperationException(
+                    "Excalibur cooldown validation failed. errors=" + errors);
+            }
+            Directory.CreateDirectory(Path.GetDirectoryName(markerPath));
+            File.WriteAllText(markerPath, DateTime.UtcNow.ToString("o"));
+            Debug.Log("Excalibur cooldown validator: passed. cooldown=3 seconds.");
+        }
+
         [MenuItem("Area Survivors/Validate/Fire Missile Homing")]
         public static void ValidateFireMissileHomingMenu()
         {
@@ -428,30 +458,41 @@ namespace AreaSurvivors.EditorTools
         {
             int count = WeaponController.EvolutionTestUpgradeCount;
             int attackBonus = gameConfig.GetRunAttackPowerBonus(type) * count;
-            float cooldownMultiplier = Mathf.Pow(Mathf.Clamp(gameConfig.runAttackCooldownMultiplier, 0.05f, 1f), count);
+            float cooldownMultiplier = RunWeaponUpgradeDiminishing.CumulativeCooldownMultiplier(
+                gameConfig.runAttackCooldownMultiplier,
+                count);
 
             switch (type)
             {
                 case WeaponType.Slash:
                     return IntFieldEquals(controller, "slashAttackBonus", attackBonus) &&
                         FloatFieldEquals(controller, "slashCooldownMultiplier", cooldownMultiplier) &&
-                        FloatFieldEquals(controller, "slashKnockbackBonus", gameConfig.runWeaponKnockbackBonus * count) &&
-                        FloatFieldEquals(controller, "slashRangeBonus", gameConfig.runMediumRangeBonus * count);
+                        FloatFieldEquals(controller, "slashKnockbackBonus", RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(gameConfig.runWeaponKnockbackBonus, count)) &&
+                        FloatFieldEquals(controller, "slashRangeBonus", RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(gameConfig.runMediumRangeBonus, count)) &&
+                        SelectionCountEquals(controller, type, RunWeaponUpgradeStat.Cooldown, count) &&
+                        SelectionCountEquals(controller, type, RunWeaponUpgradeStat.Knockback, count) &&
+                        SelectionCountEquals(controller, type, RunWeaponUpgradeStat.Range, count);
                 case WeaponType.Arrow:
                     return IntFieldEquals(controller, "arrowAttackBonus", attackBonus) &&
                         FloatFieldEquals(controller, "arrowCooldownMultiplier", cooldownMultiplier) &&
                         IntFieldEquals(controller, "arrowProjectileCountBonus", gameConfig.runProjectileCountBonus * count) &&
-                        FloatFieldEquals(controller, "arrowRangeBonus", gameConfig.runProjectileRangeBonus * count);
+                        FloatFieldEquals(controller, "arrowRangeBonus", RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(gameConfig.runProjectileRangeBonus, count)) &&
+                        SelectionCountEquals(controller, type, RunWeaponUpgradeStat.Cooldown, count) &&
+                        SelectionCountEquals(controller, type, RunWeaponUpgradeStat.ProjectileRange, count);
                 case WeaponType.Fireball:
                     return IntFieldEquals(controller, "fireballAttackBonus", attackBonus) &&
                         FloatFieldEquals(controller, "fireballCooldownMultiplier", cooldownMultiplier) &&
-                        FloatFieldEquals(controller, "fireballExplosionRadiusBonus", gameConfig.runExplosionRadiusBonus * count) &&
-                        FloatFieldEquals(controller, "fireballRangeBonus", gameConfig.runProjectileRangeBonus * count);
+                        FloatFieldEquals(controller, "fireballExplosionRadiusBonus", RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(gameConfig.runExplosionRadiusBonus, count)) &&
+                        FloatFieldEquals(controller, "fireballRangeBonus", RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(gameConfig.runProjectileRangeBonus, count)) &&
+                        SelectionCountEquals(controller, type, RunWeaponUpgradeStat.Cooldown, count) &&
+                        SelectionCountEquals(controller, type, RunWeaponUpgradeStat.ExplosionRange, count) &&
+                        SelectionCountEquals(controller, type, RunWeaponUpgradeStat.ProjectileRange, count);
                 case WeaponType.Shield:
                     return IntFieldEquals(controller, "shieldAttackBonus", attackBonus) &&
                         IntFieldEquals(controller, "shieldCountBonus", gameConfig.runProjectileCountBonus * count) &&
-                        FloatFieldEquals(controller, "shieldKnockbackBonus", gameConfig.runWeaponKnockbackBonus * count) &&
-                        FloatFieldEquals(controller, "shieldRotationSpeedBonus", gameConfig.runShieldRotationSpeedBonus * count);
+                        FloatFieldEquals(controller, "shieldKnockbackBonus", RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(gameConfig.runWeaponKnockbackBonus, count)) &&
+                        FloatFieldEquals(controller, "shieldRotationSpeedBonus", gameConfig.runShieldRotationSpeedBonus * count) &&
+                        SelectionCountEquals(controller, type, RunWeaponUpgradeStat.Knockback, count);
             }
 
             const System.Reflection.BindingFlags Flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
@@ -463,33 +504,48 @@ namespace AreaSurvivors.EditorTools
             switch (type)
             {
                 case WeaponType.Flag:
-                    return FloatFieldEquals(state, "rangeBonus", gameConfig.runAreaRangeBonus * count) &&
-                        FloatFieldEquals(state, "slowBonus", gameConfig.runSlowBonus * count) &&
-                        FloatFieldEquals(state, "damageIntervalMultiplier", cooldownMultiplier);
+                    return FloatFieldEquals(state, "rangeBonus", RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(gameConfig.runAreaRangeBonus, count)) &&
+                        FloatFieldEquals(state, "slowBonus", RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(gameConfig.runSlowBonus, count)) &&
+                        FloatFieldEquals(state, "damageIntervalMultiplier", cooldownMultiplier) &&
+                        SelectionCountEquals(controller, type, RunWeaponUpgradeStat.Range, count) &&
+                        SelectionCountEquals(controller, type, RunWeaponUpgradeStat.Slow, count) &&
+                        SelectionCountEquals(controller, type, RunWeaponUpgradeStat.Cooldown, count);
                 case WeaponType.BoomerangSword:
                     return IntFieldEquals(state, "projectileCountBonus", gameConfig.runProjectileCountBonus * count) &&
-                        FloatFieldEquals(state, "rangeBonus", gameConfig.runMediumRangeBonus * count) &&
-                        FloatFieldEquals(state, "cooldownMultiplier", cooldownMultiplier);
+                        FloatFieldEquals(state, "rangeBonus", RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(gameConfig.runMediumRangeBonus, count)) &&
+                        FloatFieldEquals(state, "cooldownMultiplier", cooldownMultiplier) &&
+                        SelectionCountEquals(controller, type, RunWeaponUpgradeStat.Range, count) &&
+                        SelectionCountEquals(controller, type, RunWeaponUpgradeStat.Cooldown, count);
                 case WeaponType.AuraSword:
                     return IntFieldEquals(state, "projectileCountBonus", gameConfig.runProjectileCountBonus * count) &&
-                        FloatFieldEquals(state, "rangeBonus", gameConfig.runAreaRangeBonus * count) &&
-                        FloatFieldEquals(state, "distanceBonus", gameConfig.runProjectileRangeBonus * count);
+                        FloatFieldEquals(state, "rangeBonus", RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(gameConfig.runAreaRangeBonus, count)) &&
+                        FloatFieldEquals(state, "distanceBonus", RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(gameConfig.runProjectileRangeBonus, count)) &&
+                        SelectionCountEquals(controller, type, RunWeaponUpgradeStat.Range, count) &&
+                        SelectionCountEquals(controller, type, RunWeaponUpgradeStat.ProjectileRange, count);
                 case WeaponType.ArrowRain:
-                    return FloatFieldEquals(state, "rangeBonus", gameConfig.runMediumRangeBonus * count) &&
+                    return FloatFieldEquals(state, "rangeBonus", RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(gameConfig.runMediumRangeBonus, count)) &&
                         FloatFieldEquals(state, "durationBonus", gameConfig.runArrowRainDurationBonus * count) &&
-                        FloatFieldEquals(state, "cooldownMultiplier", cooldownMultiplier);
+                        FloatFieldEquals(state, "cooldownMultiplier", cooldownMultiplier) &&
+                        SelectionCountEquals(controller, type, RunWeaponUpgradeStat.Range, count) &&
+                        SelectionCountEquals(controller, type, RunWeaponUpgradeStat.Cooldown, count);
                 case WeaponType.Gun:
                     return FloatFieldEquals(state, "cooldownMultiplier", cooldownMultiplier) &&
-                        FloatFieldEquals(state, "distanceBonus", gameConfig.runProjectileRangeBonus * count) &&
-                        IntFieldEquals(state, "projectileCountBonus", gameConfig.runProjectileCountBonus * count);
-                case WeaponType.Frost:
-                    return FloatFieldEquals(state, "rangeBonus", gameConfig.runAreaRangeBonus * count) &&
-                        FloatFieldEquals(state, "slowBonus", gameConfig.runSlowBonus * count) &&
-                        FloatFieldEquals(state, "cooldownMultiplier", cooldownMultiplier);
-                case WeaponType.ThunderBall:
-                    return FloatFieldEquals(state, "rangeBonus", gameConfig.runAreaRangeBonus * count) &&
+                        FloatFieldEquals(state, "distanceBonus", RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(gameConfig.runProjectileRangeBonus, count)) &&
                         IntFieldEquals(state, "projectileCountBonus", gameConfig.runProjectileCountBonus * count) &&
-                        FloatFieldEquals(state, "durationBonus", gameConfig.runThunderBallDurationBonus * count);
+                        SelectionCountEquals(controller, type, RunWeaponUpgradeStat.Cooldown, count) &&
+                        SelectionCountEquals(controller, type, RunWeaponUpgradeStat.ProjectileRange, count);
+                case WeaponType.Frost:
+                    return FloatFieldEquals(state, "rangeBonus", RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(gameConfig.runAreaRangeBonus, count)) &&
+                        FloatFieldEquals(state, "slowBonus", RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(gameConfig.runSlowBonus, count)) &&
+                        FloatFieldEquals(state, "cooldownMultiplier", cooldownMultiplier) &&
+                        SelectionCountEquals(controller, type, RunWeaponUpgradeStat.Range, count) &&
+                        SelectionCountEquals(controller, type, RunWeaponUpgradeStat.Slow, count) &&
+                        SelectionCountEquals(controller, type, RunWeaponUpgradeStat.Cooldown, count);
+                case WeaponType.ThunderBall:
+                    return FloatFieldEquals(state, "rangeBonus", RunWeaponUpgradeDiminishing.CumulativeAdditiveAmount(gameConfig.runAreaRangeBonus, count)) &&
+                        IntFieldEquals(state, "projectileCountBonus", gameConfig.runProjectileCountBonus * count) &&
+                        FloatFieldEquals(state, "durationBonus", gameConfig.runThunderBallDurationBonus * count) &&
+                        SelectionCountEquals(controller, type, RunWeaponUpgradeStat.Range, count);
                 default:
                     return false;
             }
@@ -505,6 +561,15 @@ namespace AreaSurvivors.EditorTools
         {
             var field = target?.GetType().GetField(fieldName, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
             return field != null && field.GetValue(target) is float actual && Mathf.Approximately(actual, expected);
+        }
+
+        static bool SelectionCountEquals(
+            WeaponController controller,
+            WeaponType type,
+            RunWeaponUpgradeStat stat,
+            int expected)
+        {
+            return controller != null && controller.GetRunUpgradeSelectionCount(type, stat) == expected;
         }
 
         static int ValidateGoldenBowRuntimeMultiplicity(Scene scene)
@@ -613,7 +678,7 @@ namespace AreaSurvivors.EditorTools
                 config.swordRushStrikeCount != 5 || !Mathf.Approximately(config.bananaBaseRange, 1.4f) || config.bananaBaseProjectileCountBonus != 3 ||
                 !Mathf.Approximately(WeaponController.ExcaliburBaseRangeMultiplier, 1f) ||
                 !Mathf.Approximately(config.excaliburTravelSpeedCellsPerSecond, 10f) || !Mathf.Approximately(config.excaliburDamageIntervalSeconds, 0.2f) ||
-                !Mathf.Approximately(config.excaliburCooldownSeconds, 5f) || !Mathf.Approximately(config.excaliburBandWidthCells, 3f) ||
+                !Mathf.Approximately(config.excaliburCooldownSeconds, 3f) || !Mathf.Approximately(config.excaliburBandWidthCells, 3f) ||
                 !Mathf.Approximately(config.excaliburBaseArcDegrees, 30f) || !Mathf.Approximately(config.excaliburMaxArcDegrees, 150f) ||
                 !Mathf.Approximately(config.excaliburInitialRadiusCells, 0.25f) ||
                 !Mathf.Approximately(config.arrowShowerStrikeIntervalSeconds, 0.25f) || !Mathf.Approximately(config.evolvedGroundStrikeRadius, 0.7f) ||

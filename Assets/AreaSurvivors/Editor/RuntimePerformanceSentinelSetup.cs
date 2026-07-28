@@ -167,10 +167,42 @@ namespace AreaSurvivors.EditorTools
                         sentinel.AbsoluteP95ThresholdMs <= 0f ||
                         sentinel.RelativeP95Multiplier <= 1f ||
                         sentinel.MinimumSlowFramesInWindow < 1 ||
-                        sentinel.MaxIncidentsPerSession < 1)
+                        sentinel.MaxIncidentsPerStage < 1 ||
+                        sentinel.MaxIncidentsPerReasonPerStage < 1 ||
+                        sentinel.MaxIncidentsPerReasonPerStage >
+                            sentinel.MaxIncidentsPerStage ||
+                        sentinel.MaxIncidentsPerSession <
+                            sentinel.MaxIncidentsPerStage * 4)
                     {
                         Debug.LogError(
                             "Runtime Performance Sentinel validator: serialized monitoring thresholds are invalid.");
+                        errors++;
+                    }
+
+                    if (!RuntimePerformanceSentinel.HasReservedStageIncidentCapacity(
+                            15,
+                            0,
+                            20,
+                            5) ||
+                        RuntimePerformanceSentinel.HasReservedStageIncidentCapacity(
+                            20,
+                            0,
+                            20,
+                            5) ||
+                        RuntimePerformanceSentinel.HasReservedStageIncidentCapacity(
+                            5,
+                            5,
+                            20,
+                            5) ||
+                        !RuntimePerformanceSentinel.HasRepeatedReasonIncidentCapacity(
+                            1,
+                            2) ||
+                        RuntimePerformanceSentinel.HasRepeatedReasonIncidentCapacity(
+                            2,
+                            2))
+                    {
+                        Debug.LogError(
+                            "Runtime Performance Sentinel validator: stage/reason incident budget contract failed.");
                         errors++;
                     }
                 }
@@ -194,7 +226,16 @@ namespace AreaSurvivors.EditorTools
                         "excaliburProjectileDamageHits",
                         "hitFlashCoalescedRequests",
                         "DamagePopup.ActiveCount",
-                        "EnemyHitFlash.ActiveFlashCount"
+                        "EnemyHitFlash.ActiveFlashCount",
+                        "ResolveIncidentReasonCategory",
+                        "CountCapturedIncidentsForStage",
+                        "CountCapturedIncidentsForStageAndReason",
+                        "BuildStageCoverage",
+                        "HasReservedStageIncidentCapacity",
+                        "HasRepeatedReasonIncidentCapacity",
+                        "stage = activeIncidentStage",
+                        "maxIncidentsPerStage = 5",
+                        "maxIncidentsPerReasonPerStage = 2"
                     };
                     for (int i = 0; i < requiredTokens.Length; i++)
                     {

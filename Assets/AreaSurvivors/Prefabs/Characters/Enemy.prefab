@@ -211,6 +211,8 @@ MonoBehaviour:
   requireExistingOutlineObject: 1
   blink: 0
   blinkSpeed: 5
+  safetySyncFrameInterval: 1
+  crowdOptimizedSampling: 0
 --- !u!1 &7536198069494491298
 GameObject:
   m_ObjectHideFlags: 0

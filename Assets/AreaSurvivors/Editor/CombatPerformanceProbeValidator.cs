@@ -153,9 +153,23 @@ namespace AreaSurvivors.Editor
                 "Assets/AreaSurvivors/Scripts/Game/Visuals/RuntimeSpriteOutline.cs",
                 errors,
                 "outlineMaterial",
+                "ConfigureCrowdPerformance",
+                "RequestSync",
+                "safetySyncFrameInterval",
+                "AREA_OUTLINE_CROWD_OPTIMIZED",
                 "outlineRenderer.sortingOrder != desiredSortingOrder",
                 "if (!changed) return;",
                 "syncInitialized");
+            RequireTokens(
+                "Assets/AreaSurvivors/Scripts/Game/Visuals/PaperMeshVisual.cs",
+                errors,
+                "RequestOutlineSync",
+                "outline?.RequestSync()");
+            RequireTokens(
+                "Assets/AreaSurvivors/Shaders/SpriteSilhouette.shader",
+                errors,
+                "#pragma multi_compile_local __ AREA_OUTLINE_CROWD_OPTIMIZED",
+                "#if !defined(AREA_OUTLINE_CROWD_OPTIMIZED)");
             RejectTokens(
                 "Assets/AreaSurvivors/Scripts/Game/Visuals/RuntimeSpriteOutline.cs",
                 errors,
@@ -165,6 +179,7 @@ namespace AreaSurvivors.Editor
                 "Assets/AreaSurvivors/Scripts/Game/Visuals/YSort.cs",
                 errors,
                 "IsRuntimeOutlineRenderer",
+                "if (visual.order != order || renderer.sortingOrder != order)",
                 "renderer.gameObject.name != \"Runtime Outline\"");
             RequireTokens(
                 "Assets/AreaSurvivors/Scripts/Game/Weapons/AdvancedWeaponRuntime.cs",
@@ -361,7 +376,11 @@ namespace AreaSurvivors.Editor
                 "public int maxAliveEnemies;",
                 "spawner.CurrentStageDifficulty",
                 "spawner.CurrentMaxAliveEnemies",
-                "Stage difficulty / max alive enemies");
+                "Stage difficulty / max alive enemies",
+                "maxIncidentsPerStage = 5",
+                "maxIncidentsPerReasonPerStage = 2",
+                "BuildStageCoverage",
+                "stage = activeIncidentStage");
             RequireTokens(
                 "Assets/AreaSurvivors/Scripts/Testing/GameplayTestRunner.cs",
                 errors,

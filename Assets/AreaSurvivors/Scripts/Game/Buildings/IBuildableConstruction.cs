@@ -9,5 +9,6 @@ namespace AreaSurvivors
         Vector3Int OriginCell { get; }
         Vector2Int Footprint { get; }
         void CompleteImmediately();
+        void RestoreAfterRevive();
     }
 }

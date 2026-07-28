@@ -73,11 +73,28 @@ $text = if (Test-Path -LiteralPath $capturePath) { [System.IO.File]::ReadAllText
 $estimate = Get-TokenUsageEstimate -Text $text -Source $Command
 $blocked = $estimate.estimated_tokens -ge $BlockTokens -and -not $AllowHighOutput
 $warned = $estimate.estimated_tokens -ge $WarnTokens
+$displayedCaptureTokens = if ($PrintOutput -and -not $blocked) {
+    [int]$estimate.estimated_tokens
+} else {
+    0
+}
+$callerScript = ""
+$callerFrame = Get-PSCallStack |
+    Where-Object {
+        -not [string]::IsNullOrWhiteSpace([string]$_.ScriptName) -and
+        -not [string]::Equals([string]$_.ScriptName, [string]$PSCommandPath, [System.StringComparison]::OrdinalIgnoreCase)
+    } |
+    Select-Object -First 1
+if ($callerFrame -ne $null) {
+    $callerScript = [string]$callerFrame.ScriptName
+}
 
 $record = [pscustomobject]@{
     timestamp = (Get-Date).ToString("o")
     kind = "safe_command"
+    schema_version = 2
     command = $Command
+    caller_script = $callerScript
     shell = $Shell
     exit_code = $exitCode
     timeout_seconds = $TimeoutSeconds
@@ -87,6 +104,14 @@ $record = [pscustomobject]@{
     block_tokens = $BlockTokens
     blocked = $blocked
     estimate = $estimate
+    visibility = [pscustomobject]@{
+        measurement_scope = "captured-command-output-only"
+        print_output_requested = [bool]$PrintOutput
+        output_blocked = [bool]$blocked
+        capture_estimated_tokens = [int]$estimate.estimated_tokens
+        displayed_capture_estimated_tokens = $displayedCaptureTokens
+        hidden_capture_estimated_tokens = [int]([math]::Max(0, $estimate.estimated_tokens - $displayedCaptureTokens))
+    }
     advice = Get-TokenUsageAdvice -Estimate $estimate
 }
 $writtenPath = Write-TokenUsageJsonLine -Record $record -ReportPath $ReportPath

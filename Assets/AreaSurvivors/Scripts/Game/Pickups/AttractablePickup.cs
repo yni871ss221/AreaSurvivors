@@ -41,7 +41,7 @@ namespace AreaSurvivors
             value = 0;
             attractionTarget = player;
             stageTransitionRewardReserved = true;
-            PickupAttractionRegistry.MarkAttracting(this);
+            PickupAttractionRegistry.MarkStageTransitionAttracting(this);
             player.RegisterPickupAttraction(this);
             return reservedValue;
         }
@@ -87,6 +87,7 @@ namespace AreaSurvivors
             stageTransitionRewardValue = 0;
             collected = true;
             attractionTarget = null;
+            PickupAttractionRegistry.MarkStageTransitionCompleted(this);
             if (rewardValue > 0) AwardReward(rewardValue);
             Destroy(gameObject);
         }
@@ -154,19 +155,32 @@ namespace AreaSurvivors
     public static class PickupAttractionRegistry
     {
         public const float ScanIntervalSeconds = 0.1f;
+        public const float ExperienceMergeCellSize = TileGrid.DefaultCellSize;
 
         static readonly HashSet<AttractablePickup> ActivePickups =
             new HashSet<AttractablePickup>();
         static readonly HashSet<AttractablePickup> IdlePickups =
             new HashSet<AttractablePickup>();
+        static readonly HashSet<AttractablePickup> StageTransitionAttractions =
+            new HashSet<AttractablePickup>();
+        static readonly Dictionary<Vector2Int, ExperienceOrb> IdleExperienceByCell =
+            new Dictionary<Vector2Int, ExperienceOrb>();
+        static readonly Dictionary<ExperienceOrb, Vector2Int> ExperienceCells =
+            new Dictionary<ExperienceOrb, Vector2Int>();
         static readonly List<AttractablePickup> ScanBuffer =
             new List<AttractablePickup>(128);
+
+        public static int StageTransitionAttractionCount =>
+            StageTransitionAttractions.Count;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetRegistry()
         {
             ActivePickups.Clear();
             IdlePickups.Clear();
+            StageTransitionAttractions.Clear();
+            IdleExperienceByCell.Clear();
+            ExperienceCells.Clear();
             ScanBuffer.Clear();
         }
 
@@ -175,6 +189,7 @@ namespace AreaSurvivors
             if (pickup == null) return;
             ActivePickups.Add(pickup);
             if (pickup.CanBeginProximityAttraction) IdlePickups.Add(pickup);
+            IndexIdleExperience(pickup);
         }
 
         internal static void Unregister(AttractablePickup pickup)
@@ -182,12 +197,48 @@ namespace AreaSurvivors
             if (ReferenceEquals(pickup, null)) return;
             ActivePickups.Remove(pickup);
             IdlePickups.Remove(pickup);
+            StageTransitionAttractions.Remove(pickup);
+            RemoveIdleExperienceIndex(pickup);
         }
 
         internal static void MarkAttracting(AttractablePickup pickup)
         {
             if (ReferenceEquals(pickup, null)) return;
             IdlePickups.Remove(pickup);
+            RemoveIdleExperienceIndex(pickup);
+        }
+
+        internal static void MarkStageTransitionAttracting(AttractablePickup pickup)
+        {
+            if (ReferenceEquals(pickup, null)) return;
+            MarkAttracting(pickup);
+            StageTransitionAttractions.Add(pickup);
+        }
+
+        internal static void MarkStageTransitionCompleted(AttractablePickup pickup)
+        {
+            if (ReferenceEquals(pickup, null)) return;
+            StageTransitionAttractions.Remove(pickup);
+        }
+
+        public static bool TryMergeExperienceReward(Vector3 position, int amount)
+        {
+            if (amount <= 0) return true;
+
+            Vector2Int cell = ResolveExperienceCell(position);
+            if (!IdleExperienceByCell.TryGetValue(cell, out var experience))
+            {
+                return false;
+            }
+
+            if (experience == null || !experience.CanBeginProximityAttraction)
+            {
+                RemoveIdleExperienceIndex(experience);
+                IdleExperienceByCell.Remove(cell);
+                return false;
+            }
+
+            return experience.TryMergeReward(amount);
         }
 
 #if UNITY_EDITOR
@@ -246,6 +297,50 @@ namespace AreaSurvivors
             {
                 if (pickup != null && !pickup.IsCollected) destination.Add(pickup);
             }
+        }
+
+        static void IndexIdleExperience(AttractablePickup pickup)
+        {
+            if (!(pickup is ExperienceOrb experience) ||
+                !pickup.CanBeginProximityAttraction)
+            {
+                return;
+            }
+
+            RemoveIdleExperienceIndex(experience);
+            Vector2Int cell = ResolveExperienceCell(experience.transform.position);
+            if (IdleExperienceByCell.TryGetValue(cell, out var existing) &&
+                existing != null &&
+                existing.CanBeginProximityAttraction)
+            {
+                return;
+            }
+
+            IdleExperienceByCell[cell] = experience;
+            ExperienceCells[experience] = cell;
+        }
+
+        static void RemoveIdleExperienceIndex(AttractablePickup pickup)
+        {
+            if (!(pickup is ExperienceOrb experience) ||
+                !ExperienceCells.TryGetValue(experience, out var cell))
+            {
+                return;
+            }
+
+            if (IdleExperienceByCell.TryGetValue(cell, out var indexed) &&
+                ReferenceEquals(indexed, experience))
+            {
+                IdleExperienceByCell.Remove(cell);
+            }
+            ExperienceCells.Remove(experience);
+        }
+
+        static Vector2Int ResolveExperienceCell(Vector3 position)
+        {
+            return new Vector2Int(
+                Mathf.FloorToInt(position.x / ExperienceMergeCellSize),
+                Mathf.FloorToInt(position.y / ExperienceMergeCellSize));
         }
 
         static float SqrDistanceToSegment(
