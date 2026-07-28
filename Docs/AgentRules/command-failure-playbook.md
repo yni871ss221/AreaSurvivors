@@ -699,4 +699,5 @@
 - 症状: `rtk git diff --cached --check`が終了コード1だけを返し、違反ファイル・行の本文を表示しない。
 - 原因境界: ステージ前の`git diff --check`は未追跡ファイルを検査しない。新規ファイルをステージした後に末尾空白が検出されても、RTKのcompact diff経路は`--cached --check`の診断本文と元の終了コード2を会話へ転送しない場合がある。
 - 対応: 締め作業のステージ後検査は`Tools/TokenUsage/staged-diff-check.ps1 [-PrintOutput]`へ固定する。内部で`Safe-Command.ps1`のcaptureと実終了コードを取得し、違反時は本文を表示して同じ終了コードで停止する。
+- 外部repoを検査する場合も、token JSONLはWrapper自身のAreaSurvivors root配下`TokenReports`へ固定する。呼び出し元のcurrent directoryへ`TokenReports`を生成しない。
 - 禁止: RTKの空出力を違反0件と扱うこと、ステージ前`git diff --check`だけで新規ファイルも検証済みと判断すること、診断なしにcommitすること。

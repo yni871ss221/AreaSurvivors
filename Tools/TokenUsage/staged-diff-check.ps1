@@ -4,8 +4,14 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+$projectRoot = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
+$reportDirectory = Join-Path $projectRoot "TokenReports"
+[System.IO.Directory]::CreateDirectory($reportDirectory) | Out-Null
+$reportPath = Join-Path $reportDirectory ((Get-Date).ToString("yyyy-MM-dd") + ".jsonl")
+
 $recordJson = & "$PSScriptRoot\Safe-Command.ps1" `
     -Command "git diff --cached --check" `
+    -ReportPath $reportPath `
     -Json
 $record = $recordJson | ConvertFrom-Json
 
