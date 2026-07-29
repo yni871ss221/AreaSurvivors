@@ -8,7 +8,12 @@ namespace AreaSurvivors.EditorTools
 {
     public static class RunWeaponUpgradeDiminishingValidator
     {
-        const string GameManagerPath = "Assets/AreaSurvivors/Scripts/Game/Runtime/GameManager.cs";
+        static readonly string[] GameManagerPaths =
+        {
+            "Assets/AreaSurvivors/Scripts/Game/Runtime/GameManager.UpgradeChoices.cs",
+            "Assets/AreaSurvivors/Scripts/Game/Runtime/GameManager.LevelUpPanel.cs",
+            "Assets/AreaSurvivors/Scripts/Game/Runtime/GameManager.cs"
+        };
         const string MarkerRelativePath = "Library/AreaSafeUnity/run-weapon-upgrade-diminishing-validator.ok";
         const float Epsilon = 0.0001f;
 
@@ -129,8 +134,11 @@ namespace AreaSurvivors.EditorTools
         static void ValidateLevelUpChoiceCoverage(ref int errors)
         {
             string projectRoot = Directory.GetParent(Application.dataPath).FullName;
-            string gameManagerFullPath = Path.Combine(projectRoot, GameManagerPath);
-            string source = File.ReadAllText(gameManagerFullPath);
+            string source = string.Empty;
+            for (int i = 0; i < GameManagerPaths.Length; i++)
+            {
+                source += File.ReadAllText(Path.Combine(projectRoot, GameManagerPaths[i]));
+            }
             int additiveChoiceOccurrences = CountOccurrences(
                 source,
                 "CreateDiminishingAdditiveChoice(");

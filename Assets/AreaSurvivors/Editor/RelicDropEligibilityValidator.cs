@@ -12,8 +12,12 @@ namespace AreaSurvivors.Editor
             "TokenReports/Validation/relic-drop-eligibility-validator.success";
         const string RelicChestSourcePath =
             "Assets/AreaSurvivors/Scripts/Game/Pickups/RelicChest.cs";
-        const string GameManagerSourcePath =
-            "Assets/AreaSurvivors/Scripts/Game/Runtime/GameManager.cs";
+        static readonly string[] GameManagerSourcePaths =
+        {
+            "Assets/AreaSurvivors/Scripts/Game/Runtime/GameManager.RunStage.cs",
+            "Assets/AreaSurvivors/Scripts/Game/Runtime/GameManager.RelicModal.cs",
+            "Assets/AreaSurvivors/Scripts/Game/Runtime/GameManager.LevelProgression.cs"
+        };
         const string RelicPanelSourcePath =
             "Assets/AreaSurvivors/Scripts/UI/RelicAcquisitionPanel.cs";
 
@@ -160,7 +164,6 @@ namespace AreaSurvivors.Editor
             string[] requiredPaths =
             {
                 RelicChestSourcePath,
-                GameManagerSourcePath,
                 RelicPanelSourcePath
             };
             for (int i = 0; i < requiredPaths.Length; i++)
@@ -173,7 +176,7 @@ namespace AreaSurvivors.Editor
             }
 
             string chestSource = File.ReadAllText(RelicChestSourcePath);
-            string managerSource = File.ReadAllText(GameManagerSourcePath);
+            string managerSource = ReadGameManagerSource();
             string panelSource = File.ReadAllText(RelicPanelSourcePath);
             if (!chestSource.Contains("RelicCatalog.TryAcquireReward") ||
                 !chestSource.Contains("duplicateTokenReward") ||
@@ -215,13 +218,13 @@ namespace AreaSurvivors.Editor
 
         static void ValidateRelicModalInputPriority(List<string> failures)
         {
-            if (!File.Exists(GameManagerSourcePath) || !File.Exists(RelicPanelSourcePath))
+            if (!File.Exists(RelicPanelSourcePath))
             {
                 failures.Add("Relic modal input-priority sources are missing.");
                 return;
             }
 
-            string managerSource = File.ReadAllText(GameManagerSourcePath);
+            string managerSource = ReadGameManagerSource();
             string panelSource = File.ReadAllText(RelicPanelSourcePath);
             if (!managerSource.Contains("BeginRelicAcquisitionModal();") ||
                 !managerSource.Contains("EndRelicAcquisitionModal();") ||
@@ -256,6 +259,22 @@ namespace AreaSurvivors.Editor
         static void DeleteSuccessMarker()
         {
             if (File.Exists(SuccessMarkerPath)) File.Delete(SuccessMarkerPath);
+        }
+
+        static string ReadGameManagerSource()
+        {
+            string source = string.Empty;
+            for (int i = 0; i < GameManagerSourcePaths.Length; i++)
+            {
+                if (!File.Exists(GameManagerSourcePaths[i]))
+                {
+                    throw new FileNotFoundException(
+                        "GameManager responsibility source is missing.",
+                        GameManagerSourcePaths[i]);
+                }
+                source += File.ReadAllText(GameManagerSourcePaths[i]);
+            }
+            return source;
         }
 
         static void WriteSuccessMarker()

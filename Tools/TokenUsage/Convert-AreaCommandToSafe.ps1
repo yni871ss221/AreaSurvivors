@@ -100,39 +100,42 @@ $trimmed = $Command.Trim()
 $safe = $null
 $printArg = if ($PrintOutput) { " -PrintOutput" } else { "" }
 
-if ($trimmed -match '^git\s+status\b') {
-    $safe = New-Conversion "Use compact status output." "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-status.ps1$printArg" "high"
+if ($trimmed -match 'area-tool\.ps1\s+-Operation\s+') {
+    $safe = New-Conversion "Command already uses the typed AreaSurvivors entry." $trimmed "high"
+}
+elseif ($trimmed -match '^git\s+status\b') {
+    $safe = New-Conversion "Use compact status output." "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/area-tool.ps1 -Operation Git.Status$printArg" "high"
 }
 elseif ($trimmed -match '^git\s+diff\b') {
     if ($trimmed -match '--name-only') {
-        $safe = New-Conversion "Use name-only diff through token guard." "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-diff.ps1 -NameOnly$printArg" "high"
+        $safe = New-Conversion "Use name-only diff through token guard." "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/area-tool.ps1 -Operation Git.Diff -DiffMode Names$printArg" "high"
     }
     elseif ($trimmed -match '--stat') {
-        $safe = New-Conversion "Use stat diff through token guard." "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-diff.ps1 -Stat$printArg" "high"
+        $safe = New-Conversion "Use stat diff through token guard." "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/area-tool.ps1 -Operation Git.Diff -DiffMode Stat$printArg" "high"
     }
     elseif ($trimmed -match '--\s+(.+)$') {
         $paths = @(Split-CommandArgs $Matches[1].Trim())
-        $pathArgs = Join-ArrayArgs $paths
+        $pathArg = Quote-Arg ($paths -join ";")
         if (Test-BroadPath $paths) {
-            $safe = New-Conversion "Path-limited git diff can still be huge for directories, scenes, prefabs, or assets; use summary first." "powershell -ExecutionPolicy Bypass -Command `"& 'Tools/TokenUsage/safe-diff.ps1' -Path @($pathArgs) -SummaryOnly$printArg`"" "high"
+            $safe = New-Conversion "Path-limited git diff can still be huge for directories, scenes, prefabs, or assets; use summary first." "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/area-tool.ps1 -Operation Git.Diff -Path $pathArg -DiffMode Summary$printArg" "high"
         }
         else {
-            $safe = New-Conversion "Use file-limited diff through token guard." "powershell -ExecutionPolicy Bypass -Command `"& 'Tools/TokenUsage/safe-diff.ps1' -Path @($pathArgs)$printArg`"" "high"
+            $safe = New-Conversion "Use file-limited diff through token guard." "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/area-tool.ps1 -Operation Git.Diff -Path $pathArg -DiffMode Summary$printArg" "high"
         }
     }
     else {
-        $safe = New-Conversion "Raw git diff can be huge; use summary first." "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-diff.ps1 -SummaryOnly$printArg" "high"
+        $safe = New-Conversion "Raw git diff can be huge; use summary first." "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/area-tool.ps1 -Operation Git.Diff -DiffMode Summary$printArg" "high"
     }
 }
 elseif ($trimmed -match '^git\s+log\b') {
-    $safe = New-Conversion "Limit git log rows." "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/Invoke-AreaSafeCommand.ps1 -Action Log$printArg" "medium"
+    $safe = New-Conversion "Limit git log rows." "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/area-tool.ps1 -Operation Git.Log -MaxResults 20$printArg" "medium"
 }
 elseif ($trimmed -match '^(rg|rg\.exe)\s+(.+)$') {
     $parts = Get-RgSearchParts $Matches[2].Trim()
-    $pathArgs = Join-ArrayArgs $parts.Paths
-    $broadSearchArg = if (Test-BroadPath $parts.Paths) { " -HitSummary" } else { "" }
-    $reason = if ($broadSearchArg) { "Broad ripgrep can be huge; summarize matching files first." } else { "Limit ripgrep to first results through token guard." }
-    $safe = New-Conversion $reason "powershell -ExecutionPolicy Bypass -Command `"& 'Tools/TokenUsage/safe-search.ps1' -Pattern $(Quote-Arg $parts.Pattern) -Path @($pathArgs)$broadSearchArg$printArg`"" "high"
+    $pathArg = Quote-Arg ($parts.Paths -join ";")
+    $searchModeArg = if (Test-BroadPath $parts.Paths) { " -SearchMode Summary" } else { "" }
+    $reason = if ($searchModeArg) { "Broad ripgrep can be huge; summarize matching files first." } else { "Limit ripgrep to first results through token guard." }
+    $safe = New-Conversion $reason "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/area-tool.ps1 -Operation Code.Search -Pattern $(Quote-Arg $parts.Pattern) -Path $pathArg$searchModeArg$printArg" "high"
 }
 elseif ($trimmed -match '^Get-Content\b' -and $trimmed -notmatch '(-TotalCount|-Tail|-First)') {
     $path = ""
@@ -144,25 +147,25 @@ elseif ($trimmed -match '^Get-Content\b' -and $trimmed -notmatch '(-TotalCount|-
     }
 
     if (-not [string]::IsNullOrWhiteSpace($path)) {
-        $safe = New-Conversion "Limit file read to the first lines." "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-read.ps1 -Path $(Quote-Arg $path) -First 120$printArg" "high"
+        $safe = New-Conversion "Limit file read to the first lines." "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/area-tool.ps1 -Operation Code.Read -Path $(Quote-Arg $path) -StartLine 1 -EndLine 120$printArg" "high"
     }
 }
 elseif ($trimmed -match 'Console\.GetLog' -and $trimmed -notmatch '--maxCount') {
-    $safe = New-Conversion "Limit Unity console log count." "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-unity.ps1 -Action ConsoleErrors -MaxCount 30$printArg" "high"
+    $safe = New-Conversion "Limit Unity console log count." "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/area-tool.ps1 -Operation Unity.Console -ConsoleLevel Error -MaxResults 30$printArg" "high"
 }
 elseif ($trimmed -match '^unicli\s+exec\s+Compile\b') {
-    $safe = New-Conversion "Run Unity compile through token guard." "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-unity.ps1 -Action Compile$printArg" "high"
+    $safe = New-Conversion "Run Unity compile through token guard." "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/area-tool.ps1 -Operation Unity.Compile$printArg" "high"
 }
 elseif ($trimmed -match '^unicli\s+exec\s+Menu\.Execute\b') {
     if ($trimmed -match "--menu(Item)?Path\s+('([^']+)'|`"([^`"]+)`"|(.+))") {
         $menuPath = @($Matches[3], $Matches[4], $Matches[5] | Where-Object { $_ })[0].Trim()
-        $safe = New-Conversion "Run Unity menu through token guard." "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-unity.ps1 -Action Menu -MenuPath $(Quote-Arg $menuPath)$printArg" "medium"
+        $safe = New-Conversion "Run Unity menu through token guard." "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/area-tool.ps1 -Operation Unity.Menu -MenuPath $(Quote-Arg $menuPath)$printArg" "medium"
     }
 }
 elseif ($trimmed -match 'run-unity-report\.ps1' -or $trimmed -match '\b(asset-references|building-prefab-visuals|hud-layout|construction-menu-layout)\b') {
     if ($trimmed -match '\b(asset-references|building-prefab-visuals|hud-layout|construction-menu-layout)\b') {
         $reportName = $Matches[1]
-        $safe = New-Conversion "Use the lightweight Unity report runner." "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/run-unity-report.ps1 -Report $reportName" "high"
+        $safe = New-Conversion "Use the lightweight Unity report runner." "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/area-tool.ps1 -Operation Unity.Report -ReportName $reportName" "high"
     }
 }
 

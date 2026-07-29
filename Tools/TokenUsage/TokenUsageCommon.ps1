@@ -117,6 +117,15 @@ function Write-TokenUsageJsonLine {
         $ReportPath = New-TokenUsageReportPath
     }
 
+    $areaToolOperation = [Environment]::GetEnvironmentVariable(
+        "AREA_TOOL_OPERATION",
+        [EnvironmentVariableTarget]::Process
+    )
+    if (-not [string]::IsNullOrWhiteSpace($areaToolOperation) -and
+        $null -eq $Record.PSObject.Properties["area_tool_operation"]) {
+        $Record | Add-Member -NotePropertyName "area_tool_operation" -NotePropertyValue $areaToolOperation
+    }
+
     $line = $Record | ConvertTo-Json -Depth 8 -Compress
     for ($attempt = 0; $attempt -lt 5; $attempt++) {
         try {

@@ -10,35 +10,35 @@ $ErrorActionPreference = "Stop"
 $commands = switch ($Preset) {
     "tool-only" {
         @(
-            "powershell -NoProfile -Command `" `$files = Get-ChildItem Tools/TokenUsage -Filter '*.ps1' -File; foreach (`$f in `$files) { `$null = [scriptblock]::Create((Get-Content -LiteralPath `$f.FullName -Raw)) }; 'syntax ok' `"",
-            "git diff --check -- Tools/TokenUsage AGENTS.md Docs/AgentRules"
+            "powershell -NoProfile -File Tools/TokenUsage/area-tool.ps1 -Operation Test.Commands",
+            "powershell -NoProfile -File Tools/TokenUsage/area-tool.ps1 -Operation Git.Check -Path 'Tools/TokenUsage;AGENTS.md;Docs/AgentRules'"
         )
     }
     "csharp-only" {
         @(
-            "powershell -NoProfile -File Tools/TokenUsage/safe-unity.ps1 -Action Compile",
-            "powershell -NoProfile -File Tools/TokenUsage/safe-unity.ps1 -Action ConsoleErrors -MaxCount 30",
-            "git diff --check -- Assets/AreaSurvivors/Scripts Assets/AreaSurvivors/Editor"
+            "powershell -NoProfile -File Tools/TokenUsage/area-tool.ps1 -Operation Unity.Compile",
+            "powershell -NoProfile -File Tools/TokenUsage/area-tool.ps1 -Operation Unity.Console -ConsoleLevel Error -MaxResults 30",
+            "powershell -NoProfile -File Tools/TokenUsage/area-tool.ps1 -Operation Git.Check -Path 'Assets/AreaSurvivors/Scripts;Assets/AreaSurvivors/Editor'"
         )
     }
     "scene-ui" {
         @(
-            "powershell -NoProfile -File Tools/TokenUsage/safe-unity-search.ps1 -Query HUD",
-            "powershell -NoProfile -File Tools/TokenUsage/safe-unity.ps1 -Action Compile",
-            "powershell -NoProfile -File Tools/TokenUsage/safe-unity.ps1 -Action ConsoleErrors -MaxCount 30"
+            "powershell -NoProfile -File Tools/TokenUsage/area-tool.ps1 -Operation Unity.Search -Pattern HUD",
+            "powershell -NoProfile -File Tools/TokenUsage/area-tool.ps1 -Operation Unity.Compile",
+            "powershell -NoProfile -File Tools/TokenUsage/area-tool.ps1 -Operation Unity.Console -ConsoleLevel Error -MaxResults 30"
         )
     }
     "asset-import" {
         @(
-            "powershell -NoProfile -File Tools/TokenUsage/project-weight-report.ps1 -Top 10",
-            "powershell -NoProfile -File Tools/TokenUsage/safe-unity.ps1 -Action Compile",
-            "powershell -NoProfile -File Tools/TokenUsage/safe-unity.ps1 -Action ConsoleErrors -MaxCount 30"
+            "powershell -NoProfile -File Tools/TokenUsage/area-tool.ps1 -Operation Project.Weight -MaxResults 10",
+            "powershell -NoProfile -File Tools/TokenUsage/area-tool.ps1 -Operation Unity.Compile",
+            "powershell -NoProfile -File Tools/TokenUsage/area-tool.ps1 -Operation Unity.Console -ConsoleLevel Error -MaxResults 30"
         )
     }
     "combat" {
         @(
-            "powershell -NoProfile -File Tools/TokenUsage/safe-unity.ps1 -Action Compile",
-            "powershell -NoProfile -File Tools/TokenUsage/safe-unity.ps1 -Action ConsoleErrors -MaxCount 30"
+            "powershell -NoProfile -File Tools/TokenUsage/area-tool.ps1 -Operation Unity.Compile",
+            "powershell -NoProfile -File Tools/TokenUsage/area-tool.ps1 -Operation Unity.Console -ConsoleLevel Error -MaxResults 30"
         )
     }
 }
@@ -54,5 +54,9 @@ if (-not $Run) {
 foreach ($command in $commands) {
     Write-Output ""
     Write-Output ("[validation-preset] {0}" -f $command)
-    & "$PSScriptRoot\guarded-command.ps1" -Command $command -PrintOutput:$PrintOutput -ExecuteOriginalIfSafe
+    & "$PSScriptRoot\area-tool.ps1" `
+        -Operation Command.Guard `
+        -CommandText $command `
+        -PrintOutput:$PrintOutput `
+        -ExecuteOriginalIfSafe
 }

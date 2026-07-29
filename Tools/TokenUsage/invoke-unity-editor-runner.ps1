@@ -102,6 +102,11 @@ switch ($Phase) {
         if ([string]::IsNullOrWhiteSpace($MenuPath)) {
             throw "RegisterAndRun requires -MenuPath."
         }
+        if (-not $BatchRefresh) {
+            & "$PSScriptRoot\verify-unity-source-manifest.ps1" `
+                -ProjectRoot $projectRoot |
+                Out-Null
+        }
         foreach ($importScriptPath in $importScriptPaths) {
             $importAbsolutePath = Join-Path $projectRoot $importScriptPath
             if (-not (Test-Path -LiteralPath $importAbsolutePath -PathType Leaf)) {

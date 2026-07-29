@@ -13,7 +13,6 @@
 - 進化選択そのものでは表示Lvを加算しない。進化後の通常強化は基礎武器キーへ正規化して同じ表示Lvを継続する。
 - 進化の初回獲得は永続Saveへ発見済みとして記録し、図鑑のネタバレ解除に使う。テスト初期化は進化発見状態だけを消し、通常の武器解放やラン状態を変更しない。
 
-- 攻撃、弾、爆発、戦闘演出では `area-survivors-attack-animation` skill を使う。
 - 複数のEditor Menuへ同じ有効条件を付ける場合でも、1つのメソッドへ同型の`[MenuItem(..., true)]`を複数重ねない。UnityのMenu列挙は`Multiple custom attributes of the same type found`で停止するため、Menuごとに検証メソッドを1つずつ定義し、共通条件だけ通常メソッドへ委譲する。
 - 複数フレームのSprite切り替え、落下・着弾・爆発の時系列Visualは、AnimationClipとAnimator Controllerを作成して対象Prefabへ直接設定する。RuntimeはAnimator Parameter設定または再生開始だけを担当し、`Update`、Coroutine、`Time.time`でSprite配列を切り替えない。
 - プレイヤーの方向別歩行はAnimatorを正とする。キャラクター選択に伴うController選択は許可するが、選択後の方向・歩行フレームをRuntimeコードからSprite差し替えしてはならない。敵の方向別歩行は大量表示時の更新負荷と既存分散更新を比較し、共通Controller・共有Clipで同等以下の負荷を静的設計または限定計測で確認できた単位から段階移行する。
@@ -26,7 +25,6 @@
 - Animator管理へ移行したSpriteRendererのPrefab初期SpriteはAnimationClipの先頭フレームと一致させる。旧Visualから引き継ぐのは色、Material、Sorting Orderなどの見た目設定に限定し、旧静止SpriteでAnimator初期状態を上書きしない。
 - 現在の武器制御本体は `Assets/AreaSurvivors/Scripts/Game/Weapons/WeaponController.cs`。Skill等に旧パス `Scripts/Game/WeaponController.cs` が残っていても使用せず、Path Validatorで拒否された場合は安全検索で現パスを確定する。
 - `GameConfig`へ武器調整用のserialized fieldを追加する前に、同名fieldがCombat以外のセクションにも存在しないかファイル全体を限定検索する。ラン中プレイヤー能力と武器強化など用途が異なる値には、`runWeapon...`のように所有領域を含む名前を使い、CS0102をImport後に発見しない。
-- 敵アニメーション取り込みでは `area-survivors-enemy-animation-import` skill を使う。
 - 見た目と当たり判定が一致すべき攻撃は、調整可能なColliderを優先する。
 - Knightの斬撃など、画面上の範囲が重要な攻撃で隠れた `OverlapBoxAll` / `OverlapCircleAll` 判定を残さない。
 - 武器の範囲が広がる場合は、当たり判定だけでなく見た目のサイズも追従させる。

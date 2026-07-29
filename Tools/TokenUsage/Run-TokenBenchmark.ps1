@@ -17,9 +17,9 @@ $commands = @(
     "git diff --stat $BaseRef..$HeadRef",
     "git diff --name-only $BaseRef..$HeadRef",
     "git diff $BaseRef..$HeadRef -- Assets/AreaSurvivors/Scenes/05_Game.unity",
-    "git diff $BaseRef..$HeadRef -- Assets/AreaSurvivors/Scripts/Game/GameManager.cs",
     "git grep -n public -- Assets/AreaSurvivors/Scripts",
-    "Get-ChildItem -Recurse Assets/AreaSurvivors | Select-Object FullName,Length"
+    "Get-ChildItem -Recurse Assets/AreaSurvivors | Select-Object FullName,Length",
+    "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/area-tool.ps1 -Operation Code.Symbol -Symbol GameManager -MaxResults 10"
 )
 
 if ($IncludeRtk) {
@@ -35,10 +35,9 @@ if ($IncludeRtk) {
 
 if ($IncludeUnity) {
     $commands += @(
-        "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-unity.ps1 -Action Compile",
-        "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-unity.ps1 -Action ConsoleErrors -MaxCount 30",
-        "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-unity.ps1 -Action Menu -MenuPath 'Area Survivors/Reports/C# Symbol Overview'",
-        "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-unity.ps1 -Action Menu -MenuPath 'Area Survivors/Reports/Scene Prefab Overview'"
+        "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/area-tool.ps1 -Operation Unity.Compile",
+        "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/area-tool.ps1 -Operation Unity.Console -ConsoleLevel Error -MaxResults 30",
+        "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/area-tool.ps1 -Operation Unity.Menu -MenuPath 'Area Survivors/Reports/Scene Prefab Overview'"
     )
 }
 

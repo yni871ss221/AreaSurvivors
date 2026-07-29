@@ -1,12 +1,10 @@
-# Closeout And Memory Rules
+# Closeout Rules
 
-- AreaSurvivorsではトークン節約を優先し、通常作業開始時のObsidian外部記憶読み込みは行わない。
-- 作業ルール、恒久的な注意点、禁止事項、判断基準は `AGENTS.md` を正とする。
-- Obsidianは、ユーザーが「履歴を読んで」「記憶を確認して」「Obsidianへ記録して」「締め作業」などを明示した場合だけ使う。
-- Obsidianを使う場合も、読むノート名を事前に限定し、候補パス確認は最大2回までにする。
-- ローカルVaultへの既存ノート追記は `Tools/TokenUsage/append-vault-note.ps1` を固定入口とし、`obsidian` CLIがPATH登録済みと仮定して直接呼び出さない。CLI固有機能が必要な場合だけ、状態変更前に `Get-Command obsidian` で利用可否を確認する。
-- 追記後の`git diff --check`が`new blank line at EOF`だけを検出した場合、Shell書き換えへ切り替えず、`normalize-vault-note-eof.ps1 -WhatIf`で対象を確認してから末尾改行を1個へ正規化する。
-- ユーザーが「締め作業」「作業終了」「今日の作業終了」「Obsidianへ記録」「コミット＆プッシュ」と依頼したら、`area-survivors-closeout` skill を使い、AreaSurvivors本体と `codex-external-memory` の両方を対象にする。
-- Windowsで`codex-external-memory`が`core.autocrlf=true`かつMarkdownへ`eol=lf`を指定している場合、作業ツリーの`git diff --check`は内容エラーがなくてもCRLF→LF予告をstderrへ出し、RTK境界で非0終了になることがある。警告本文、`git config --get core.autocrlf`、`git check-attr text eol -- <note>`でこの境界を確定し、別検査へ切り替えず通常のstageでindexをLFへ正規化した後、`git diff --cached --check`を最終内容検査とする。
-- 締め作業ではObsidianへ作業履歴を記録するだけでなく、その日の注意点、再発し得るミスの防止策、禁止事項、ユーザーのこだわりポイント、今後の判断基準を確認する。
-- 今後のエージェント全体に効くルールはObsidianだけでなく `AGENTS.md` にも追記・更新する。単発の履歴や一時的な状況はObsidianへ残す。
+- ユーザーが「締め作業」「作業終了」を明示した場合は、Projectの状態確認、低コストToken集計、current整理、検証、commit、現在branchのpushまでを一連の締め作業として行う。通常タスクの完了だけでは自動実行しない。
+- 最初にstatusとdiff概要を確認し、必要な対象ファイル／hunkだけを追加確認する。Scene／Prefab本文は限定Validatorで確認できない場合を除いて展開しない。
+- Token集計は型付き入口の`Token.Summary`を使い、表示出力として計測できた範囲とcoverage不足を区別して報告する。UI使用率や予算が未提示なら推測せず、締め作業を止めない。
+- `ctx/current.md`は現在の目的、最新判断、最新検証、TODO／Blockerだけを保持し、完了履歴は`ctx/archive/`へ移す。
+- コード、Wrapper、Validator、Tool Schemaで再発防止済みの障害を別の履歴へ重複記録しない。
+- 最新のタスク相応の検証結果を確認し、対象差分の`git diff --check`と`current-context-guard.ps1`を通す。Unity Compile／Play Modeは未検証差分に必要な場合だけ行い、見た目確認のためには開始しない。
+- Projectリポジトリだけを対象に、秘密情報、Temp、lock、意図しない生成物を除外してcommitし、現在branchをpushする。外部記憶リポジトリは扱わない。
+- 最終報告へ検証結果、Token計測範囲、commit hash、push結果、残存TODO／Blockerを明記する。

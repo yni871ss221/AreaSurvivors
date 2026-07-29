@@ -116,10 +116,10 @@ namespace AreaSurvivors.EditorTools
                 "Assets/AreaSurvivors/Scripts/Game/Characters/EnemyController.cs",
                 "RegisterKill(this);");
             RequireSourceContains(
-                "Assets/AreaSurvivors/Scripts/Game/Runtime/GameManager.cs",
+                "Assets/AreaSurvivors/Scripts/Game/Runtime/GameManager.RunStage.cs",
                 "RecordDifficultyCheckpoint(\"boss_spawn\")");
             RequireSourceContains(
-                "Assets/AreaSurvivors/Scripts/Game/Runtime/GameManager.cs",
+                "Assets/AreaSurvivors/Scripts/Game/Runtime/GameManager.RunEnd.cs",
                 "difficultyCheckpoints = runDifficultyTelemetry.BuildCheckpoints()");
             RequireSourceContains(
                 "Assets/AreaSurvivors/Scripts/Game/Characters/Health.cs",

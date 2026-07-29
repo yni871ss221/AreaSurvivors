@@ -11,6 +11,8 @@ namespace AreaSurvivors.EditorTools
         const string ConfigPath = "Assets/AreaSurvivors/Resources/Config/GameConfig.asset";
         const string EnemyControllerPath = "Assets/AreaSurvivors/Scripts/Game/Characters/EnemyController.cs";
         const string EnemySpawnerPath = "Assets/AreaSurvivors/Scripts/Game/Characters/EnemySpawner.cs";
+        const string PlayerControllerPath = "Assets/AreaSurvivors/Scripts/Game/Characters/PlayerController.cs";
+        const string GameManagerPath = "Assets/AreaSurvivors/Scripts/Game/Runtime/GameManager.cs";
         const string BuildingRevivalStatePath = "Assets/AreaSurvivors/Scripts/Game/Buildings/BuildingRevivalState.cs";
         const string BuildableConstructionPath = "Assets/AreaSurvivors/Scripts/Game/Buildings/IBuildableConstruction.cs";
         const string MarkerRelativePath = "Library/AreaSafeUnity/july-25-gameplay-bug-fixes.success";
@@ -45,10 +47,116 @@ namespace AreaSurvivors.EditorTools
             ValidateRevivedBuildingCollisionGrace();
             ValidateRevivedBuildingsCanBeDestroyedAgain(projectRoot);
             ValidateThunderBurstContract(config);
+            ValidatePausedPlayerFacingInputIsolation(projectRoot);
 
             Directory.CreateDirectory(Path.GetDirectoryName(markerPath));
             File.WriteAllText(markerPath, "passed");
             Debug.Log("July 25 gameplay bug-fix validation passed.");
+        }
+
+        static void ValidatePausedPlayerFacingInputIsolation(string projectRoot)
+        {
+            string source = File.ReadAllText(Path.Combine(projectRoot, PlayerControllerPath));
+            int updateIndex = source.IndexOf("void Update()", StringComparison.Ordinal);
+            int nextMethodIndex = source.IndexOf(
+                "internal void RegisterPickupAttraction",
+                updateIndex,
+                StringComparison.Ordinal);
+            if (updateIndex < 0 || nextMethodIndex <= updateIndex)
+            {
+                throw new InvalidOperationException("PlayerController.Update source block was not found.");
+            }
+
+            string updateSource = source.Substring(updateIndex, nextMethodIndex - updateIndex);
+            foreach (string requiredSource in new[]
+                     {
+                         "var input = ResolveMovementInput(",
+                         "InputSettingsStore.MoveVector()",
+                         "GameManager.IsWorldInputSuspended",
+                         "ref movementInputBlockedUntilNeutral"
+                     })
+            {
+                if (!updateSource.Contains(requiredSource))
+                {
+                    throw new InvalidOperationException(
+                        $"Player movement input isolation is missing from Update: {requiredSource}");
+                }
+            }
+
+            string gameManagerSource = File.ReadAllText(Path.Combine(projectRoot, GameManagerPath));
+            if (!gameManagerSource.Contains("public static bool IsWorldInputSuspended") ||
+                !gameManagerSource.Contains("Time.timeScale <= 0f") ||
+                !gameManagerSource.Contains("Instance.gameEnding"))
+            {
+                throw new InvalidOperationException(
+                    "World input suspension must cover paused UI and boss-defeat transitions.");
+            }
+
+            var method = typeof(PlayerController).GetMethod(
+                "ResolveMovementInput",
+                System.Reflection.BindingFlags.Static |
+                System.Reflection.BindingFlags.NonPublic);
+            if (method == null)
+            {
+                throw new InvalidOperationException("PlayerController.ResolveMovementInput was not found.");
+            }
+
+            bool blockedUntilNeutral = false;
+            Vector2 resolved = InvokeResolveMovementInput(
+                method,
+                Vector2.up,
+                true,
+                ref blockedUntilNeutral);
+            if (resolved != Vector2.zero || !blockedUntilNeutral)
+            {
+                throw new InvalidOperationException(
+                    "Paused UI or transition input must be blocked and arm the neutral gate.");
+            }
+
+            resolved = InvokeResolveMovementInput(
+                method,
+                Vector2.up,
+                false,
+                ref blockedUntilNeutral);
+            if (resolved != Vector2.zero || !blockedUntilNeutral)
+            {
+                throw new InvalidOperationException(
+                    "Held navigation input must remain blocked after any pause closes.");
+            }
+
+            resolved = InvokeResolveMovementInput(
+                method,
+                Vector2.zero,
+                false,
+                ref blockedUntilNeutral);
+            if (resolved != Vector2.zero || blockedUntilNeutral)
+            {
+                throw new InvalidOperationException(
+                    "Neutral input must release the post-modal movement gate.");
+            }
+
+            resolved = InvokeResolveMovementInput(
+                method,
+                Vector2.right,
+                false,
+                ref blockedUntilNeutral);
+            if (resolved != Vector2.right || blockedUntilNeutral)
+            {
+                throw new InvalidOperationException(
+                    "Movement input must resume normally after returning to neutral.");
+            }
+        }
+
+        static Vector2 InvokeResolveMovementInput(
+            System.Reflection.MethodInfo method,
+            Vector2 rawInput,
+            bool worldPaused,
+            ref bool blockedUntilNeutral)
+        {
+            object[] arguments = { rawInput, worldPaused, blockedUntilNeutral };
+            var result = (Vector2)method.Invoke(null, arguments);
+            blockedUntilNeutral = (bool)arguments[2];
+            return result;
         }
 
         static void ValidateBossCollisionMass(GameConfig config)

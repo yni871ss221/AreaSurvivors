@@ -37,18 +37,15 @@ $combatWords = @("attack", "enemy", "damage", "collider", "combat", "projectile"
 $testWords = @("map", "scene", "gameplaytest", "test", "unity", "compile", "stage", (New-UString @(0x30B7,0x30FC,0x30F3)), (New-UString @(0x30C6,0x30B9,0x30C8)), (New-UString @(0x691C,0x8A3C)), (New-UString @(0x30B9,0x30C6,0x30FC,0x30B8)))
 $tokenWords = @("token", "safe-", "rtk", "reports", "diff", "search", "TokenReports", (New-UString @(0x30C8,0x30FC,0x30AF,0x30F3,0x30EC,0x30DD,0x30FC,0x30C8)), (New-UString @(0x30C8,0x30FC,0x30AF,0x30F3,0x6D88,0x8CBB)), (New-UString @(0x6D88,0x8CBB,0x7387)), (New-UString @(0x8CA0,0x8377)), (New-UString @(0x672A,0x8A18,0x9332)), (New-UString @(0x672A,0x691C,0x51FA)), (New-UString @(0x691C,0x51FA,0x6F0F,0x308C)), (New-UString @(0x691C,0x7D22)))
 $commandFailureWords = @("command", "failure", "timeout", "timed out", "hang", "no response", (New-UString @(0x30B3,0x30DE,0x30F3,0x30C9)), (New-UString @(0x5931,0x6557)), (New-UString @(0x30BF,0x30A4,0x30E0,0x30A2,0x30A6,0x30C8)), (New-UString @(0x7121,0x5FDC,0x7B54)), (New-UString @(0x5F85,0x6A5F)))
-$closeoutWords = @("obsidian", "memory", "closeout", "commit", "push", (New-UString @(0x7DE0,0x3081)), (New-UString @(0x8A18,0x61B6)), (New-UString @(0x5C65,0x6B74)), (New-UString @(0x4F5C,0x696D,0x7D42,0x4E86)))
+$closeoutWords = @("closeout", "commit", "push", (New-UString @(0x7DE0,0x3081)), (New-UString @(0x5C65,0x6B74)), (New-UString @(0x4F5C,0x696D,0x7D42,0x4E86)))
 $modelWords = @("model", "reasoning", "context", "chat", (New-UString @(0x30E2,0x30C7,0x30EB)), (New-UString @(0x63A8,0x8AD6)), (New-UString @(0x9577,0x3044,0x30B9,0x30EC,0x30C3,0x30C9)), (New-UString @(0x65B0,0x898F,0x30C1,0x30E3,0x30C3,0x30C8)))
-
-Add-Rule "Docs/AgentRules/core-files.md"
 
 $isTokenToolTask = Test-ContainsAny $Task $tokenWords
 $isCommandFailureTask = Test-ContainsAny $Task $commandFailureWords
 
 if (Test-ContainsAny $Task $uiWords) {
     Add-Rule "Docs/AgentRules/ui-and-hud.md"
-    Add-File "Assets/AreaSurvivors/Scripts/Game/GameManager.cs"
-    Add-File "Assets/AreaSurvivors/Scripts/Game/BuildPlacementController.cs"
+    Add-File "Assets/AreaSurvivors/Scripts/Game/Runtime/GameHudController.cs"
     Add-File "Assets/AreaSurvivors/Scripts/UI/UpgradeScreen.cs"
     Add-File "Assets/AreaSurvivors/Scenes/04_Upgrades.unity"
 }

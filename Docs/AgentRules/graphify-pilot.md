@@ -1,6 +1,6 @@
 # Graphify Pilot
 
-AreaSurvivorsのC#／PowerShell構造探索を短いサブグラフへ絞るPilotルール。ソース、Unity Scene/Prefab、既存Reporter/Validatorが常に正であり、Graphifyは候補特定の前段だけに使う。
+AreaSurvivorsのC#／PowerShell呼出関係・影響候補を短いサブグラフへ絞るPilotルール。ソース、Unity Scene/Prefab、既存Reporter/Validatorが常に正であり、Graphifyは候補特定の前段だけに使う。
 
 ## Scope
 
@@ -12,13 +12,13 @@ AreaSurvivorsのC#／PowerShell構造探索を短いサブグラフへ絞るPilo
 ## Entry Point
 
 ```powershell
-Tools/TokenUsage/safe-graphify-pilot.ps1 -Action Status
-Tools/TokenUsage/safe-graphify-pilot.ps1 -Action EnsureFresh
-Tools/TokenUsage/safe-graphify-pilot.ps1 -Action Explain -Source "EnemyController"
-Tools/TokenUsage/safe-graphify-pilot.ps1 -Action Path -Source "ProgressionStore" -Target "LobbyScreen"
-Tools/TokenUsage/safe-graphify-pilot.ps1 -Action Affected -Source "AdvancedWeaponArea" -Depth 2
-Tools/TokenUsage/safe-graphify-pilot.ps1 -Action Query -Question "DefeatRemainingEnemiesForStageTransition" -Context calls -Budget 400
-Tools/TokenUsage/safe-graphify-pilot.ps1 -Action Update
+Tools/TokenUsage/area-tool.ps1 -Operation Graph.Status
+Tools/TokenUsage/area-tool.ps1 -Operation Graph.Ensure
+Tools/TokenUsage/area-tool.ps1 -Operation Graph.Explain -Source "EnemyController"
+Tools/TokenUsage/area-tool.ps1 -Operation Graph.Path -Source "ProgressionStore" -Target "LobbyScreen"
+Tools/TokenUsage/area-tool.ps1 -Operation Graph.Affected -Source "AdvancedWeaponArea" -Depth 2
+Tools/TokenUsage/area-tool.ps1 -Operation Graph.Query -Question "DefeatRemainingEnemiesForStageTransition" -GraphContext calls -Budget 400
+Tools/TokenUsage/area-tool.ps1 -Operation Graph.Update
 ```
 
 `AREA_SURVIVORS_GRAPHIFY_PYTHON`を指定しない場合、Wrapperは`%USERPROFILE%\.cache\AreaSurvivors\graphify-pilot-0.9.26\Scripts\python.exe`を使う。
@@ -31,11 +31,12 @@ Tools/TokenUsage/safe-graphify-pilot.ps1 -Action Update
 - 2つのシンボル間の経路: `Path`
 - 変更影響候補: `Affected`
 - 呼び出し経路の限定探索: exact symbolの`Query -Context calls`
-- 定義場所、実装内容、正確な文字列、数値、属性、コメント: `safe-search` / `focused-search`
+- 型・メンバー・引数・定義場所・参照候補: `token-tools.md`の構造インデックス
+- 正確な文字列、数値、属性、コメント: `safe-search` / `focused-search`
 - 実装内容の最終確認: 対象ファイルだけ`safe-read`
 - `.unity`、`.prefab`、`.asset`、Animator、serialized reference: Unity Reporter / Validator
 
-自然文をそのまま`Query`へ渡すと一般語が別シンボルへseedされ、数百nodeへ広がるため通常運用では使わない。先に`safe-search -FilesOnly`でシンボルを確定するか、`Explain`を使う。
+自然文をそのまま`Query`へ渡すと一般語が別シンボルへseedされ、数百nodeへ広がるため通常運用では使わない。先に構造インデックスまたは限定検索で完全一致シンボルを確定してから`Explain`を使う。
 
 ## Freshness And Integrity
 

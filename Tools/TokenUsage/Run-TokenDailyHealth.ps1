@@ -11,18 +11,18 @@ $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "TokenUsageCommon.ps1")
 
 $commands = @(
-    "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-status.ps1",
-    "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/guarded-command.ps1 -Command 'git diff'",
-    "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-search.ps1 -Pattern 'BuildMode' -Path Assets/AreaSurvivors/Scripts",
-    "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-read.ps1 -Path AGENTS.md -First 80",
-    "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/token-report-summary.ps1 -Days 1 -Top 5"
+    "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/area-tool.ps1 -Operation Git.Status",
+    "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/area-tool.ps1 -Operation Command.Guard -CommandText 'git diff'",
+    "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/area-tool.ps1 -Operation Code.Search -Pattern 'BuildMode' -Path Assets/AreaSurvivors/Scripts",
+    "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/area-tool.ps1 -Operation Code.Read -Path AGENTS.md -StartLine 1 -EndLine 80",
+    "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/area-tool.ps1 -Operation Token.Summary -Days 1 -MaxResults 5"
 )
 
 if ($IncludeUnity) {
     $commands += @(
-        "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-unity.ps1 -Action Compile",
-        "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-unity.ps1 -Action ConsoleErrors -MaxCount 30",
-        "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/safe-unity-search.ps1 -Query BuildMode"
+        "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/area-tool.ps1 -Operation Unity.Compile",
+        "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/area-tool.ps1 -Operation Unity.Console -ConsoleLevel Error -MaxResults 30",
+        "powershell -ExecutionPolicy Bypass -File Tools/TokenUsage/area-tool.ps1 -Operation Unity.Search -Pattern BuildMode"
     )
 }
 

@@ -35,6 +35,7 @@ namespace AreaSurvivors
         GridObjectVisual gridVisual;
         CharacterFootprint footprint;
         Vector2 facing = Vector2.down;
+        bool movementInputBlockedUntilNeutral;
         float moveSpeed;
         int paintRadius;
         Coroutine invincibilityRoutine;
@@ -116,6 +117,24 @@ namespace AreaSurvivors
             directionalAnimatorDriver.SetController(controller);
         }
 
+        static Vector2 ResolveMovementInput(
+            Vector2 rawInput,
+            bool worldPaused,
+            ref bool blockedUntilNeutral)
+        {
+            if (worldPaused)
+            {
+                blockedUntilNeutral = true;
+                return Vector2.zero;
+            }
+
+            if (!blockedUntilNeutral) return rawInput;
+            if (rawInput.sqrMagnitude > 0.01f) return Vector2.zero;
+
+            blockedUntilNeutral = false;
+            return Vector2.zero;
+        }
+
         void Update()
         {
             ProcessPickupAttractions();
@@ -125,7 +144,10 @@ namespace AreaSurvivors
                 hpBar.gameObject.SetActive(health.Normalized < 0.999f);
             }
             if (IsReviving) return;
-            var input = InputSettingsStore.MoveVector();
+            var input = ResolveMovementInput(
+                InputSettingsStore.MoveVector(),
+                GameManager.IsWorldInputSuspended,
+                ref movementInputBlockedUntilNeutral);
             if (input.sqrMagnitude > 0.01f) facing = input;
 
             float enemyTerritoryMultiplier = config.enemyTerritorySlow +

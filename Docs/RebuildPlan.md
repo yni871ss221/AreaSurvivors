@@ -314,7 +314,6 @@ Docs/RebuildPlan.md を読んで、まず Phase 0 の棚卸しから進めてく
 - Scene / Prefab 全体を安易に再生成しない。
 - `GameManager.cs` は大きいため、広域改修前に責務を絞る。
 - `.unity` / `.prefab` は全文読みではなく Reporter / Validator / targeted search を優先する。
-- Obsidian 外部記憶は、ユーザーが履歴確認・記録・締め作業を明示した時だけ使う。
 - 日本語で報告する。
 
 ## 現在地メモ

@@ -250,6 +250,24 @@ if ($AllowHighOutput) { $argsForSafe.AllowHighOutput = $true }
         $captured = [System.IO.File]::ReadAllText([string]$safeRecord.capture_path)
     }
 
+$consoleMatchedCount = $null
+if ($safeExitCode -eq 0 -and $Action -in @(
+        "ConsoleLogs",
+        "ConsoleErrors",
+        "ConsoleWarnings"
+    )) {
+    try {
+        $consolePayload = $captured | ConvertFrom-Json
+        $consoleMatchedCount = @($consolePayload.logs).Count
+    } catch {
+        [Console]::Error.WriteLine(
+            "guard_code: 47; Unity Console response was not valid JSON: " +
+            $_.Exception.Message
+        )
+        $safeExitCode = 47
+    }
+}
+
 if ($Action -eq "MenuExists") {
     if ($safeExitCode -eq 0) {
         $menuRegistered = $false
@@ -290,6 +308,9 @@ if ($Action -eq "MenuExists") {
     Write-Output ("captured_to: {0}" -f $safeRecord.capture_path)
     Write-Output ("report_path: {0}" -f $safeRecord.report_path)
     Write-Output ("advice: {0}" -f $safeRecord.advice)
+    if ($consoleMatchedCount -ne $null) {
+        Write-Output ("console_matched_count: {0}" -f $consoleMatchedCount)
+    }
 
     if ($safeExitCode -ne 0 -and $captured -match "Access to the path is denied") {
         [Console]::Error.WriteLine("guard_code: 26; UniCLI named-pipe access was denied by the execution boundary. Re-run this same safe-unity command with outer sandbox escalation; do not change the Unity operation or fall back to another method.")

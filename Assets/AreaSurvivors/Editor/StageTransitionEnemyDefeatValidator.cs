@@ -12,7 +12,14 @@ namespace AreaSurvivors.Editor
     public static class StageTransitionEnemyDefeatValidator
     {
         const string GameScenePath = "Assets/AreaSurvivors/Scenes/05_Game.unity";
-        const string GameManagerSourcePath = "Assets/AreaSurvivors/Scripts/Game/Runtime/GameManager.cs";
+        const string RunStageSourcePath =
+            "Assets/AreaSurvivors/Scripts/Game/Runtime/GameManager.RunStage.cs";
+        static readonly string[] LevelUpSourcePaths =
+        {
+            "Assets/AreaSurvivors/Scripts/Game/Runtime/GameManager.LevelProgression.cs",
+            "Assets/AreaSurvivors/Scripts/Game/Runtime/GameManager.LevelUpPanel.cs",
+            "Assets/AreaSurvivors/Scripts/Game/Runtime/GameManager.cs"
+        };
         const string EnemySpawnerSourcePath = "Assets/AreaSurvivors/Scripts/Game/Characters/EnemySpawner.cs";
         const string EnemyControllerSourcePath = "Assets/AreaSurvivors/Scripts/Game/Characters/EnemyController.cs";
         const string PlayerControllerSourcePath = "Assets/AreaSurvivors/Scripts/Game/Characters/PlayerController.cs";
@@ -92,7 +99,7 @@ namespace AreaSurvivors.Editor
 
         static void ValidateStageTransitionRewardFlow(List<string> failures)
         {
-            string source = File.ReadAllText(GameManagerSourcePath);
+            string source = File.ReadAllText(RunStageSourcePath);
             int transitionIndex = source.IndexOf(
                 "IEnumerator StageTransitionRoutine",
                 StringComparison.Ordinal);
@@ -412,7 +419,7 @@ namespace AreaSurvivors.Editor
                 PlayerControllerSourcePath,
                 ExperienceOrbSourcePath,
                 TokenOrbSourcePath,
-                GameManagerSourcePath,
+                RunStageSourcePath,
                 EnemyControllerSourcePath
             };
             for (int i = 0; i < requiredPaths.Length; i++)
@@ -428,7 +435,7 @@ namespace AreaSurvivors.Editor
             string playerSource = File.ReadAllText(PlayerControllerSourcePath);
             string experienceSource = File.ReadAllText(ExperienceOrbSourcePath);
             string tokenSource = File.ReadAllText(TokenOrbSourcePath);
-            string managerSource = File.ReadAllText(GameManagerSourcePath);
+            string managerSource = File.ReadAllText(RunStageSourcePath);
             string enemySource = File.ReadAllText(EnemyControllerSourcePath);
             if (!pickupSource.Contains("PickupAttractionRegistry") ||
                 !pickupSource.Contains("ResolveAttractionSpeed(player)") ||
@@ -519,7 +526,11 @@ namespace AreaSurvivors.Editor
 
         static void ValidateLevelUpQueueContract(List<string> failures)
         {
-            string source = File.ReadAllText(GameManagerSourcePath);
+            string source = string.Empty;
+            for (int i = 0; i < LevelUpSourcePaths.Length; i++)
+            {
+                source += File.ReadAllText(LevelUpSourcePaths[i]);
+            }
             int addExperienceIndex = source.IndexOf(
                 "public void AddExperience",
                 StringComparison.Ordinal);
