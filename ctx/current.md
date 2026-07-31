@@ -2,11 +2,11 @@
 
 ## Goal
 
-`03_releaseUpdate`ブランチで、Area Survivorsのリリース後更新に備える。
+`feature/03_releaseUpdate`ブランチで、Area Survivorsのリリース後更新に備える。
 
 ## Latest Decision
 
-- Git上のリリース候補差分は`feature/02_GameSystemUpdate`から`main`へ統合し、以後の更新は`03_releaseUpdate`を起点にする。
+- Git上のリリース候補差分は`feature/02_GameSystemUpdate`から`main`へ統合し、以後の更新は`feature/03_releaseUpdate`を起点にする。
 - Steamのリリース候補はApp ID `4980380`、Build ID `24466612`、Depot ID `4980381`。`default`ブランチへ設定済み。
 - ストアプレゼンスは承認・公開済み。ゲームビルドはValveレビュー待ちで、リリース予定は2026年8月7日0時（JST）。
 - ローンチ割引は10%・7日間。Steamは自動リリースされないため、承認後の予定時刻に手動でリリースする。
