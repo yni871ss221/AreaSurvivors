@@ -11,7 +11,7 @@
 - 大規模変更、再発バグ、見た目確認が必要な変更、ユーザー指定がある場合だけ完全検証を行う。
 - 直前に同じ画面・同じ分岐をPlay Mode確認済みの軽微な追調整は、関連コード/Scene差分、Unity Compile 1回、Console Error確認1回を基本とする。見た目が変わる場合だけ代表状態を1件確認し、同じ目的のリロール、連続スクリーンショット、Scene再オープンを繰り返さない。
 - 状態別表示の確認が必要な場合は、対象状態を直接再現して1件だけ確認する。通常プレイ待ちやランダムなリロール反復で確認対象を探さない。
-- よく使う確認は `unicli exec Compile`、`unicli exec Console.GetLog --logType Error --maxCount 30`、`git diff --check`。
+- よく使う確認は型付き入口の`Unity.Compile`、`Unity.Console -ConsoleLevel Error`、`Git.Check`を使う。
 - UniCLIやUnity検証が止まったように見える場合は、同じ呼び出しを繰り返す前にUnityの状態、プロジェクトロック、ログ、実行中コマンドを確認する。
 - 権限確認やUniCLI呼び出しがタイムアウトした場合は、状態確認後の再試行を最大1回にする。再試行成功後は、タイムアウトを理由に追加の完全検証へ拡大しない。
 - Play Modeで想定外の結果が出たら、次の順で読み取り確認する: `PlayMode.Status` → Active Scene → 対象コンポーネントの有効状態とScene参照 → Console Error → Enter Play Mode Options（Domain Reload / Scene Reload）→ 実行した入口がユーザーの本番・テスト経路と一致しているか。これらを確認する前にコードを修正してはいけない。
@@ -21,5 +21,5 @@
 - UniCLI `Eval` に複雑なC#コードを直接渡さない。Scene操作、Validator実行、移行処理は一時Editor Runner/Migratorを作成し、単純なEvalで呼び出す。
 - Scene/Prefabの調整値は、可能なら小さなConfig asset、ScriptableObject、座標表、専用Reporter/Validatorへ逃がし、Scene/Prefab YAML全文を読まなくて済む構造にする。
 - HUD、スキルツリー、建造メニューなどは、座標・重なり・参照欠けを要約するReporter/Validatorを優先し、全文diffや高解像度スクリーンショット確認を最後に回す。
-- `.unity` / `.prefab` / `.asset` の差分確認は `safe-diff -SummaryOnly`、Reporter、対象オブジェクト検索を先に使う。本文diffは最終手段にする。
-- Reporter追加候補を決める時は `reporter-candidates.ps1` を使う。
+- `.unity`／`.prefab`／`.asset`の差分確認は`Git.Diff -DiffMode Summary`、`Unity.Search`、既存Reporter／Validatorを先に使う。Full diffは単一Pathへ限定し、入口の行数上限を解除しない。
+- Reporter追加は、既存の`Unity.Report`／`Unity.Validate`で必要情報を構造化できない場合だけ検討する。

@@ -11,6 +11,7 @@ namespace AreaSurvivors
         const float LinkRevealDuration = 0.9f;
         const float NodeRevealDuration = 0.55f;
         const float OutlineBounceDistance = 8f;
+        const float BottomNavigationRowTolerance = 2f;
 
         sealed class NodeRevealState
         {
@@ -272,11 +273,22 @@ namespace AreaSurvivors
                 hover.canvas = uiCanvas;
                 hover.targetRect = node.RectTransform;
                 hover.titleText = node.implemented
-                    ? $"{localizedTitle}  Lv {level}  Cost {cost}"
+                    ? maxed
+                        ? $"{localizedTitle}  Lv{level}  MAX"
+                        : $"{localizedTitle}  Lv {level}  Cost {cost}"
                     : LocalizationService.Format("{0}  実装予定", "{0}  PLANNED", localizedTitle);
                 hover.descriptionText = node.implemented
                     ? localizedDescription
                     : localizedDescription + LocalizationService.Text("（現在はツリー上の予約ノードです）", " (reserved for a future update)");
+
+                bool tooltipVisibleForNode = tooltipRoot != null
+                    && tooltipRoot.gameObject.activeSelf
+                    && (UpgradeNodeHover.PointerHover == hover || focusedHover == hover);
+                if (tooltipVisibleForNode)
+                {
+                    if (tooltipTitle != null) tooltipTitle.text = LocalizationService.LocalizeSource(hover.titleText);
+                    if (tooltipDescription != null) tooltipDescription.text = LocalizationService.LocalizeSource(hover.descriptionText);
+                }
             }
         }
 
@@ -588,22 +600,82 @@ namespace AreaSurvivors
                 buttons.Add(node.button);
             }
 
-            if (UiSelectionUtility.IsSelectable(lobbyButton)) buttons.Add(lobbyButton);
-
-            foreach (var button in buttons)
+            if (purchaseAnimationRunning)
             {
-                if (button == null) continue;
-                var navigation = button.navigation;
-                navigation.mode = Navigation.Mode.Explicit;
-                navigation.wrapAround = false;
-                navigation.selectOnUp = BestDirectionalSelectable(button, buttons, Vector2.up);
-                navigation.selectOnDown = BestDirectionalSelectable(button, buttons, Vector2.down);
-                navigation.selectOnLeft = BestDirectionalSelectable(button, buttons, Vector2.left);
-                navigation.selectOnRight = BestDirectionalSelectable(button, buttons, Vector2.right);
-                button.navigation = navigation;
+                foreach (var button in buttons)
+                {
+                    if (button == null) continue;
+                    var navigation = button.navigation;
+                    navigation.mode = Navigation.Mode.None;
+                    button.navigation = navigation;
+                }
+
+                if (lobbyButton != null)
+                {
+                    var lobbyNavigation = lobbyButton.navigation;
+                    lobbyNavigation.mode = Navigation.Mode.None;
+                    lobbyButton.navigation = lobbyNavigation;
+                }
+
+                return;
             }
 
+            UiSelectionUtility.ConfigureDirectionalNavigation(buttons.ToArray());
+
             ApplyUnlockShieldNavigationOverride();
+            ApplyLobbyButtonNavigationOverride(buttons);
+        }
+
+        void ApplyLobbyButtonNavigationOverride(List<Button> nodeButtons)
+        {
+            if (!UiSelectionUtility.IsSelectable(lobbyButton) || nodeButtons == null || nodeButtons.Count == 0) return;
+
+            var bottomRowButtons = new List<Button>();
+            float bottomY = float.PositiveInfinity;
+            foreach (var button in nodeButtons)
+            {
+                if (!UiSelectionUtility.IsSelectable(button)) continue;
+
+                float nodeY = CenterInGraph(button.transform as RectTransform).y;
+                if (nodeY < bottomY - BottomNavigationRowTolerance)
+                {
+                    bottomY = nodeY;
+                    bottomRowButtons.Clear();
+                    bottomRowButtons.Add(button);
+                }
+                else if (Mathf.Abs(nodeY - bottomY) <= BottomNavigationRowTolerance)
+                {
+                    bottomRowButtons.Add(button);
+                }
+            }
+
+            if (bottomRowButtons.Count == 0) return;
+
+            Vector2 lobbyCenter = CenterInGraph(lobbyButton.transform as RectTransform);
+            Button nearestBottomButton = null;
+            float nearestHorizontalDistance = float.PositiveInfinity;
+            foreach (var button in bottomRowButtons)
+            {
+                var navigation = button.navigation;
+                navigation.selectOnDown = lobbyButton;
+                button.navigation = navigation;
+
+                float horizontalDistance = Mathf.Abs(
+                    CenterInGraph(button.transform as RectTransform).x - lobbyCenter.x);
+                if (horizontalDistance >= nearestHorizontalDistance) continue;
+
+                nearestHorizontalDistance = horizontalDistance;
+                nearestBottomButton = button;
+            }
+
+            var lobbyNavigation = lobbyButton.navigation;
+            lobbyNavigation.mode = Navigation.Mode.Explicit;
+            lobbyNavigation.wrapAround = false;
+            lobbyNavigation.selectOnUp = nearestBottomButton;
+            lobbyNavigation.selectOnDown = null;
+            lobbyNavigation.selectOnLeft = null;
+            lobbyNavigation.selectOnRight = null;
+            lobbyButton.navigation = lobbyNavigation;
         }
 
         void ApplyUnlockShieldNavigationOverride()
@@ -690,33 +762,6 @@ namespace AreaSurvivors
         bool IsBelow(Button upper, Button lower)
         {
             return CenterInGraph(lower.transform as RectTransform).y < CenterInGraph(upper.transform as RectTransform).y;
-        }
-
-        Selectable BestDirectionalSelectable(Button origin, List<Button> candidates, Vector2 direction)
-        {
-            if (origin == null || candidates == null) return null;
-
-            Vector2 originCenter = CenterInGraph(origin.transform as RectTransform);
-            Selectable best = null;
-            float bestScore = float.PositiveInfinity;
-
-            foreach (var candidate in candidates)
-            {
-                if (candidate == null || candidate == origin) continue;
-
-                Vector2 offset = CenterInGraph(candidate.transform as RectTransform) - originCenter;
-                float forward = Vector2.Dot(offset, direction);
-                if (forward <= 1f) continue;
-
-                float perpendicular = Mathf.Abs(direction.x * offset.y - direction.y * offset.x);
-                float score = perpendicular * 4f + forward;
-                if (score >= bestScore) continue;
-
-                bestScore = score;
-                best = candidate;
-            }
-
-            return best;
         }
 
         Vector2 CenterInGraph(RectTransform rect)

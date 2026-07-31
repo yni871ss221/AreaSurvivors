@@ -232,7 +232,7 @@ namespace AreaSurvivors
             { "中心塔自動回復", "Central Tower Regeneration" },
             { "中心塔の自動回復量が上昇します。", "Increases the central tower's automatic healing." },
             { "中心塔HP", "Central Tower HP" },
-            { "中心塔の最大HPが上昇します。", "Increases the central tower's max HP." },
+            { "中心塔の最大HPを +50 / Lv 上げます。", "Increases the central tower's max HP by 50 per level." },
             { "中心塔大砲", "Central Tower Cannon" },
             { "中心塔が砲撃できるようになります。", "Unlocks cannon fire for the central tower." },
             { "中心塔アップグレード", "Central Tower Upgrade" },

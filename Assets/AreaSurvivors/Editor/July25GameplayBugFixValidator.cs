@@ -41,6 +41,7 @@ namespace AreaSurvivors.EditorTools
             var config = AssetDatabase.LoadAssetAtPath<GameConfig>(ConfigPath);
             if (config == null) throw new InvalidOperationException("GameConfig asset was not found.");
 
+            ValidateDifficultyBalance(config);
             ValidateBossCollisionMass(config);
             ValidateBossFixedHp(config, projectRoot);
             ValidateLockedContactDamageOrdering(projectRoot);
@@ -72,8 +73,7 @@ namespace AreaSurvivors.EditorTools
                      {
                          "var input = ResolveMovementInput(",
                          "InputSettingsStore.MoveVector()",
-                         "GameManager.IsWorldInputSuspended",
-                         "ref movementInputBlockedUntilNeutral"
+                         "GameManager.IsWorldInputSuspended"
                      })
             {
                 if (!updateSource.Contains(requiredSource))
@@ -82,14 +82,28 @@ namespace AreaSurvivors.EditorTools
                         $"Player movement input isolation is missing from Update: {requiredSource}");
                 }
             }
+            if (source.Contains("movementInputBlockedUntilNeutral"))
+            {
+                throw new InvalidOperationException(
+                    "Player movement must not require neutral input after a pause closes.");
+            }
 
             string gameManagerSource = File.ReadAllText(Path.Combine(projectRoot, GameManagerPath));
             if (!gameManagerSource.Contains("public static bool IsWorldInputSuspended") ||
-                !gameManagerSource.Contains("Time.timeScale <= 0f") ||
-                !gameManagerSource.Contains("Instance.gameEnding"))
+                !gameManagerSource.Contains("public static bool ResolveWorldInputSuspended") ||
+                !gameManagerSource.Contains("Instance.gameEnding") ||
+                !gameManagerSource.Contains("Instance.stageTransitionActive"))
             {
                 throw new InvalidOperationException(
-                    "World input suspension must cover paused UI and boss-defeat transitions.");
+                    "World input suspension must separate real pauses and run endings from continuing stage transitions.");
+            }
+            if (!GameManager.ResolveWorldInputSuspended(0f, false, true) ||
+                !GameManager.ResolveWorldInputSuspended(1f, true, false) ||
+                GameManager.ResolveWorldInputSuspended(1f, true, true) ||
+                GameManager.ResolveWorldInputSuspended(1f, false, false))
+            {
+                throw new InvalidOperationException(
+                    "World input must stop for real pauses and run endings, but continue during the next-stage transition.");
             }
 
             var method = typeof(PlayerController).GetMethod(
@@ -101,62 +115,54 @@ namespace AreaSurvivors.EditorTools
                 throw new InvalidOperationException("PlayerController.ResolveMovementInput was not found.");
             }
 
-            bool blockedUntilNeutral = false;
             Vector2 resolved = InvokeResolveMovementInput(
                 method,
                 Vector2.up,
-                true,
-                ref blockedUntilNeutral);
-            if (resolved != Vector2.zero || !blockedUntilNeutral)
+                true);
+            if (resolved != Vector2.zero)
             {
                 throw new InvalidOperationException(
-                    "Paused UI or transition input must be blocked and arm the neutral gate.");
+                    "Paused UI or transition input must not change player movement or facing.");
             }
 
             resolved = InvokeResolveMovementInput(
                 method,
                 Vector2.up,
-                false,
-                ref blockedUntilNeutral);
-            if (resolved != Vector2.zero || !blockedUntilNeutral)
+                false);
+            if (resolved != Vector2.up)
             {
                 throw new InvalidOperationException(
-                    "Held navigation input must remain blocked after any pause closes.");
+                    "Held navigation input must resume immediately after a pause closes.");
             }
 
             resolved = InvokeResolveMovementInput(
                 method,
                 Vector2.zero,
-                false,
-                ref blockedUntilNeutral);
-            if (resolved != Vector2.zero || blockedUntilNeutral)
+                false);
+            if (resolved != Vector2.zero)
             {
                 throw new InvalidOperationException(
-                    "Neutral input must release the post-modal movement gate.");
+                    "Neutral input must remain neutral after a pause closes.");
             }
 
             resolved = InvokeResolveMovementInput(
                 method,
                 Vector2.right,
-                false,
-                ref blockedUntilNeutral);
-            if (resolved != Vector2.right || blockedUntilNeutral)
+                false);
+            if (resolved != Vector2.right)
             {
                 throw new InvalidOperationException(
-                    "Movement input must resume normally after returning to neutral.");
+                    "Movement input must pass through normally while the world is active.");
             }
         }
 
         static Vector2 InvokeResolveMovementInput(
             System.Reflection.MethodInfo method,
             Vector2 rawInput,
-            bool worldPaused,
-            ref bool blockedUntilNeutral)
+            bool worldPaused)
         {
-            object[] arguments = { rawInput, worldPaused, blockedUntilNeutral };
-            var result = (Vector2)method.Invoke(null, arguments);
-            blockedUntilNeutral = (bool)arguments[2];
-            return result;
+            object[] arguments = { rawInput, worldPaused };
+            return (Vector2)method.Invoke(null, arguments);
         }
 
         static void ValidateBossCollisionMass(GameConfig config)
@@ -197,7 +203,7 @@ namespace AreaSurvivors.EditorTools
             ValidateBossHp(config, EnemyKind.OrcKing, 1120);
             ValidateBossHp(config, EnemyKind.GoblinLord, 4480);
             ValidateBossHp(config, EnemyKind.Lich, 8960);
-            ValidateBossHp(config, EnemyKind.Dragon, 17920);
+            ValidateBossHp(config, EnemyKind.Dragon, 21504);
 
             foreach (var definition in config.enemyDefinitions)
             {
@@ -227,6 +233,27 @@ namespace AreaSurvivors.EditorTools
             if (!spawnOneSource.Contains("int hp = EnemyHp(definition);"))
             {
                 throw new InvalidOperationException("Normal enemy and boss spawns must use the shared fixed HP calculation.");
+            }
+        }
+
+        static void ValidateDifficultyBalance(GameConfig config)
+        {
+            if (config.tokenKillsDivisor != 15)
+            {
+                throw new InvalidOperationException(
+                    $"Kill token divisor must be 15, but was {config.tokenKillsDivisor}.");
+            }
+
+            if (!Mathf.Approximately(config.xpRequirementGrowthEnd, 1.045f))
+            {
+                throw new InvalidOperationException(
+                    $"XP requirement end growth must be 1.045, but was {config.xpRequirementGrowthEnd}.");
+            }
+
+            if (!Mathf.Approximately(config.dragonBreathCooldownSeconds, 4.5f))
+            {
+                throw new InvalidOperationException(
+                    $"Dragon breath cooldown must be 4.5 seconds, but was {config.dragonBreathCooldownSeconds}.");
             }
         }
 

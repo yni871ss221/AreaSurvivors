@@ -1,6 +1,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 namespace AreaSurvivors
 {
@@ -27,6 +29,11 @@ namespace AreaSurvivors
         Coroutine bgmFadeRoutine;
         BgmTrack? currentBgm;
         readonly Dictionary<SfxTrack, float> lastSfxTimes = new Dictionary<SfxTrack, float>();
+        readonly List<RaycastResult> uiRaycastResults = new List<RaycastResult>();
+        EventSystem focusEventSystem;
+        PointerEventData pointerEventData;
+        Button lastFocusedButton;
+        bool focusTrackingInitialized;
 
         public static void PlayBgm(BgmTrack track)
         {
@@ -137,6 +144,11 @@ namespace AreaSurvivors
             Initialize();
         }
 
+        void LateUpdate()
+        {
+            UpdateButtonFocusSfx();
+        }
+
         void Initialize()
         {
             EnsureVolumePrefs();
@@ -160,6 +172,72 @@ namespace AreaSurvivors
             }
 
             ApplySourceVolumes();
+        }
+
+        void UpdateButtonFocusSfx()
+        {
+            var eventSystem = EventSystem.current;
+            if (eventSystem == null)
+            {
+                ResetButtonFocusTracking();
+                return;
+            }
+
+            if (focusEventSystem != eventSystem)
+            {
+                focusEventSystem = eventSystem;
+                pointerEventData = new PointerEventData(eventSystem);
+                focusTrackingInitialized = false;
+                lastFocusedButton = null;
+            }
+
+            var focusedButton = UiSelectionUtility.IsControllerInputMode
+                ? ResolveAvailableButton(eventSystem.currentSelectedGameObject)
+                : ResolvePointerButton(eventSystem);
+            if (!focusTrackingInitialized)
+            {
+                focusTrackingInitialized = true;
+                lastFocusedButton = focusedButton;
+                return;
+            }
+
+            if (focusedButton == lastFocusedButton) return;
+            lastFocusedButton = focusedButton;
+            if (focusedButton != null) PlaySfxInternal(SfxTrack.ButtonFocus, 1f);
+        }
+
+        Button ResolvePointerButton(EventSystem eventSystem)
+        {
+            if (pointerEventData == null)
+            {
+                pointerEventData = new PointerEventData(eventSystem);
+            }
+
+            pointerEventData.Reset();
+            pointerEventData.position = Input.mousePosition;
+            uiRaycastResults.Clear();
+            eventSystem.RaycastAll(pointerEventData, uiRaycastResults);
+            return uiRaycastResults.Count > 0
+                ? ResolveAvailableButton(uiRaycastResults[0].gameObject)
+                : null;
+        }
+
+        static Button ResolveAvailableButton(GameObject target)
+        {
+            if (target == null) return null;
+            var button = target.GetComponentInParent<Button>();
+            return button != null && button.gameObject.activeInHierarchy && button.IsInteractable()
+                ? button
+                : null;
+        }
+
+        void ResetButtonFocusTracking()
+        {
+            focusEventSystem = null;
+            pointerEventData = null;
+            lastFocusedButton = null;
+            focusTrackingInitialized = false;
+            uiRaycastResults.Clear();
         }
 
         static void EnsureVolumePrefs()

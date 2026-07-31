@@ -193,14 +193,15 @@ namespace AreaSurvivors.Editor
             config.moveSpeedPerUpgradeLevel = 0.18f;
             config.paintRadiusLevelsPerBonus = 2;
             config.maxHpPerUpgradeLevel = 5;
+            config.xpRequirementGrowthEnd = 1.045f;
             config.reviveSecondsReductionPerUpgradeLevel = 0.7f;
             config.minReviveSeconds = 1f;
             config.runMoveSpeedMultiplier = 1.08f;
             config.runPaintRadiusBonus = 1;
             config.runMaxHpBonus = 8;
-            config.towerMaxHp = 160;
-            config.towerMaxHpPerUpgradeLevel = 12;
-            config.upgradedTowerMaxHp = 900;
+            config.towerMaxHp = 400;
+            config.towerMaxHpPerUpgradeLevel = 50;
+            config.upgradedTowerMaxHp = 800;
             config.upgradedTowerRegenBonus = 3;
             config.upgradedTowerCannonDamageBonus = 10;
             config.upgradedTowerCannonExplosionRadiusMultiplier = 2f;
@@ -245,7 +246,15 @@ namespace AreaSurvivors.Editor
             config.maxAliveEnemies = 160;
             config.bossTimeSeconds = 300f;
             config.bossAnnouncement = "\u30aa\u30fc\u30af\u30ad\u30f3\u30b0\u51fa\u73fe\uff01";
+            config.dragonBreathCooldownSeconds = 4.5f;
+            config.tokenKillsDivisor = 15;
             config.EnsureEnemySpawnDefaults();
+            var dragon = config.GetEnemyDefinition(EnemyKind.Dragon);
+            if (dragon != null)
+            {
+                dragon.hpMultiplier = 1536f;
+                dragon.xpValue = 1536;
+            }
             EditorUtility.SetDirty(config);
         }
 

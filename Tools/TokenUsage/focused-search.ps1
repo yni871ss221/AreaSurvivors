@@ -2,8 +2,8 @@ param(
     [Parameter(Mandatory = $true)][string]$Pattern,
     [string[]]$Path = @("Assets/AreaSurvivors"),
     [Alias("First")]
-    [int]$TopFiles = 3,
-    [int]$Context = 12,
+    [int]$TopFiles = 2,
+    [int]$Context = 4,
     [int]$MaxMatchesPerFile = 2,
     [Alias("Include")]
     [string[]]$Extension = @("cs"),
@@ -16,6 +16,22 @@ param(
 
 $ErrorActionPreference = "Stop"
 $focusedSearchStartedAt = Get-Date
+$maximumTopFiles = 2
+$maximumContext = 4
+$maximumMatchesPerFile = 2
+
+if ($TopFiles -gt $maximumTopFiles) {
+    Write-Warning "focused-search caps -TopFiles at $maximumTopFiles."
+    $TopFiles = $maximumTopFiles
+}
+if ($Context -gt $maximumContext) {
+    Write-Warning "focused-search caps -Context at $maximumContext."
+    $Context = $maximumContext
+}
+if ($MaxMatchesPerFile -gt $maximumMatchesPerFile) {
+    Write-Warning "focused-search caps -MaxMatchesPerFile at $maximumMatchesPerFile."
+    $MaxMatchesPerFile = $maximumMatchesPerFile
+}
 
 foreach ($item in $Path) {
     if ([string]::IsNullOrWhiteSpace($item) -or -not (Test-Path -LiteralPath $item)) {

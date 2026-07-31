@@ -119,7 +119,7 @@ namespace AreaSurvivors
         public float playerLevelMoveSpeedBonus = 0.1f;
         public float playerLevelDefenseBonus = 0.5f;
         [Min(1f)] public float xpRequirementGrowthStart = 1.35f;
-        [Min(1f)] public float xpRequirementGrowthEnd = 1.1f;
+        [Min(1f)] public float xpRequirementGrowthEnd = 1.045f;
         [Min(2)] public int xpRequirementGrowthStartLevel = 2;
         [Min(3)] public int xpRequirementGrowthEndLevel = 39;
         [Min(0f)] public float xpRequirementFlatBonus = 3f;
@@ -148,8 +148,8 @@ namespace AreaSurvivors
         public float cameraBoundsPadding = 0.25f;
 
         [Header("Tower")]
-        public int towerMaxHp = 200;
-        public int towerMaxHpPerUpgradeLevel = 30;
+        public int towerMaxHp = 400;
+        public int towerMaxHpPerUpgradeLevel = 50;
         public float ballistaRange = 9.5f;
         public float ballistaCooldown = 1.15f;
         public int ballistaDamage = 5;
@@ -162,7 +162,7 @@ namespace AreaSurvivors
         public float towerCannonProjectileLifetime = 4.2f;
         public float towerCannonProjectileVisualScale = 0.32f;
         public float towerCannonKnockback = 2.2f;
-        public int upgradedTowerMaxHp = 900;
+        public int upgradedTowerMaxHp = 800;
         public int upgradedTowerRegenBonus = 3;
         public int upgradedTowerCannonDamageBonus = 10;
         public float upgradedTowerCannonExplosionRadiusMultiplier = 2f;
@@ -198,7 +198,7 @@ namespace AreaSurvivors
         public float slashRange = 1.6f;
         public float slashOffset = 1.05f;
         [Header("Weapon Evolution")]
-        [Min(0)] public int swordRushBaseAttackPower = 16;
+        [Min(0)] public int swordRushBaseAttackPower = 4;
         [Min(0)] public int goldenBowBaseAttackPower = 16;
         [Min(0)] public int fireMissileBaseAttackPower = 16;
         [Min(0)] public int dualShieldBaseAttackPower = 12;
@@ -329,7 +329,7 @@ namespace AreaSurvivors
         public float enemySpawnRadius = 28f;
         public float difficultyRampSeconds = 55f;
         public float playerTerritorySlow = 0.35f;
-        public float spawnDirectionChangeSeconds = 10f;
+        public float spawnDirectionChangeSeconds = 30f;
         [Range(1f, 180f)]
         public float spawnDirectionArcDegrees = 60f;
         public int maxAliveEnemies = 160;
@@ -359,9 +359,11 @@ namespace AreaSurvivors
         public float goblinLordDarkOrbDamageMultiplier = 0.5f;
         public float goblinLordDarkOrbVisualScale = 1f;
         public float lichSummonRadius = 4f;
+        [Min(0f)] public float lichSummonDistanceCells = 10f;
         public float lichSummonCircleDurationSeconds = 2.2f;
         public int lichSummonSkeletonCount = 10;
         public int lichSummonSkeletonKnightCount = 10;
+        [Min(0.05f)] public float dragonBreathCooldownSeconds = 4.5f;
         public float dragonBreathMouthClosedSeconds = 0.55f;
         public float dragonBreathMouthOpenSeconds = 0.32f;
         public float dragonBreathProjectileSpeed = 4.2f;
@@ -376,7 +378,7 @@ namespace AreaSurvivors
 
         [Header("Progression")]
         public int xpPerEnemy = 1;
-        public int tokenKillsDivisor = 10;
+        public int tokenKillsDivisor = 15;
 
         public void EnsureWeaponLevelDefaults()
         {
@@ -1129,11 +1131,11 @@ namespace AreaSurvivors
                     displayName = "ドラゴン",
                     spriteKey = "EnemyDragon",
                     animationSpeedMultiplier = 0.45f,
-                    hpMultiplier = 1280f,
+                    hpMultiplier = 1536f,
                     damageMultiplier = 32f,
                     speedMultiplier = 0.31f,
                     cellSize = 4f,
-                    xpValue = 1280,
+                    xpValue = 1536,
                     tokenValue = 10,
                     boss = true,
                     outlineColor = new Color(1f, 0.08f, 0.04f, 1f),

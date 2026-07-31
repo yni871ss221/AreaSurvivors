@@ -10,7 +10,7 @@ Use -Path for the search root. This wrapper does not accept -Root.
 param(
     [Parameter(Mandatory = $true)][Alias("Query")][string]$Pattern,
     [string[]]$Path = @("Assets", "Tools", "AGENTS.md"),
-    [Alias("MaxMatches", "MaxResults", "Limit")][int]$First = 20,
+    [Alias("MaxMatches", "MaxResults", "Limit")][int]$First = 12,
     [string[]]$Extension = @(),
     [switch]$FilesOnly,
     [switch]$HitSummary,
@@ -19,9 +19,9 @@ param(
     [switch]$PrintOutput
 )
 
-if ($First -gt 20 -and -not $AllowMany) {
-    Write-Warning "safe-search caps -First at 20 by default. Add -AllowMany when larger output is intentional."
-    $First = 20
+if ($First -gt 12 -and -not $AllowMany) {
+    Write-Warning "safe-search caps -First at 12 by default. Add -AllowMany when larger output is intentional."
+    $First = 12
 }
 
 foreach ($item in $Path) {

@@ -115,6 +115,18 @@ namespace AreaSurvivors.Editor
                 "ShowAnnouncement(\"ROUND \" + nextStage)",
                 transitionIndex,
                 StringComparison.Ordinal);
+            int inputContinueIndex = source.IndexOf(
+                "stageTransitionActive = true;",
+                transitionIndex,
+                StringComparison.Ordinal);
+            int inputRestoreIndex = source.IndexOf(
+                "stageTransitionActive = false;",
+                transitionIndex,
+                StringComparison.Ordinal);
+            int beginStageIndex = source.IndexOf(
+                "BeginStage(nextStage, 0f, true)",
+                transitionIndex,
+                StringComparison.Ordinal);
             if (transitionIndex < 0 ||
                 defeatIndex < transitionIndex ||
                 attractionIndex < defeatIndex ||
@@ -122,6 +134,14 @@ namespace AreaSurvivors.Editor
             {
                 failures.Add(
                     "Stage transition order must be remaining-enemy defeat, all reward attraction, then next-round announcement.");
+            }
+            if (inputContinueIndex < transitionIndex ||
+                inputContinueIndex > defeatIndex ||
+                inputRestoreIndex < announcementIndex ||
+                beginStageIndex < inputRestoreIndex)
+            {
+                failures.Add(
+                    "Player movement input must remain active throughout the continuing stage transition and return to normal stage state before BeginStage.");
             }
 
             int defeatRoutineIndex = source.IndexOf(

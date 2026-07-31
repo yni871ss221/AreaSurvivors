@@ -2,37 +2,30 @@
 
 ## Goal
 
-トークン削減基盤の実運用効果を観測する。構造的な実装作業は完了済み。
+`03_releaseUpdate`ブランチで、Area Survivorsのリリース後更新に備える。
 
 ## Latest Decision
 
-- 検索、読取、diff、Graphify、Unity、Token計測は`area-tool.ps1`を唯一の公開入口とする。
-- 操作契約の正は`AreaTool/operations.psd1`。内部WrapperやReporterを公開Docsから直接呼ばない。
-- TokenReportsはJSONLを正とし、Library内SQLite Indexへ追記分だけ自動反映する。
-- 意味要約はAreaSurvivors C#とTools PowerShellだけを対象にし、現在SHA一致時だけ利用する。
-- 外部記憶は運用しない。現在状態はこのファイル、完了履歴は`ctx/archive/`、変更履歴はGitを正とする。
-- 明示された「締め作業」は、Project状態確認、Token集計、current整理、検証、commit、現在branchのpushまでを含む。
+- Git上のリリース候補差分は`feature/02_GameSystemUpdate`から`main`へ統合し、以後の更新は`03_releaseUpdate`を起点にする。
+- Steamのリリース候補はApp ID `4980380`、Build ID `24466612`、Depot ID `4980381`。`default`ブランチへ設定済み。
+- ストアプレゼンスは承認・公開済み。ゲームビルドはValveレビュー待ちで、リリース予定は2026年8月7日0時（JST）。
+- ローンチ割引は10%・7日間。Steamは自動リリースされないため、承認後の予定時刻に手動でリリースする。
+- Valveから修正指示がない限り、審査中のSteam `default`ビルドは変更しない。
 
 ## Latest Verification
 
-- `area-tool -Operation Test.Commands`: 7 modules passed。
-- Context GuardはAGENTS 50／70行、current 37／60行でstatus `ok`。コード、文書、Tools、ctxの対象差分は`git diff --check`成功。
-- Token集計は旧全件走査と5条件で一致し、変更なし約0.4〜0.7秒、型付き入口約0.76秒。
-- 締め作業の直近8 recordsは表示7,232 token、measurement coverage 100%、blocked／high／critical 0件。
-- 固定11シナリオ読取コストはGit HEAD比で合計88.9%減。
-- Unity Compile 3回成功、最終Console Error 0件、20%逓減後の通しプレイはユーザー確認済み。
+- Build ID `24466612`をSteamクライアントからインストールし、起動設定修正後に通しプレイを完了。ユーザー確認で問題なし。
+- SteamPipeアップロード、Depot取得、`Area Survivors.exe`起動、ゲーム終了後のプロセス終了を確認済み。
+- Unityコンパイル、関連Validator、Console Warning／Error 0件をリリースビルド作成前に確認済み。
+- Command Tool自己テスト（7 modules）、変更対象の`Git.Check`、current-context guardが成功。
 
 ## TODO
 
-- 数回の実運用後、Operation別TokenReportsと`Code.Summary.Stats`のhit率を再集計し、固定Benchmarkとの差を確認する。
+- Valveのゲームビルドレビュー結果を確認し、フィードバックがあれば対応して再提出する。
+- 2026年8月7日の予定時刻にSteamworksで`アプリをリリース`から手動リリースし、10%割引が7日間適用されたことを確認する。
+- リリース後に一般アカウントで購入、インストール、起動、実績、セーブ、終了時の「プレイ中」解除を確認する。
+- 旧Sword Rush Evolution Validatorの進化条件／交互フレーム2件と現行仕様の整合は、次回Validator保守時に判断する。
 
 ## Blocker
 
-- なし。
-
-## Constraints
-
-- Branch: `feature/02_GameSystemUpdate`。既存の未コミット変更を戻さない。
-- Scene／Prefab／HUDのユーザー調整値を正とし、Runtime／Migration／Validatorから上書きしない。
-- UI見た目確認はユーザーが行う。明示依頼なしにPlay Modeを開始しない。
-- 通常開始時は`AGENTS.md`とこのファイルだけを読み、`ctx/archive/`は履歴確認時だけ使う。
+- Steam一般公開のみValveのゲームビルドレビュー承認待ち。Gitおよびリリース後更新の開発作業にBlockerはない。

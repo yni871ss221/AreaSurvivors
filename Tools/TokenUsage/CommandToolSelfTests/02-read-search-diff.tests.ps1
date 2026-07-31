@@ -32,8 +32,10 @@ Assert-Parameter -ScriptName "safe-search.ps1" `
     -Required @("Path", "Pattern", "FilesOnly", "HitSummary") `
     -Forbidden @("Root", "Context")
 Assert-Parameter -ScriptName "focused-search.ps1" `
-    -Required @("Path", "Pattern", "Context", "Extension") `
+    -Required @("Path", "Pattern", "Context", "MaxMatchesPerFile", "Extension") `
     -Forbidden @("Query", "FilesOnly")
+Assert-Parameter -ScriptName "safe-diff.ps1" `
+    -Required @("Path", "MaxLines", "PrintOutput")
 Assert-Parameter -ScriptName "scoped-diff-check.ps1" `
     -Required @("Path", "Cached", "ExcludeUnityMeta") `
     -Forbidden @("Mode", "SummaryOnly")
@@ -64,8 +66,26 @@ foreach ($sentinel in @(
 
 $focusedText = [System.IO.File]::ReadAllText((Join-Path $toolsRoot "focused-search.ps1"))
 if (-not $focusedText.Contains("Each -Path item must exist") -or
+    -not $focusedText.Contains('$maximumTopFiles = 2') -or
+    -not $focusedText.Contains('$maximumContext = 4') -or
+    -not $focusedText.Contains('$maximumMatchesPerFile = 2') -or
     -not $focusedText.Contains("exit 0")) {
     throw "focused-search path or no-match contract is missing."
+}
+
+if (-not $safeReadText.Contains('$isUnityReport') -or
+    -not $safeReadText.Contains('{ 24 }') -or
+    -not $safeReadText.Contains("guard_code: 47")) {
+    throw "safe-read Unity Report output cap is missing."
+}
+
+$safeDiffText = [System.IO.File]::ReadAllText((Join-Path $toolsRoot "safe-diff.ps1"))
+$safeCommandText = [System.IO.File]::ReadAllText(
+    (Join-Path $toolsRoot "Invoke-AreaSafeCommand.ps1")
+)
+if (-not $safeDiffText.Contains("[Math]::Min(`$MaxLines, 40)") -or
+    -not $safeCommandText.Contains("[diff output truncated:")) {
+    throw "Unity text diff output cap is missing."
 }
 
 $diffText = [System.IO.File]::ReadAllText((Join-Path $toolsRoot "scoped-diff-check.ps1"))

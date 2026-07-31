@@ -222,7 +222,10 @@ namespace AreaSurvivors.Editor
                 "Time.time < nextContactDamageAt",
                 "CalculateNextContactDamageAt(Time.time)",
                 "RecordDamageFeedbackEvent",
-                "RecordEnemyDeath",
+                "RecordEnemyDeath");
+            RequireTokens(
+                "Assets/AreaSurvivors/Scripts/Game/Pickups/ExperienceOrb.cs",
+                errors,
                 "RecordXpOrbSpawn");
             RejectTokens(
                 "Assets/AreaSurvivors/Scripts/Game/Characters/EnemyController.cs",

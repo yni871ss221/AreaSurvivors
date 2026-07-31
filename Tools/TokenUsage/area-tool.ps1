@@ -369,6 +369,7 @@ switch ($Operation) {
         if ($DiffMode -eq "Summary") { $arguments.SummaryOnly = $true }
         if ($DiffMode -eq "Stat") { $arguments.Stat = $true }
         if ($DiffMode -eq "Names") { $arguments.NameOnly = $true }
+        if ($MaxResults -gt 0) { $arguments.MaxLines = $MaxResults }
         if ($PrintOutput -or $DiffMode -eq "Full") { $arguments.PrintOutput = $true }
     }
     "Git.Check" {

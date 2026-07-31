@@ -47,24 +47,46 @@ if ($IncludeBenchmark) { $arguments += "--include-benchmark" }
 if ($ForceRebuild) { $arguments += "--force-rebuild" }
 if ($SelfTest) { $arguments += "--self-test" }
 
-$output = @(& $pythonCommand.Source @arguments 2>&1)
-$exitCode = $LASTEXITCODE
-$outputText = $output -join "`n"
-if ($exitCode -ne 0) {
-    throw "Token report index failed with exit code ${exitCode}: $outputText"
-}
-if ($SelfTest) {
-    Write-Output $outputText
-    exit 0
-}
-if ($outputText -eq "No TokenReports directory found.") {
-    Write-Output $outputText
-    exit 0
+$outputJsonPath = ""
+if (-not $SelfTest) {
+    $outputJsonPath = Join-Path (
+        [System.IO.Path]::GetTempPath()
+    ) ("area-token-summary-" + [guid]::NewGuid().ToString("N") + ".json")
+    $arguments += @("--output-json", $outputJsonPath)
 }
 
-$summary = $outputText | ConvertFrom-Json
+try {
+    $output = @(& $pythonCommand.Source @arguments 2>&1)
+    $exitCode = $LASTEXITCODE
+    $consoleText = $output -join "`n"
+    if ($exitCode -ne 0) {
+        throw "Token report index failed with exit code ${exitCode}: $consoleText"
+    }
+    if ($SelfTest) {
+        Write-Output $consoleText
+        exit 0
+    }
+    if (-not (Test-Path -LiteralPath $outputJsonPath -PathType Leaf)) {
+        throw "Token report index did not create its UTF-8 result file."
+    }
+    $outputText = [System.IO.File]::ReadAllText(
+        $outputJsonPath,
+        [System.Text.Encoding]::UTF8
+    )
+    $summary = $outputText | ConvertFrom-Json
+} finally {
+    if (-not [string]::IsNullOrWhiteSpace($outputJsonPath) -and
+        (Test-Path -LiteralPath $outputJsonPath)) {
+        Remove-Item -LiteralPath $outputJsonPath -Force
+    }
+}
+
+if ($null -ne $summary.PSObject.Properties["message"]) {
+    Write-Output $summary.message
+    exit 0
+}
 if ($Json) {
-    $summary | ConvertTo-Json -Depth 8
+    Write-Output $outputText
     exit 0
 }
 
@@ -84,3 +106,10 @@ Write-Output ""
 $summary.top_commands |
     Select-Object displayed_tokens, capture_tokens, measurement_status, risk, blocked, exit_code, kind, command |
     Format-Table -AutoSize
+if (@($summary.operation_summary).Count -gt 0) {
+    Write-Output ""
+    Write-Output "Operation summary:"
+    $summary.operation_summary |
+        Select-Object operation, records, capture_tokens, displayed_tokens |
+        Format-Table -AutoSize
+}

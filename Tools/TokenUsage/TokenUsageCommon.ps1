@@ -126,26 +126,44 @@ function Write-TokenUsageJsonLine {
         $Record | Add-Member -NotePropertyName "area_tool_operation" -NotePropertyValue $areaToolOperation
     }
 
-    $line = $Record | ConvertTo-Json -Depth 8 -Compress
-    for ($attempt = 0; $attempt -lt 5; $attempt++) {
-        try {
-            $stream = [System.IO.File]::Open($ReportPath, [System.IO.FileMode]::Append, [System.IO.FileAccess]::Write, [System.IO.FileShare]::ReadWrite)
-            try {
-                $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-                $writer = New-Object System.IO.StreamWriter($stream, $utf8NoBom)
-                try {
-                    $writer.WriteLine($line)
-                } finally {
-                    $writer.Dispose()
-                }
-            } finally {
-                $stream.Dispose()
-            }
-            return $ReportPath
-        } catch {
-            Start-Sleep -Milliseconds (100 * ($attempt + 1))
-            if ($attempt -eq 4) { throw }
-        }
+    $resolvedReportPath = [System.IO.Path]::GetFullPath($ReportPath)
+    $pathBytes = [System.Text.Encoding]::UTF8.GetBytes(
+        $resolvedReportPath.ToLowerInvariant()
+    )
+    $sha256 = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $pathHash = [System.BitConverter]::ToString(
+            $sha256.ComputeHash($pathBytes)
+        ).Replace("-", "").Substring(0, 24)
+    } finally {
+        $sha256.Dispose()
     }
-    return $ReportPath
+
+    $line = $Record | ConvertTo-Json -Depth 8 -Compress
+    $mutex = New-Object System.Threading.Mutex(
+        $false,
+        "AreaSurvivors.TokenReportWriter.$pathHash"
+    )
+    $lockTaken = $false
+    try {
+        try {
+            $lockTaken = $mutex.WaitOne([TimeSpan]::FromSeconds(10))
+        } catch [System.Threading.AbandonedMutexException] {
+            $lockTaken = $true
+        }
+        if (-not $lockTaken) {
+            throw "Timed out waiting for the TokenReports writer lock."
+        }
+        [System.IO.File]::AppendAllText(
+            $resolvedReportPath,
+            $line + [Environment]::NewLine,
+            [System.Text.UTF8Encoding]::new($false)
+        )
+    } finally {
+        if ($lockTaken) {
+            $mutex.ReleaseMutex()
+        }
+        $mutex.Dispose()
+    }
+    return $resolvedReportPath
 }

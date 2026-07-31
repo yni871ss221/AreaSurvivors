@@ -1015,6 +1015,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--include-benchmark", action="store_true")
     parser.add_argument("--force-rebuild", action="store_true")
     parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--output-json", default="")
     return parser
 
 
@@ -1032,7 +1033,14 @@ def main() -> int:
                 expanded_kinds.append(trimmed)
     args.kind = expanded_kinds
     result = run_summary(args)
-    if "message" in result:
+    if args.output_json:
+        output_path = Path(args.output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(
+            json.dumps(result, ensure_ascii=False, separators=(",", ":")),
+            encoding="utf-8",
+        )
+    elif "message" in result:
         print(result["message"])
     else:
         print(json.dumps(result, ensure_ascii=False, separators=(",", ":")))

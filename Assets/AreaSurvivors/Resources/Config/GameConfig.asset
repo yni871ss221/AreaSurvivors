@@ -46,7 +46,7 @@ MonoBehaviour:
   playerLevelMoveSpeedBonus: 0.1
   playerLevelDefenseBonus: 0.5
   xpRequirementGrowthStart: 1.35
-  xpRequirementGrowthEnd: 1.1
+  xpRequirementGrowthEnd: 1.045
   xpRequirementGrowthStartLevel: 2
   xpRequirementGrowthEndLevel: 39
   xpRequirementFlatBonus: 3
@@ -68,8 +68,8 @@ MonoBehaviour:
   cameraMinimumPosition: {x: -25, y: -25}
   cameraMaximumPosition: {x: 25, y: 25}
   cameraBoundsPadding: 0.25
-  towerMaxHp: 200
-  towerMaxHpPerUpgradeLevel: 30
+  towerMaxHp: 400
+  towerMaxHpPerUpgradeLevel: 50
   ballistaRange: 9.5
   ballistaCooldown: 1.15
   ballistaDamage: 5
@@ -82,7 +82,7 @@ MonoBehaviour:
   towerCannonProjectileLifetime: 4.2
   towerCannonProjectileVisualScale: 0.32
   towerCannonKnockback: 2.2
-  upgradedTowerMaxHp: 900
+  upgradedTowerMaxHp: 800
   upgradedTowerRegenBonus: 3
   upgradedTowerCannonDamageBonus: 10
   upgradedTowerCannonExplosionRadiusMultiplier: 2
@@ -114,7 +114,7 @@ MonoBehaviour:
   slashDamageBonus: 2
   slashRange: 1.6
   slashOffset: 1.05
-  swordRushBaseAttackPower: 16
+  swordRushBaseAttackPower: 4
   goldenBowBaseAttackPower: 16
   fireMissileBaseAttackPower: 16
   dualShieldBaseAttackPower: 12
@@ -1672,9 +1672,11 @@ MonoBehaviour:
   goblinLordDarkOrbDamageMultiplier: 0.5
   goblinLordDarkOrbVisualScale: 1
   lichSummonRadius: 4
+  lichSummonDistanceCells: 10
   lichSummonCircleDurationSeconds: 2.2
   lichSummonSkeletonCount: 10
   lichSummonSkeletonKnightCount: 10
+  dragonBreathCooldownSeconds: 4.5
   dragonBreathMouthClosedSeconds: 0.55
   dragonBreathMouthOpenSeconds: 0.32
   dragonBreathProjectileSpeed: 4.2
@@ -1955,15 +1957,15 @@ MonoBehaviour:
     displayName: "\u30C9\u30E9\u30B4\u30F3"
     spriteKey: EnemyDragon
     animationSpeedMultiplier: 0.45
-    hpMultiplier: 1280
+    hpMultiplier: 1536
     damageMultiplier: 32
     speedMultiplier: 0.31
     cellSize: 4
-    xpValue: 1280
+    xpValue: 1536
     tokenValue: 10
     elite: 0
     boss: 1
     outlineColor: {r: 1, g: 0.08, b: 0.04, a: 1}
     outlineThickness: 0.075
   xpPerEnemy: 1
-  tokenKillsDivisor: 10
+  tokenKillsDivisor: 15

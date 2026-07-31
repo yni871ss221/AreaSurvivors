@@ -68,7 +68,7 @@ namespace AreaSurvivors
         int CalculateNextXpRequirement(int currentRequirement, int currentLevel)
         {
             float growthStart = config != null ? Mathf.Max(1f, config.xpRequirementGrowthStart) : 1.35f;
-            float growthEnd = config != null ? Mathf.Max(1f, config.xpRequirementGrowthEnd) : 1.1f;
+            float growthEnd = config != null ? Mathf.Max(1f, config.xpRequirementGrowthEnd) : 1.045f;
             int growthStartLevel = config != null ? Mathf.Max(2, config.xpRequirementGrowthStartLevel) : 2;
             int growthEndLevel = config != null
                 ? Mathf.Max(growthStartLevel + 1, config.xpRequirementGrowthEndLevel)

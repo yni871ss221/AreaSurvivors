@@ -13,7 +13,9 @@ param(
     [switch]$PrintOutput
 )
 
-$maxInteractiveOutputLines = 80
+$normalizedReadPath = $Path.Replace([char]'/', [char]'\')
+$isUnityReport = $normalizedReadPath -match '(?i)(^|\\)TokenReports\\UnityReports\\'
+$maxInteractiveOutputLines = if ($isUnityReport) { 24 } else { 80 }
 
 if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -LiteralPath $Path -PathType Leaf)) {
     throw "safe-read path must be an existing file before reading (guard_code: 33): $Path"
@@ -70,7 +72,10 @@ if ($PrintOutput -and -not $AllowHighOutput) {
         } elseif ($StartLine -gt 0 -or $EndLine -gt 0) {
             $suggestedStartLine = [Math]::Max(1, $StartLine)
             $suggestedEndLine = $suggestedStartLine + $maxInteractiveOutputLines - 1
-            throw "safe-read refuses more than $maxInteractiveOutputLines estimated output lines with -PrintOutput (guard_code: 39). Use safe-read-batch with the original range for automatic 80-line chunks. estimated_lines=$estimatedPrintedLines suggested_end_line=$suggestedEndLine use_safe_read_batch=1"
+            if ($isUnityReport) {
+                throw "Unity Report read refuses more than $maxInteractiveOutputLines lines (guard_code: 47). Use Code.Read with -Pattern and bounded -Context/-MaxResults, or request a range ending at $suggestedEndLine. estimated_lines=$estimatedPrintedLines"
+            }
+            throw "safe-read refuses more than $maxInteractiveOutputLines estimated output lines with -PrintOutput (guard_code: 39). Use Code.Read with smaller -Ranges entries. estimated_lines=$estimatedPrintedLines suggested_end_line=$suggestedEndLine"
         } elseif ($StartLine -le 0 -and $EndLine -le 0 -and $Last -le 0) {
             throw "safe-read refuses more than $maxInteractiveOutputLines estimated output lines with -PrintOutput (guard_code: 39). Lower -First or omit -PrintOutput. estimated_lines=$estimatedPrintedLines suggested_first=$maxInteractiveOutputLines"
         } else {

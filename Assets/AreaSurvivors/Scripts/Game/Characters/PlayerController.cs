@@ -35,7 +35,6 @@ namespace AreaSurvivors
         GridObjectVisual gridVisual;
         CharacterFootprint footprint;
         Vector2 facing = Vector2.down;
-        bool movementInputBlockedUntilNeutral;
         float moveSpeed;
         int paintRadius;
         Coroutine invincibilityRoutine;
@@ -119,20 +118,9 @@ namespace AreaSurvivors
 
         static Vector2 ResolveMovementInput(
             Vector2 rawInput,
-            bool worldPaused,
-            ref bool blockedUntilNeutral)
+            bool worldPaused)
         {
-            if (worldPaused)
-            {
-                blockedUntilNeutral = true;
-                return Vector2.zero;
-            }
-
-            if (!blockedUntilNeutral) return rawInput;
-            if (rawInput.sqrMagnitude > 0.01f) return Vector2.zero;
-
-            blockedUntilNeutral = false;
-            return Vector2.zero;
+            return worldPaused ? Vector2.zero : rawInput;
         }
 
         void Update()
@@ -146,8 +134,7 @@ namespace AreaSurvivors
             if (IsReviving) return;
             var input = ResolveMovementInput(
                 InputSettingsStore.MoveVector(),
-                GameManager.IsWorldInputSuspended,
-                ref movementInputBlockedUntilNeutral);
+                GameManager.IsWorldInputSuspended);
             if (input.sqrMagnitude > 0.01f) facing = input;
 
             float enemyTerritoryMultiplier = config.enemyTerritorySlow +

@@ -22,11 +22,12 @@ namespace AreaSurvivors.EditorTools
             var config = ScriptableObject.CreateInstance<GameConfig>();
             try
             {
-                config.tokenKillsDivisor = 3;
-                Require((int)Invoke(serviceType, service, "AwardKillTokens", false, config) == 0,
-                    "First kill reward changed.");
-                Require((int)Invoke(serviceType, service, "AwardKillTokens", false, config) == 0,
-                    "Second kill reward changed.");
+                config.tokenKillsDivisor = 15;
+                for (int kill = 1; kill < config.tokenKillsDivisor; kill++)
+                {
+                    Require((int)Invoke(serviceType, service, "AwardKillTokens", false, config) == 0,
+                        $"Kill reward occurred early at kill {kill}.");
+                }
                 Require((int)Invoke(serviceType, service, "AwardKillTokens", false, config) == 1,
                     "Kill threshold reward changed.");
             }

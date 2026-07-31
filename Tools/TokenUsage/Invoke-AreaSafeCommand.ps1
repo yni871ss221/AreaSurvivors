@@ -59,8 +59,16 @@ switch ($Action) {
         }
         $pathArgs = Join-QuotedPaths $Path
         $rangeArgs = if ([string]::IsNullOrWhiteSpace($RefRange)) { "" } else { $RefRange }
-        $command = "git diff $rangeArgs $ExtraArgs"
-        if (-not [string]::IsNullOrWhiteSpace($pathArgs)) { $command = "$command -- $pathArgs" }
+        $gitDiffCommand = "git diff $rangeArgs $ExtraArgs"
+        if (-not [string]::IsNullOrWhiteSpace($pathArgs)) {
+            $gitDiffCommand = "$gitDiffCommand -- $pathArgs"
+        }
+        $command = "`$diffOutput = @(& { $gitDiffCommand } 2>&1); " +
+            "`$gitExit = `$LASTEXITCODE; " +
+            "`$diffOutput | Select-Object -First $First; " +
+            "if (`$diffOutput.Count -gt $First) { " +
+            "Write-Output ('[diff output truncated: shown=$First total={0}]' -f `$diffOutput.Count) }; " +
+            "exit `$gitExit"
     }
     "DiffStat" {
         $pathArgs = Join-QuotedPaths $Path

@@ -379,13 +379,13 @@ namespace AreaSurvivors
             switch (type)
             {
                 case UpgradeType.UnlockShield:
-                    return 50;
+                    return 100;
                 case UpgradeType.UnlockTowerUpgrade:
                     return 100;
                 case UpgradeType.ReviveBuildingsOnBossDefeat:
                     return 60;
                 case UpgradeType.UnlockFlag:
-                    return 100;
+                    return 50;
                 case UpgradeType.UnlockOpeningRelicChest:
                     return 250;
                 default:

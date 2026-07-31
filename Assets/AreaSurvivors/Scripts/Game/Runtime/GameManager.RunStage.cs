@@ -188,6 +188,7 @@ namespace AreaSurvivors
 
         IEnumerator StageTransitionRoutine(EnemyController boss, int nextStage)
         {
+            stageTransitionActive = true;
             gameEnding = true;
             spawner?.StopSpawning();
             yield return DefeatRemainingEnemiesForStageTransition(boss);
@@ -196,6 +197,7 @@ namespace AreaSurvivors
             yield return new WaitForSeconds(1.2f);
             if (boss != null) Destroy(boss.gameObject);
             gameEnding = false;
+            stageTransitionActive = false;
             BeginStage(nextStage, 0f, true);
         }
 

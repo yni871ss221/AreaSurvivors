@@ -80,6 +80,7 @@ $results = @(
     Assert-CompactCurrentFile `
         -Path $projectCurrentPath `
         -MaxLines $MaxProjectLines `
+        -RejectDatedSections `
         -RequiredHeadings @(
             "# Current Task",
             "## Goal",
@@ -88,7 +89,7 @@ $results = @(
             "## TODO",
             "## Blocker"
         ) `
-        -RequiredText "ctx/archive/"
+        -RequiredText "Git"
 )
 
 [pscustomobject]@{

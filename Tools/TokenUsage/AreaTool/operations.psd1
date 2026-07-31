@@ -78,7 +78,7 @@
             Risk = "ReadOnly"
             Implementation = "safe-diff.ps1"
             Required = @()
-            Allowed = @("Path", "RefRange", "DiffMode", "PrintOutput")
+            Allowed = @("Path", "RefRange", "DiffMode", "MaxResults", "PrintOutput")
         }
         "Git.Check" = @{
             Risk = "ReadOnly"

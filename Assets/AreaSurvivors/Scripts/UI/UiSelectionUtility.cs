@@ -15,6 +15,7 @@ namespace AreaSurvivors
         const float ScrollPadding = 28f;
         const float PointerMoveThresholdSqr = 0.25f;
         const float DirectionDotThreshold = 0.15f;
+        const float DirectionalNavigationPerpendicularRange = 120f;
         static Selectable lastValidSelection;
         static GameObject lastPresentedSelection;
         static Vector3 lastPointerPosition;
@@ -287,6 +288,11 @@ namespace AreaSurvivors
             bool horizontalMove = Mathf.Abs(direction.x) > Mathf.Abs(direction.y);
             Selectable best = null;
             float bestScore = float.PositiveInfinity;
+            Selectable nearestVerticalLaneCandidate = null;
+            float nearestVerticalLaneScore = float.PositiveInfinity;
+            float nearestVerticalPerpendicular = float.PositiveInfinity;
+            float verticalNavigationHorizontalRange = DirectionalNavigationPerpendicularRange
+                * HorizontalScreenScale(sourceRectTransform, sourceRect);
 
             for (int i = 0; i < candidates.Count; i++)
             {
@@ -309,6 +315,20 @@ namespace AreaSurvivors
                     ? AxisGap(sourceRect.yMin, sourceRect.yMax, candidateRect.yMin, candidateRect.yMax)
                     : AxisGap(sourceRect.xMin, sourceRect.xMax, candidateRect.xMin, candidateRect.xMax);
                 float perpendicularDistance = Mathf.Abs(Vector2.Dot(delta, perpendicular));
+                if (!horizontalMove && perpendicularDistance <= verticalNavigationHorizontalRange)
+                {
+                    float laneScore = forward + perpendicularDistance;
+                    bool betterLaneScore = laneScore < nearestVerticalLaneScore;
+                    bool sameScoreAndNearerCenter = Mathf.Approximately(laneScore, nearestVerticalLaneScore)
+                        && perpendicularDistance < nearestVerticalPerpendicular;
+                    if (betterLaneScore || sameScoreAndNearerCenter)
+                    {
+                        nearestVerticalLaneScore = laneScore;
+                        nearestVerticalPerpendicular = perpendicularDistance;
+                        nearestVerticalLaneCandidate = candidate;
+                    }
+                }
+
                 float score = laneGap * 10000f + perpendicularDistance * 10f + forward;
 
                 if (score < bestScore)
@@ -318,7 +338,19 @@ namespace AreaSurvivors
                 }
             }
 
-            return best;
+            return nearestVerticalLaneCandidate != null ? nearestVerticalLaneCandidate : best;
+        }
+
+        static float HorizontalScreenScale(RectTransform rectTransform, Rect screenRect)
+        {
+            float localWidth = Mathf.Abs(rectTransform.rect.width);
+            if (localWidth > 0.001f && screenRect.width > 0.001f)
+            {
+                return screenRect.width / localWidth;
+            }
+
+            var canvas = rectTransform.GetComponentInParent<Canvas>();
+            return canvas != null ? Mathf.Max(0.001f, canvas.rootCanvas.scaleFactor) : 1f;
         }
 
         static Rect ScreenRect(RectTransform rectTransform)

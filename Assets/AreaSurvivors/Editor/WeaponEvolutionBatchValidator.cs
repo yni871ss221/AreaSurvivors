@@ -668,7 +668,7 @@ namespace AreaSurvivors.EditorTools
         static void ValidateConfig(ref int errors)
         {
             var config = AssetDatabase.LoadAssetAtPath<GameConfig>("Assets/AreaSurvivors/Resources/Config/GameConfig.asset");
-            if (config == null || config.swordRushBaseAttackPower != 16 ||
+            if (config == null || config.swordRushBaseAttackPower != 4 ||
                 config.goldenBowBaseAttackPower != 16 || config.fireMissileBaseAttackPower != 16 ||
                 config.dualShieldBaseAttackPower != 12 || config.goddessBlessingBaseAttackPower != 12 ||
                 config.bananaBaseAttackPower != 12 || config.excaliburBaseAttackPower != 12 ||
@@ -731,7 +731,7 @@ namespace AreaSurvivors.EditorTools
                 Error("Gun attack power must grow from base 50 to level-10 value 68.", ref errors);
             }
 
-            ValidateEvolutionAttackPower(config, WeaponType.Slash, config.swordRushBaseAttackPower, 25, true, ref errors);
+            ValidateEvolutionAttackPower(config, WeaponType.Slash, config.swordRushBaseAttackPower, 13, true, ref errors);
             ValidateEvolutionAttackPower(config, WeaponType.Arrow, config.goldenBowBaseAttackPower, 25, false, ref errors);
             ValidateEvolutionAttackPower(config, WeaponType.Fireball, config.fireMissileBaseAttackPower, 25, false, ref errors);
             ValidateEvolutionAttackPower(config, WeaponType.Shield, config.dualShieldBaseAttackPower, 21, false, ref errors);

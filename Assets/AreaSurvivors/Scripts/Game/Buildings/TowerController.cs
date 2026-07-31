@@ -147,7 +147,11 @@ namespace AreaSurvivors
                 upgradedCompleteVisual.transform.localScale = upgradedCompleteBaseScale;
             }
 
-            if (health != null) health.SetMax(config != null ? config.upgradedTowerMaxHp : 900);
+            int upgradedMaxHp = config != null
+                ? config.upgradedTowerMaxHp
+                    + ProgressionStore.GetLevel(UpgradeType.TowerMaxHp) * config.towerMaxHpPerUpgradeLevel
+                : 800;
+            if (health != null) health.SetMax(upgradedMaxHp);
             var regeneration = GetComponent<AutoRegeneration>();
             if (regeneration != null && config != null) regeneration.amount += Mathf.Max(0, config.upgradedTowerRegenBonus);
             var cannon = GetComponent<TowerCannonController>();

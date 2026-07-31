@@ -12,8 +12,19 @@ namespace AreaSurvivors
     {
         public static GameManager Instance { get; private set; }
         public static bool IsWorldInputSuspended =>
-            Time.timeScale <= 0f ||
-            (Instance != null && Instance.gameEnding);
+            ResolveWorldInputSuspended(
+                Time.timeScale,
+                Instance != null && Instance.gameEnding,
+                Instance != null && Instance.stageTransitionActive);
+
+        public static bool ResolveWorldInputSuspended(
+            float timeScale,
+            bool gameEnding,
+            bool stageTransitionActive)
+        {
+            return timeScale <= 0f ||
+                (gameEnding && !stageTransitionActive);
+        }
 
         public GameConfig config;
         public TileGrid grid;
@@ -61,6 +72,7 @@ namespace AreaSurvivors
         int currentStage = 1;
         bool bossActive;
         bool gameEnding;
+        bool stageTransitionActive;
         bool endingCutsceneActive;
         readonly List<string> runUpgrades = new List<string>();
         readonly List<string> runRelics = new List<string>();

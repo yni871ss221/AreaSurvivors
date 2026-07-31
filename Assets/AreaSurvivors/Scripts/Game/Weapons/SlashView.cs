@@ -19,7 +19,6 @@ namespace AreaSurvivors
         [SerializeField] float visualScaleMultiplier = 0.78f;
         [SerializeField] float frameSeconds = 0.055f;
         [SerializeField] Color slashColor = new Color(1f, 0.92f, 0.42f, 0.82f);
-        [SerializeField] int slashSortingOrder = WeaponSortingOrders.Slash;
 
         readonly List<Collider2D> hits = new List<Collider2D>(16);
         readonly HashSet<EnemyController> damaged = new HashSet<EnemyController>();

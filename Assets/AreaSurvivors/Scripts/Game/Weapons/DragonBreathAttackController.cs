@@ -224,7 +224,7 @@ namespace AreaSurvivors
         }
 
         GameConfig Config => enemy != null ? enemy.config : null;
-        float CooldownSeconds => Config != null ? Mathf.Max(0.05f, Config.bossSpecialAttackCooldownSeconds) : 5f;
+        float CooldownSeconds => Config != null ? Mathf.Max(0.05f, Config.dragonBreathCooldownSeconds) : 4.5f;
         float MouthClosedSeconds => Config != null ? Mathf.Max(0f, Config.dragonBreathMouthClosedSeconds) : 0.55f;
         float MouthOpenSeconds => Config != null ? Mathf.Max(0f, Config.dragonBreathMouthOpenSeconds) : 0.32f;
         float RecoverSeconds => Config != null ? Mathf.Max(0f, Config.bossSpecialAttackRecoverSeconds) : 0.15f;

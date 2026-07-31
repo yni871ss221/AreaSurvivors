@@ -17,6 +17,7 @@ namespace AreaSurvivors
         FireballCast,
         ExplosionHit,
         ButtonConfirm,
+        ButtonFocus,
         LevelUp,
         EnemyHit,
         ExperiencePickup,
@@ -81,6 +82,8 @@ namespace AreaSurvivors
                     return "Audio/SFX/explosion_hit";
                 case SfxTrack.ButtonConfirm:
                     return "Audio/SFX/button_confirm";
+                case SfxTrack.ButtonFocus:
+                    return "Audio/SFX/cursor_move_2";
                 case SfxTrack.LevelUp:
                     return "Audio/SFX/level_up";
                 case SfxTrack.EnemyHit:

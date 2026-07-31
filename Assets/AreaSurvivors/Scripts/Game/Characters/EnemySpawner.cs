@@ -7,6 +7,14 @@ namespace AreaSurvivors
     public sealed class EnemySpawner : MonoBehaviour
     {
         public const int PerformanceSafeAbsoluteMaxAliveEnemies = 200;
+        public const int SpawnDirectionCount = 16;
+        static readonly float[] SpawnDirectionDegrees =
+        {
+            75f, 60f, 30f, 15f,
+            345f, 330f, 300f, 285f,
+            255f, 240f, 210f, 195f,
+            165f, 150f, 120f, 105f
+        };
 
         sealed class SpawnPhase
         {
@@ -54,7 +62,7 @@ namespace AreaSurvivors
         float directionTimer;
         float directionDegrees;
         int directionChangeIndex;
-        int lastDirectionSector = -1;
+        int spawnDirectionIndex = -1;
         Vector3Int currentSpawnCell;
         bool hasCurrentSpawnCell;
         bool hasBossSpawnDirection;
@@ -99,6 +107,7 @@ namespace AreaSurvivors
             elapsed = elapsedOffset + stageElapsed;
             directionTimer = 0f;
             directionChangeIndex = 0;
+            spawnDirectionIndex = -1;
             hasBossSpawnDirection = false;
             bossSpawnDirectionDegrees = 0f;
             timedSpawned = new bool[TimedSpawnsForCurrentStage().Length];
@@ -398,11 +407,18 @@ namespace AreaSurvivors
                 return;
             }
 
-            const int sectors = 8;
-            int sector = Random.Range(0, sectors);
-            if (sector == lastDirectionSector) sector = (sector + Random.Range(1, sectors)) % sectors;
-            lastDirectionSector = sector;
-            directionDegrees = sector * (360f / sectors);
+            if (spawnDirectionIndex < 0)
+            {
+                spawnDirectionIndex = Random.Range(0, SpawnDirectionCount);
+            }
+            else
+            {
+                spawnDirectionIndex = DirectionIndexForTransitionChoice(
+                    spawnDirectionIndex,
+                    Random.Range(0, 6));
+            }
+
+            directionDegrees = DirectionDegreesForIndex(spawnDirectionIndex);
         }
 
         Vector3 ResolveSpawnPosition(EnemyDefinition definition)
@@ -437,10 +453,65 @@ namespace AreaSurvivors
 
         Vector3 ResolveDirectionalSpawnPosition(float centerDirectionDegrees, float enemyCellSize)
         {
-            float halfArc = Mathf.Max(0.5f, config.spawnDirectionArcDegrees * 0.5f);
-            float angle = centerDirectionDegrees + Random.Range(-halfArc, halfArc);
-            var dir = new Vector2(Mathf.Cos(angle * Mathf.Deg2Rad), Mathf.Sin(angle * Mathf.Deg2Rad));
-            return ClampSpawnInsideGrid(target.position + (Vector3)(dir * radius), enemyCellSize);
+            float angle = ResolveSpawnAngleDegrees(
+                centerDirectionDegrees,
+                config.spawnDirectionArcDegrees,
+                Random.value);
+            float radians = angle * Mathf.Deg2Rad;
+            var direction = new Vector2(Mathf.Cos(radians), Mathf.Sin(radians));
+            Vector3 candidate = target.position + (Vector3)(direction * radius);
+            return ClampSpawnInsideGrid(candidate, enemyCellSize);
+        }
+
+        public static float ResolveSpawnAngleDegrees(
+            float centerDirectionDegrees,
+            float arcDegrees,
+            float randomUnit)
+        {
+            float halfArc = Mathf.Max(0.5f, arcDegrees * 0.5f);
+            return centerDirectionDegrees +
+                Mathf.Lerp(-halfArc, halfArc, Mathf.Clamp01(randomUnit));
+        }
+
+        public static float DirectionDegreesForIndex(int directionIndex)
+        {
+            return SpawnDirectionDegrees[WrapDirectionIndex(directionIndex)];
+        }
+
+        public static int DirectionIndexForTransitionChoice(
+            int previousDirectionIndex,
+            int transitionChoice)
+        {
+            int choice = Mathf.Clamp(transitionChoice, 0, 5);
+            int offset = choice < 3
+                ? -(choice + 2)
+                : choice - 1;
+            return WrapDirectionIndex(previousDirectionIndex + offset);
+        }
+
+        public static bool IsDirectionTransitionAllowed(
+            int previousDirectionIndex,
+            int nextDirectionIndex)
+        {
+            int previous = WrapDirectionIndex(previousDirectionIndex);
+            int next = WrapDirectionIndex(nextDirectionIndex);
+            int clockwiseDistance = (next - previous + SpawnDirectionCount) % SpawnDirectionCount;
+            int circularDistance = Mathf.Min(
+                clockwiseDistance,
+                SpawnDirectionCount - clockwiseDistance);
+            return circularDistance >= 2 && circularDistance <= 4;
+        }
+
+        public static bool IsPrincipalAxisDirection(float angleDegrees)
+        {
+            float normalized = Mathf.Repeat(angleDegrees, 45f);
+            return normalized <= 0.001f || 45f - normalized <= 0.001f;
+        }
+
+        static int WrapDirectionIndex(int directionIndex)
+        {
+            int wrapped = directionIndex % SpawnDirectionCount;
+            return wrapped < 0 ? wrapped + SpawnDirectionCount : wrapped;
         }
 
         static Vector2 DirectionForBossTestSpawnSide(BossTestSpawnSide side)
