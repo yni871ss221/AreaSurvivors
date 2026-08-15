@@ -2,30 +2,34 @@
 
 ## Goal
 
-Steam配信版のコントローラ入力をUnity Input Systemへ完全移行し、テスト済み候補をdefault公開できる状態にする。
+AreaSurvivorsの残TODOをすべて解決し、最終Steamリリース、記録、Git締め作業まで完了して対応を終了する。
 
 ## Latest Decision
 
-- Unity Input System `1.14.2`を唯一の入力経路とし、旧Input Manager／WinMMフォールバックは使用しない。
-- DirectInput／XInput固有の軸番号・ボタン番号を使わず、`Gamepad`の方向・South／East等の論理入力へ統一する。
-- `Active Input Handling`はInput System専用とする。
-- Unity Editorでは`SteamAPI.Init()`を実行せず、Steam連携確認はLocalTest／Steamビルドで行う。製品ビルドのSteam初期化は維持する。
-- Steamworks側は一般ゲームパッド用テンプレートを前提とし、機種別Rawマッピングは追加しない。
+- 旧`SwordRushEvolutionValidator`の現行仕様不一致2件は、最終検証前にValidatorを現行仕様へ更新して解決する。
+- 未コミット差分は、入力／フォーカス、ウルトラワイドUI、リリース文書／ルール、Validator保守の責務別に確認・コミットする。
+- 最終Buildはクリーンな確定commitから作成し、Steamテストブランチへアップロードする。同一Build IDでチェックリストを完了してからdefault公開する。
+- 公開後はBuild ID、Depot manifest ID、Git commit、確認結果、証跡を記録し、現在branchをpush、worktreeをクリーンにして終了する。
 
 ## Latest Verification
 
-- runtime／editor Assembly current、Input System Migration Validator passed（failed 0／warnings 0／errors 0）、Console Error 0件。
-- Runtimeコードの旧`Input.*`／`KeyCode`／WinMM参照は0件。
-- 新Input System専用ビルドをSteam `input-test`へBuild ID `24751074`として配信済み。
-- ユーザー実機確認でタイトル、オプション、ロビー、アップグレード、武器図鑑、レリック、ゲーム、Scene往復、パッド抜き差し、キーボード／マウスがすべて正常。
-- Player.logでは通常時と全Sceneが`XInputControllerWindows`／`interface=XInput`／`route=input-system`。切断中のみ`route=none`となり、再接続後に復帰。Exception／Error／Crash 0件。
-- EditorでのDS4切断原因は、Editor内の`SteamAPI.Init()`によるSteam Inputの所有／マッピング切替と確定し、Editor限定の初期化スキップで解消済み。
+- branchは`feature/03_releaseUpdate`、作業開始時点で`origin/feature/03_releaseUpdate`と同期済み。
+- 未コミットはtracked 14ファイル、untracked 2ファイル。内容は入力／フォーカスC#、CanvasScaler 4 SceneとLobby初期値、Combat Animator／Sword Rush Validator、Steam Cloud／リリース文書、AGENTSルーティング、`ctx/current.md`。
+- 入力、フォーカス、ドロップダウン、ウルトラワイド対象画面はユーザー実機確認済み。責務別diffレビュー済み。
+- `SwordRushEvolutionValidator`の表示条件期待値を「武器Lv.10」＋「ゲームプレイ回数5回以上」へ更新し、旧`animationFrames`要求をAnimator／AnimationClip／SpriteRenderer参照検査へ置換済み。ゲーム側コード、数値、Prefab差分なし。
+- Editor Assembly current、Unity Script Compile passed、`Area Survivors/Validate/Sword Rush Evolution` passed（failed 0／warnings 0／errors 0）、対象`Git.Check` passed。
+- `FrostStormSpike Animator visual is missing`は、Visual欠落ではなく、ネスト済みVisualをValidatorだけがルート直下検索していた誤検知と特定。Migrationと同様の再帰検索へ修正済み。
+- Editor Assembly current、Unity Script Compile、Input System Migration、HUD Layout Mutation Guard、Combat Animator Migration、Sword Rush Evolutionがすべてpassed。Console Error 0件、Git diff check、current-context-guardもpassed。
 
 ## TODO
 
-- default公開後、一般アカウントで購入、インストール、起動、実績、セーブ、終了時の「プレイ中」解除を確認する。
-- 旧Sword Rush Evolution Validatorの進化条件／交互フレーム2件と現行仕様の整合は、次回Validator保守時に判断する。
+- 差分を責務別にcommitし、`feature/03_releaseUpdate`をpushする。
+- 確定commitからSteam配信Buildを作成し、テストブランチへデプロイする。
+- 新Build IDで`Docs/Release/SteamReleaseChecklist.md`の全`STOP-SHIP`を確認する。Steam Cloud一般アカウント、Steam Input／Xbox／Bluetooth DS4、全画面遷移／抜き差し、16:9／21:9フルスクリーン、一般アカウント起動／セーブ／実績／正常終了を含む。
+- 同一Build IDをSteam defaultへ公開し、default経路の起動と主要修正を最終スモーク確認する。
+- 公開記録を残し、必要な最終文書commit／push、Token.Summary、`ctx/current.md`整理、クリーンworktree確認で締める。
 
 ## Blocker
 
-- 入力対応としてのBlockerなし。作業ツリーには今回のコミット対象外となる既存差分が残る。
+- コード検証上の既知Blockerは解消済み。
+- Steam公開は、新Build IDのリリースチェックリストが未確認のためまだ進めない。

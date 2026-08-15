@@ -27,6 +27,7 @@ AreaSurvivors全体に適用する常時ルール。タスク固有の手順は�
 | C#／PowerShell構造調査・検索・読取・diff・Token計測 | `Docs/AgentRules/token-tools.md` |
 | Graphify | `Docs/AgentRules/graphify-pilot.md` |
 | 再現するTool不具合・情報漏洩・データ破損・Unity状態異常 | `Docs/AgentRules/command-failure-playbook.md` |
+| リリース準備・Steam審査 | `Docs/AgentRules/release-and-steam-review.md` |
 | 締め作業 | `Docs/AgentRules/closeout.md` |
 
 ## Failure Boundary

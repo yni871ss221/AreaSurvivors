@@ -25,7 +25,7 @@ Steamworks App AdminのSteam Cloud設定で、ユーザーごとの容量とフ�
 
 このPatternはメインとバックアップのJSONだけを同期し、一時書き込みファイル `progression-save-v1.tmp` を除外する。
 
-設定後はページ下部で保存し、Steamworks変更をPublishする。公開済みタイトルで先行確認する場合は、最初にdeveloper-onlyモードを使う。
+設定後はページ下部で保存し、Steamworks変更をPublishする。公開済みタイトルで先行確認する場合は、最初にdeveloper-onlyモードを使ってよい。ただし、審査提出・一般公開前にはSteam Cloudページの`Cloud support for developers only`を必ず未チェックにし、変更をPublishする。
 
 ## 確認手順
 
@@ -34,6 +34,6 @@ Steamworks App AdminのSteam Cloud設定で、ユーザーごとの容量とフ�
 3. Steamからゲームを起動し、進行データを更新して終了する。
 4. Steam Consoleまたは `%Steam Install%/logs/cloud_log.txt` でアップロードを確認する。
 5. 別PCで同じSteamアカウントから起動し、進行データが復元されることを確認する。
-6. テスト後は `testappcloudpaths 0` を実行し、developer-onlyモード解除後に設定をPublishする。
+6. テスト後は `testappcloudpaths 0` を実行し、`Cloud support for developers only`を未チェックにしてから設定をPublishする。
 
 macOSまたはLinuxへ対応する場合は、同じRoot PathをAll OSesに変更し、各OSの `Application.persistentDataPath` に対応するRoot Overrideを追加する。
