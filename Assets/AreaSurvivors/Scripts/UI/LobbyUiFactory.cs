@@ -26,6 +26,7 @@ namespace AreaSurvivors
             var scaler = canvas.gameObject.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1280, 720);
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
 
             CreateBackground(canvas.transform);
             Panel(canvas.transform, "Header Panel", new Vector2(0, 280), new Vector2(780, 78), new Color(0.03f, 0.06f, 0.05f, 0.68f));
