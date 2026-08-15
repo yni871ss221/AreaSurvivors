@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -20,6 +21,7 @@ WORK = PROJECT / "Tools/Video/Work" / LANGUAGE
 OUTPUT_DIR = PROJECT / "Docs/SteamStore/Trailer"
 OUTPUT = OUTPUT_DIR / f"area-survivors-promo-trailer-{LANGUAGE}-30s.mp4"
 FILTER_SCRIPT = WORK / "filter_complex.txt"
+RENDER_OUTPUT = WORK / f"{OUTPUT.stem}.render.mp4"
 
 VIDEO_INPUTS = [
     (Path(r"C:\Users\yni87\Videos\1タイトルシーン.mkv"), 3.4),
@@ -200,8 +202,11 @@ def overlay_line(
 for source, _ in VIDEO_INPUTS:
     require_file(source)
 require_file(FINAL_ART)
-require_file(BGM)
 require_file(FFMPEG)
+
+reuse_existing_audio = not BGM.is_file()
+audio_source = OUTPUT if reuse_existing_audio else BGM
+require_file(audio_source)
 
 WORK.mkdir(parents=True, exist_ok=True)
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -214,10 +219,10 @@ for filename, text in CAPTIONS:
     caption_paths.append(caption_path)
 
 release_date_path = WORK / "release-date.png"
-wishlist_path = WORK / "wishlist-now.png"
-create_cta(release_date_path, "August 7, 2026", font_path, 650, 112, 58, False)
-create_cta(wishlist_path, "Wishlist Now", font_path, 760, 136, 72, True)
-cta_paths = [release_date_path, wishlist_path]
+availability_path = WORK / "available-now.png"
+create_cta(release_date_path, "August 13, 2026", font_path, 650, 112, 58, False)
+create_cta(availability_path, "Available Now", font_path, 760, 136, 72, True)
+cta_paths = [release_date_path, availability_path]
 
 filters = []
 for index in range(5):
@@ -259,10 +264,11 @@ filters.append(
     "[scene0][scene1][scene2][scene3][scene4][scene5]"
     "concat=n=6:v=1:a=0,format=yuv420p[outv]"
 )
-filters.append(
-    "[15:a]atrim=duration=30,asetpts=PTS-STARTPTS,aresample=48000,"
-    "volume=0.72,afade=t=in:st=0:d=0.40,afade=t=out:st=27:d=3[aout]"
-)
+if not reuse_existing_audio:
+    filters.append(
+        "[15:a]atrim=duration=30,asetpts=PTS-STARTPTS,aresample=48000,"
+        "volume=0.72,afade=t=in:st=0:d=0.40,afade=t=out:st=27:d=3[aout]"
+    )
 
 FILTER_SCRIPT.write_text(";\n".join(filters), encoding="utf-8")
 
@@ -278,7 +284,7 @@ for caption_path in caption_paths:
 for cta_path in cta_paths:
     command.extend(["-loop", "1", "-framerate", "60", "-t", "5", "-i", str(cta_path)])
 
-command.extend(["-t", "30", "-i", str(BGM)])
+command.extend(["-t", "30", "-i", str(audio_source)])
 command.extend(
     [
         "-filter_complex_script",
@@ -286,7 +292,7 @@ command.extend(
         "-map",
         "[outv]",
         "-map",
-        "[aout]",
+        "15:a:0" if reuse_existing_audio else "[aout]",
         "-t",
         "30",
         "-c:v",
@@ -302,12 +308,16 @@ command.extend(
         "-pix_fmt",
         "yuv420p",
         "-c:a",
-        "aac",
-        "-b:a",
-        "256k",
+        "copy" if reuse_existing_audio else "aac",
+    ]
+)
+if not reuse_existing_audio:
+    command.extend(["-b:a", "256k"])
+command.extend(
+    [
         "-movflags",
         "+faststart",
-        str(OUTPUT),
+        str(RENDER_OUTPUT),
     ]
 )
 
@@ -316,12 +326,16 @@ if completed.returncode != 0:
     tail = "\n".join(completed.stderr.splitlines()[-50:])
     raise RuntimeError(f"FFmpeg failed with exit code {completed.returncode}:\n{tail}")
 
+os.replace(RENDER_OUTPUT, OUTPUT)
+
 print(
     json.dumps(
         {
             "output": str(OUTPUT),
             "font": str(font_path),
             "filter_script": str(FILTER_SCRIPT),
+            "audio_source": str(audio_source),
+            "reused_existing_audio": reuse_existing_audio,
             "size_bytes": OUTPUT.stat().st_size,
         },
         ensure_ascii=False,
