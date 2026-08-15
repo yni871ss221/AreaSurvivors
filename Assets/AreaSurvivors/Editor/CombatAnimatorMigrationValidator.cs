@@ -123,7 +123,7 @@ namespace AreaSurvivors.EditorTools
             string folder = AnimationRoot + "/" + animationName;
             var clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(folder + "/" + animationName + "Loop.anim");
             var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(folder + "/" + animationName + ".controller");
-            var visual = prefab.transform.Find(CombatAnimatorMigration.FrostVisualObjectName);
+            var visual = FindDescendant(prefab.transform, CombatAnimatorMigration.FrostVisualObjectName);
             ValidateAnimatorVisual(visual, controller, expectedFrames.Length > 0 ? expectedFrames[0] : null,
                 label, ref errors);
             ValidateClipController(clip, controller, true, label, ref errors);
@@ -595,6 +595,18 @@ namespace AreaSurvivors.EditorTools
             {
                 var behaviour = behaviours[i];
                 if (behaviour != null && behaviour.GetType().Name == typeName) return behaviour;
+            }
+            return null;
+        }
+
+        static Transform FindDescendant(Transform root, string objectName)
+        {
+            if (root == null) return null;
+            var transforms = root.GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < transforms.Length; i++)
+            {
+                var candidate = transforms[i];
+                if (candidate != null && candidate.name == objectName) return candidate;
             }
             return null;
         }

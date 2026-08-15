@@ -45,9 +45,10 @@ namespace AreaSurvivors.EditorTools
         {
             int errors = 0;
             var swordRushRequirements = WeaponCatalog.EvolutionRequirementSources(WeaponType.SwordRush);
-            if (swordRushRequirements == null || swordRushRequirements.Length != 1 || swordRushRequirements[0] != "武器Lv.10")
+            var expectedRequirements = new[] { "武器Lv.10", "ゲームプレイ回数5回以上" };
+            if (swordRushRequirements == null || !swordRushRequirements.SequenceEqual(expectedRequirements))
             {
-                Error("Sword Rush evolution requirement must be Weapon Lv.10.", ref errors);
+                Error("Sword Rush evolution requirement sources do not match the current catalog specification.", ref errors);
             }
             ValidateAsset<Sprite>("Assets/AreaSurvivors/Sprites/Generated/Weapons/SwordRushIcon.png", ref errors);
             ValidateEffectSprite("Assets/AreaSurvivors/Sprites/Generated/Weapons/SwordRushSlashEffect.png", ref errors);
@@ -62,10 +63,14 @@ namespace AreaSurvivors.EditorTools
             else
             {
                 var serializedView = new SerializedObject(swordRushView);
-                var frames = serializedView.FindProperty("animationFrames");
-                if (frames == null || frames.arraySize != 2 || frames.GetArrayElementAtIndex(0).objectReferenceValue == null || frames.GetArrayElementAtIndex(1).objectReferenceValue == null)
+                var animator = serializedView.FindProperty("animator");
+                var animationClip = serializedView.FindProperty("animationClip");
+                var spriteRenderer = serializedView.FindProperty("spriteRenderer");
+                if (animator == null || animator.objectReferenceValue == null ||
+                    animationClip == null || animationClip.objectReferenceValue == null ||
+                    spriteRenderer == null || spriteRenderer.objectReferenceValue == null)
                 {
-                    Error("Sword Rush slash prefab must reference exactly two alternating frames.", ref errors);
+                    Error("Sword Rush slash prefab must reference its Animator, AnimationClip, and SpriteRenderer.", ref errors);
                 }
 
                 ValidateFloat(serializedView, "hitboxWidthMultiplier", 1f, "Sword Rush hitbox width must match its 3.2 range.", ref errors);
