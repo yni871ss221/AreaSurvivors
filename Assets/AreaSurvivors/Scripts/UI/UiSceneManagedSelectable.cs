@@ -31,11 +31,11 @@ namespace AreaSurvivors
             if (!captured) CaptureSceneStyle();
             if (selectable == null || background == null || outline == null) return;
 
-            bool pointerMode = UiSelectionUtility.PointerCanDriveFocus();
+            bool navigationMode = UiSelectionUtility.IsNavigationInputMode;
             bool selected = EventSystem.current != null &&
                 EventSystem.current.currentSelectedGameObject == gameObject;
             bool shouldHighlight = selectable.IsInteractable() &&
-                (pointerMode ? IsPointerOver() : selected);
+                (navigationMode ? selected : IsPointerOver());
             if (shouldHighlight != highlighted) ApplyHighlight(shouldHighlight);
         }
 

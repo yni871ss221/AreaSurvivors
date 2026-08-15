@@ -29,7 +29,6 @@ namespace AreaSurvivors
         Vector2 lastEdgeSize;
         float lastEdgePadding;
         float lastEdgeThickness;
-        bool wasFocused;
         readonly List<RaycastResult> pointerRaycastResults = new List<RaycastResult>();
         PointerEventData pointerEventData;
         EventSystem pointerEventSystem;
@@ -43,6 +42,19 @@ namespace AreaSurvivors
             EnsureEdges();
         }
 
+        void OnDisable()
+        {
+            pointerOver = false;
+            if (activeHighlight == this)
+            {
+                activeHighlight = null;
+                activeHighlightIsPointer = false;
+            }
+
+            SetEdgesActive(false);
+            ApplyBackground(false, false);
+        }
+
         void LateUpdate()
         {
             if (rect == null) rect = GetComponent<RectTransform>();
@@ -51,18 +63,17 @@ namespace AreaSurvivors
             RefreshEdgeLayout();
             EnsureStateFill();
             bool focused = EventSystem.current != null && EventSystem.current.currentSelectedGameObject == gameObject;
-            bool pointerCanDriveFocus = UiSelectionUtility.PointerCanDriveFocus();
-            bool mouseOver = pointerCanDriveFocus && IsMouseOverRect();
-            if (!pointerCanDriveFocus && pointerOver) ClearPointerHighlight();
+            bool navigationMode = UiSelectionUtility.IsNavigationInputMode;
+            bool mouseOver = !navigationMode && IsMouseOverRect();
+            if (navigationMode && pointerOver) ClearPointerHighlight();
             if (mouseOver && !pointerOver) ActivatePointerHighlight();
             if (!mouseOver && pointerOver) ClearPointerHighlight();
             if (!mouseOver && activeHighlight == this && activeHighlightIsPointer) ClearPointerHighlight();
-            if (!pointerCanDriveFocus && focused && !mouseOver && !pointerOver && (!wasFocused || activeHighlight == null || activeHighlightIsPointer))
+            if (navigationMode && focused && !mouseOver && !pointerOver && activeHighlight != this)
             {
                 ActivateFocusHighlight();
             }
-            if (pointerCanDriveFocus && activeHighlight == this && !activeHighlightIsPointer) activeHighlight = null;
-            wasFocused = focused;
+            if (!navigationMode && activeHighlight == this && !activeHighlightIsPointer) activeHighlight = null;
 
             bool highlighted = !forceSelected &&
                 activeHighlight == this &&
@@ -104,7 +115,7 @@ namespace AreaSurvivors
         public void OnPointerEnter(PointerEventData eventData)
         {
             if (!UiSelectionUtility.PointerCanDriveFocus()) return;
-            UiSelectionUtility.NotifyKeyboardMouseInput();
+            UiSelectionUtility.NotifyPointerInput();
             ActivatePointerHighlight();
         }
 

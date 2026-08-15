@@ -22,18 +22,20 @@ namespace AreaSurvivors
         static GameObject lastPresentedSelection;
         static Vector2 lastPointerPosition;
         static bool pointerPositionInitialized;
-        static bool controllerInputMode;
+        static bool navigationInputMode = true;
         static int lastInputModeUpdateFrame = -1;
         static int dropdownCancelConsumedFrame = -1;
 
-        public static bool IsControllerInputMode
+        public static bool IsNavigationInputMode
         {
             get
             {
                 UpdateInputMode();
-                return controllerInputMode;
+                return navigationInputMode;
             }
         }
+
+        public static bool IsControllerInputMode => IsNavigationInputMode;
 
         public static void SelectFirst(params Selectable[] candidates)
         {
@@ -41,6 +43,7 @@ namespace AreaSurvivors
             var target = FirstSelectable(candidates);
             if (target == null) return;
 
+            SetNavigationInputMode();
             Select(target);
         }
 
@@ -54,7 +57,7 @@ namespace AreaSurvivors
                 return;
             }
 
-            if (!controllerInputMode)
+            if (!navigationInputMode)
             {
                 if (HasValidSelection(candidates))
                 {
@@ -90,9 +93,9 @@ namespace AreaSurvivors
             }
 
             bool controllerCancel = ControllerInputSettingsStore.CancelPressed();
-            if (controllerCancel) SetControllerInputMode();
+            if (controllerCancel) SetNavigationInputMode();
             bool keyboardCancel = AreaInput.KeyPressedThisFrame(Key.Escape);
-            if (keyboardCancel) SetKeyboardMouseInputMode();
+            if (keyboardCancel) SetNavigationInputMode();
             return keyboardCancel || controllerCancel;
         }
 
@@ -101,9 +104,9 @@ namespace AreaSurvivors
             if (dropdownCancelConsumedFrame == Time.frameCount) return false;
 
             bool controllerPause = AreaInput.GamepadButtonPressedThisFrame(GamepadButton.Start) || ControllerInputSettingsStore.CancelPressed();
-            if (controllerPause) SetControllerInputMode();
+            if (controllerPause) SetNavigationInputMode();
             bool keyboardPause = AreaInput.KeyPressedThisFrame(Key.Escape);
-            if (keyboardPause) SetKeyboardMouseInputMode();
+            if (keyboardPause) SetNavigationInputMode();
             return keyboardPause || controllerPause;
         }
 
@@ -111,7 +114,7 @@ namespace AreaSurvivors
         {
             if (DropdownPadNavigator.TryHandleControllerSubmit()) return true;
             if (!ControllerInputSettingsStore.SubmitPressed()) return false;
-            SetControllerInputMode();
+            SetNavigationInputMode();
             if (EventSystem.current == null) return false;
 
             var selected = EventSystem.current.currentSelectedGameObject;
@@ -126,7 +129,7 @@ namespace AreaSurvivors
         {
             if (DropdownPadNavigator.TryHandleControllerSubmit()) return true;
             if (!ControllerInputSettingsStore.SubmitPressed()) return false;
-            SetControllerInputMode();
+            SetNavigationInputMode();
             EnsureSelection(candidates);
             if (EventSystem.current == null) return false;
 
@@ -143,7 +146,7 @@ namespace AreaSurvivors
         public static bool TryHandleControllerCancel()
         {
             if (!ControllerInputSettingsStore.CancelPressed()) return false;
-            SetControllerInputMode();
+            SetNavigationInputMode();
             if (EventSystem.current == null) return false;
 
             var selected = EventSystem.current.currentSelectedGameObject;
@@ -159,13 +162,15 @@ namespace AreaSurvivors
         public static bool PointerCanDriveFocus()
         {
             UpdateInputMode();
-            return !controllerInputMode;
+            return !navigationInputMode;
         }
 
-        public static void NotifyKeyboardMouseInput()
+        public static void NotifyPointerInput()
         {
-            SetKeyboardMouseInputMode();
+            SetPointerInputMode();
         }
+
+        public static void NotifyKeyboardMouseInput() => NotifyPointerInput();
 
         public static Button FirstButtonInChildren(Transform root)
         {
@@ -444,7 +449,7 @@ namespace AreaSurvivors
 
             ApplyFocusStyle(selected.GetComponent<Selectable>());
             bool selectionChanged = selected != lastPresentedSelection;
-            if (controllerInputMode && (forceKeepSelectedInView || selectionChanged))
+            if (navigationInputMode && (forceKeepSelectedInView || selectionChanged))
             {
                 KeepSelectedInView(selected.transform as RectTransform);
             }
@@ -529,31 +534,32 @@ namespace AreaSurvivors
                 || AreaInput.MouseButtonPressedThisFrame(1)
                 || AreaInput.MouseButtonPressedThisFrame(2)
                 || Mathf.Abs(AreaInput.ScrollY) > 0.01f;
-            bool keyboardMouseAction = pointerAction || KeyboardMouseKeyPressed();
-            if (keyboardMouseAction)
+            if (pointerAction)
             {
-                SetKeyboardMouseInputMode();
+                SetPointerInputMode();
                 lastPointerPosition = pointer;
                 return;
             }
 
             bool controllerInput = ControllerInputSettingsStore.MoveVector().sqrMagnitude > 0.25f
                 || ControllerInputSettingsStore.PressedBinding().kind != ControllerInputKind.None;
-            if (controllerInput) SetControllerInputMode();
+            if (controllerInput || KeyboardNavigationPressed()) SetNavigationInputMode();
             lastPointerPosition = pointer;
         }
 
-        static void SetControllerInputMode()
+        static void SetNavigationInputMode()
         {
-            controllerInputMode = true;
+            navigationInputMode = true;
+            lastInputModeUpdateFrame = Time.frameCount;
         }
 
-        static void SetKeyboardMouseInputMode()
+        static void SetPointerInputMode()
         {
-            controllerInputMode = false;
+            navigationInputMode = false;
+            lastInputModeUpdateFrame = Time.frameCount;
         }
 
-        static bool KeyboardMouseKeyPressed()
+        static bool KeyboardNavigationPressed()
         {
             return AreaInput.AnyKeyboardKeyPressedThisFrame();
         }

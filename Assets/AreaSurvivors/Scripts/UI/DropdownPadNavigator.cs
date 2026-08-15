@@ -27,6 +27,12 @@ namespace AreaSurvivors
             dropdown = GetComponent<Dropdown>();
         }
 
+        void OnDisable()
+        {
+            RestoreItemLabelColors();
+            ResetOpenState();
+        }
+
         void Update()
         {
             if (dropdown == null) dropdown = GetComponent<Dropdown>();
@@ -132,6 +138,16 @@ namespace AreaSurvivors
                 dropdown.RefreshShownValue();
             }
 
+            ResetOpenState();
+
+            if (EventSystem.current != null && dropdown != null && dropdown.gameObject.activeInHierarchy)
+            {
+                EventSystem.current.SetSelectedGameObject(dropdown.gameObject);
+            }
+        }
+
+        void ResetOpenState()
+        {
             open = false;
             waitingForPopup = false;
             dropdownList = null;
@@ -140,11 +156,6 @@ namespace AreaSurvivors
             itemLabels = null;
             itemOriginalColors = null;
             if (activeDropdown == this) activeDropdown = null;
-
-            if (EventSystem.current != null && dropdown != null && dropdown.gameObject.activeInHierarchy)
-            {
-                EventSystem.current.SetSelectedGameObject(dropdown.gameObject);
-            }
         }
 
         void RestoreAndClose()
