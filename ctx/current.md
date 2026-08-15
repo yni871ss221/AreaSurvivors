@@ -2,30 +2,30 @@
 
 ## Goal
 
-`feature/03_releaseUpdate`ブランチで、Area Survivorsのリリース後更新に備える。
+Steam配信版のコントローラ入力をUnity Input Systemへ完全移行し、テスト済み候補をdefault公開できる状態にする。
 
 ## Latest Decision
 
-- Git上のリリース候補差分は`feature/02_GameSystemUpdate`から`main`へ統合し、以後の更新は`feature/03_releaseUpdate`を起点にする。
-- Steamのリリース候補はApp ID `4980380`、Build ID `24466612`、Depot ID `4980381`。`default`ブランチへ設定済み。
-- ストアプレゼンスは承認・公開済み。ゲームビルドはValveレビュー待ちで、リリース予定は2026年8月7日0時（JST）。
-- ローンチ割引は10%・7日間。Steamは自動リリースされないため、承認後の予定時刻に手動でリリースする。
-- Valveから修正指示がない限り、審査中のSteam `default`ビルドは変更しない。
+- Unity Input System `1.14.2`を唯一の入力経路とし、旧Input Manager／WinMMフォールバックは使用しない。
+- DirectInput／XInput固有の軸番号・ボタン番号を使わず、`Gamepad`の方向・South／East等の論理入力へ統一する。
+- `Active Input Handling`はInput System専用とする。
+- Unity Editorでは`SteamAPI.Init()`を実行せず、Steam連携確認はLocalTest／Steamビルドで行う。製品ビルドのSteam初期化は維持する。
+- Steamworks側は一般ゲームパッド用テンプレートを前提とし、機種別Rawマッピングは追加しない。
 
 ## Latest Verification
 
-- Build ID `24466612`をSteamクライアントからインストールし、起動設定修正後に通しプレイを完了。ユーザー確認で問題なし。
-- SteamPipeアップロード、Depot取得、`Area Survivors.exe`起動、ゲーム終了後のプロセス終了を確認済み。
-- Unityコンパイル、関連Validator、Console Warning／Error 0件をリリースビルド作成前に確認済み。
-- Command Tool自己テスト（7 modules）、変更対象の`Git.Check`、current-context guardが成功。
+- runtime／editor Assembly current、Input System Migration Validator passed（failed 0／warnings 0／errors 0）、Console Error 0件。
+- Runtimeコードの旧`Input.*`／`KeyCode`／WinMM参照は0件。
+- 新Input System専用ビルドをSteam `input-test`へBuild ID `24751074`として配信済み。
+- ユーザー実機確認でタイトル、オプション、ロビー、アップグレード、武器図鑑、レリック、ゲーム、Scene往復、パッド抜き差し、キーボード／マウスがすべて正常。
+- Player.logでは通常時と全Sceneが`XInputControllerWindows`／`interface=XInput`／`route=input-system`。切断中のみ`route=none`となり、再接続後に復帰。Exception／Error／Crash 0件。
+- EditorでのDS4切断原因は、Editor内の`SteamAPI.Init()`によるSteam Inputの所有／マッピング切替と確定し、Editor限定の初期化スキップで解消済み。
 
 ## TODO
 
-- Valveのゲームビルドレビュー結果を確認し、フィードバックがあれば対応して再提出する。
-- 2026年8月7日の予定時刻にSteamworksで`アプリをリリース`から手動リリースし、10%割引が7日間適用されたことを確認する。
-- リリース後に一般アカウントで購入、インストール、起動、実績、セーブ、終了時の「プレイ中」解除を確認する。
+- default公開後、一般アカウントで購入、インストール、起動、実績、セーブ、終了時の「プレイ中」解除を確認する。
 - 旧Sword Rush Evolution Validatorの進化条件／交互フレーム2件と現行仕様の整合は、次回Validator保守時に判断する。
 
 ## Blocker
 
-- Steam一般公開のみValveのゲームビルドレビュー承認待ち。Gitおよびリリース後更新の開発作業にBlockerはない。
+- 入力対応としてのBlockerなし。作業ツリーには今回のコミット対象外となる既存差分が残る。

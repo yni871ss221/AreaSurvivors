@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -189,8 +190,8 @@ namespace AreaSurvivors
 
         static int HorizontalInputDirection()
         {
-            if (Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.A)) return -1;
-            if (Input.GetKeyDown(KeyCode.RightArrow) || Input.GetKeyDown(KeyCode.D)) return 1;
+            if (AreaInput.KeyPressedThisFrame(Key.LeftArrow) || AreaInput.KeyPressedThisFrame(Key.A)) return -1;
+            if (AreaInput.KeyPressedThisFrame(Key.RightArrow) || AreaInput.KeyPressedThisFrame(Key.D)) return 1;
 
             float x = ControllerInputSettingsStore.MoveVector().x;
             if (x < -0.55f) return -1;

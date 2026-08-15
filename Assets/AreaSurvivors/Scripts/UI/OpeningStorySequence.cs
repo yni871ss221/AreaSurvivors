@@ -40,7 +40,7 @@ namespace AreaSurvivors
         void Update()
         {
             if (!sequenceActive || completing || Time.unscaledTime < skipInputEnabledAt) return;
-            if (Input.anyKeyDown) CompleteStory(true);
+            if (AreaInput.AnyInputPressedThisFrame()) CompleteStory(true);
         }
 
         public void Play(Action<bool> onCompleted)

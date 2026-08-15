@@ -1,5 +1,7 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.LowLevel;
 using UnityEngine.UI;
 
 namespace AreaSurvivors
@@ -18,7 +20,7 @@ namespace AreaSurvivors
         const float DirectionalNavigationPerpendicularRange = 120f;
         static Selectable lastValidSelection;
         static GameObject lastPresentedSelection;
-        static Vector3 lastPointerPosition;
+        static Vector2 lastPointerPosition;
         static bool pointerPositionInitialized;
         static bool controllerInputMode;
         static int lastInputModeUpdateFrame = -1;
@@ -89,7 +91,7 @@ namespace AreaSurvivors
 
             bool controllerCancel = ControllerInputSettingsStore.CancelPressed();
             if (controllerCancel) SetControllerInputMode();
-            bool keyboardCancel = SafeGetButtonDown("Cancel") || Input.GetKeyDown(KeyCode.Escape);
+            bool keyboardCancel = AreaInput.KeyPressedThisFrame(Key.Escape);
             if (keyboardCancel) SetKeyboardMouseInputMode();
             return keyboardCancel || controllerCancel;
         }
@@ -98,9 +100,9 @@ namespace AreaSurvivors
         {
             if (dropdownCancelConsumedFrame == Time.frameCount) return false;
 
-            bool controllerPause = Input.GetKeyDown(KeyCode.JoystickButton7) || ControllerInputSettingsStore.CancelPressed();
+            bool controllerPause = AreaInput.GamepadButtonPressedThisFrame(GamepadButton.Start) || ControllerInputSettingsStore.CancelPressed();
             if (controllerPause) SetControllerInputMode();
-            bool keyboardPause = Input.GetKeyDown(KeyCode.Escape);
+            bool keyboardPause = AreaInput.KeyPressedThisFrame(Key.Escape);
             if (keyboardPause) SetKeyboardMouseInputMode();
             return keyboardPause || controllerPause;
         }
@@ -505,24 +507,12 @@ namespace AreaSurvivors
             return candidates == null || candidates.Length == 0 || IsCandidate(selectable, candidates);
         }
 
-        static bool SafeGetButtonDown(string buttonName)
-        {
-            try
-            {
-                return Input.GetButtonDown(buttonName);
-            }
-            catch (System.ArgumentException)
-            {
-                return false;
-            }
-        }
-
         static void UpdateInputMode()
         {
             if (lastInputModeUpdateFrame == Time.frameCount) return;
             lastInputModeUpdateFrame = Time.frameCount;
 
-            var pointer = Input.mousePosition;
+            var pointer = AreaInput.PointerPosition;
             bool pointerMoved = false;
             if (!pointerPositionInitialized)
             {
@@ -535,10 +525,10 @@ namespace AreaSurvivors
             }
 
             bool pointerAction = pointerMoved
-                || Input.GetMouseButtonDown(0)
-                || Input.GetMouseButtonDown(1)
-                || Input.GetMouseButtonDown(2)
-                || Mathf.Abs(Input.mouseScrollDelta.y) > 0.01f;
+                || AreaInput.MouseButtonPressedThisFrame(0)
+                || AreaInput.MouseButtonPressedThisFrame(1)
+                || AreaInput.MouseButtonPressedThisFrame(2)
+                || Mathf.Abs(AreaInput.ScrollY) > 0.01f;
             bool keyboardMouseAction = pointerAction || KeyboardMouseKeyPressed();
             if (keyboardMouseAction)
             {
@@ -565,23 +555,7 @@ namespace AreaSurvivors
 
         static bool KeyboardMouseKeyPressed()
         {
-            if (!Input.anyKeyDown) return false;
-            if (!string.IsNullOrEmpty(Input.inputString)) return true;
-            return Input.GetKeyDown(KeyCode.Escape)
-                || Input.GetKeyDown(KeyCode.Return)
-                || Input.GetKeyDown(KeyCode.KeypadEnter)
-                || Input.GetKeyDown(KeyCode.Space)
-                || Input.GetKeyDown(KeyCode.Tab)
-                || Input.GetKeyDown(KeyCode.Backspace)
-                || Input.GetKeyDown(KeyCode.Delete)
-                || Input.GetKeyDown(KeyCode.UpArrow)
-                || Input.GetKeyDown(KeyCode.DownArrow)
-                || Input.GetKeyDown(KeyCode.LeftArrow)
-                || Input.GetKeyDown(KeyCode.RightArrow)
-                || Input.GetKeyDown(KeyCode.W)
-                || Input.GetKeyDown(KeyCode.A)
-                || Input.GetKeyDown(KeyCode.S)
-                || Input.GetKeyDown(KeyCode.D);
+            return AreaInput.AnyKeyboardKeyPressedThisFrame();
         }
     }
 }

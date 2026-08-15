@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace AreaSurvivors
@@ -325,13 +326,13 @@ namespace AreaSurvivors
         {
             if (rebindIndex < 0) return false;
 
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (AreaInput.KeyPressedThisFrame(Key.Escape))
             {
                 CancelRebind();
                 return true;
             }
 
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (AreaInput.KeyPressedThisFrame(Key.Backspace))
             {
                 InputSettingsStore.ResetDefaults();
                 CancelRebind();
@@ -339,7 +340,7 @@ namespace AreaSurvivors
             }
 
             var key = PressedKey();
-            if (key == KeyCode.None) return false;
+            if (key == Key.None) return false;
             if (IsDuplicateMoveKey(rebindIndex, key, rebindAlternate))
             {
                 ShowDuplicateKey(key);
@@ -420,7 +421,7 @@ namespace AreaSurvivors
             SetWaitingText("入力待ち");
         }
 
-        void ShowDuplicateKey(KeyCode key)
+        void ShowDuplicateKey(Key key)
         {
             if (rebindIndex < 0 || rebindIndex >= moveActions.Length) return;
             if (moveText != null) moveText.text = LocalizationService.LocalizeSource($"{InputSettingsStore.KeyLabel(key)} は使用中です");
@@ -536,7 +537,7 @@ namespace AreaSurvivors
             return true;
         }
 
-        bool IsDuplicateMoveKey(int actionIndex, KeyCode key, bool alternate)
+        bool IsDuplicateMoveKey(int actionIndex, Key key, bool alternate)
         {
             for (int i = 0; i < moveActions.Length; i++)
             {
@@ -547,23 +548,24 @@ namespace AreaSurvivors
             return false;
         }
 
-        static KeyCode PressedKey()
+        static Key PressedKey()
         {
-            foreach (KeyCode key in System.Enum.GetValues(typeof(KeyCode)))
+            var keyboard = Keyboard.current;
+            if (keyboard == null) return Key.None;
+
+            foreach (var keyControl in keyboard.allKeys)
             {
+                var key = keyControl.keyCode;
                 if (!IsBindableKeyboardKey(key)) continue;
-                if (Input.GetKeyDown(key)) return key;
+                if (keyControl.wasPressedThisFrame) return key;
             }
 
-            return KeyCode.None;
+            return Key.None;
         }
 
-        static bool IsBindableKeyboardKey(KeyCode key)
+        static bool IsBindableKeyboardKey(Key key)
         {
-            if (key == KeyCode.None || key == KeyCode.Escape || key == KeyCode.Backspace) return false;
-            if (key >= KeyCode.Mouse0 && key <= KeyCode.Mouse6) return false;
-            if (key >= KeyCode.JoystickButton0 && key <= KeyCode.Joystick8Button19) return false;
-            return true;
+            return key != Key.None && key != Key.Escape && key != Key.Backspace;
         }
 
         static string ActionLabel(KeyboardMouseAction action)
@@ -651,13 +653,13 @@ namespace AreaSurvivors
         {
             if (rebindIndex < 0 && !rebindSubmit && !rebindCancel) return false;
 
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (AreaInput.KeyPressedThisFrame(Key.Escape))
             {
                 CancelRebind();
                 return true;
             }
 
-            if (Input.GetKeyDown(KeyCode.Backspace))
+            if (AreaInput.KeyPressedThisFrame(Key.Backspace))
             {
                 ControllerInputSettingsStore.ResetDefaults();
                 CancelRebind();

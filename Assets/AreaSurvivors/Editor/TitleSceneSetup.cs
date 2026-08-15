@@ -147,7 +147,7 @@ namespace AreaSurvivors.EditorTools
         static void CreateEventSystem(Scene scene)
         {
             if (Object.FindObjectOfType<EventSystem>() != null) return;
-            var eventSystem = new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
+            var eventSystem = new GameObject("EventSystem", typeof(EventSystem), typeof(UnityEngine.InputSystem.UI.InputSystemUIInputModule), typeof(AreaInputSystemUiConfigurator));
             SceneManager.MoveGameObjectToScene(eventSystem, scene);
         }
 

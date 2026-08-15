@@ -185,7 +185,7 @@ namespace AreaSurvivors
             var canvas = GetComponentInParent<Canvas>();
             Camera eventCamera = null;
             if (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay) eventCamera = canvas.worldCamera;
-            return RectTransformUtility.RectangleContainsScreenPoint(rect, Input.mousePosition, eventCamera) &&
+            return RectTransformUtility.RectangleContainsScreenPoint(rect, AreaInput.PointerPosition, eventCamera) &&
                 IsTopmostPointerTarget();
         }
 
@@ -201,7 +201,7 @@ namespace AreaSurvivors
             }
 
             pointerEventData.Reset();
-            pointerEventData.position = Input.mousePosition;
+            pointerEventData.position = AreaInput.PointerPosition;
             pointerRaycastResults.Clear();
             eventSystem.RaycastAll(pointerEventData, pointerRaycastResults);
 

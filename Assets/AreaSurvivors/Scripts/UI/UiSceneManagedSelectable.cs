@@ -65,7 +65,7 @@ namespace AreaSurvivors
             Camera eventCamera = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay
                 ? canvas.worldCamera
                 : null;
-            return RectTransformUtility.RectangleContainsScreenPoint(rect, Input.mousePosition, eventCamera);
+            return RectTransformUtility.RectangleContainsScreenPoint(rect, AreaInput.PointerPosition, eventCamera);
         }
 
         void ApplyHighlight(bool active)

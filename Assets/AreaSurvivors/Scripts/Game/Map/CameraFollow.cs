@@ -101,7 +101,7 @@ namespace AreaSurvivors
             if (target == null) return;
             if (Time.timeScale > 0f)
             {
-                var wheel = Input.mouseScrollDelta.y;
+                var wheel = AreaInput.ScrollY;
                 if (Mathf.Abs(wheel) > 0.001f)
                 {
                     zoom = Mathf.Clamp01(zoom - wheel * Mathf.Max(0.01f, scrollSpeed));

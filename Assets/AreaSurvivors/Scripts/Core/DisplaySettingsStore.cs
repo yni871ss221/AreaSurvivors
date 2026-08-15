@@ -1,4 +1,6 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.InputSystem.LowLevel;
 
 namespace AreaSurvivors
 {
@@ -151,16 +153,16 @@ namespace AreaSurvivors
 
     public static class InputSettingsStore
     {
-        const string Prefix = "AreaSurvivors.Input.KeyboardMouse.";
+        const string Prefix = "AreaSurvivors.Input2.KeyboardMouse.";
 
-        public static KeyCode MoveUp => GetKey(KeyboardMouseAction.MoveUp);
-        public static KeyCode MoveDown => GetKey(KeyboardMouseAction.MoveDown);
-        public static KeyCode MoveLeft => GetKey(KeyboardMouseAction.MoveLeft);
-        public static KeyCode MoveRight => GetKey(KeyboardMouseAction.MoveRight);
-        public static KeyCode MoveUpAlternate => GetAlternateKey(KeyboardMouseAction.MoveUp);
-        public static KeyCode MoveDownAlternate => GetAlternateKey(KeyboardMouseAction.MoveDown);
-        public static KeyCode MoveLeftAlternate => GetAlternateKey(KeyboardMouseAction.MoveLeft);
-        public static KeyCode MoveRightAlternate => GetAlternateKey(KeyboardMouseAction.MoveRight);
+        public static Key MoveUp => GetKey(KeyboardMouseAction.MoveUp);
+        public static Key MoveDown => GetKey(KeyboardMouseAction.MoveDown);
+        public static Key MoveLeft => GetKey(KeyboardMouseAction.MoveLeft);
+        public static Key MoveRight => GetKey(KeyboardMouseAction.MoveRight);
+        public static Key MoveUpAlternate => GetAlternateKey(KeyboardMouseAction.MoveUp);
+        public static Key MoveDownAlternate => GetAlternateKey(KeyboardMouseAction.MoveDown);
+        public static Key MoveLeftAlternate => GetAlternateKey(KeyboardMouseAction.MoveLeft);
+        public static Key MoveRightAlternate => GetAlternateKey(KeyboardMouseAction.MoveRight);
 
         public static Vector2 MoveVector()
         {
@@ -172,25 +174,25 @@ namespace AreaSurvivors
             return input;
         }
 
-        public static KeyCode GetKey(KeyboardMouseAction action)
+        public static Key GetKey(KeyboardMouseAction action)
         {
-            return (KeyCode)PlayerPrefs.GetInt(Key(action), (int)DefaultKey(action));
+            return (Key)PlayerPrefs.GetInt(KeyName(action), (int)DefaultKey(action));
         }
 
-        public static void SetKey(KeyboardMouseAction action, KeyCode keyCode)
+        public static void SetKey(KeyboardMouseAction action, Key key)
         {
-            PlayerPrefs.SetInt(Key(action), (int)keyCode);
+            PlayerPrefs.SetInt(KeyName(action), (int)key);
             PlayerPrefs.Save();
         }
 
-        public static KeyCode GetAlternateKey(KeyboardMouseAction action)
+        public static Key GetAlternateKey(KeyboardMouseAction action)
         {
-            return (KeyCode)PlayerPrefs.GetInt(AlternateKey(action), (int)DefaultAlternateKey(action));
+            return (Key)PlayerPrefs.GetInt(AlternateKeyName(action), (int)DefaultAlternateKey(action));
         }
 
-        public static void SetAlternateKey(KeyboardMouseAction action, KeyCode keyCode)
+        public static void SetAlternateKey(KeyboardMouseAction action, Key key)
         {
-            PlayerPrefs.SetInt(AlternateKey(action), (int)keyCode);
+            PlayerPrefs.SetInt(AlternateKeyName(action), (int)key);
             PlayerPrefs.Save();
         }
 
@@ -198,8 +200,8 @@ namespace AreaSurvivors
         {
             foreach (KeyboardMouseAction action in System.Enum.GetValues(typeof(KeyboardMouseAction)))
             {
-                PlayerPrefs.DeleteKey(Key(action));
-                PlayerPrefs.DeleteKey(AlternateKey(action));
+                PlayerPrefs.DeleteKey(KeyName(action));
+                PlayerPrefs.DeleteKey(AlternateKeyName(action));
             }
 
             PlayerPrefs.Save();
@@ -211,67 +213,45 @@ namespace AreaSurvivors
             return $"上:{KeyLabel(MoveUp)}/{KeyLabel(MoveUpAlternate)}  下:{KeyLabel(MoveDown)}/{KeyLabel(MoveDownAlternate)}  左:{KeyLabel(MoveLeft)}/{KeyLabel(MoveLeftAlternate)}  右:{KeyLabel(MoveRight)}/{KeyLabel(MoveRightAlternate)}";
         }
 
-        public static string KeyLabel(KeyCode keyCode)
-        {
-            switch (keyCode)
-            {
-                case KeyCode.UpArrow: return "↑";
-                case KeyCode.DownArrow: return "↓";
-                case KeyCode.LeftArrow: return "←";
-                case KeyCode.RightArrow: return "→";
-                case KeyCode.Space: return "Space";
-                case KeyCode.Return: return "Enter";
-                case KeyCode.LeftShift: return "LShift";
-                case KeyCode.RightShift: return "RShift";
-                case KeyCode.LeftControl: return "LCtrl";
-                case KeyCode.RightControl: return "RCtrl";
-                case KeyCode.LeftAlt: return "LAlt";
-                case KeyCode.RightAlt: return "RAlt";
-                case KeyCode.JoystickButton0: return "□";
-                case KeyCode.JoystickButton1: return "×";
-                case KeyCode.JoystickButton2: return "〇";
-                case KeyCode.JoystickButton3: return "△";
-                default: return keyCode.ToString();
-            }
-        }
+        public static string KeyLabel(Key key) => AreaInput.KeyLabel(key);
 
-        static float Axis(KeyCode primary, KeyCode alternate)
+        static float Axis(Key primary, Key alternate)
         {
-            bool primaryPressed = primary != KeyCode.None && Input.GetKey(primary);
-            bool alternatePressed = alternate != KeyCode.None && Input.GetKey(alternate);
+            bool primaryPressed = AreaInput.KeyIsPressed(primary);
+            bool alternatePressed = AreaInput.KeyIsPressed(alternate);
             return primaryPressed || alternatePressed ? 1f : 0f;
         }
 
-        static KeyCode DefaultKey(KeyboardMouseAction action)
+        static Key DefaultKey(KeyboardMouseAction action)
         {
             switch (action)
             {
-                case KeyboardMouseAction.MoveUp: return KeyCode.W;
-                case KeyboardMouseAction.MoveDown: return KeyCode.S;
-                case KeyboardMouseAction.MoveLeft: return KeyCode.A;
-                case KeyboardMouseAction.MoveRight: return KeyCode.D;
-                default: return KeyCode.None;
+                case KeyboardMouseAction.MoveUp: return Key.W;
+                case KeyboardMouseAction.MoveDown: return Key.S;
+                case KeyboardMouseAction.MoveLeft: return Key.A;
+                case KeyboardMouseAction.MoveRight: return Key.D;
+                default: return Key.None;
             }
         }
 
-        static KeyCode DefaultAlternateKey(KeyboardMouseAction action)
+        static Key DefaultAlternateKey(KeyboardMouseAction action)
         {
             switch (action)
             {
-                case KeyboardMouseAction.MoveUp: return KeyCode.UpArrow;
-                case KeyboardMouseAction.MoveDown: return KeyCode.DownArrow;
-                case KeyboardMouseAction.MoveLeft: return KeyCode.LeftArrow;
-                case KeyboardMouseAction.MoveRight: return KeyCode.RightArrow;
-                default: return KeyCode.None;
+                case KeyboardMouseAction.MoveUp: return Key.UpArrow;
+                case KeyboardMouseAction.MoveDown: return Key.DownArrow;
+                case KeyboardMouseAction.MoveLeft: return Key.LeftArrow;
+                case KeyboardMouseAction.MoveRight: return Key.RightArrow;
+                default: return Key.None;
             }
         }
 
-        static string Key(KeyboardMouseAction action)
+        static string KeyName(KeyboardMouseAction action)
         {
             return Prefix + action;
         }
 
-        static string AlternateKey(KeyboardMouseAction action)
+        static string AlternateKeyName(KeyboardMouseAction action)
         {
             return Prefix + action + ".Alternate";
         }
@@ -294,9 +274,9 @@ namespace AreaSurvivors
     public readonly struct ControllerInputBinding
     {
         public readonly ControllerInputKind kind;
-        public readonly KeyCode button;
+        public readonly GamepadButton button;
 
-        public ControllerInputBinding(ControllerInputKind kind, KeyCode button = KeyCode.None)
+        public ControllerInputBinding(ControllerInputKind kind, GamepadButton button = GamepadButton.South)
         {
             this.kind = kind;
             this.button = button;
@@ -305,16 +285,11 @@ namespace AreaSurvivors
 
     public static class ControllerInputSettingsStore
     {
-        const string Prefix = "AreaSurvivors.Input.Controller.";
+        const string Prefix = "AreaSurvivors.Input2.Controller.";
         const string SubmitKindKey = Prefix + "Submit.Kind";
         const string SubmitButtonKey = Prefix + "Submit.Button";
         const string CancelKindKey = Prefix + "Cancel.Kind";
         const string CancelButtonKey = Prefix + "Cancel.Button";
-        const string ControllerHorizontalAxis = "ControllerHorizontal";
-        const string ControllerVerticalAxis = "ControllerVertical";
-        const string ControllerDPadHorizontalAxis = "ControllerDPadHorizontal";
-        const string ControllerDPadVerticalAxis = "ControllerDPadVertical";
-        const string ControllerDPadVerticalFallbackAxis = "ControllerDPadVerticalFallback";
         const float AxisThreshold = 0.55f;
 
         public static Vector2 MoveVector()
@@ -329,28 +304,28 @@ namespace AreaSurvivors
         public static ControllerInputBinding GetBinding(KeyboardMouseAction action)
         {
             var kind = (ControllerInputKind)PlayerPrefs.GetInt(KindKey(action), (int)DefaultBinding(action).kind);
-            var button = (KeyCode)PlayerPrefs.GetInt(ButtonKey(action), (int)DefaultBinding(action).button);
+            var button = (GamepadButton)PlayerPrefs.GetInt(ButtonKey(action), (int)DefaultBinding(action).button);
             return new ControllerInputBinding(kind, button);
         }
 
         public static ControllerInputBinding GetAlternateBinding(KeyboardMouseAction action)
         {
             var kind = (ControllerInputKind)PlayerPrefs.GetInt(AlternateKindKey(action), (int)DefaultAlternateBinding(action).kind);
-            var button = (KeyCode)PlayerPrefs.GetInt(AlternateButtonKey(action), (int)DefaultAlternateBinding(action).button);
+            var button = (GamepadButton)PlayerPrefs.GetInt(AlternateButtonKey(action), (int)DefaultAlternateBinding(action).button);
             return new ControllerInputBinding(kind, button);
         }
 
         public static ControllerInputBinding GetSubmitBinding()
         {
             var kind = (ControllerInputKind)PlayerPrefs.GetInt(SubmitKindKey, (int)DefaultSubmitBinding().kind);
-            var button = (KeyCode)PlayerPrefs.GetInt(SubmitButtonKey, (int)DefaultSubmitBinding().button);
+            var button = (GamepadButton)PlayerPrefs.GetInt(SubmitButtonKey, (int)DefaultSubmitBinding().button);
             return new ControllerInputBinding(kind, button);
         }
 
         public static ControllerInputBinding GetCancelBinding()
         {
             var kind = (ControllerInputKind)PlayerPrefs.GetInt(CancelKindKey, (int)DefaultCancelBinding().kind);
-            var button = (KeyCode)PlayerPrefs.GetInt(CancelButtonKey, (int)DefaultCancelBinding().button);
+            var button = (GamepadButton)PlayerPrefs.GetInt(CancelButtonKey, (int)DefaultCancelBinding().button);
             return new ControllerInputBinding(kind, button);
         }
 
@@ -421,27 +396,26 @@ namespace AreaSurvivors
                 case ControllerInputKind.DPadDown: return "十字↓";
                 case ControllerInputKind.DPadLeft: return "十字←";
                 case ControllerInputKind.DPadRight: return "十字→";
-                case ControllerInputKind.Button: return InputSettingsStore.KeyLabel(binding.button);
+                case ControllerInputKind.Button: return AreaInput.GamepadButtonLabel(binding.button);
                 default: return "-";
             }
         }
 
         public static ControllerInputBinding PressedBinding()
         {
-            if (Input.GetAxisRaw(ControllerVerticalAxis) > AxisThreshold) return new ControllerInputBinding(ControllerInputKind.LeftStickUp);
-            if (Input.GetAxisRaw(ControllerVerticalAxis) < -AxisThreshold) return new ControllerInputBinding(ControllerInputKind.LeftStickDown);
-            if (Input.GetAxisRaw(ControllerHorizontalAxis) < -AxisThreshold) return new ControllerInputBinding(ControllerInputKind.LeftStickLeft);
-            if (Input.GetAxisRaw(ControllerHorizontalAxis) > AxisThreshold) return new ControllerInputBinding(ControllerInputKind.LeftStickRight);
-            if (DPadVerticalRaw() > AxisThreshold) return new ControllerInputBinding(ControllerInputKind.DPadUp);
-            if (DPadVerticalRaw() < -AxisThreshold) return new ControllerInputBinding(ControllerInputKind.DPadDown);
-            if (Input.GetAxisRaw(ControllerDPadHorizontalAxis) < -AxisThreshold) return new ControllerInputBinding(ControllerInputKind.DPadLeft);
-            if (Input.GetAxisRaw(ControllerDPadHorizontalAxis) > AxisThreshold) return new ControllerInputBinding(ControllerInputKind.DPadRight);
+            var stick = AreaInput.LeftStick;
+            if (stick.y > AxisThreshold) return new ControllerInputBinding(ControllerInputKind.LeftStickUp);
+            if (stick.y < -AxisThreshold) return new ControllerInputBinding(ControllerInputKind.LeftStickDown);
+            if (stick.x < -AxisThreshold) return new ControllerInputBinding(ControllerInputKind.LeftStickLeft);
+            if (stick.x > AxisThreshold) return new ControllerInputBinding(ControllerInputKind.LeftStickRight);
+            var dpad = AreaInput.Dpad;
+            if (dpad.y > AxisThreshold) return new ControllerInputBinding(ControllerInputKind.DPadUp);
+            if (dpad.y < -AxisThreshold) return new ControllerInputBinding(ControllerInputKind.DPadDown);
+            if (dpad.x < -AxisThreshold) return new ControllerInputBinding(ControllerInputKind.DPadLeft);
+            if (dpad.x > AxisThreshold) return new ControllerInputBinding(ControllerInputKind.DPadRight);
 
-            foreach (KeyCode key in System.Enum.GetValues(typeof(KeyCode)))
-            {
-                if (key < KeyCode.JoystickButton0 || key > KeyCode.Joystick8Button19) continue;
-                if (Input.GetKeyDown(key)) return new ControllerInputBinding(ControllerInputKind.Button, key);
-            }
+            var button = AreaInput.PressedGamepadButton();
+            if (button.HasValue) return new ControllerInputBinding(ControllerInputKind.Button, button.Value);
 
             return new ControllerInputBinding(ControllerInputKind.None);
         }
@@ -456,23 +430,23 @@ namespace AreaSurvivors
             switch (binding.kind)
             {
                 case ControllerInputKind.LeftStickUp:
-                    return Input.GetAxisRaw(ControllerVerticalAxis) > AxisThreshold ? 1f : 0f;
+                    return AreaInput.LeftStick.y > AxisThreshold ? 1f : 0f;
                 case ControllerInputKind.LeftStickDown:
-                    return Input.GetAxisRaw(ControllerVerticalAxis) < -AxisThreshold ? 1f : 0f;
+                    return AreaInput.LeftStick.y < -AxisThreshold ? 1f : 0f;
                 case ControllerInputKind.LeftStickLeft:
-                    return Input.GetAxisRaw(ControllerHorizontalAxis) < -AxisThreshold ? 1f : 0f;
+                    return AreaInput.LeftStick.x < -AxisThreshold ? 1f : 0f;
                 case ControllerInputKind.LeftStickRight:
-                    return Input.GetAxisRaw(ControllerHorizontalAxis) > AxisThreshold ? 1f : 0f;
+                    return AreaInput.LeftStick.x > AxisThreshold ? 1f : 0f;
                 case ControllerInputKind.DPadUp:
-                    return DPadVerticalRaw() > AxisThreshold ? 1f : 0f;
+                    return AreaInput.Dpad.y > AxisThreshold ? 1f : 0f;
                 case ControllerInputKind.DPadDown:
-                    return DPadVerticalRaw() < -AxisThreshold ? 1f : 0f;
+                    return AreaInput.Dpad.y < -AxisThreshold ? 1f : 0f;
                 case ControllerInputKind.DPadLeft:
-                    return Input.GetAxisRaw(ControllerDPadHorizontalAxis) < -AxisThreshold ? 1f : 0f;
+                    return AreaInput.Dpad.x < -AxisThreshold ? 1f : 0f;
                 case ControllerInputKind.DPadRight:
-                    return Input.GetAxisRaw(ControllerDPadHorizontalAxis) > AxisThreshold ? 1f : 0f;
+                    return AreaInput.Dpad.x > AxisThreshold ? 1f : 0f;
                 case ControllerInputKind.Button:
-                    return binding.button != KeyCode.None && Input.GetKey(binding.button) ? 1f : 0f;
+                    return AreaInput.GamepadButtonIsPressed(binding.button) ? 1f : 0f;
                 default:
                     return 0f;
             }
@@ -483,7 +457,7 @@ namespace AreaSurvivors
             switch (binding.kind)
             {
                 case ControllerInputKind.Button:
-                    return binding.button != KeyCode.None && Input.GetKeyDown(binding.button);
+                    return AreaInput.GamepadButtonPressedThisFrame(binding.button);
                 case ControllerInputKind.LeftStickUp:
                 case ControllerInputKind.LeftStickDown:
                 case ControllerInputKind.LeftStickLeft:
@@ -496,13 +470,6 @@ namespace AreaSurvivors
                 default:
                     return false;
             }
-        }
-
-        static float DPadVerticalRaw()
-        {
-            float primary = Input.GetAxisRaw(ControllerDPadVerticalAxis);
-            if (Mathf.Abs(primary) > AxisThreshold) return primary;
-            return Input.GetAxisRaw(ControllerDPadVerticalFallbackAxis);
         }
 
         static ControllerInputBinding DefaultBinding(KeyboardMouseAction action)
@@ -531,12 +498,12 @@ namespace AreaSurvivors
 
         static ControllerInputBinding DefaultSubmitBinding()
         {
-            return new ControllerInputBinding(ControllerInputKind.Button, KeyCode.JoystickButton1);
+            return new ControllerInputBinding(ControllerInputKind.Button, GamepadButton.South);
         }
 
         static ControllerInputBinding DefaultCancelBinding()
         {
-            return new ControllerInputBinding(ControllerInputKind.Button, KeyCode.JoystickButton2);
+            return new ControllerInputBinding(ControllerInputKind.Button, GamepadButton.East);
         }
 
         static string KindKey(KeyboardMouseAction action)

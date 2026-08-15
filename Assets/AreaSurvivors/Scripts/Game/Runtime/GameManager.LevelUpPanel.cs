@@ -305,7 +305,7 @@ namespace AreaSurvivors
             var canvas = button.GetComponentInParent<Canvas>();
             Camera eventCamera = null;
             if (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay) eventCamera = canvas.worldCamera;
-            return RectTransformUtility.RectangleContainsScreenPoint(rect, Input.mousePosition, eventCamera);
+            return RectTransformUtility.RectangleContainsScreenPoint(rect, AreaInput.PointerPosition, eventCamera);
         }
 
         void ShowLevelUpInputBlocker(bool visible)

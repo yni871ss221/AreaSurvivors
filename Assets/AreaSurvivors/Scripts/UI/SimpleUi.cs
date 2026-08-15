@@ -28,7 +28,7 @@ namespace AreaSurvivors
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1280, 720);
             canvas.gameObject.AddComponent<GraphicRaycaster>();
-            new GameObject("EventSystem", typeof(UnityEngine.EventSystems.EventSystem), typeof(UnityEngine.EventSystems.StandaloneInputModule));
+            new GameObject("EventSystem", typeof(UnityEngine.EventSystems.EventSystem), typeof(UnityEngine.InputSystem.UI.InputSystemUIInputModule), typeof(AreaInputSystemUiConfigurator));
 
             if (!string.IsNullOrEmpty(backgroundResource))
             {

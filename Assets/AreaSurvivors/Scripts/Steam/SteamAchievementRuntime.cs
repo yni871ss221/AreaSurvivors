@@ -62,7 +62,11 @@ namespace AreaSurvivors
 
         void InitializeSteam()
         {
-#if !UNITY_EDITOR
+#if UNITY_EDITOR
+            WriteDiagnostic("steam_init", string.Empty, "skipped_in_editor");
+            Debug.Log("SteamAPI initialization is skipped in the Unity Editor. Use a LocalTest or Steam build for Steam integration tests.");
+            return;
+#else
             if (SteamAPI.RestartAppIfNecessary(new AppId_t(AppId)))
             {
                 WriteDiagnostic("steam_restart_required", string.Empty, "true");

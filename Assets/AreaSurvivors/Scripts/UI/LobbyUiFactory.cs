@@ -238,7 +238,7 @@ namespace AreaSurvivors
                 if (root.GetComponentInChildren<EventSystem>(true) != null) return;
             }
 
-            new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
+            new GameObject("EventSystem", typeof(EventSystem), typeof(UnityEngine.InputSystem.UI.InputSystemUIInputModule), typeof(AreaInputSystemUiConfigurator));
         }
     }
 }

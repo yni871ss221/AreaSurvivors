@@ -872,7 +872,7 @@ namespace AreaSurvivors.Editor
             canvas.gameObject.AddComponent<CanvasScaler>().uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             canvas.gameObject.GetComponent<CanvasScaler>().referenceResolution = new Vector2(1280, 720);
             canvas.gameObject.AddComponent<GraphicRaycaster>();
-            new GameObject("EventSystem", typeof(UnityEngine.EventSystems.EventSystem), typeof(UnityEngine.EventSystems.StandaloneInputModule));
+            new GameObject("EventSystem", typeof(UnityEngine.EventSystems.EventSystem), typeof(UnityEngine.InputSystem.UI.InputSystemUIInputModule), typeof(AreaInputSystemUiConfigurator));
 
             SimpleUi.Panel(canvas.transform, "XP Backplate", new Vector2(0, 338), new Vector2(600, 22), new Color(0.03f, 0.045f, 0.045f, 0.62f));
             SimpleUi.Panel(canvas.transform, "Run Stats Backplate", new Vector2(0, 304), new Vector2(340, 36), new Color(0.03f, 0.045f, 0.045f, 0.62f));

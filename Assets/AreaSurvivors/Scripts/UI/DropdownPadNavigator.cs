@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace AreaSurvivors
@@ -48,7 +49,7 @@ namespace AreaSurvivors
                 return;
             }
 
-            if (!UiSelectionUtility.IsControllerInputMode && Input.GetMouseButtonDown(0) && !PointerInsideOpenDropdown())
+            if (!UiSelectionUtility.IsControllerInputMode && AreaInput.MouseButtonPressedThisFrame(0) && !PointerInsideOpenDropdown())
             {
                 RestoreAndClose();
                 return;
@@ -89,7 +90,7 @@ namespace AreaSurvivors
         public static bool TryHandleCancel()
         {
             if (activeDropdown == null || !activeDropdown.open) return false;
-            bool cancel = ControllerInputSettingsStore.CancelPressed() || Input.GetKeyDown(KeyCode.Escape);
+            bool cancel = ControllerInputSettingsStore.CancelPressed() || AreaInput.KeyPressedThisFrame(Key.Escape);
             if (!cancel) return false;
 
             activeDropdown.RestoreAndClose();
@@ -333,7 +334,7 @@ namespace AreaSurvivors
             if (rect == null || !rect.gameObject.activeInHierarchy) return false;
             var canvas = rect.GetComponentInParent<Canvas>();
             Camera camera = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
-            return RectTransformUtility.RectangleContainsScreenPoint(rect, Input.mousePosition, camera);
+            return RectTransformUtility.RectangleContainsScreenPoint(rect, AreaInput.PointerPosition, camera);
         }
     }
 }

@@ -38,7 +38,7 @@ namespace AreaSurvivors
             if (targetCamera == null) targetCamera = GetComponent<Camera>();
             if (targetCamera == null) return;
 
-            float wheel = Input.mouseScrollDelta.y;
+            float wheel = AreaInput.ScrollY;
             if (Mathf.Abs(wheel) > 0.01f)
             {
                 userMovedCamera = true;
@@ -46,7 +46,7 @@ namespace AreaSurvivors
                 ClampToMap();
             }
 
-            bool dragButton = Input.GetMouseButton(1) || Input.GetMouseButton(2);
+            bool dragButton = AreaInput.MouseButtonIsPressed(1) || AreaInput.MouseButtonIsPressed(2);
             if (!dragButton)
             {
                 dragging = false;
@@ -91,7 +91,7 @@ namespace AreaSurvivors
 
         Vector3 PointerWorld()
         {
-            var ray = targetCamera.ScreenPointToRay(Input.mousePosition);
+            var ray = targetCamera.ScreenPointToRay(AreaInput.PointerPosition);
             var plane = new Plane(Vector3.forward, Vector3.zero);
             return plane.Raycast(ray, out var distance) ? ray.GetPoint(distance) : transform.position;
         }

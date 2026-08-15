@@ -214,7 +214,7 @@ namespace AreaSurvivors
             }
 
             pointerEventData.Reset();
-            pointerEventData.position = Input.mousePosition;
+            pointerEventData.position = AreaInput.PointerPosition;
             uiRaycastResults.Clear();
             eventSystem.RaycastAll(pointerEventData, uiRaycastResults);
             return uiRaycastResults.Count > 0
