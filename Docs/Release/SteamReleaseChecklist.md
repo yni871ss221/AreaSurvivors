@@ -5,9 +5,10 @@ Area SurvivorsのSteam審査提出、テストブランチ更新、default公開
 
 ## 運用ルール
 
-- 各項目を `PASS`／`FAIL`／`WAIVED`／`N/A` で記録し、確認日、確認者、証跡を残す。
+- 各項目を `PASS`／`FAIL`／`WAIVED`／`RISK-ACCEPTED`／`N/A` で記録し、確認日、確認者、証跡を残す。
 - `STOP-SHIP`が1件でも`FAIL`または未確認なら、審査提出・default公開を行わない。
 - `CAUTION`を見送る場合は`WAIVED`とし、理由と対応予定を記録する。
+- 実施不能な`STOP-SHIP`を代替証跡で進める場合は、リスク、実施不能理由、代替証跡、承認者を記録し、ユーザーが明示承認した場合だけ`RISK-ACCEPTED`とする。未確認のまま黙示的に適用しない。
 - Steam配信用BuildはSteamクライアントのテストブランチから起動する。EXEの直接起動だけで合格としない。
 - Developer Compライセンスだけでなく、Developer権限を持たない一般アカウントでも確認する。
 - チェック結果は本書の「リリース判定記録」を複製して残す。
